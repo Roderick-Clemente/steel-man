@@ -1,5 +1,6 @@
 {
   "_meta": "Rung 4 family-decisions evidence: actual family/provenance for the two seats in scope (validator = inner droid exec, executor = this outer CLI session).",
+  "_durability_disclaimer": "The string paths under `session_settings_json` point at inner-session settings that may be scrubbed at session-end or reboot. They are captures from this audit run, NOT durable handles. The durable artefact is the family-key decisions (validator=openai, executor=fireworks, same_family=false). Reproducibility is via re-extracting from `~/.factory/sessions/<current>/<session_id>.settings.json`; do not assume the captured paths survive.",
   "validator_seat": {
     "role": "validator (inner droid exec)",
     "session_id": "0598b581-f2aa-42bc-9c44-13a2150f820d",

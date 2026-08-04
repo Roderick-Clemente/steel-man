@@ -1,4 +1,5 @@
 {
+  "_durability_disclaimer": "The `session_id` (UUID) references an internal droid-session record under `~/.factory/sessions/-private-tmp-rung7-configB-1785875095/<session_id>.jsonl`. That location is a runtime working file, scrubbed at session-end or reboot. The durable artefact is the run envelope (num_turns, usage tokens, gate_effects, verdict text). Reproducibility is via re-running the rung-7 Config B droid exec with the same disabled-tools list.",
   "config": "rung 7 config B \u2014 empty diff + blocked tools (Execute,Glob only)",
   "session_id": "dda8f39b-fdde-4426-869e-73c91a7ce403",
   "envelope": {

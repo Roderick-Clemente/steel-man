@@ -1,5 +1,6 @@
 {
   "_meta": "Rung 3 evidence digest: numeric claims about a real droid exec run.",
+  "_durability_disclaimer": "The string paths in this digest (`/private/tmp/rung3-fresh-clone-1785874558/...`, `~/.factory/sessions/-private-tmp-rung3-fresh-clone-1785874558/...`) are CAPTURES from this audit run. They are NOT durable handles — gone after reboot or session scrub. The durable artefact is the digest itself (numeric claims, tool_use events, verdict text). Reproducibility is via re-running the rung-3 droid exec; do not assume the captured paths survive.",
   "envelope": {
     "session_id": "0598b581-f2aa-42bc-9c44-13a2150f820d",
     "is_error": false,

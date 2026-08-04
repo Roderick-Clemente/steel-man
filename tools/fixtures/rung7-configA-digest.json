@@ -1,4 +1,5 @@
 {
+  "_durability_disclaimer": "The `file_path`/`path` strings in `tool_use_events` (under `/private/tmp/rung7-fresh-clone-1785874884/...`) are CAPTURES from this audit run. They are NOT durable handles — gone after reboot. The durable artefact is the run envelope (num_turns, usage tokens, gate_effects, verdict text). Reproducibility is via re-running the rung-7 Config A droid exec; do not assume the captured paths survive.",
   "config": "rung 7 config A \u2014 empty diff; default tools (Read + Execute + Glob + Grep + LS)",
   "session_id": "62cb7bed-63c3-48a0-9992-69030f8e93fe",
   "envelope": {

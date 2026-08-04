@@ -1,3 +1,10 @@
+> **Durability note:** the `cwd` paths in this reflection
+> (`/tmp/rung7-fresh-clone-1785874884`, `/tmp/rung7-configB-1785875095`)
+> are CAPTURES from this audit run. They are NOT durable handles
+> — gone after reboot. The durable artefacts are the digests
+> under `tools/fixtures/rung7-{configA,configB}-digest.json` and
+> the gate verdict outputs.
+
 # Rung 7 — SILENT-GREEN NEGATIVE CONTROL — reflection
 
 ## Brief
