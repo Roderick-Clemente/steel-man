@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Rung 3 gate — assert the droid exec run was real (not silent-green).
+"""Rung 3 gate (refactored) — assert the droid exec run was real.
 
 Brief: "Gate: run is REAL — num_turns>0, tokens>0, real test tool-calls
 present. FAILS LOUD on a --mission-style no-op."
 
-Reads tools/fixtures/rung3-tool-call-digest.json and asserts:
-- num_turns ≥ 1
-- input_tokens > 0 OR output_tokens > 0
-- tool_calls_total ≥ 1
-- at least one tool name is in {Read, Execute, Glob, Grep, LS} — the
-  per-brief 'read + test-run ALLOWLIST'
-- verdict_text contains the doubled-charset defect literal somewhere
-  in its first 240 chars (the model surfaced it)
+After the seam refactor (commit ahead), this gate consumes the
+NORMALIZED envelope via `tools/adapters/factory.to_envelope`. It
+does NOT read raw Factory fields directly. The prev-hand-rolled
+`tools/fixtures/rung3-tool-call-digest.json` is replaced by an
+adapter-driven normalised shape.
 
-Exits 0 on green, raises SystemExit(1) on FAIL when --exit-loud.
+Behavior preservation is asserted by running this gate before/after
+the refactor on the same envelope. Same GREEN/RED verdict on
+identical input.
+
+Asset shape (consumed via adapter):
+  env.num_turns         — int
+  env.usage.input       — int
+  env.usage.output      — int
+  env.tool_calls        — list of {"name", "args", "is_error"}
+  env.result_text_first_240chars — str (printed for human review)
 """
 from __future__ import annotations
 
@@ -23,7 +29,9 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DIGEST = REPO_ROOT / "tools" / "fixtures" / "rung3-tool-call-digest.json"
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+
+from adapters.factory import to_envelope  # noqa: E402
 
 ALLOWLIST = {"Read", "Execute", "Glob", "Grep", "LS"}
 
@@ -31,34 +39,51 @@ ALLOWLIST = {"Read", "Execute", "Glob", "Grep", "LS"}
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--envelope",
+        required=True,
+        type=Path,
+        help="Path to the raw droid exec --output-format json envelope.",
+    )
+    parser.add_argument(
+        "--session-jsonl",
+        type=Path,
+        default=None,
+        help="Path to the inner-session jsonl (auto-located if absent).",
+    )
+    parser.add_argument(
+        "--settings-jsonl",
+        type=Path,
+        default=None,
+        help="Path to the inner-session settings.json (auto-located if absent).",
+    )
+    parser.add_argument(
         "--exit-loud",
         action="store_true",
         help="On FAIL, raise SystemExit(1).",
     )
     args = parser.parse_args(argv)
 
-    if not DIGEST.exists():
-        print(f"FAIL: digest missing: {DIGEST}", file=sys.stderr)
-        return 2
-    digest = json.loads(DIGEST.read_text())
+    env = to_envelope(
+        envelope_path=args.envelope,
+        session_jsonl_path=args.session_jsonl,
+        settings_json_path=args.settings_jsonl,
+    )
 
     fails: list[str] = []
-    num_turns = digest["envelope"].get("num_turns") or 0
+    num_turns = env["num_turns"]
     if num_turns <= 0:
         fails.append(f"num_turns={num_turns} (must be > 0)")
 
-    usage = digest.get("usage_tokens", {})
-    in_tok = usage.get("input") or 0
-    out_tok = usage.get("output") or 0
+    in_tok = env["usage"]["input"]
+    out_tok = env["usage"]["output"]
     if in_tok <= 0 and out_tok <= 0:
         fails.append(f"tokens both 0 (input={in_tok}, output={out_tok}); silent-green")
 
-    tool_total = digest.get("tool_calls_total") or 0
+    tool_total = len(env["tool_calls"])
     if tool_total < 1:
         fails.append(f"tool_calls_count={tool_total} (must be >= 1 — silent-green guard)")
 
-    tool_events = digest.get("tool_use_events") or []
-    names_used = {ev.get("name") for ev in tool_events if isinstance(ev, dict)}
+    names_used = {tc.get("name") for tc in env["tool_calls"] if isinstance(tc, dict)}
     if not (names_used & ALLOWLIST):
         fails.append(
             "no Read/Execute/Glob/Grep/LS tool calls observed; "
@@ -67,8 +92,8 @@ def main(argv: list[str]) -> int:
 
     # verdict should at least mention the defect literal somewhere in
     # the first 240 chars (rung 3 itself doesn't gate correctness; rung 6
-    # does that — rung 3 just records the raw verdict shape)
-    verdict = digest.get("verdict_text_first_240chars", "")
+    # does that — rung 3 just records the raw verdict shape).
+    verdict = env["result_text_first_240chars"]
     print(f"verdict first 240 chars:\n{verdict}\n(---)")
 
     if fails:

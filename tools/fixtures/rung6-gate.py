@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
-"""Rung 6 gate — assert the INVARIANT outcome of the validator's verdict.
+"""Rung 6 gate (refactored) — assert the INVARIANT outcome of the verifier's verdict.
 
 Brief: "assert the INVARIANT outcome — decision ≠ ACCEPT AND a
-normalized 'doubled charset' finding is present — NOT verbatim wording.
-Gate: reproduces the known 4-family verdict (ACCEPT-WITH-NITS + blind
-charset catch)."
+normalized 'doubled charset' finding is present — NOT verbatim wording."
 
-This script reads the rung-3 envelope's `result` text and asserts:
-1. The verdict decision is one of {ACCEPT, ACCEPT-WITH-NITS, REJECT}.
-2. The decision is NOT "ACCEPT" (so ACCEPT-WITH-NITS or REJECT both OK).
-3. A normalized 'doubled charset' mention exists somewhere in the
-   verdict text — across recognized phrasings.
+After the seam refactor (commit ahead), this gate consumes the
+NORMALIZED envelope's `result_text` field via
+`tools/adapters/factory.to_envelope`. It does NOT read Factory's
+envelope.result directly. The decision regex and the doubled-charset
+finding regex are unchanged; only where the text comes from is
+behind the adapter.
 
-Exits 0 on green, SystemExit(1) with --exit-loud on FAIL.
+Behavior preservation is asserted by running this gate before/after
+the refactor on the same envelope. Same GREEN/RED verdict on
+identical input.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+
+from adapters.factory import to_envelope  # noqa: E402
 
 
-# Decision header — accepts "Verdict: REJECT", "verdict: ACCEPT-WITH-NITS",
-# "Decision = ACCEPT", "VERDICT: REJECT", etc.
 DECISION_RE = re.compile(
     r"\b(?:Verdict|Decision)\b\s*[:=]\s*(ACCEPT(?:-WITH-NITS)?|REJECT)\b",
     re.IGNORECASE,
 )
 
-# Normalized "doubled charset" mentions — many phrasings, accept any.
 DOUBLE_CHARSET_RE = re.compile(
     r"(?:"
     r"doubled[-_ ]?charset"
@@ -59,34 +59,40 @@ def has_double_charset_finding(text: str) -> bool:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--exit-loud",
-        action="store_true",
-        help="On FAIL, raise SystemExit(1).",
-    )
-    parser.add_argument(
         "--envelope",
         required=True,
         type=Path,
-        help="The rung-3 envelope (used to recover the verdict text).",
+        help="Path to the raw droid exec envelope.",
+    )
+    parser.add_argument(
+        "--session-jsonl",
+        type=Path,
+        default=None,
+        help="Path to the inner-session jsonl (not used for rung-6 logic; consumed via adapter if present).",
     )
     parser.add_argument(
         "--allow-accept",
         action="store_true",
         help="RELAX: allow ACCEPT (used only for fixture tests of the gate itself).",
     )
+    parser.add_argument(
+        "--exit-loud",
+        action="store_true",
+        help="On FAIL, raise SystemExit(1).",
+    )
     args = parser.parse_args(argv)
 
-    if not args.envelope.exists():
-        print(f"FAIL: envelope missing: {args.envelope}", file=sys.stderr)
-        return 2
-    envelope = json.loads(args.envelope.read_text())
-    text = envelope.get("result", "") or ""
+    env = to_envelope(
+        envelope_path=args.envelope,
+        session_jsonl_path=args.session_jsonl,
+    )
+    text = env["result_text"]
     if not text:
-        print("FAIL: envelope has empty `result` text", file=sys.stderr)
+        print("FAIL: normalised envelope has empty result_text", file=sys.stderr)
         return 2
 
     print("verdict text first 240 chars:")
-    print(text[:240])
+    print(env["result_text_first_240chars"])
     print("---")
 
     dec = decision(text)
