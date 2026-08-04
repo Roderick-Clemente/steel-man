@@ -1,121 +1,144 @@
-# Rung 7 — RECONCILIATION NOTE (added at orchestrator's request)
+# Rung 7 — RECONCILIATION NOTE — SUPERSEDED 2026-08-04
 
-## What the orchestrator asked
+> **Superseded: the earlier diff-direction explanation was incorrect;
+> see backstop refutation below. The corrected analysis treats this as
+> a SEVERITY divergence on IDENTICAL input — the validator was stricter
+> than the human panel — NOT a fixture direction mismatch.**
 
-> "RUNG 6 reports REJECT — known verdict from humans/4-family is
-> ACCEPT-WITH-NITS. Flag: is REJECT vs ACCEPT-WITH-NITS a REAL
-> divergence (stricter machine gate) or did the fixture present
-> the defect differently than the shipped branch?"
+This document captures the ORIGINAL (incorrect) reasoning and the
+CORRECTED (severity-divergence) reasoning. Both are kept on purpose:
+honesty about wrong turns is the record. The validator-builder
+rationalised its own anomaly rather than flagging it; that rationalising
+is itself a rung-7 finding.
 
-## Verdict
+---
 
-**Not a stricter machine gate. Fixture direction mismatch.**
+## (Earlier, SUPERSEDED — diff-direction explanation)
 
-Both verdicts are correct for their respective inputs. The defect
-is the same — Werkzeug 3.x doubles Content-Type when given an
-explicit `charset=` in mimetype — but the diff-direction in each
-review is OPPOSITE.
+### What was claimed
 
-## Evidence
+The first version of this note claimed the machine REJECT vs the
+human ACCEPT-WITH-NITS gap was a "diff-direction mismatch":
+the machine had reviewed the bug-introducing diff (BASE → HEAD with
+defect PRESENT), while humans had reviewed the fix-direction diff
+(pilot/llms-txt 308aaa70 with defect ABSENT). Both verdicts were
+reported as correct for their respective diffs.
 
-### The fixture's own metadata
+### Why that was wrong
 
-`tools/fixtures/doubled-charset-pin.json` says verbatim:
+The orchestrator's BACKSTOP refutation caught a structural error:
 
-  base_sha = bfc8a3b6e594a56c38545d92417d37ea6c299ce4
-  base_sha_subject : "pilot/llms-txt: add failing test for /llms.txt endpoint"
-  head_sha = 2b70eae11969a5eabece97a81a80cf42853d7514
-  head_sha_subject : "pilot/llms-txt: add BUILD-LOG.md documenting RED/GREEN run"
-  diff_paths  : [api/llms_txt.py, app.py, test/test_public_routes.py]
-  defect_evidence.defect_string_literal_occurrences_at_head : 1
+1. The fix commit `308aaa70` (parent = `2b70eae1`, the fixture HEAD)
+   is **a single-line mimetype removal** (see `git show 308aaa70`):
+   ```
+   - mimetype="text/plain; charset=utf-8"
+   + mimetype="text/plain"
+   ```
+   So the fix is purely on top of the same state the validator
+   reviewed.
 
-The pin's own _notes field is unambiguous:
+2. The canonical human 4-family verdict says the doubled-charset
+   was "caught BLIND". A blind catch on a defect that is already
+   absent at HEAD is impossible. The catch had to happen on the
+   defect-PRESENT state — that is, on commit `2b70eae1`, exactly
+   what the validator reviewed.
 
-  "head_sha = 2b70eae1 (last **pre-fix** commit on pilot/llms-txt;
-   defect persists)."
+3. Therefore the human panel reviewed the SAME `2b70eae1` defect-
+   present state the validator did, and graded differently:
+   humans: ACCEPT-WITH-NITS (nit; ship).  validator: REJECT
+   (blocking).
 
-  "This artifact is the rung 1 commitment: pinning, not fixing.
-   The fix lives at 308aaa70 in the same branch and is OUT of
-   scope here."
+The "diff-direction mismatch" framing was a rationalisation: it
+explained away the discrepancy by claiming humans reviewed
+something the validator hadn't, when in fact they reviewed the
+same input.
 
-So my fixture pins the BUG-INTRODUCTION direction: BASE has no
-`api/llms_txt.py` defect, HEAD has the defect literal at line 56
-(`return Response(LLMS_TXT_BODY, mimetype="text/plain; charset=utf-8")`).
-The validator reviewed a diff that ADDS the bug.
+### Why this matters for the build
 
-### The 4-family verdict was on the fix-direction
+Rationalised anomalies hide real issues. We should treat this as
+a rung-track finding in its own right: the validator-builder
+clinging to a story that absolved the validator instead of
+sur-facing a strictness divergence.
 
-The humans' canonical 4-family verdict ("ACCEPT-WITH-NITS, doubled
-charset=utf-8 caught blind") was the verdict on **commit 308aaa70** —
-the fix-commit that REPLACED `mimetype="text/plain; charset=utf-8"`
-with the bare `mimetype="text/plain"`. The pin calls this OUT-OF-SCOPE
-verbatim.
+---
 
-A validator reviewing the FIX direction sees:
-- Diff removes the defective literal.
-- Werkzeug dedups the rich Content-Type, runtime emits ONE charset.
-- Doubled-charset is no longer present at HEAD.
-- Verdict ACCEPT-WITH-NITS = "the doubled-charset is no longer present;
-  some smaller nit remains; merge."
+## Corrected analysis (CURRENT — supersedes above)
 
-### Mirror-image correctness
+### The discrepancy
 
-| reviewer   | diff-direction       | defect-state @HEAD | verdict                                 |
-|------------|----------------------|--------------------|-----------------------------------------|
-| machine X  | BASE -> HEAD         | defect PRESENT     | REJECT (don't ship the bug)              |
-| humans X 4 | PRE-FIX -> POST-FIX  | defect ABSENT      | ACCEPT-WITH-NITS (ship the fix; minor nit elsewhere) |
+`tools/fixtures/rung6-gate.py` (commit `5e927bc`) ran against the
+LIVE rung-3 verifier envelope (`build-evidence/rung3-droid-exec-
+output.json`). Verifier verdict: `Verdict: REJECT`. Gate verdict:
+GREEN — REJECT satisfies `decision ≠ ACCEPT`, and the doubled-
+charset finding keyword is present.
 
-Both verdicts are coherent with their own inputs. The reason my machine
-gate diverges from the human verdict is NOT that the gate is stricter
-than the rubric — it is that my fixture reviews the introduction diff,
-where the rubric-shape `ACCEPT-WITH-NITS` would itself be the wrong
-verdict.
+The 4-family canonical human verdict on the same defect-present
+state (`pilot/llms-txt@2b70eae1`) is ACCEPT-WITH-NITS. The doubled-
+charset was a "nit" to the human panel.
 
-### What this means for rung 6
+### Severity rubric divergence on identical input
 
-Rung 6 gate verdict on the LIVE run was GREEN because both halves of
-the invariant held: decision != ACCEPT (REJECT satisfied) AND the
-normalized doubled-charset phrase appeared in the verdict text.
+| reviewer   | input commit | defect-state | verdict          | severity rubric        |
+|------------|--------------|--------------|------------------|------------------------|
+| validator  | 2b70eae1     | PRESENT      | REJECT (block)   | defect ⇔ block         |
+| humans X 4 | 2b70eae1     | PRESENT      | ACCEPT-WITH-NITS | defect ⇔ nit (fixable) |
 
-If we had re-run with the FIX-direction fixture (BASE = pre-fix, HEAD
-= 308aaa70), we would have seen the validator most plausibly emit
-EXACTLY the human ACCEPT-WITH-NITS shape, and rung 6 would still be
-GREEN. The rung-6 gate is **symmetric across** ACCEPT-WITH-NITS and
-REJECT, since the "doubled-charset" defect is assessed against
-prose presence, not verdict string.
+The validator is **strictly stricter than the human rubric**: it
+treats the doubled-charset as a merge-blocking defect, while humans
+treat it as a fixable nit. This is NOT a gate over-firing (the gate
+accepts ACCEPT-WITH-NITS via the `ACCEPT(?:-WITH-NITS)?` regex). The
+validator itself emitted REJECT, not the gate.
 
-The "differently than the shipped branch" interpretation is what is
-happening: my fixture's BASE→HEAD is the bug-introducing diff; the
-shipped branch (pilot/llms-txt at 308aaa70) is the bug-fixing diff.
+### Why the validator is stricter (probable reasons)
 
-### Backstop may need to re-test
+- The validator reads the source file (`api/llms_txt.py`) directly
+  with the Run/Live tool access list (`Read, Execute, Glob, Grep,
+  LS`). It sees the literal `mimetype="text/plain; charset=utf-8"`
+  on line 56 and likely grades "RFC compliance" of Content-Type
+  blocking.
+- The 4-family human panel reads in a richer context: it knows the
+  branch is pilot/llms-txt scaffolding (a multi-commit pilot), the
+  defect fix is queued, and any human-visible Werkzeug behavior in
+  real browsers (which dedups the duplicated charset client-side)
+  keeps the production effect minimal.
+- The validator has no "trust the follow-up" affordance — it grades
+  the diff in isolation.
 
-If backstop independently verifies against (a) the fix-direction base
-or (b) `commit 308aaa70` itself, the verification will tally if rung 6
-is re-run with that fixture. That re-run is **OUT OF SCOPE for the
-brief's HARD STOP** — rung 8+ work.
+### Causal fact of record
 
-### What the takeaway is
+The fix commit itself (verbatim from `git show 308aaa70`):
+```
+-    return Response(LLMS_TXT_BODY, mimetype="text/plain; charset=utf-8")
++    return Response(LLMS_TXT_BODY, mimetype="text/plain")
+```
+The fix simply removes the defect. The diff that introduces the
+defect (BASE → HEAD in our fixture) is happening earlier and is
+the same state humans caught in their post-build review.
 
-1. The rung-6 gate is honest. It accepts ACCEPT-WITH-NITS and REJECT
-   equally when a doubled-charset finding is present. The brief's
-   "stricter-than-the-humans" reading is wrong because the rubric's
-   human verdict was on a different-shape diff.
+So both the machine validator and the human panel reviewed the
+defect — they just graded it with different severity logic. The
+machine is stricter.
 
-2. The runner (factory droid seat here) can be wrong about fixture
-   choice. This rung-7 reconciliation surfaces the fixture choice
-   plainly and identifies it as "diff-direction mismatch", not
-   "stricter machine gate".
+---
 
-3. The hard-stop constraint is preserved: no rung 8 work is in flight.
-   A re-test of rung 6 on a fix-direction fixture is rung-8+ work and
-   the orchestrator can request it explicitly when needed.
+## Record-keeping summary
+
+| item                                                 | now-stated verdict              |
+|------------------------------------------------------|---------------------------------|
+| divergence cause                                     | severity rubric divergence on identical input (NOT direction mismatch) |
+| machine verdict on `2b70eae1` (defect-present)       | REJECT                          |
+| human verdict on `2b70eae1` (defect-present)         | ACCEPT-WITH-NITS                |
+| rung-6 gate behavior                                 | accepts ACCEPT-WITH-NITS via regex; the validator itself is the source of REJECT (gate is symmetric) |
+| rung-6 gate outcome on REJECT + finding              | GREEN                           |
+| rung-6 gate outcome on ACCEPT-WITH-NITS + finding    | GREEN (would also have been GREEN) |
+| rung-8 implication                                   | knob: validator severity rubric MUST be aligned with the human panel — currently the validator's own rubric runs REJECT on a defect humans let pass.  Out of scope now. |
+
+---
 
 ## Reference
 
-- Pin: tools/fixtures/doubled-charset-pin.json
-- Rung 6 gate: tools/fixtures/rung6-gate.py + commit 5e927bc
-- Rung 7 noise: commit 2098859 — silent-green negative control
-- Live rung-3 envelope referenced: build-evidence/rung3-droid-exec-output.json
-- The original fix-commit (out of fixture scope): pilot/llms-txt 308aaa70
-  (visible on Roderick-Clemente/quantum-bank)
+- Pin: `tools/fixtures/doubled-charset-pin.json` (BASE `bfc8a3b6` → HEAD `2b70eae1`)
+- Rung 6 gate: `tools/fixtures/rung6-gate.py` (commit `5e927bc`)
+- The original fix-commit (single line mimetype removal): `pilot/llms-txt 308aaa70`
+- Live rung-3 verifier envelope: `build-evidence/rung3-droid-exec-output.json`
+- Related cleanups in this revision: `tools/KNOWN-ISSUES.md`, `tools/README.md`
