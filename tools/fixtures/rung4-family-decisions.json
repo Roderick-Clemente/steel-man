@@ -1,0 +1,49 @@
+{
+  "_meta": "Rung 4 family-decisions evidence: actual family/provenance for the two seats in scope (validator = inner droid exec, executor = this outer CLI session).",
+  "validator_seat": {
+    "role": "validator (inner droid exec)",
+    "session_id": "0598b581-f2aa-42bc-9c44-13a2150f820d",
+    "session_settings_json": "/Users/factory/.factory/sessions/-private-tmp-rung3-fresh-clone-1785874558/0598b581-f2aa-42bc-9c44-13a2150f820d.settings.json",
+    "model_id": "gpt-5.4-mini",
+    "reasoning_effort": "high",
+    "providerLock": "openai",
+    "apiProviderLock": "openai",
+    "family": "openai"
+  },
+  "executor_seat": {
+    "role": "executor (this outer CLI session; an auto-mode factory router)",
+    "session_id": "f0dbbf9a-8913-4c6a-a703-33a8b48cafee",
+    "session_settings_json": "/Users/factory/.factory/sessions/-Users-factory/f0dbbf9a-8913-4c6a-a703-33a8b48cafee.settings.json",
+    "model_id": "auto",
+    "reasoning_effort": "none",
+    "providerLock": "factory",
+    "apiProviderLock": "fireworks",
+    "effectiveFactoryRouterModel": {
+      "modelId": "minimax-m3",
+      "apiProvider": "fireworks",
+      "reasoningEffort": "high"
+    },
+    "router_fallbacks": [
+      {"modelId": "kimi-k2.7-code", "apiProvider": "fireworks", "reasoningEffort": "high"},
+      {"modelId": "glm-5.2",       "apiProvider": "fireworks", "reasoningEffort": "high"},
+      {"modelId": "claude-opus-4-8", "apiProvider": "anthropic", "reasoningEffort": "high"}
+    ],
+    "family": "fireworks",
+    "family_fallback_note": "fallback chain stays on fireworks for kimi/glm; cross-vendor leap to anthropic happens last."
+  },
+  "result": {
+    "validator_family": "openai",
+    "executor_family": "fireworks",
+    "same_family": false,
+    "executor_uses_silent_fallback_proxy": false,
+    "executor_unknown_family": false,
+    "branch_decision": "ALLOW"
+  },
+  "_notes": [
+    "The outer CLI session (this one) is auto-mode; the inner droid exec is gpt-5.4-mini.",
+    "providerLock == apiProviderLock for the inner session, both 'openai'.",
+    "providerLock == 'factory' for the outer session; effective model resolves to 'fireworks/minimax-m3'.",
+    "Two distinct vendor-operated families (OpenAI vs Fireworks-backed minimax-m3), so PASS for rung 4.",
+    "Negative-control harness is in tools/fixtures/rung4-family-gate.py and is exercised with same-family mocks."
+  ]
+}
