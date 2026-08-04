@@ -48,7 +48,7 @@ tools/
     ├── rung7-configA-digest.json      ← fabricates-from-source REJECT
     ├── rung7-configB-digest.json      ← blocked-tools ACCEPT (gates RED)
     ├── rung7-reflection.md            ← what rung 7 found (positive + negative)
-    └── rung7-reconciliation.md       ← rung-6 vs human verdict (SUPERSEDED +
+    └── rung7-reconciliation.md       ← rung-6 vs four-family verdict (SUPERSEDED +
                                          corrected severity-divergence analysis)
 ```
 

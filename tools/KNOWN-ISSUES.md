@@ -115,11 +115,12 @@ rung-7 cleanup pass.
   pass should either strip these or alias them via a
   reproducible machine name.
 
-- **Validator's severity rubric runs hotter than the human panel.**
-  Documented in `tools/fixtures/rung7-reconciliation.md`
-  (corrected analysis). The validator over-claims severity for
-  defects the human panel lets pass as nits. (See "Severity
-  rubric divergence on identical input.")
+- **Validator's severity rubric runs hotter than the four-family
+  rubric.** Documented in `tools/fixtures/rung7-reconciliation.md`
+  (corrected analysis). The validator (gpt-5.4-mini) over-claims
+  severity for defects the four hand-relayed model families
+  (Grok/Kimi/Codex/Opus) let pass as nits. (See "Severity rubric
+  divergence on identical input.")
 
 - **rung-4 "family" key uses provider, not model lineage.**
   When the MiniMax and Kimi models both run on Fireworks,
