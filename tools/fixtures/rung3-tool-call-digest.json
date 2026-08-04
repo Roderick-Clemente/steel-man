@@ -1,0 +1,34 @@
+{
+  "_meta": "Rung 3 evidence digest: numeric claims about a real droid exec run.",
+  "envelope": {
+    "session_id": "0598b581-f2aa-42bc-9c44-13a2150f820d",
+    "is_error": false,
+    "duration_ms": 17071,
+    "num_turns": 2,
+    "subtype": "success"
+  },
+  "usage_tokens": {
+    "input": 13612,
+    "output": 1661,
+    "cache_read_input": 9216,
+    "cache_creation_input": 0,
+    "thinking": 1449
+  },
+  "inner_session_log": "/Users/factory/.factory/sessions/-private-tmp-rung3-fresh-clone-1785874558/0598b581-f2aa-42bc-9c44-13a2150f820d.jsonl",
+  "tool_calls_total": 2,
+  "tool_use_events": [
+    {
+      "name": "Read",
+      "args": {
+        "file_path": "/private/tmp/rung3-fresh-clone-1785874558/README.md"
+      }
+    },
+    {
+      "name": "Read",
+      "args": {
+        "file_path": "/private/tmp/rung3-fresh-clone-1785874558/api/llms_txt.py"
+      }
+    }
+  ],
+  "verdict_text_first_240chars": "# Verdict: REJECT\n\n## Finding: `/llms.txt` response construction\n\n- Diff line: `return Response(LLMS_TXT_BODY, mimetype=\"text/plain; charset=utf-8\")`\n- Expected result in Werkzeug 3.x: `Content-Type: text/plain; charset=utf-8; charset=utf-8"
+}
