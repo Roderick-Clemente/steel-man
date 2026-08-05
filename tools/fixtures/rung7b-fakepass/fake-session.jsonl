@@ -1,0 +1,1 @@
+{"type": "message", "id": "msg-faked-1", "timestamp": "2026-08-05T00:00:00Z", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_fakeid_01", "name": "Read", "input": {"file_path": "<validator_cwd>/api/llms_txt.py"}}]}}
