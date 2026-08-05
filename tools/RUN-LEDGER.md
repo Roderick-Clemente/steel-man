@@ -16,6 +16,8 @@ the per-file durability disclaimers).
 |  3   | rung-3 (LIVE)       | gpt-5.4-mini    | openai    | 2         | 13612 | 1661   | 9216       | 1449     | 17071       | false    | REJECT    |
 |  7A  | rung-7 Config A     | gpt-5.4-mini    | openai    | 3         | 15465 | 3179   | 22016      | 2842     | 32414       | false    | REJECT*   |
 |  7B  | rung-7 Config B     | gpt-5.4-mini    | openai    | 1         | 7178  | 363    | 0          | 330      | 4207        | false    | ACCEPT    |
+|  R4  | refactor-blind-v1 (Codex) | gpt-5.3-codex | GPT | 26   | 90 050 | 13 616 | —  | —  | 171 000   | false    | REJECT          |
+|  R5  | refactor-blind-v1 (Grok)  | grok-4.5      | xAI | 12   | 58 881 | 21 694 | —  | —  | 369 300   | false    | ACCEPT-WITH-NITS|
 
 Notes:
 
@@ -26,25 +28,38 @@ Notes:
   *Issue: False-REJECT via source-read (isolation leak)* in
   `tools/KNOWN-ISSUES.md`.
 
-- All three runs use `--model gpt-5.4-mini` from the executor
-  seat (auto-routed `fireworks/minimax-m3`); the
+- All three (rung 3, 7A, 7B) runs use `--model gpt-5.4-mini` from
+  the executor seat (auto-routed `fireworks/minimax-m3`); the
   `--enabled-tools` flags differ between Config A (`Read +
   Execute + Glob + Grep + LS`) and Config B (`Execute + Glob` only).
   See raw envelopes for the exact args.
 
-## Totals (across 3 runs)
+- **R4 / R5 are MEASUREMENT runs** — same blind prompt, same
+  fixture, primitive out of the loop, only the model varied.
+  They are the §13 refactor-validation pair. Both found the
+  same doubled-charset defect on identical input; the verdicts
+  SPLIT (Codex → REJECT, Grok → ACCEPT-WITH-NITS) — a 2nd
+  sighting of the severity-calibration divergence documented in
+  `tools/fixtures/rung7-reconciliation.md` (corrected analysis).
+  cache_read and thinking_token columns marked `—` because the
+  orchestrator's provision did not include those fields; only
+  `input_tokens` and `output_tokens` were supplied.
 
-| metric          | sum     |
-|-----------------|---------|
-| run count       | 3       |
-| input tokens    | 36 255  |
-| output tokens   | 5 203   |
-| cache_read tok  | 31 232  |
-| thinking tok    | 4 621   |
-| duration_ms     | 53 692  |
+## Totals (across 5 runs)
 
-Average duration per run: ~17.9 s. Sum tokens across
-input+output+cache_read+thinking: 77 311.
+| metric          | sum         | notes                                 |
+|-----------------|-------------|---------------------------------------|
+| run count       | 5           | 3 ladder runs + 2 MEASUREMENT runs    |
+| input tokens    | 185 186     |                                       |
+| output tokens   | 40 513      |                                       |
+| cache_read tok  | 31 232      | ladder runs only; R4/R5 not supplied  |
+| thinking tok    | 4 621       | ladder runs only; R4/R5 not supplied  |
+| duration_ms     | 593 992     | ≈9 m 54 s wall-clock across 5 runs    |
+
+Average duration per run: ~119 s. The two MEASUREMENT runs
+(R4 / R5) skew this; the 3 ladder runs average ~17.9 s. Tokens
+sum across input+output+cache_read+thinking for the 3 ladder
+runs only: 77 311 (unchanged from prior revisions).
 
 ## Parties involved
 
