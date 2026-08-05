@@ -38,8 +38,8 @@ INVALID_RED_SIGNATURES = [
 ]
 
 
-def run_pytest(pilot_root: str, test_file: str) -> Tuple[int, str, str]:
-    cmd = [sys.executable, "-m", "pytest", test_file, "-v"]
+def run_pytest(pilot_root: str, test_file: str, python: str) -> Tuple[int, str, str]:
+    cmd = [python, "-m", "pytest", test_file, "-v"]
     result = subprocess.run(
         cmd,
         cwd=pilot_root,
@@ -107,6 +107,11 @@ def main() -> int:
     parser.add_argument("--pilot-root", required=True, help="Path to the pilot repo root.")
     parser.add_argument("--test-file", required=True, help="Test file path relative to pilot root.")
     parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="Python interpreter to run pytest (default: the interpreter running this script).",
+    )
+    parser.add_argument(
         "--accepted-assertion",
         required=True,
         help="Phrase that must appear in the failure for the RED to be valid.",
@@ -121,7 +126,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        exit_code, stdout, stderr = run_pytest(args.pilot_root, args.test_file)
+        exit_code, stdout, stderr = run_pytest(args.pilot_root, args.test_file, args.python)
     except subprocess.TimeoutExpired:
         result = {
             "valid": False,

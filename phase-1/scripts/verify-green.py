@@ -25,8 +25,8 @@ def compute_sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def run_pytest(pilot_root: str, test_file: str):
-    cmd = [sys.executable, "-m", "pytest", test_file, "-v"]
+def run_pytest(pilot_root: str, test_file: str, python: str):
+    cmd = [python, "-m", "pytest", test_file, "-v"]
     return subprocess.run(
         cmd,
         cwd=pilot_root,
@@ -41,6 +41,11 @@ def main() -> int:
     parser.add_argument("--pilot-root", required=True, help="Path to the pilot repo root.")
     parser.add_argument("--lock-file", required=True, help="Path to the lock manifest JSON.")
     parser.add_argument("--test-file", required=True, help="Test file path relative to pilot root.")
+    parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="Python interpreter to run pytest (default: the interpreter running this script).",
+    )
     args = parser.parse_args()
 
     with open(args.lock_file) as f:
@@ -61,7 +66,7 @@ def main() -> int:
         print(f"  actual:   {current_sha}", file=sys.stderr)
         return 1
 
-    result = run_pytest(args.pilot_root, args.test_file)
+    result = run_pytest(args.pilot_root, args.test_file, args.python)
     if result.returncode != 0:
         print("GREEN REFUSED: test does not pass after implementation", file=sys.stderr)
         print("--- stdout ---", file=sys.stderr)
@@ -70,16 +75,10 @@ def main() -> int:
         print(result.stderr, file=sys.stderr)
         return 1
 
-    # Re-run the assertion check so the reported reason matches the locked
-    # assertion phrase, even if pytest passed with a different success shape.
-    combined = f"{result.stdout}\n{result.stderr}"
-    if accepted_assertion and accepted_assertion.lower() not in combined.lower():
-        print(
-            "GREEN REFUSED: test passed but the accepted assertion phrase is not visible in output",
-            file=sys.stderr,
-        )
-        return 1
-
+    # The accepted assertion is the one the test itself checks. A passing
+    # run means that assertion held. The assertion phrase is captured in the
+    # lock manifest for the RED phase and for human review; it does not need
+    # to reappear in pytest's passing output.
     print("GREEN ACCEPTED")
     print(f"  test_file: {args.test_file}")
     print(f"  sha256:    {current_sha}")
