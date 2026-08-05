@@ -98,6 +98,18 @@ def main(argv: list[str]) -> int:
     dec = decision(text)
     has_finding = has_double_charset_finding(text)
 
+    # envelope.is_error gate here too: aborted runs must not mint
+    # GREEN regardless of whether prose happens to parse.
+    if env.get("is_error"):
+        print(
+            "envelope.is_error=True; the run itself aborted "
+            f"(envelope session_id={env.get('session_id')!r}). Gate refuses "
+            "to mint GREEN on an aborted run regardless of tools/prose."
+        )
+        if args.exit_loud:
+            raise SystemExit(1)
+        return 1
+
     fails: list[str] = []
     if not dec:
         fails.append("no recognized Verdict/Decision line in text")

@@ -88,18 +88,20 @@ def main(argv: list[str]) -> int:
         )
     )
 
-    # rung 5 axis (per rung5-gate logic PRE-FIX):
-    # `is_error is True` is the only fail. None passes.
+    # rung 5 axis (per rung5-gate logic AFTER unit C):
+    # `is_error is not False` is the fail. None and True both fail.
     file_paths = [
         (tc.get("args") or {}).get("file_path") or (tc.get("args") or {}).get("path")
         for tc in env["tool_calls"]
     ]
     file_paths = [fp for fp in file_paths if isinstance(fp, str)]
-    has_strong_error = any(tc.get("is_error") is True for tc in env["tool_calls"])
+    any_unclean_toolcall = any(
+        tc.get("is_error") is not False for tc in env["tool_calls"]
+    )
     saw_source_coverage = any(
         fp and fp.endswith("api/llms_txt.py") for fp in file_paths
     )
-    rung5_green = (not has_strong_error) and saw_source_coverage
+    rung5_green = (not any_unclean_toolcall) and saw_source_coverage
 
     # rung 6 axis (per rung6-gate logic): decision regex + finding regex.
     text = env["result_text"]
@@ -114,12 +116,12 @@ def main(argv: list[str]) -> int:
     silent_green = rung3_green and rung5_green and rung6_green
 
     print("--- rung 5.5 contract gate (rung7b-fakepass) ---")
-    print(f"  envelope.is_error         : {envelope_errored}  (assertion: TBD in unit C)")
+    print(f"  envelope.is_error         : {envelope_errored}  (gate threads this in unit C)")
     print(f"  rung 3 axis GREEN         : {rung3_green}")
-    print(f"  rung 5 axis GREEN (pre-fix): {rung5_green}")
+    print(f"  rung 5 axis GREEN (post-unit-C): {rung5_green}")
     print(f"  rung 6 axis GREEN         : {rung6_green}")
-    print(f"  any unmatched tool_use    : "
-          f"{bool(any(tc.get('is_error') is None for tc in env['tool_calls']))}")
+    print(f"  any unclean toolcall      : "
+          f"{bool(any_unclean_toolcall)}")
     print(f"  tool_calls[*].is_error    : "
           f"{[tc.get('is_error') for tc in env['tool_calls']]}")
     print(f"  SILENT-GREEN (all green)  : {silent_green}")

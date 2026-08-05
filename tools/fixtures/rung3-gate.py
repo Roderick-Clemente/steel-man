@@ -70,6 +70,14 @@ def main(argv: list[str]) -> int:
     )
 
     fails: list[str] = []
+    # Run-level abort: the envelope says the run itself errored. Refuse
+    # GREEN on aborted runs regardless of tools/prose.
+    if env.get("is_error"):
+        fails.append(
+            f"envelope.is_error=True; the run itself aborted "
+            f"(envelope session_id={env.get('session_id')!r}). Gate refuses "
+            "to mint GREEN on an aborted run regardless of tools/prose."
+        )
     num_turns = env["num_turns"]
     if num_turns <= 0:
         fails.append(f"num_turns={num_turns} (must be > 0)")

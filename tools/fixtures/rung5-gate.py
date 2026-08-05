@@ -69,6 +69,15 @@ def main(argv: list[str]) -> int:
         )
 
     fails: list[str] = []
+    # Run-level abort: the envelope says the run itself errored.
+    # Anything errored is not a valid validation result, regardless
+    # of how the tool/prose axes look. (closes unchecked envelope.is_error hole)
+    if env.get("is_error"):
+        fails.append(
+            f"envelope.is_error=True; the run itself aborted "
+            f"(envelope session_id={env.get('session_id')!r}). Gate refuses "
+            "to mint GREEN on an aborted run regardless of tools/prose."
+        )
     saw_llms_txt_source_inspection = any(
         fp and fp.endswith("api/llms_txt.py") for fp in file_paths
     )
@@ -77,10 +86,14 @@ def main(argv: list[str]) -> int:
             "no Required-command coverage: validator did NOT read / inspect api/llms_txt.py. "
             f"file_paths seen: {file_paths}"
         )
+    # unmatched/unresolved tool_use events are NOT clean — `None`
+    # means no evidence of execution. (closes is_error=None hole;
+    # previously the gate failed ONLY on `is True`, allowing `None`.)
     for tc in tool_calls:
-        if tc.get("is_error") is True:
+        if tc.get("is_error") is not False:
             fails.append(
-                f"tool_call marked is_error=True: name={tc.get('name')!r} args={tc.get('args')!r}"
+                f"tool_call is_error must be False (got {tc.get('is_error')!r}): "
+                f"name={tc.get('name')!r} args={tc.get('args')!r}"
             )
 
     if fails:
