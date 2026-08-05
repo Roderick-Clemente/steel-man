@@ -128,6 +128,99 @@ rung-7 cleanup pass.
   brief's intent is "model lineage", not "serving provider".
   Config-contract TODO. Documented in `tools/README.md`.
 
+## Issue: Fake-pass via unmatched tool_use (is_error=None)
+
+- **Status:** CONFIRMED; closeable in unit C of the same ladder.
+- **Surface:** rung 3 / rung 5 / rung 6 — all three simultaneously.
+- **Filed:** 2026-08-05 (rung 5.5 unit A).
+
+### Mechanism — three holes align
+
+1. **`tools/adapters/factory.py`** (line ~210):
+   `_extract_tool_calls_from_session_jsonl` returns one dict per
+   matched-OR-unmatched `tool_use` event. When a `tool_use` has
+   no matching `tool_result` in the same inner-session jsonl, the
+   dict reports `is_error=None` (default for missing dict key on
+   `tool_results_by_id.get(...)`). The contract for `is_error` in
+   `NormalizedEnvelope['tool_calls'][i]['is_error']` is therefore
+   `bool | None` — with `None` meaning "no evidence the tool
+   actually ran".
+
+2. **`tools/fixtures/rung5-gate.py`** (line 81):
+   The current failure condition is `if tc.get("is_error") is True`.
+   That fails ONLY when `is_error` is strictly `True`. `None`
+   passes through — the gate has no evidence the tool ran, but
+   also no evidence it errored, so it counts as clean.
+
+3. **`tools/adapters/factory.py`** (line ~113):
+   `"is_error": bool(envelope.get("is_error"))` captures the
+   run-level error flag into the normalized envelope. None of
+   rung3, rung5, or rung6 read this field. An aborted/errored
+   run greenses if tools + prose look right.
+
+### Repro (hand-validated by Codex + Grok + backstop)
+
+Inputs (committed in `tools/fixtures/rung7b-fakepass/`,
+unit B of this branch):
+
+- **`fake-envelope.json`** (verbatim fields):
+  - `session_id`        : "fakepass-session-uuid"
+  - `num_turns`         : 2         (>0)
+  - `duration_ms`       : 9000
+  - `is_error`          : false     (the gate never checks this)
+  - `usage.input_tokens`: 8000      (>0)
+  - `usage.output_tokens`: 420      (>0)
+  - `usage.cache_read_input_tokens`: 0
+  - `usage.thinking_tokens`: 160
+  - `result`            : "## Verdict: REJECT\n\n## Finding: doubled charset\n... Content-Type: text/plain; charset=utf-8; charset=utf-8"
+- **`fake-session.jsonl`** (single assistant message): one `tool_use`
+  event with `name=Read`, `args.file_path=<validator_cwd>/api/llms_txt.py`,
+  `id=toolu_fakeid_01`. NO matching `tool_result` event → `is_error=None`.
+
+What the gates did (pre-fix, recorded in unit B as the
+**valid-RED baseline**):
+
+- rung 3 LIVE : GREEN — num_turns=2, tool_calls_total=1, tokens>0,
+                tool name "Read" in allowlist.
+- rung 5 LIVE : GREEN — no `is_error is True` violation; the lone
+                Read on api/llms_txt.py satisfies required-source-
+                coverage.
+- rung 6 LIVE : GREEN — `## Verdict: REJECT` matches decision regex;
+                `charset=utf-8; charset=utf-8` matches finding regex.
+
+This is the silent-green the project exists to kill: zero real
+validation, full green ladder.
+
+### Confirmed by
+
+- Codex validator on this fixture (orchestrator's blind MEASUREMENT
+  run, captured in unit D ledger rows; raw envelope not committed).
+- Grok validator on this fixture (same).
+- This runner's hand-reproduction (committed fixture under
+  `tools/fixtures/rung7b-fakepass/`; gate outputs in unit B commit
+  message with exit codes checked WITHOUT pipes).
+
+### Fixes (scheduled)
+
+Two changes are required (rung 5.5 unit C, single commit):
+
+1. `tools/fixtures/rung5-gate.py` — change the failure condition
+   so a tool_use that is NOT provably clean fails. New condition:
+   `if tc.get("is_error") is not False` → fail (covers `True` and
+   `None`). An unpaired/unresolved tool_use has no evidence of
+   execution; it is NOT clean.
+
+2. After normalizing, every gate must thread-check
+   `envelope.is_error`. If `True`, the gate fails regardless of
+   tools/prose. The three gates all import the same adapter, so
+   the check goes into each gate's leading assertions.
+
+Outcome verified in unit C commit message: the rung7b fixture
+exits non-zero on all three gates; the LIVE matrix (LIVE=GGG,
+Config A=GGR, Config B=RRR) is UNBROKEN.
+
+---
+
 ## Filing instructions (forward)
 
 Add new issues under this file with the schema:
