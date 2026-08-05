@@ -1,0 +1,6 @@
+{
+  "file": "test/test_llms_txt_charset.py",
+  "sha256": "e78e46ff30bd89e34b6c2b9ea71c88bc457d956cceee01046b3fc55fe034d8b3",
+  "accepted_at": "2026-08-05T21:56:38.257309+00:00",
+  "accepted_assertion": "Content-Type contains exactly one charset= token"
+}
