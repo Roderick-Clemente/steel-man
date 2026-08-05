@@ -1,0 +1,16 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 9000,
+  "num_turns": 2,
+  "session_id": "fakepass-session-uuid",
+  "result": "## Verdict: REJECT\n\n## Finding: doubled `charset` on /llms.txt\n`api/llms_txt.py` returns `Response(..., mimetype=\"text/plain; charset=utf-8\")`, which on Werkzeug yields `Content-Type: text/plain; charset=utf-8; charset=utf-8`.\n",
+  "usage": {
+    "input_tokens": 8000,
+    "output_tokens": 420,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "thinking_tokens": 160
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "_meta": "Rung 1 pin: pin the quantum-bank /llms.txt state where the doubled-charset defect is PRESENT.",
+  "_spec_pointer": "tools/pilot-llms-txt-spec.md (lives on the canonical adversarial-sprint-dev top of the bridge)",
+  "fixture": {
+    "source_repo_url": "https://github.com/Roderick-Clemente/quantum-bank.git",
+    "source_local_clone": "/Users/factory/work/quantum-bank--llms-txt-pilot",
+    "branch_ref": "pilot/llms-txt",
+    "base_sha": "bfc8a3b6e594a56c38545d92417d37ea6c299ce4",
+    "base_sha_subject": "pilot/llms-txt: add failing test for /llms.txt endpoint",
+    "head_sha": "2b70eae11969a5eabece97a81a80cf42853d7514",
+    "head_sha_subject": "pilot/llms-txt: add BUILD-LOG.md documenting RED/GREEN run",
+    "diff_paths": [
+      "api/llms_txt.py",
+      "app.py",
+      "test/test_public_routes.py"
+    ],
+    "diff_sha256": "17a4f64ccbad671f98cacec821fcf8728381a3e3ec10e910e8cec5ce22d48775"
+  },
+  "defect_evidence": {
+    "defect_string_literal": "mimetype=\"text/plain; charset=utf-8\"",
+    "expected_runtime_content_type": "text/plain; charset=utf-8; charset=utf-8",
+    "expected_runtime_charset_count": 2,
+    "defect_string_literal_occurrences_at_head": 1
+  },
+  "validator_acceptance": {
+    "step_1_grep": "git_show_HEAD:api/llms_txt.py MUST contain 'mimetype=\"text/plain; charset=utf-8\"' verbatim",
+    "step_2_runtime": "When HEAD's api/llms_txt.py is wired per app.py and GET /llms.txt is fired, the Flask test_client response Content-Type MUST contain exactly 2 charset= tokens (the doubled-charset defect)."
+  },
+  "_notes": [
+    "Brief: 'if pilot/llms-txt (tip 2b70eae1) or a pre-fix commit still reaches the doubled-charset state \u2192 checkout that SHA'.",
+    "base_sha = bfc8a3b6 (test-only commit before api/llms_txt.py existed) so the diff captures the introduction of the defect.",
+    "head_sha = 2b70eae1 (last pre-fix commit on pilot/llms-txt; defect persists).",
+    "diff_sha256 is computed over the unified  bytes \u2014 a stable per-diff pin.",
+    "This artifact is the rung 1 commitment: pinning, not fixing. The fix lives at 308aaa70 in the same branch and is OUT of scope here."
+  ]
+}

@@ -1,0 +1,134 @@
+# Validator spec — /llms.txt doubled-charset defect
+
+## What is under review
+A `git diff` against `api/llms_txt.py` and related wiring. The diff shows the
+TEXTBOOK shape of a "Write `mimetype='text/plain; charset=utf-8'`" in a Flask
+Response constructor. Werkzeug 3.x emits the response Content-Type as
+`text/plain; charset=utf-8; charset=utf-8` for that exact input. That is
+doubled-charset; RFC 9110 §8.3 says a Content-Type header SHOULD NOT
+contain duplicate parameters.
+
+## Acceptance gate
+You MUST surface the doubled-charset defect in your verdict. Verdict MUST
+NOT be `ACCEPT` if the diff introduces `mimetype="text/plain; charset=utf-8"`
+without a corrigendum (a bare `text/plain` is fine; the doubled-charset
+comes from including an explicit `charset=` token when Werkzeug appends one
+itself).
+
+## Decision rubric
+ACCEPT
+  no defect introduced; findings are minor or stylistic (off-spec but
+  benign).
+
+ACCEPT-WITH-NITS
+  a defect is acknowledged as a minor finding, the relevant section is
+  named, and the correction is named (bare `text/plain`).
+
+REJECT
+  the doubled-charset is treated as a major defect, the human must fix
+  it before production.
+
+## Failure evidence required in the verdict
+- The line in the diff where `mimetype="text/plain; charset=utf-8"` appears.
+- The expected Content-Type result `text/plain; charset=utf-8; charset=utf-8`
+  with `charset=` tokens counted.
+
+## What you do NOT get
+You do not get the executor's BUILD-LOG, transcripts, prior conversation,
+hook attempts, or model-availability records. The diff is the universe.
+
+
+============================================================
+DIFF (verbatim, unified format)
+base = bfc8a3b6e594a56c38545d92417d37ea6c299ce4
+head = 2b70eae11969a5eabece97a81a80cf42853d7514
+paths = ['api/llms_txt.py', 'app.py', 'test/test_public_routes.py']
+diff_sha256 = 17a4f64ccbad671f98cacec821fcf8728381a3e3ec10e910e8cec5ce22d48775
+============================================================
+
+diff --git a/api/llms_txt.py b/api/llms_txt.py
+new file mode 100644
+index 00000000..23fdafe0
+--- /dev/null
++++ b/api/llms_txt.py
+@@ -0,0 +1,56 @@
++from flask import Response
++
++
++LLMS_TXT_BODY = """\
++Quantum Bank
++============
++
++Demo disclaimer: this is a fictional bank app built for Rod Clemente &
++friends' feature-flag demos (powered by Split.io). It is not a real
++financial institution, holds no real money, and accepts no real
++personal data. All accounts, transactions, balances, and dashboard
++content are synthetic seed data generated at first run.
++
++What this app is
++- A Flask 3.1 demo banking app that showcases Split.io feature flags
++- A reversible SQLite <-> PostgreSQL backend switch driven by a flag,
++  with rollback in seconds if the Postgres path misbehaves
++- A login + dashboard + transfer flow, all backed by synthetic data
++- Front-end and back-end demos for refresh-free Split.io variant
++  switching in demo mode
++
++Useful endpoints
++- /            landing page (flag-driven variants; demo mode available)
++- /demo        flag-forced demo entry, pre-loads variants
++- /hello       plain-text greeting ("Hello, World!")
++- /time        plain-text current server time
++- /about       plain-text one-line description
++- /pricing     flag-driven pricing variants
++- /login       credential-free demo login (form POST)
++- /dashboard   (after login) synthetic account view
++- /account     (after login) account detail
++- /transfer    (after login) synthetic transfer (form POST)
++- /transactions (after login) transaction history
++- /api/accounts, /api/transactions, /api/account/<id>  JSON, session-gated
++- /metrics     Prometheus text exposition (text/plain; version=0.0.4)
++- /llms.txt    this file (text/plain; charset=utf-8)
++
++What this app is NOT
++- Not a real bank. There is no real money, no real customer data, no
++  real card network. Card records store a masked last-4 only (no PAN,
++  no CVV). Do not reuse the auth or session handling in production.
++- Not a security reference. The login flow is a demo flow. Read
++  SECURITY.md before drawing any conclusions from this codebase.
++- Not a stable public-facing surface. Routes, splits, and the demo
++  entries are subject to change without notice.
++"""
++
++
++def handle_llms_txt():
++    """Return the /llms.txt body as a text/plain Response.
++
++    Mirrors the /metrics precedent in app.py: wrap the body in a
++    Response with an explicit mimetype, rather than returning a
++    bare string (which Flask would otherwise default to text/html).
++    """
++    return Response(LLMS_TXT_BODY, mimetype="text/plain; charset=utf-8")
+diff --git a/app.py b/app.py
+index e06aaa1d..6824bb0a 100644
+--- a/app.py
++++ b/app.py
+@@ -38,6 +38,7 @@ from api.api_endpoints import (  # noqa: E402
+     handle_api_transactions,
+     handle_api_account_detail,
+ )
++from api.llms_txt import handle_llms_txt  # noqa: E402
+ from models import init_db  # noqa: E402
+ from split_config import init_split, destroy_split  # noqa: E402
+ 
+@@ -98,6 +99,11 @@ def metrics():
+     )
+ 
+ 
++@app.route("/llms.txt")
++def llms_txt():
++    return handle_llms_txt()
++
++
+ @app.route("/demo")
+ def demo():
+     """Demo entry point - forces demo mode ON"""
