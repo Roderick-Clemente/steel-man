@@ -35,6 +35,9 @@ INVALID_RED_SIGNATURES = [
     (r"assert\s+0\s*==\s*0\b", "tautological assertion"),
     (r"MagicMock\(.*\)\s*is\s*not\s*None", "assertion on subject mock"),
     (r"mock\s*=\s*MagicMock", "subject under test mocked"),
+    # Class 4 — environment rejection (PRD §5.4: empty selection, unavailable services).
+    (r"collected\s+0\s+items|no tests? ran|test selection empty", "empty test selection"),
+    (r"unavailable|service.*unavailable|connection.*refused|could not connect to", "service unavailable"),
 ]
 
 

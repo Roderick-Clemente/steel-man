@@ -35,8 +35,15 @@ pytest output:
 4. **No failure occurred**
    - pytest exit code 0 with a passing result
    - pytest exited non-zero but no `FAILED` or `failures` marker is present
+   - pytest collected 0 items / "no tests ran" / "test selection empty"
 
-5. **Failure is unrelated to the accepted assertion**
+5. **Service unavailable**
+   - The run emitted `unavailable`, `service ... unavailable`,
+     `connection refused`, or `could not connect to` markers. The
+     assertion is allowed to fail in this case (no scope to fix), so
+     treat the RED as invalid until the service is reachable.
+
+6. **Failure is unrelated to the accepted assertion**
    - The accepted assertion phrase (e.g., "Content-Type contains exactly one
      charset= token") does not appear in the combined stdout/stderr.
 
