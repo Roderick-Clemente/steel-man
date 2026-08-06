@@ -633,6 +633,44 @@ This demonstrates the platform thesis without claiming to have rebuilt the platf
 
 ---
 
+## 17. Model Discipline
+
+A run's `droid exec` invocation records the model it ran against; an evaluation of v1's outcomes depends on that record being complete and unambiguous. Without it, the §13 evaluation cannot attribute cost, cannot measure marginal yield per reviewer, and cannot answer whether cross-family review paid for itself.
+
+### 17.1 Every invocation is explicit about its model
+
+Each `droid exec` call **must** pass `--model <modelId>`. Silent `--auto` is forbidden. The `_durability_disclaimer`-style capture of `modelId`, `providerLock`, and `apiProviderLock` runs everywhere a run lives:
+
+- in `RUN-LEDGER.md` rows (Phase 0.5 already does this);
+- in commit message bodies on factory branches (see `tools/conventions/commit-body-recipe.md`);
+- in the per-invocation telemetry row at `telemetry/runs.jsonl`.
+
+The rule applies equally across roles — planner, executor, validator, reviewer. A reviewer invocation without `--model` set and stamped is treated as the same defect as the silent-green shapes Phase 0 documented in `droid-wiki/findings/silent-green.md`: an invariant reported as "satisfied" when there is no evidence it was.
+
+### 17.2 Cross-family review is designed, not coincidental
+
+The §13 evaluation's review panel is part of the design. Defaults, unless an exception is recorded in `phase-N/KNOWN-ISSUES.md`:
+
+- A non-author-family reviewer is required for any code that lands on `main`. Same family is not independence.
+- `Gemini-Pro` and `Grok-4.5` are the standing non-Factory-family options for the panel. `Claude-Opus-4.8` is the standing fallback.
+- `Codex-class` is excluded as a reviewer whenever the author was OpenAI-family. Same family, no independence gain.
+- The reviewer model set is recorded in the `RUN-LEDGER.md` row's `reviewer_panel` field, comma-separated. A review without that field is non-compliant and Phase 3 acceptance gates flag it.
+
+### 17.3 Telemetry is split: code and schema in public, data is git-ignored
+
+This repository is public per `AGENTS.md`. The §13 efficacy data — per-invocation cost, per-finding row, per-disposition outcome — would expose internal allocation patterns, model-by-model hit rates, and an org's defect categories if committed. So:
+
+- Public, in this repo: `PRD.md` (this section), `tools/conventions/model-discipline.md`, `tools/run-with-model.sh`, `telemetry/SCHEMA.md`, `telemetry/aggregate.py`, commit-body recipe.
+- Git-ignored, in this repo initially (build phase): `telemetry/runs.jsonl`, `telemetry/findings.jsonl`, `telemetry/dispositions.jsonl`. See `.gitignore` for the exact patterns.
+- Long-term destination (decision deferred): either a sister private repo with the same schema, or a small data store (DuckDB first, Postgres later). The convention doc's "Migrating the data" section names the migration gate.
+
+### 17.4 The data stays out of version control
+
+No `telemetry/*.jsonl` row is committed to this repository's history, ever. If a row is accidentally staged, the workflow is to `git reset` the staging **before** the first push, not to amend the commit and push the row onward — `AGENTS.md`'s history-hygiene rule applies.
+
+---
+
+
 ## References
 
 ### Local evidence
