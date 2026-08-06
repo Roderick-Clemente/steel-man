@@ -18,7 +18,7 @@ Registration (in the pilot repo's .factory/settings.json):
         "preToolUse": [
           {
             "command": "<path-to-this-file>",
-            "matcher": "Edit|Create|ApplyPatch|Execute"
+            "matcher": "Edit|Create|ApplyPatch|MultiEdit|Execute"
           }
         ]
       }
@@ -44,7 +44,9 @@ LOCKS_DIR = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_DIR", DEFAULT_LOCKS_DIR)
 
 
 # Tools whose `tool_input.file_path` is treated as a file-write request.
-EDITOR_TOOLS = ("Edit", "Create", "ApplyPatch")
+# MultiEdit is included because it's a multi-target variant of Edit that
+# otherwise bypasses the PreToolUse matcher pattern. (Gemini round-2: major.)
+EDITOR_TOOLS = ("Edit", "Create", "ApplyPatch", "MultiEdit")
 
 # Shell operators we split commands on before segment-level inspection.
 # Splitting on `;`, `&`, `|`, and `\n` prevents the cheap bypass-chain
@@ -54,10 +56,18 @@ SHELL_SEPARATORS = re.compile(r"[;&|\n]")
 # Command heads that count as read-only at the segment level. Each segment is
 # checked independently; the segment must start with one of these AND contain
 # no write operator further in the segment.
+#
+# Note: python and python3 are deliberately NOT in this list. They are
+# general-purpose interpreters that can rewrite arbitrary files — for example
+# `python3 -c "open('test/test_foo.py','w').write('mutated')"`. Such a segment
+# has no shell-write operator (`>`, `tee`, `cp`, `mv`, `rm`, `sed -i`) and so
+# would otherwise be classified read-only and allowed through the syntax-based
+# gate. The only acceptable entry point for running the locked test is
+# `pytest <path>` directly. This was caught as a BLOCKING finding in the
+# round-2 cross-family review (Grok, xAI).
 READ_ONLY_HEADS = (
     "ls", "grep", "rg", "head", "tail", "wc", "find",
     "pytest", "read", "cat",
-    "python3", "python",
 )
 
 # Write operators used for the per-segment read-only check.
@@ -119,13 +129,49 @@ def segment_is_read_only(segment: str) -> bool:
 
 
 def glob_resolves_to_locked(token: str, cwd: str, protected_abs: set) -> bool:
-    """If `token` carries a glob, expand it relative to cwd and check whether
-    any expansion lands on a protected path."""
-    if "*" not in token and "?" not in token:
+    """Decide whether `token` could resolve onto a protected path.
+
+    Three checks:
+      1. Hard glob expansion at `cwd` (or `/` for absolute paths).
+      2. Structural check: project the token into cwd, strip glob chars,
+         compare against protected paths. This catches `rm test/*.py`
+         even when no real filesystem expansion is available.
+      3. Parent-directory check: if the cleaned token equals the
+         directory that contains a protected file, deny. This catches
+         `rm -rf test/` even without glob chars.
+    """
+    if not token:
         return False
     base = cwd if not os.path.isabs(token) else "/"
-    candidates = glob.glob(os.path.join(base, token))
-    return any(os.path.normpath(c) in protected_abs for c in candidates)
+    try:
+        candidates = glob.glob(os.path.join(base, token))
+    except (OSError, ValueError):
+        candidates = []
+    if any(os.path.normpath(c) in protected_abs for c in candidates):
+        return True
+    abs_token = token if os.path.isabs(token) else os.path.join(cwd, token)
+    cleaned = re.sub(r"[*?]", "", abs_token).rstrip("/")
+    cleaned = os.path.normpath(cleaned) if cleaned else ""
+    for p in protected_abs:
+        if not cleaned:
+            continue
+        # Cleaned token equals the protected path itself.
+        if cleaned == p:
+            return True
+        pdir = os.path.dirname(p).rstrip("/")
+        # Cleaned token equals the directory of a protected file
+        # (`rm -rf test/` where test/ contains the lock).
+        if cleaned == pdir:
+            return True
+        # Glob-born structural check: cleaned dirname equals the
+        # protected file's directory AND the original token had glob
+        # chars. (`rm test/*` cleans to `test/.py` -- dirname `test`
+        # matches protected file's `test/` directory, so we deny.)
+        if "*" in token or "?" in token:
+            cdir = os.path.dirname(cleaned).rstrip("/")
+            if cdir == pdir:
+                return True
+    return False
 
 
 def main() -> int:
@@ -167,37 +213,61 @@ def main() -> int:
             )
             return 2
 
-    # Execute commands: segment by segment. A non-read-only segment that
-    # mentions any locked test path or manifest is denied. Glob-resolved tokens
-    # resolve against protected_abs so `rm test/*.py` cannot sneak past by
-    # substring-evading.
+    # Execute commands: read-only short-circuit FIRST. A clear read-only
+    # segment (`cat x`, `pytest x`, `head x`) is allowed even if it
+    # mentions a locked path as a token. The auth-pipeline guarantee is
+    # that read-only commands cannot mutate state, so the read of a
+    # locked test by the executor (or a coordinated `pytest x -v`) is
+    # legitimate review behaviour.
+    #
+    # Otherwise deny by:
+    #   a. Token-literal-match (e.g. `rm test/test_foo.py`),
+    #   b. Structural glob match (e.g. `rm test/*.py`, `rm -rf test/`,
+    #      `python3 -c "open('locked','w').write(...)"`),
+    #   c. Substring/basename match on the segment.
+    # (Gemini round-2: blocking on the basal gating; Grok round-2:
+    # blocking on python3 inline-eval.)
     if tool_name == "Execute":
         command = tool_input.get("command", "")
         if not command:
             return 0
-        for locked in state["tests"] + state["manifests"]:
-            basename = os.path.basename(locked)
-            for segment in shell_segments(command):
-                if locked not in segment and basename not in segment:
-                    continue
-                if segment_is_read_only(segment):
-                    continue
-                try:
-                    tokens = shlex.split(segment)
-                except ValueError:
-                    tokens = segment.split()
-                for tok in tokens:
-                    if glob_resolves_to_locked(tok, cwd, protected_abs):
-                        print(
-                            f"SPEC_OR_TEST_BLOCKED: Execute command globs locked path: {segment}",
-                            file=sys.stderr,
-                        )
-                        return 2
-                print(
-                    f"SPEC_OR_TEST_BLOCKED: Execute command touches locked test or manifest {locked}: {segment}",
-                    file=sys.stderr,
-                )
-                return 2
+        protected_literals = protected_abs | {os.path.basename(p) for p in protected_abs}
+        for segment in shell_segments(command):
+            # Read-only short-circuit FIRST.
+            if segment_is_read_only(segment):
+                continue
+
+            # Tokenize with shlex; on parse error fall back to whitespace.
+            try:
+                tokens = shlex.split(segment)
+            except ValueError:
+                tokens = segment.split()
+
+            for tok in tokens:
+                if tok in protected_literals:
+                    print(
+                        f"SPEC_OR_TEST_BLOCKED: Execute token is locked path or basename: {tok} (segment: {segment})",
+                        file=sys.stderr,
+                    )
+                    return 2
+                if glob_resolves_to_locked(tok, cwd, protected_abs):
+                    print(
+                        f"SPEC_OR_TEST_BLOCKED: Execute token globs locked path: {segment}",
+                        file=sys.stderr,
+                    )
+                    return 2
+
+            # Substring backstop: catches quoted-then-evaluated commands
+            # where shlex-flattened tokens don't surface the path (the
+            # Grok+Gemini canonical case: `python3 -c "open('...','w')..."`).
+            for locked in state["tests"] + state["manifests"]:
+                basename = os.path.basename(locked)
+                if locked in segment or basename in segment:
+                    print(
+                        f"SPEC_OR_TEST_BLOCKED: Execute segment touches locked test or manifest {locked}: {segment}",
+                        file=sys.stderr,
+                    )
+                    return 2
 
     return 0
 
