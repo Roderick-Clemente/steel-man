@@ -2,7 +2,7 @@
   "generatedAt": "2026-08-05T19:28:54Z",
   "commitHash": "21caed128d6350d3a6df090a2d72ff3763e21f97",
   "branch": "main",
-  "pageCount": 39,
+  "pageCount": 41,
   "topLevelSections": [
     "overview",
     "by-the-numbers",
@@ -21,6 +21,8 @@
     "overview/architecture.md",
     "overview/getting-started.md",
     "overview/glossary.md",
+    "overview/meta-narrative.md",
+    "overview/code-quality-signals.md",
     "by-the-numbers.md",
     "lore.md",
     "fun-facts.md",

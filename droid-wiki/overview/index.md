@@ -211,3 +211,63 @@ The same standard applies to the probe records. Negative results get the same tr
 | See how the pieces fit together | [Architecture](./architecture.md) |
 | Look up a term | [Glossary](./glossary.md) |
 | Contribute, as a human or an agent | [How to contribute](../how-to-contribute/index.md) |
+
+
+## The story — building the loop with itself
+
+This framework's primary claim is about correctness, but it also has a
+secondary claim that the meta is just as interesting as the meta-tested
+code. When the framework is used to build itself, the bugs it surfaces
+fall into two flavours: bugs in the code being shipped, and bugs in the
+runtime shipping the code. Both land on the same §13 efficacy surface
+and both deserve to be tracked.
+
+**Phase 1 is the first six-reviewer-session case study of that loop used
+on itself.** Three rounds of two reviewers (`grok-4.5` and
+`gemini-3.1-pro-preview`), ~3.4M input tokens across the panel,
+~22 findings of severity variant. Round 2 had a REJECT-from-both-panels
+stretch where Grok caught a regression the round-1 fix had introduced
+(retrospectively adding `python3` to a read-only allowlist had
+inadvertently opened an inline-eval bypass) and Gemini caught three
+orthogonal hook-layer defects in the same round. Round 3 was a clean
+ACCEPT-WITH-NITS confirmatory pass.
+
+The full round-by-round breakdown — including the catch-by-catch
+overlap, the per-session tokens, and the calibration divergence
+matrix — is in [The meta-narrative](meta-narrative.md).
+
+## Code-quality signals — beyond the bug
+
+The bug count is not the only signal the panel produces. The round-by-round
+trace also surfaces five quality dimensions that are measurable on every
+slice that goes through the framework:
+
+1. **Placebiticity.** Would the locked test catch a no-op implementation?
+   Real Werkzeug behaviour, no SUT mock, real client GET. Phase 1 locked
+   test passes six of the seven items in
+   [method/sprint-template.md test-quality rubric](../method/sprint-template.md).
+2. **Cross-family calibration divergence.** The two reviewers didn't
+   catch the same defects — Gemini caught the hook security family,
+   Grok caught the rubric compliance family. The overlap is partial
+   and the divergence is the §13 efficacy lever.
+3. **Spec-compliance coverage per PRD exit criterion.** Findings cite
+   `criterion: spec-compliance | phase-0.5-handoff | test-quality`,
+   forced by the reviewer rubric. Phase 1 covered all four PRD §11
+   exit criteria (a–d).
+4. **Time-to-correctness (RED→GREEN path).** Locked test → RED → lock →
+   executor → minimal fix → GREEN verified, all in single-digit minutes.
+5. **Cost per finding and marginal cost per extra reviewer.** ~155k
+   tokens-in per finding on Phase 1; ~250k–500k for the marginal
+   second-reviewer cost on small slices.
+
+The full description of each signal and where the data lives
+(`telemetry/runs.jsonl`, `telemetry/findings.jsonl`,
+`telemetry/aggregate.py`) is in [Code-quality signals](code-quality-signals.md).
+
+## Where this leaves us at Phase 1 close
+
+Phase 1 ships at `9940d40` on `factory/phase-1-test-evidence`, with
+ACCEPT-WITH-NITS from cross-family review and a Phase-2/Phase-3 paused
+state while the rest of the system catches up. The cross-family panel
+is the structural guarantee that keeps the framework honest as it
+grows; the build-review-find loop is itself the work being reviewed.
