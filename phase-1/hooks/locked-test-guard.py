@@ -1,91 +1,131 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: block the executor from writing hash-locked test files.
+"""PreToolUse hook: block the executor from writing hash-locked test files AND
+lock manifests.
 
 This is the Phase 1 implementation of the reference guard's policy #3
-(independent test authorship). It reads the lock manifests written by
-phase-1/scripts/lock.py and denies any tool call that would modify a locked
-test file.
+(independent test authorship) extended to protect the lock manifest itself.
+It reads the lock manifests written by phase-1/scripts/lock.py and denies
+any tool call that would modify:
 
-The hook is registered in the pilot repo's .factory/settings.json (or via a
-plugin) and receives a JSON payload on stdin with fields including:
-  - tool_name
-  - tool_input
-  - cwd
-  - transcript_path
+  - a locked test file, OR
+  - a locked test's manifest (because the manifest is what `verify-green.py`
+    reads to confirm hash-equality; rewriting it would defeat the backstop).
 
-Registration example (pilot repo .factory/settings.json):
+Registration (in the pilot repo's .factory/settings.json):
+
     {
       "hooks": {
         "preToolUse": [
           {
-            "command": "/Users/factory/work/adversarial-sprint-dev/phase-1/hooks/locked-test-guard.py",
+            "command": "<path-to-this-file>",
             "matcher": "Edit|Create|ApplyPatch|Execute"
           }
         ]
       }
     }
 
-The hook exits 0 on allow, 2 on deny, with a contract string on stderr that
-is delivered to the agent so the run can continue and report SPEC_OR_TEST_BLOCKED.
+The hook exits 0 on allow, 2 on deny. The contract string `SPEC_OR_TEST_BLOCKED`
+is delivered to stderr so the agent run can continue with the message
+visible in the transcript.
 """
+import glob
 import json
 import os
 import re
+import shlex
 import sys
 
 
-# Default: look for lock manifests in the sibling locks/ directory.
+# Default: lock manifests live in the sibling `locks/` directory.
 DEFAULT_LOCKS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks"
 )
 LOCKS_DIR = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_DIR", DEFAULT_LOCKS_DIR)
 
 
-# Shell operators that can mutate a file. This is a conservative list for the
-# Phase 1 slice; a fully general guard would need a shell parser, which the
-# reference guard warns against. Here we fail closed: if a command mentions a
-# locked test path and carries any of these operators, we deny.
-SHELL_WRITE_OPERATORS = [
-    r"\bsed\s+[^;|&]*\s+-i\b",
-    r"\btee\b",
-    r"\bcp\b",
-    r"\bmv\b",
-    r"\brm\b",
-    r"\bcat\s+[^>|&]*>[>]?",
-    r"\becho\s+[^>|&]*>[>]?",
-    r"\bprintf\s+[^>|&]*>[>]?",
-    r"[^>\s]>[>]?\s*\S+",
-]
+# Tools whose `tool_input.file_path` is treated as a file-write request.
+EDITOR_TOOLS = ("Edit", "Create", "ApplyPatch")
+
+# Shell operators we split commands on before segment-level inspection.
+# Splitting on `;`, `&`, `|`, and `\n` prevents the cheap bypass-chain
+# `pytest test.py ; python3 -c "..."` from being treated as a single test run.
+SHELL_SEPARATORS = re.compile(r"[;&|\n]")
+
+# Command heads that count as read-only at the segment level. Each segment is
+# checked independently; the segment must start with one of these AND contain
+# no write operator further in the segment.
+READ_ONLY_HEADS = (
+    "ls", "grep", "rg", "head", "tail", "wc", "find",
+    "pytest", "read", "cat",
+    "python3", "python",
+)
+
+# Write operators used for the per-segment read-only check.
+WRITE_RE = re.compile(
+    r">>?"                              # redirection (write)
+    r"|\bsed\s+[^;|&]*\s+-i\b"          # sed -i (in-place)
+    r"|\btee\b|\bcp\b|\bmv\b|\brm\b"   # filesystem mutation
+)
 
 
-def load_locked_files() -> list:
-    """Return the list of locked test file paths from manifest JSONs."""
-    locked = []
+def load_locked_state() -> dict:
+    """Return `{"tests": [...], "manifests": [...]}` from LOCKS_DIR.
+
+    Fails closed: a malformed/unreadable lock manifest raises so the caller
+    can deny all author-tool calls. The reference guard teaches fail-closed:
+    we cannot tell which tests are protected without a readable manifest.
+    """
+    state = {"tests": [], "manifests": []}
     if not os.path.isdir(LOCKS_DIR):
-        return locked
+        return state
     for root, _, files in os.walk(LOCKS_DIR):
         for name in files:
             if not name.endswith(".lock.json"):
                 continue
             path = os.path.join(root, name)
-            try:
-                with open(path) as f:
-                    manifest = json.load(f)
-                file_entry = manifest.get("file", "")
-                if file_entry:
-                    locked.append(file_entry)
-            except (json.JSONDecodeError, OSError):
-                # A malformed lock manifest is a hook failure mode. We could
-                # fail closed here, but for the Phase 1 slice we skip unreadable
-                # manifests and rely on the lock tooling to validate them.
-                continue
-    return locked
+            state["manifests"].append(path)
+            with open(path) as f:
+                manifest = json.load(f)
+            file_entry = manifest.get("file", "")
+            if file_entry:
+                state["tests"].append(file_entry)
+    return state
 
 
 def normalize_path(path: str, cwd: str) -> str:
     if os.path.isabs(path):
         return path
     return os.path.normpath(os.path.join(cwd, path))
+
+
+def shell_segments(command: str) -> list:
+    """Split on shell separators. Empty/whitespace-only segments dropped."""
+    return [seg for seg in SHELL_SEPARATORS.split(command) if seg.strip()]
+
+
+def segment_is_read_only(segment: str) -> bool:
+    """True iff the segment begins with a read-only head AND contains no write
+    operator anywhere in the segment."""
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        tokens = segment.split()
+    if not tokens:
+        return False
+    head = tokens[0]
+    if head not in READ_ONLY_HEADS:
+        return False
+    return not bool(WRITE_RE.search(segment))
+
+
+def glob_resolves_to_locked(token: str, cwd: str, protected_abs: set) -> bool:
+    """If `token` carries a glob, expand it relative to cwd and check whether
+    any expansion lands on a protected path."""
+    if "*" not in token and "?" not in token:
+        return False
+    base = cwd if not os.path.isabs(token) else "/"
+    candidates = glob.glob(os.path.join(base, token))
+    return any(os.path.normpath(c) in protected_abs for c in candidates)
 
 
 def main() -> int:
@@ -100,52 +140,61 @@ def main() -> int:
     tool_input = data.get("tool_input", {}) or {}
     cwd = data.get("cwd", os.getcwd())
 
-    locked_files = load_locked_files()
-    if not locked_files:
-        # No locks means no policy to enforce; allow. This keeps a guard with
-        # no locks from blocking ordinary work.
+    try:
+        state = load_locked_state()
+    except (json.JSONDecodeError, OSError) as e:
+        # Fail closed per reference guard: cannot enforce without a readable
+        # manifest. The hook denies author-tool calls and the executor surfaces
+        # the block in its transcript.
+        print(f"SPEC_OR_TEST_BLOCKED: lock manifest malformed/unreadable: {e}", file=sys.stderr)
+        return 2
+
+    if not state["tests"] and not state["manifests"]:
+        # No locks loaded means no policy to enforce; allow.
         return 0
 
-    locked_abs = {normalize_path(lp, cwd) for lp in locked_files}
+    locked_abs = {normalize_path(lp, cwd) for lp in state["tests"]}
+    locked_manifest_abs = {normalize_path(mp, cwd) for mp in state["manifests"]}
+    protected_abs = locked_abs | locked_manifest_abs
 
-    # Direct file-editing tools carry the target path in tool_input.file_path.
-    if tool_name in ("Edit", "Create", "ApplyPatch"):
+    # Editor tools carry the target path directly.
+    if tool_name in EDITOR_TOOLS:
         file_path = tool_input.get("file_path", "")
-        if file_path and normalize_path(file_path, cwd) in locked_abs:
+        if file_path and normalize_path(file_path, cwd) in protected_abs:
             print(
-                f"SPEC_OR_TEST_BLOCKED: {tool_name} is not allowed on locked test {file_path}",
+                f"SPEC_OR_TEST_BLOCKED: {tool_name} is not allowed on locked test or manifest {file_path}",
                 file=sys.stderr,
             )
             return 2
 
-    # Execute commands are the bypass path. We deny if a command mentions a
-    # locked test path and also contains a shell write operator. Without a real
-    # shell parser we also deny any command that mentions a locked path if we
-    # cannot clearly determine it is read-only, because the executor role must
-    # not touch locked tests at all.
+    # Execute commands: segment by segment. A non-read-only segment that
+    # mentions any locked test path or manifest is denied. Glob-resolved tokens
+    # resolve against protected_abs so `rm test/*.py` cannot sneak past by
+    # substring-evading.
     if tool_name == "Execute":
         command = tool_input.get("command", "")
-        if command:
-            for locked in locked_files:
-                if locked not in command and os.path.basename(locked) not in command:
+        if not command:
+            return 0
+        for locked in state["tests"] + state["manifests"]:
+            basename = os.path.basename(locked)
+            for segment in shell_segments(command):
+                if locked not in segment and basename not in segment:
                     continue
-
-                # If the command is clearly a read-only inspection (ls, grep,
-                # read, cat without redirection, pytest -v, etc.), allow it. The
-                # executor should not need to read the test, but harmless reads
-                # do not violate independent test authorship.
-                read_only = re.search(
-                    r"^(\s*(ls|grep|head|tail|wc|find|pytest|python3?\s+-m\s+pytest|read)\b|cat\b\s+[^>]*$)",
-                    command,
-                )
-                if read_only and not re.search(r"[>]|\bsed\s+.*-i\b|\btee\b|\bcp\b|\bmv\b|\brm\b", command):
+                if segment_is_read_only(segment):
                     continue
-
-                # Any mention of a locked test path in a non-read-only command
-                # is blocked. This is the conservative, fail-closed interpretation
-                # of policy #3 for this slice.
+                try:
+                    tokens = shlex.split(segment)
+                except ValueError:
+                    tokens = segment.split()
+                for tok in tokens:
+                    if glob_resolves_to_locked(tok, cwd, protected_abs):
+                        print(
+                            f"SPEC_OR_TEST_BLOCKED: Execute command globs locked path: {segment}",
+                            file=sys.stderr,
+                        )
+                        return 2
                 print(
-                    f"SPEC_OR_TEST_BLOCKED: Execute command touches locked test {locked}: {command}",
+                    f"SPEC_OR_TEST_BLOCKED: Execute command touches locked test or manifest {locked}: {segment}",
                     file=sys.stderr,
                 )
                 return 2
