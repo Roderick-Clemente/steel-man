@@ -48,8 +48,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    with open(args.lock_file) as f:
-        manifest = json.load(f)
+    try:
+        with open(args.lock_file) as f:
+            manifest = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"GREEN REFUSED: lock manifest unreadable: {e}", file=sys.stderr)
+        return 1
 
     expected_sha = manifest.get("sha256")
     accepted_assertion = manifest.get("accepted_assertion", "")
@@ -57,6 +61,21 @@ def main() -> int:
     abs_test_path = os.path.join(os.path.abspath(args.pilot_root), args.test_file)
     if not os.path.isfile(abs_test_path):
         print(f"GREEN REFUSED: test file missing: {abs_test_path}", file=sys.stderr)
+        return 1
+
+    # Re-check: the accepted assertion phrase must appear in the test
+    # SOURCE. Pytest omits assertion text on PASS, so we cannot rely on
+    # the run output. The contract is: this is the same test the
+    # RED phase locked; the asserted phrase must still be present.
+    with open(abs_test_path) as f:
+        test_source = f.read()
+    if accepted_assertion and accepted_assertion not in test_source:
+        print(
+            "GREEN REFUSED: locked test source no longer mentions the accepted assertion",
+            file=sys.stderr,
+        )
+        print(f"  test_file: {args.test_file}", file=sys.stderr)
+        print(f"  expected:  {accepted_assertion!r}", file=sys.stderr)
         return 1
 
     current_sha = compute_sha256(abs_test_path)
@@ -83,6 +102,7 @@ def main() -> int:
     print(f"  test_file: {args.test_file}")
     print(f"  sha256:    {current_sha}")
     print(f"  pytest:    exit 0")
+    print(f"  assertion: {accepted_assertion}")
     return 0
 
 
