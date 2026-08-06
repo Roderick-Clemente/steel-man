@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Green verification gate for a locked test.
+
+Recomputes the locked test file's SHA-256 and runs the test. Refuses GREEN
+unless the hash matches the manifest AND the test passes for the intended
+assertion.
+
+Usage:
+    python3 phase-1/scripts/verify-green.py --pilot-root <path> \
+        --lock-file <path> --test-file <path>
+"""
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+
+
+def compute_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def run_pytest(pilot_root: str, test_file: str, python: str):
+    cmd = [python, "-m", "pytest", test_file, "-v"]
+    return subprocess.run(
+        cmd,
+        cwd=pilot_root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Verify GREEN on a locked test.")
+    parser.add_argument("--pilot-root", required=True, help="Path to the pilot repo root.")
+    parser.add_argument("--lock-file", required=True, help="Path to the lock manifest JSON.")
+    parser.add_argument("--test-file", required=True, help="Test file path relative to pilot root.")
+    parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="Python interpreter to run pytest (default: the interpreter running this script).",
+    )
+    args = parser.parse_args()
+
+    try:
+        with open(args.lock_file) as f:
+            manifest = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"GREEN REFUSED: lock manifest unreadable: {e}", file=sys.stderr)
+        return 1
+
+    expected_sha = manifest.get("sha256")
+    accepted_assertion = manifest.get("accepted_assertion", "")
+
+    abs_test_path = os.path.join(os.path.abspath(args.pilot_root), args.test_file)
+    if not os.path.isfile(abs_test_path):
+        print(f"GREEN REFUSED: test file missing: {abs_test_path}", file=sys.stderr)
+        return 1
+
+    # Re-check: the accepted assertion phrase must appear in the test
+    # SOURCE. Pytest omits assertion text on PASS, so we cannot rely on
+    # the run output. The contract is: this is the same test the
+    # RED phase locked; the asserted phrase must still be present.
+    with open(abs_test_path) as f:
+        test_source = f.read()
+    if accepted_assertion and accepted_assertion not in test_source:
+        print(
+            "GREEN REFUSED: locked test source no longer mentions the accepted assertion",
+            file=sys.stderr,
+        )
+        print(f"  test_file: {args.test_file}", file=sys.stderr)
+        print(f"  expected:  {accepted_assertion!r}", file=sys.stderr)
+        return 1
+
+    current_sha = compute_sha256(abs_test_path)
+    if current_sha != expected_sha:
+        print("GREEN REFUSED: locked test content changed", file=sys.stderr)
+        print(f"  expected: {expected_sha}", file=sys.stderr)
+        print(f"  actual:   {current_sha}", file=sys.stderr)
+        return 1
+
+    result = run_pytest(args.pilot_root, args.test_file, args.python)
+    if result.returncode != 0:
+        print("GREEN REFUSED: test does not pass after implementation", file=sys.stderr)
+        print("--- stdout ---", file=sys.stderr)
+        print(result.stdout, file=sys.stderr)
+        print("--- stderr ---", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        return 1
+
+    # The accepted assertion is the one the test itself checks. A passing
+    # run means that assertion held. The assertion phrase is captured in the
+    # lock manifest for the RED phase and for human review; it does not need
+    # to reappear in pytest's passing output.
+    print("GREEN ACCEPTED")
+    print(f"  test_file: {args.test_file}")
+    print(f"  sha256:    {current_sha}")
+    print(f"  pytest:    exit 0")
+    print(f"  assertion: {accepted_assertion}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
