@@ -482,6 +482,21 @@ Connect planning, test design, Mission execution, validator blocking, retry/re-p
 
 Only after the pilot: repo ingest/adapter generation, Harness feedback ingestion, a second stack, and the portable Claude/Codex CLI runtime.
 
+### Phase 5 — Hardening (settling pass)
+
+A deliberately-low-velocity consolidation phase that parks low-priority items noted during active phases so they do not slow the active-phase work. The "settling pass" language is deliberate: items are *noted* at the moment they arise but held until the framework catches up. The phase promotes, re-classifies, or drops them on the framework's own terms.
+
+Distinct from Phase 4: Phase 4 generalises the framework across multiple stacks; Phase 5 hardens the framework's own invariants. Things in scope:
+- cross-family calibration artifacts (where the two reviewers diverge, why, and what `first_seen_in_panel_position` says);
+- case-sensitivity alignments between red/green checks;
+- regex tightening (any signature broad enough to false-reject);
+- ledger provenance promotions (every cited artefact as a committed file, where feasible);
+- any reviewer rubric finding that was deferred from earlier phases with `wontfix` or `deferred`.
+
+Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-5 work for downstream feature completion. Phase 5 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
+
+**Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole 6-phase arc at the end of Phase 5.
+
 ---
 
 ## 12. v1 Acceptance Criteria
