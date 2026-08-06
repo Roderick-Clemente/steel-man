@@ -491,7 +491,8 @@ Distinct from Phase 4: Phase 4 generalises the framework across multiple stacks;
 - case-sensitivity alignments between red/green checks;
 - regex tightening (any signature broad enough to false-reject);
 - ledger provenance promotions (every cited artefact as a committed file, where feasible);
-- any reviewer rubric finding that was deferred from earlier phases with `wontfix` or `deferred`.
+- any reviewer rubric finding that was deferred from earlier phases with `wontfix` or `deferred`;
+- the §17 model-discipline convention at `factory/convention-model-discipline @ 45061f4`: cross-family review then ff-merge to `main`, with wiki `telemetry/` references restored from descriptive placeholders to file links. The schema and wrapper are infrastructure; the data stays gitignored until the migration gate fires.
 
 Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-5 work for downstream feature completion. Phase 5 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
 
