@@ -654,15 +654,52 @@ This demonstrates the platform thesis without claiming to have rebuilt the platf
 
 A run's `droid exec` invocation records the model it ran against; an evaluation of v1's outcomes depends on that record being complete and unambiguous. Without it, the §13 evaluation cannot attribute cost, cannot measure marginal yield per reviewer, and cannot answer whether cross-family review paid for itself.
 
-### 17.1 Every invocation is explicit about its model
+### 17.1 Every invocation's model is recorded; separation-bearing seats are pinned
 
-Each `droid exec` call **must** pass `--model <modelId>`. Silent `--auto` is forbidden. The `_durability_disclaimer`-style capture of `modelId`, `providerLock`, and `apiProviderLock` runs everywhere a run lives:
+Two distinct properties are at stake, and the earlier draft of this section
+conflated them:
 
-- in `RUN-LEDGER.md` rows (Phase 0.5 already does this);
-- in commit message bodies on factory branches (see `tools/conventions/commit-body-recipe.md`);
-- in the per-invocation telemetry row at `telemetry/runs.jsonl`.
+- **Attribution** — *which model actually ran.* Recoverable after the fact from
+  the result envelope (`modelId`, `providerLock`, `apiProviderLock`).
+- **Enforcement** — *guaranteeing a family constraint before the run.* Not
+  recoverable after the fact: if the router resolves to a colliding family, the
+  invariant is already void by the time the envelope is read.
 
-The rule applies equally across roles — planner, executor, validator, reviewer. A reviewer invocation without `--model` set and stamped is treated as the same defect as the silent-green shapes Phase 0 documented in `droid-wiki/findings/silent-green.md`: an invariant reported as "satisfied" when there is no evidence it was.
+The rule follows that distinction:
+
+1. **Every `droid exec` invocation records its resolved model.** The `modelId`,
+   `providerLock`, and `apiProviderLock` are captured everywhere a run lives:
+   `RUN-LEDGER.md` rows (Phase 0.5 already does this), commit message bodies on
+   factory branches (see `tools/conventions/commit-body-recipe.md`), and the
+   per-invocation telemetry row at `telemetry/runs.jsonl`. A run whose model is
+   **neither pinned nor recorded** is the same defect as the silent-green shapes
+   in `droid-wiki/findings/silent-green.md`: an invariant reported "satisfied"
+   with no evidence it was.
+2. **Seats where a family invariant binds MUST pin `--model` before the run**
+   (or use a router constraint that provably excludes the disallowed family).
+   Per §17.2 and invariant #1 that is the **plan reviewer** and the
+   **validator**: a colliding family silently voids the independence control,
+   and detecting it post-hoc means the review round was already spent.
+3. **Seats where no family invariant binds MAY use `--auto`,** provided the
+   resolved model is recorded per rule 1. That is the **planner** and the
+   **executor** — they carry cost-tier defaults, not hard family constraints.
+   Using the Factory auto-router at these seats is legitimate: it exercises the
+   product's own routing and is a demo asset (§15 Act 3), and it weakens no
+   separation, because separation is enforced at the reviewer/validator seats
+   that judge the output, not at the seats that produce it.
+
+When an author-seat uses `--auto`, a **collision guard** runs after model
+resolution: if the resolved author family equals a standing reviewer's family,
+that reviewer is swapped to the cross-family fallback (`claude-opus-4-8`) so the
+guarantee in rule 2 still holds before any review is spent. The guard's result
+is recorded alongside the run's attribution.
+
+This attribution-vs-enforcement rule **supersedes** the earlier blanket "silent
+`--auto` is forbidden". `tools/run-with-model.sh` remains the pinned path and
+the cheap insurance for the seats that must pin; auto seats record the resolved
+model from the envelope. The rule still applies across every role — the point
+is not "always pin", it is "always *know*, and pin wherever a family constraint
+must be guaranteed rather than merely observed".
 
 ### 17.2 Cross-family review is designed, not coincidental
 
