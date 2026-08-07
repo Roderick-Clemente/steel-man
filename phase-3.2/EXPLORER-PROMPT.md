@@ -84,6 +84,32 @@ Design it to be *credible*, not a vibe:
   necessary-not-sufficient; the cross-family review of the diff (spec/semantics/
   over-exposure) still stands.
 
+## Real evidence from the first Harness run (design these in)
+
+The pilot's `feat/user-profile` was run through the Harness pipeline. It
+produced three concrete lessons that the 3.2 spec must account for — all from
+findings that were **pre-existing debt, not introduced by the Phase 3 change**:
+
+- **Gate on NEW findings vs a baseline, not total history.** Gitleaks failed the
+  build on `fail_on_severity: low` against the full 89-commit history, yet its
+  own report said `newIssuesCount: 0` — the finding was legacy debt, not new in
+  this change. If the gate keys on total history, every run trips on old debt
+  and the "did *this change* introduce a problem?" signal drowns. The gate must
+  diff against a baseline (SARIF `newIssues*` / new-occurrences) and use a
+  proportionate `fail_on_severity`.
+- **The scanner is not an oracle — a human/model still classifies findings.**
+  Gitleaks flagged `SPLIT_CLIENT_KEY` (a Split.io *client-side* key that is
+  public by design — it ships in browser JS) as `generic-api-key` on a pure
+  entropy heuristic. False positive. This is the "an account is not evidence"
+  rule applied to CI: the security tier needs a **curated allowlist** (scoped to
+  the specific known-public value, not whole files, so real future secrets still
+  trip) and its verdicts feed judgment, they don't end it.
+- **Diff-scoped vs history-scoped scanning are both valid at their scope.** The
+  orchestrator's pre-push scan was diff-scoped (our new commits — correctly
+  found nothing); gitleaks was full-history (found legacy debt). The 3.2 design
+  should be explicit about which scope gates the merge (diff/new) vs which is a
+  standing baseline report (history).
+
 ## 3.3 seed (spec lightly, don't build)
 
 Motivating evidence already in hand: during Phase 3 the live `/profile` rendered
