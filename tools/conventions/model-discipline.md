@@ -4,7 +4,7 @@ Operational form of `PRD.md` §17. Read this before invoking `droid exec` on a f
 
 ## Three rules
 
-1. **Explicit `--model` on every `droid exec` invocation.** No silent `--auto`. The chosen `modelId`, `providerLock`, and `apiProviderLock` are stamped into the commit message body (see `commit-body-recipe.md`) and into the per-invocation row in `telemetry/runs.jsonl`.
+1. **Every invocation's model is recorded; separation-bearing seats are pinned.** Attribution (which model ran) is recoverable from the envelope; enforcement (guaranteeing family separation *before* the run) is not. So (per PRD §17.1): the **plan reviewer** and **validator** seats MUST pin `--model` (or a router family-exclude) before running, because a colliding family voids independence and post-hoc detection wastes the round; the **planner** and **executor** seats MAY use `--auto`, provided the resolved `modelId`/`providerLock`/`apiProviderLock` are recorded in the commit body and `telemetry/runs.jsonl`. An author seat on `--auto` runs a collision guard that swaps a same-family reviewer to the `claude-opus-4-8` fallback. This supersedes the earlier blanket "no silent `--auto`" — the rule is "always *know* the model, and pin wherever a family constraint must be guaranteed."
 2. **Cross-family review is by design.** A non-author-family reviewer is required for any code that lands on `main`. Standing panel: `Gemini-Pro` + `Grok-4.5` (cross-family primary); `Claude-Opus-4.8` (fallback). `Codex-class` is excluded when the author was OpenAI-family.
 3. **Telemetry data is git-ignored.** `telemetry/runs.jsonl`, `telemetry/findings.jsonl`, and `telemetry/dispositions.jsonl` never enter `git` history. Schema lives in `telemetry/SCHEMA.md`; aggregate script reads from a configurable path.
 
