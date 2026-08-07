@@ -32,11 +32,16 @@ review — do not self-merge.
 ## 1. Repos & current state
 
 - **Framework repo:** `/Users/factory/work/adversarial-sprint-dev` (git).
-  - Branch `factory/phase-2-slice`, tip **`c89c3a3`** (all Phase 2 artifacts,
-    committed + pushed). Remote: `github.com:Roderick-Clemente/adversarial-sprint-dev.git`.
-  - There may be another agent active in this repo — run `git status` before
-    any commit and do not sweep up files you did not create. Untracked, left
-    intentionally: root `build-evidence/`, `phase-2/reviews/plan-review.md`
+  - **Hydrate from `main`** (tip **`0dd07f8`**). Everything is now integrated
+    there: all Phase 2 artifacts, the wiki+PRD 0–6 roadmap, and the merged
+    §17.1 model-discipline amendment. Remote:
+    `github.com:Roderick-Clemente/adversarial-sprint-dev.git`.
+  - Feature branches are kept (not deleted) as snapshots: `factory/phase-2-slice`
+    (`b72e765`), `factory/wiki-general-roadmap-human-loop`,
+    `factory/convention-model-discipline-v2`. Use `main` as the source of truth.
+  - There may be a read-only agent active in this repo — run `git status`
+    before any commit and do not sweep up files you did not create. Untracked,
+    left intentionally: root `build-evidence/`, `phase-2/reviews/plan-review.md`
     (a stray reviewer write).
 - **Pilot repo (where the feature is built):**
   `/Users/factory/work/quantum-bank--llms-txt-pilot` (Flask bank app).
@@ -154,10 +159,14 @@ Per chunk, in order, honoring the invariants (method/invariants.md):
   `Telemetry-row:` and `Findings:` trailers. Telemetry rows stay **gitignored**
   (shape in `telemetry/SCHEMA.md`); build-evidence envelopes are committed.
 - **Model discipline:** pin reviewer/validator seats explicitly; attribute the
-  resolved model of any auto seat from its envelope (PRD §17.1; note the
-  attribution-vs-enforcement amendment lives on
-  `factory/convention-model-discipline-v2`, unmerged — do not depend on it,
-  pin where a family invariant binds).
+  resolved model of any auto seat from its envelope (PRD §17.1). The
+  attribution-vs-enforcement amendment is now **merged to `main`**: an
+  **author/executor seat MAY use `--auto`** provided the resolved
+  `modelId`/`providerLock` is recorded (commit body + `telemetry/runs.jsonl`),
+  while **reviewer/validator seats MUST stay pinned** (a family invariant binds
+  there). If an auto executor lands on the same family as a standing validator,
+  run the collision guard (swap the colliding validator to a non-colliding
+  fallback; fail closed on `unknown`).
 - **No Phase-5 inventory:** call `droid exec` directly; do **not** route through
   `tools/exec-cadence.sh` / promote `exec-cadence.md`.
 - **Calibration signal:** record `first_seen_in_panel_position` per finding for
