@@ -32,18 +32,51 @@
   - The failed openai envelope is preserved at
     `phase-3/build-evidence/chunk1-executor-openai-failure-envelope.json`.
 
-### Chunk 1 parked state (resume point)
+### Chunk 1 parked state — RESOLVED
 
-- **Test-author:** DONE. `claude-opus-5` wrote `test/test_profile_model.py`
-  (3 tests, `@pytest.mark.models`, behavioral `getattr` guard). Envelope:
-  `phase-3/build-evidence/chunk1-test-author-envelope.json`.
-- **Valid-RED:** CONFIRMED (exit 1, "intended assertion ran and failed",
-  assertion phrase `profile key-set equals contract` present).
-- **Lock:** DONE. `phase-1/locks/test/test_profile_model.py.lock.json`,
-  sha256 `8041e6073c42a367483a5ce4e4c984ffdb0e3acaa8ee147140b82afead88e79e`.
-  Hook enforcement re-verified (Edit on the locked file → exit 2).
-- **Executor:** BLOCKED on this issue. The one failed attempt touched nothing
-  (`models.py` clean). Envelope:
-  `phase-3/build-evidence/chunk1-executor-envelope.json` (failure record).
-- **Resume:** when openai recovers, re-fire the chunk-1 executor call from
-  `phase-3/RUN-COMMANDS.md`; the locked test and valid-RED still stand.
+Resolved by the glm-5.2 substitution above. All three chunks completed and
+committed on `factory/phase-3-profile`; final suite 99 passed. The openai
+re-probe was repeated once more before chunk 2 (still failing identically) and
+the human authorized completing all remaining chunks on glm-5.2. Posterity A/B
+against `gpt-5.4-mini` remains open for when openai recovers.
+
+## KI-2 — validator seat has a write vector via `Execute` at `--auto high`
+
+- **Symptom / risk:** the validator is nominally read-only, but it is invoked
+  with `--enabled-tools Read,Glob,Grep,LS,Execute` and `--auto high` so it can
+  run pytest. `Execute` at that autonomy can, in principle, mutate the working
+  tree (write a file, stage, etc.). A validator that edits the code it is
+  judging would void independence.
+- **Mitigation (applied every chunk):** a `git status --porcelain` +
+  `git diff --stat` **stray-write check** is run immediately after each
+  validator run, before trusting the verdict. Across all six Phase-3 validator
+  runs the tracked diff was unchanged (only the executor's intended files),
+  i.e. no validator wrote to the tree.
+- **Residual:** the guarantee is detective, not preventive. A cleaner design
+  would give the validator a read-only test runner (execution without write) or
+  run it against a throwaway checkout. Recorded for the review-tooling backlog.
+
+## KI-3 — envelope does not surface `providerLock` / `apiProviderLock`
+
+- **Symptom:** the `-o json` result envelope in this Droid CLI version contains
+  `type/subtype/is_error/duration_ms/num_turns/result/session_id/usage` but
+  **no `providerLock` / `apiProviderLock`** (PRD §17 expects them "in the result
+  envelope"). No `droid exec` flag surfaces them (`--help` reviewed).
+- **Impact:** the two provider-lock fields required by `telemetry/SCHEMA.md`
+  cannot be recorded as *observed*. Per `commit-body-recipe.md` §13 ("...or the
+  provider name if it is not yet known") they are set to the **known provider**
+  for the pinned model (anthropic / zhipu / xai / google). This is attribution
+  from the pinned `--model`, not an observed inner-session lock.
+- **Note:** family-separation reasoning is unaffected — it keys on model family,
+  which the pinned `--model` fixes regardless of the lock fields.
+
+## KI-4 — telemetry `role` enum omits `test-designer`
+
+- **Symptom:** `telemetry/SCHEMA.md` lists `role` as
+  `planner / executor / validator / reviewer`, but PRD §7 defines **five** roles
+  including **test designer** (the seat that authors + locks the failing test,
+  separation `≠ executor family`). The enum has no value for it.
+- **Handling:** Phase-3 `runs.jsonl` records the test-author runs with the
+  canonical `role: "test-designer"` anyway. The schema enum should be extended
+  to include it (and `reviewer` clarified as *plan* reviewer vs `validator` as
+  *implementation* validator). Flagged for a SCHEMA.md `schema_version` bump.
