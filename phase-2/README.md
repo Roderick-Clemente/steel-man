@@ -532,3 +532,28 @@ Grok's majors are folded into this v2 as improvements.
 
 — droid, Phase-2 driver, brief **v2 (round-1 reconciled)** on
 `factory/phase-2-slice`
+
+---
+
+## 13. Plan-v1 review outcome (Phase 2 exit reached)
+
+`plan-v1.md` (`Plan-hash: sha256:72eccff5…`) was reviewed single-blind by the
+cross-family panel:
+
+- **gemini-3.1-pro-preview → APPROVE** (0 findings).
+- **grok-4.5 → APPROVE** (0 blocking/high; 3 medium + 3 low, all accepted as
+  amendments A1–A5 in `phase-2/findings.md`).
+
+**Both families APPROVE with zero blocking/high**, so the PRD §11 Phase 2 exit
+criterion — *"one real plan reaches a hash-bound approval"* — is **satisfied**.
+plan-v1 is frozen at its hash; the non-blocking amendments travel with it into
+Phase 3 as binding acceptance criteria (`findings.md`).
+
+**Current state: awaiting the human plan-approval gate (PRD §6).** The panel's
+technical approval is complete; final approval to proceed to Phase 3 (execution)
+is the human's, by design — the framework never self-approves the plan gate.
+
+Note (KNOWN-ISSUES): blind plan review required `--auto high` (not `medium`) —
+the reviewer's first verification step reached for a binary (`sqlite3` on the
+pilot DB), which `medium` gates. Reviewers remain unable to edit files (no editor
+tool enabled); `high` only widens `Execute`.
