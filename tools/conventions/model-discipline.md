@@ -31,7 +31,7 @@ DROID_MODEL_ID=gpt-5.4-mini bash tools/run-with-model.sh \
         > build-evidence/my-envelope.json
 ```
 
-If `$DROID_MODEL_ID` is unset, the wrapper exits non-zero with a one-line reminder of the rule. Cheap insurance against the `--auto` foot-gun.
+If `$DROID_MODEL_ID` is unset, the wrapper exits non-zero with a rule paragraph (the full §17.1 rule text — multi-line by design, not a one-line summary). The multi-line shape is what §17.5 requires reviewer-side transcripts to surface; failure modes should be unambiguous at the run transcript. Cheap insurance against the `--auto` foot-gun.
 
 ## Standing reviewer panel
 

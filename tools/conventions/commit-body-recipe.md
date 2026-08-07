@@ -31,13 +31,15 @@ If no panel model is in the line, the run is non-compliant with `PRD.md` §17.2 
 
 ## Mandatory trailer lines
 
-End of the body, before the Co-Authored-By trailer:
+End of the body, immediately before the Co-Authored-By trailer:
 
 ```
 Telemetry-row: telemetry/runs.jsonl:<run_id>
 Findings: <count>: <comma-separated finding_ids surfaced in this run>
-Dispositions: <comma-separated disposition commits, if this run closes findings>
+Dispositions: <comma-separated <id>:<disposition>@<sha> tuples, if this run closes findings>
 ```
+
+These trailers appear on **every** kind of body — executor, validator, and reviewer passes all carry `Telemetry-row:`. Reviewer passes additionally carry `Findings:` because every reviewer run surfaces at least zero findings (an empty `Findings:` line with count=0 is the legitimate closure). Disposition trailers appear only on commits that close prior reviewer findings.
 
 `<run_id>` is stable per `droid exec` invocation; the same id appears in the per-run telemetry row. One line per invocation; one line per coincident dispositions or findings.
 
@@ -54,8 +56,9 @@ Role: executor
 Added tools/manifest.py with the lock schema: SHA-256 of the test file
 recorded at lock time with accepted_at + accepted_assertion.
 
-Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
 Telemetry-row: telemetry/runs.jsonl:r-executor-2026-08-05-001
+
+Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
 ```
 
 ### Reviewer pass on a feature branch
@@ -70,8 +73,10 @@ Reviewer-panel: gemini-2.5-pro, grok-4.5 (Codex excluded — same family as auth
 Three findings against the test-locking schema and two against the valid-RED
 classifier; one blocking on the test file's hash set at lock time.
 
-Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
+Telemetry-row: telemetry/runs.jsonl:r-reviewer-2026-08-05-002
 Findings: 5: F-1a2b3c, F-4d5e6f, F-7g8h9i, F-0j1k2l, F-3m4n5o
+
+Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
 ```
 
 ### Disposition commit closing prior-reviewer findings
@@ -85,9 +90,10 @@ Role: executor
 Lookup-the-hash fix in tools/manifest.py; valid-RED edge case handled
 in tools/classifier.py. Closes all five findings from the panel review.
 
-Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
 Telemetry-row: telemetry/runs.jsonl:r-executor-2026-08-05-014
 Dispositions: F-1a2b3c:fixed@abc1234, F-4d5e6f:fixed@abc1234, F-7g8h9i:fixed@abc1234, F-0j1k2l:fixed@abc1234, F-3m4n5o:fixed@abc1234
+
+Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>
 ```
 
 ## Compactness

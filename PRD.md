@@ -668,6 +668,15 @@ This repository is public per `AGENTS.md`. The §13 efficacy data — per-invoca
 
 No `telemetry/*.jsonl` row is committed to this repository's history, ever. If a row is accidentally staged, the workflow is to `git reset` the staging **before** the first push, not to amend the commit and push the row onward — `AGENTS.md`'s history-hygiene rule applies.
 
+### 17.5 Tool surface is explicitly restricted
+
+Every `droid exec` invocation carries `--enabled-tools <comma-list>`. The allowlist is structural — it is enforcement below `--model` selection, not a courtesy. Defaults:
+
+- **Reviewer invocations** → `--enabled-tools Read,Glob,Grep,LS`. Read-only shell-out (`git show`, `cat`) is permitted by adding `Execute` to the allowlist; that is the only reviewer context where `Execute` is allowed.
+- **Executor invocations** → `--enabled-tools Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute`. The four editor tools must all be present — omitting `MultiEdit` is the bypass the round-2 Phase 1 review surfaced.
+
+`tools/conventions/model-discipline.md` keeps the standing lists and the rationale for each tool.
+
 ---
 
 

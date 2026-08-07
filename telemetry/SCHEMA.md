@@ -74,7 +74,10 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 
 - *How many bugs of given severity does the Nth reviewer find?* → `findings.jsonl ⨝ runs.jsonl` on `source_run_id` and `source_role=reviewer`; group by `first_seen_in_panel_position`, count by `severity`.
 - *How many of those are actually fixed?* → `findings.jsonl ⨝ dispositions.jsonl` on `finding_id`; `count(disposition=fixed) / count(surface)`, segmented by severity.
-- *Cost of each review and fix in tokens?* → `runs.jsonl ⨝ dispositions.jsonl` on `run_id` and `disposition_commit_sha` mapped to the run that produced the commit's diff; sum `input_tokens + output_tokens`.
+- *Cost of each review and fix in tokens?* → two complementary paths, both used by `telemetry/aggregate.py`:
+  - *Review cost*: from `findings.jsonl` → unique `source_run_id` → `runs.jsonl`: sum `input_tokens + output_tokens`. Each reviewer run contributes once regardless of how many findings it surfaced (round-1 cross-family fix; previous version double-counted).
+  - *Fix cost*: from `dispositions.jsonl` where `disposition=fixed`: sum `disposition_tokens_input + disposition_tokens_output`. One row per fixed finding.
+  - Disposition rows should carry `disposition_tokens_*` (written at the moment of the fix run). When absent on a row, the canonical fallback is to join `dispositions ⨝ runs` on `disposition_commit_sha == run_id` (the run that produced the disposition's diff) and sum run tokens. That fallback is not yet implemented in `aggregate.py` — see `tools/conventions/model-discipline.md` for the migration gate.
 
 ## Stability
 

@@ -58,7 +58,13 @@ def cohort_total_tokens(run: dict) -> int:
 def table_per_reviewer_yield(
     findings: list[dict], runs: list[dict]
 ) -> list[tuple[int, int, int, int]]:
-    """Returns (panel_position, severity, count, tokens_spent)."""
+    """Returns (panel_position, severity, count, tokens_spent).
+
+    Tokens are summed ONCE per unique source_run_id. Multiple findings
+    surfaced by the same reviewer run contribute one row of token cost,
+    not N. (Round-1 cross-family review fix: previous version
+    double-counted by adding cohort_total_tokens(run) per finding.)
+    """
     run_by_id = {r.get("run_id"): r for r in runs}
     cells: list[tuple[int, int, int, int]] = []
     by_pos: dict[tuple[int, str], list[dict]] = defaultdict(list)
@@ -68,9 +74,14 @@ def table_per_reviewer_yield(
         by_pos[(pos, sev)].append(f)
 
     for (pos, sev), group in sorted(by_pos.items()):
+        seen_runs: set[str] = set()
         token_sum = 0
         for f in group:
-            run = run_by_id.get(f.get("source_run_id"), {})
+            rid = f.get("source_run_id")
+            if rid in seen_runs:
+                continue
+            seen_runs.add(rid)
+            run = run_by_id.get(rid, {})
             token_sum += cohort_total_tokens(run)
         cells.append((pos, sev, len(group), token_sum))
     return cells
@@ -94,6 +105,24 @@ def table_fix_rate_by_severity(
 def table_cost_per_finding_fixed(
     findings: list[dict], runs: list[dict], dispositions: list[dict]
 ) -> tuple[int, int, int]:
+    """Compute total token cost attributable to the review + fix.
+
+    Token accounting rules (round-1 cross-family fix):
+    - review_tokens: sum of cohort_total_tokens(run) over UNIQUE
+      source_run_ids. One reviewer run contributes its cost once
+      regardless of how many findings it surfaced.
+    - fix_tokens: per-disposition token totals (each disposition row is
+      a unique finding, no double-count there).
+    - found_finding_count: rows in findings.jsonl (each is a unique
+      finding_id).
+    - fixed_finding_count: count of dispositions with disposition=fixed.
+
+    SCHEMA §13 cost-path note: when disposition_tokens_* are absent on
+    a disposition row, the canonical fallback is to join
+    `dispositions ⨝ runs` on `disposition_commit_sha == run_id` (the
+    row that produced the disposition's diff) and sum run tokens. That
+    fallback is not yet implemented in this aggregator.
+    """
     run_by_id = {r.get("run_id"): r for r in runs}
     review_tokens = 0
     fix_tokens = 0
@@ -101,15 +130,19 @@ def table_cost_per_finding_fixed(
     fixed_finding_count = 0
     dispo_by_id = {d.get("finding_id"): d for d in dispositions}
 
+    seen_runs: set[str] = set()
     for f in findings:
-        run = run_by_id.get(f.get("source_run_id"), {})
-        review_tokens += cohort_total_tokens(run)
+        rid = f.get("source_run_id")
+        if rid and rid not in seen_runs:
+            seen_runs.add(rid)
+            run = run_by_id.get(rid, {})
+            review_tokens += cohort_total_tokens(run)
         found_finding_count += 1
         dispo = dispo_by_id.get(f.get("finding_id"), {})
         if dispo.get("disposition") == "fixed":
-            fix_tokens += int(dispo.get("disposition_tokens_input", 0) or 0) + int(
-                dispo.get("disposition_tokens_output", 0) or 0
-            )
+            fix_tokens += int(
+                dispo.get("disposition_tokens_input", 0) or 0
+            ) + int(dispo.get("disposition_tokens_output", 0) or 0)
             fixed_finding_count += 1
 
     return (
