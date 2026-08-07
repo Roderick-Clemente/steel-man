@@ -1,0 +1,6 @@
+{
+  "file": "test/test_profile_route.py",
+  "sha256": "7c5579fd7630d6033d7a99640c890186bc0e5dd8e1fbef60c19d78f45a4006ee",
+  "accepted_at": "2026-08-07T13:02:41.940682+00:00",
+  "accepted_assertion": "profile requires authenticated session"
+}

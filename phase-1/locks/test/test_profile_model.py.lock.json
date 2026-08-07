@@ -1,0 +1,6 @@
+{
+  "file": "test/test_profile_model.py",
+  "sha256": "8041e6073c42a367483a5ce4e4c984ffdb0e3acaa8ee147140b82afead88e79e",
+  "accepted_at": "2026-08-07T07:28:24.009365+00:00",
+  "accepted_assertion": "profile key-set equals contract"
+}
