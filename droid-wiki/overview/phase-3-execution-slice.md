@@ -157,3 +157,9 @@ slice. The framework is usable on real work. Phase 4 generalises across stacks;
 Phase 5 hardens the loop's own invariants.
 
 The human merge gate (PRD §6) remains: the slice is presented, not merged.
+
+This run is the **control arm** for [Phase 3.1 — the degraded
+loop](phase-3.1-degraded-loop.md), which violates invariant #1 at the
+test-author seat to measure whether cross-family validation alone compensates.
+See also [Phase 3 — the CI/CD evidence tier](phase-3-ci-tier.md) for what CI
+surfaced after the merge.

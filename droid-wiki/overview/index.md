@@ -301,3 +301,37 @@ accumulate.
 The full round-by-round breakdown — verdicts, per-session tokens, the autonomy
 findings from running paid reviewers unattended, and the divergence matrix — is
 in [The Phase 2 planning slice](phase-2-planning-slice.md).
+
+## Phase 3 — execution, CI, and the degraded loop
+
+Phase 2 reached a hash-bound plan approval. **Phase 3 closes the loop: take that
+approved plan, build the feature for real, and run the same cross-family panel
+on the code — plan to execute to review, end to end, on one real slice.** The
+slice is the same read-only `GET /profile` page. Three chunks, each running the
+full test-authorship to lock to valid-RED to cheap executor to cross-family
+validation cycle. The result: 6 of 6 ACCEPT, zero findings, ~541k tokens, the
+review panel at 84% of spend. The executor never retried. See [The Phase 3
+execution slice](phase-3-execution-slice.md).
+
+What happened after the human merge gate is the first real-world test of the
+Phase 3.2 thesis: the merged slice went through an actual CI/CD pipeline
+(Harness), and the deterministic evidence tier surfaced what the model panel's
+diff-scoped review never looked at — one false positive, one real-but-negligible
+CVE, one style nit, all pre-existing debt. The sharpest lesson was a stale cache
+that replayed an identical `jobId` and microsecond-identical timing across two
+supposedly separate runs: the pipeline's displayed verdict was an *account*, and
+only a fresh audit of the committed file was *evidence*. See [The Phase 3 CI/CD
+evidence tier](phase-3-ci-tier.md).
+
+Phase 3.1 then asked the budget question: **what happens when the
+independent-family test-author is unavailable and the only seat you can fill is
+the executor's own family?** The experiment deliberately violated invariant #1
+at exactly one seat — the test-author — while keeping the cross-family
+validators pinned. The verdict was **panel-dependent, not clean
+graceful-degradation and not a hard floor**: the same-family author encoded the
+expected test-independence bias in 1 of 3 chunks; the deterministic standalone
+gate caught it every time; the cross-family panel split (grok caught it,
+gemini observed the same failure and dismissed it); a two-model panel with
+any-reject-blocks did compensate. Cost was ~2.38x the control, but roughly half
+of that is the rejection-plus-retry cycle. This evidence amended PRD §17.6. See
+[The Phase 3.1 degraded loop](phase-3.1-degraded-loop.md).
