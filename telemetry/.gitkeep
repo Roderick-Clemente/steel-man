@@ -1,0 +1,7 @@
+# telemetry/.gitkeep — placeholder so the telemetry directory exists in tree.
+#
+# Rows (telemetry/runs.jsonl, telemetry/findings.jsonl, telemetry/dispositions.jsonl)
+# are git-ignored per .gitignore. The directory itself must exist so the
+# aggregator and the wrapper scripts have a stable path; this file is the
+# place-holder that keeps it in version control.
+

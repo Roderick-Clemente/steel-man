@@ -11,3 +11,14 @@ node_modules/
 
 # Async steering channel for agent runs. Live control input, not part of the record.
 STEER.md
+
+# Telemetry rows for §13 efficacy evaluation (PRD §17.3). Schema and aggregator
+# live in telemetry/ as committed code; the rows themselves are private data
+# and must not enter this repo's git history. aggregate.py reads them from
+# $TELEMETRY_DATA_DIR (default ./telemetry) or --data-dir. See
+# tools/conventions/model-discipline.md "Migrating the data" for the long-
+# term migration gate.
+telemetry/runs.jsonl
+telemetry/findings.jsonl
+telemetry/dispositions.jsonl
+
