@@ -1,0 +1,127 @@
+GREEN REFUSED: test does not pass after implementation
+--- stdout ---
+[1m============================= test session starts ==============================[0m
+platform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.5.0 -- /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/factory/work/qb-phase-3.1
+configfile: pytest.ini
+plugins: cov-5.0.0
+[1mcollecting ... [0mcollected 3 items
+
+test/test_profile_model.py::test_profile_returns_contract_keys [31mFAILED[0m[31m    [ 33%][0m
+test/test_profile_model.py::test_profile_returns_none_for_unknown_user [31mFAILED[0m[31m [ 66%][0m
+test/test_profile_model.py::test_profile_address_non_empty [31mFAILED[0m[31m        [100%][0m
+
+=================================== FAILURES ===================================
+[31m[1m______________________ test_profile_returns_contract_keys ______________________[0m
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_profile_returns_contract_keys[39;49;00m():[90m[39;49;00m
+        fn = [96mgetattr[39;49;00m(models, [33m"[39;49;00m[33mget_user_profile[39;49;00m[33m"[39;49;00m, [94mNone[39;49;00m)[90m[39;49;00m
+        [94massert[39;49;00m fn [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m, ([90m[39;49;00m
+            [33m"[39;49;00m[33mget_user_profile not implemented: profile key-set equals contract[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+>       result = fn([94m1[39;49;00m)[90m[39;49;00m
+                 ^^^^^[90m[39;49;00m
+
+[1m[31mtest/test_profile_model.py[0m:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user_id = 1
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mget_user_profile[39;49;00m(user_id: [96mint[39;49;00m) -> [96mdict[39;49;00m | [94mNone[39;49;00m:[90m[39;49;00m
+    [90m    [39;49;00m[33m"""Get a user's profile by ID, returning only the display-safe columns."""[39;49;00m[90m[39;49;00m
+        conn = get_db()[90m[39;49;00m
+        cursor = conn.cursor()[90m[39;49;00m
+>       cursor.execute([90m[39;49;00m
+            _sql([33m"[39;49;00m[33mSELECT username, email, full_name FROM users WHERE id = ?[39;49;00m[33m"[39;49;00m),[90m[39;49;00m
+            (user_id,),[90m[39;49;00m
+        )[90m[39;49;00m
+[1m[31mE       sqlite3.OperationalError: no such table: users[0m
+
+[1m[31mmodels.py[0m:591: OperationalError
+----------------------------- Captured stdout call -----------------------------
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+------------------------------ Captured log call -------------------------------
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 1 factory with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 2 factories with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[31m[1m__________________ test_profile_returns_none_for_unknown_user __________________[0m
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_profile_returns_none_for_unknown_user[39;49;00m():[90m[39;49;00m
+        fn = [96mgetattr[39;49;00m(models, [33m"[39;49;00m[33mget_user_profile[39;49;00m[33m"[39;49;00m, [94mNone[39;49;00m)[90m[39;49;00m
+        [94massert[39;49;00m fn [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m, ([90m[39;49;00m
+            [33m"[39;49;00m[33mget_user_profile not implemented: profile returns None for unknown user[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+>       result = fn([94m99999[39;49;00m)[90m[39;49;00m
+                 ^^^^^^^^^[90m[39;49;00m
+
+[1m[31mtest/test_profile_model.py[0m:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user_id = 99999
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mget_user_profile[39;49;00m(user_id: [96mint[39;49;00m) -> [96mdict[39;49;00m | [94mNone[39;49;00m:[90m[39;49;00m
+    [90m    [39;49;00m[33m"""Get a user's profile by ID, returning only the display-safe columns."""[39;49;00m[90m[39;49;00m
+        conn = get_db()[90m[39;49;00m
+        cursor = conn.cursor()[90m[39;49;00m
+>       cursor.execute([90m[39;49;00m
+            _sql([33m"[39;49;00m[33mSELECT username, email, full_name FROM users WHERE id = ?[39;49;00m[33m"[39;49;00m),[90m[39;49;00m
+            (user_id,),[90m[39;49;00m
+        )[90m[39;49;00m
+[1m[31mE       sqlite3.OperationalError: no such table: users[0m
+
+[1m[31mmodels.py[0m:591: OperationalError
+----------------------------- Captured stdout call -----------------------------
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+------------------------------ Captured log call -------------------------------
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 3 factories with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 4 factories with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[31m[1m________________________ test_profile_address_non_empty ________________________[0m
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_profile_address_non_empty[39;49;00m():[90m[39;49;00m
+        fn = [96mgetattr[39;49;00m(models, [33m"[39;49;00m[33mget_user_profile[39;49;00m[33m"[39;49;00m, [94mNone[39;49;00m)[90m[39;49;00m
+        [94massert[39;49;00m fn [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m, ([90m[39;49;00m
+            [33m"[39;49;00m[33mget_user_profile not implemented: profile address is non-empty[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+>       result = fn([94m1[39;49;00m)[90m[39;49;00m
+                 ^^^^^[90m[39;49;00m
+
+[1m[31mtest/test_profile_model.py[0m:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user_id = 1
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mget_user_profile[39;49;00m(user_id: [96mint[39;49;00m) -> [96mdict[39;49;00m | [94mNone[39;49;00m:[90m[39;49;00m
+    [90m    [39;49;00m[33m"""Get a user's profile by ID, returning only the display-safe columns."""[39;49;00m[90m[39;49;00m
+        conn = get_db()[90m[39;49;00m
+        cursor = conn.cursor()[90m[39;49;00m
+>       cursor.execute([90m[39;49;00m
+            _sql([33m"[39;49;00m[33mSELECT username, email, full_name FROM users WHERE id = ?[39;49;00m[33m"[39;49;00m),[90m[39;49;00m
+            (user_id,),[90m[39;49;00m
+        )[90m[39;49;00m
+[1m[31mE       sqlite3.OperationalError: no such table: users[0m
+
+[1m[31mmodels.py[0m:591: OperationalError
+----------------------------- Captured stdout call -----------------------------
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+✗ Failed to initialize Split.io: 'NoneType' object has no attribute 'client'
+------------------------------ Captured log call -------------------------------
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 5 factories with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[33mWARNING [0m splitio.client.factory:factory.py:1242 factory instantiation: You already have 6 factories with this SDK Key. We recommend keeping only one instance of the factory at all times (Singleton pattern) and reusing it throughout your application.
+[1m[31mERROR   [0m splitio.client.input_validator:input_validator.py:36 factory_instantiation: you passed a null sdk_key, sdk_key must be a non-empty string.
+[36m[1m=========================== short test summary info ============================[0m
+[31mFAILED[0m test/test_profile_model.py::[1mtest_profile_returns_contract_keys[0m - sqlite3.OperationalError: no such table: users
+[31mFAILED[0m test/test_profile_model.py::[1mtest_profile_returns_none_for_unknown_user[0m - sqlite3.OperationalError: no such table: users
+[31mFAILED[0m test/test_profile_model.py::[1mtest_profile_address_non_empty[0m - sqlite3.OperationalError: no such table: users
+[31m============================== [31m[1m3 failed[0m[31m in 0.09s[0m[31m ===============================[0m
+
+--- stderr ---
+

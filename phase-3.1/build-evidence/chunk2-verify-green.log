@@ -1,0 +1,5 @@
+GREEN ACCEPTED
+  test_file: test/test_profile_route.py
+  sha256:    c6e304b99c19113dadda58dd64c26e6e2bab8a26af79fc6c7ebc4bd5f8618710
+  pytest:    exit 0
+  assertion: profile requires authenticated session

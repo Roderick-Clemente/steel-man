@@ -1,9 +1,10 @@
 # Phase 3.1 — Spike: budget-degraded loop (cheap test-author + executor, frontier validation only)
 
-**Status:** READY TO RUN. Phase 3 is complete and merged to `main` (ade12c0);
-the full-invariant baseline (the control arm) is recorded in
-`telemetry/runs.jsonl` (541k tokens total, validators ~84%). Execution handoff:
-`phase-3.1/RUN-PROMPT.md`.
+**Status:** COMPLETE. Ran on `factory/phase-3.1-degraded` (isolated worktree at
+pilot base `8a10711d`); presented at the human merge gate, **not merged**. Full
+write-up with numbers: `phase-3.1/RESULTS.md`. The full-invariant baseline (the
+control arm) is recorded in `telemetry/runs.jsonl` (~541k tokens total).
+Execution handoff was `phase-3.1/RUN-PROMPT.md`.
 
 ## Origin
 
@@ -53,19 +54,40 @@ from the diff alone to compensate for the lost test-independence backstop.
    - Did the final code pass the same acceptance criteria?
    - What was the token cost delta?
 
-## What the results would tell us
+## What the results told us (OBSERVED — see `phase-3.1/RESULTS.md`)
 
-- **If validators catch the biases:** the loop has a graceful degradation path
-  for budget-constrained runs. The frontier-only-validation configuration is a
-  documented fallback, not a violation. This is operationally valuable: it
-  means the framework doesn't hard-stop every time a frontier model is
-  rate-limited.
-- **If validators miss the biases:** same-family test-authorship is a hard
-  floor. The framework must stop (invariant #7) when it cannot seat an
-  independent-family test-author. The cost of that guarantee is recorded
-  honestly.
-- **Either way:** the result is evidence, not intuition. It feeds Phase 5
-  calibration and the §13 efficacy surface.
+The outcome was **neither** clean graceful-degradation **nor** a plain hard
+floor — it was **panel-dependent**, which is a more useful answer than either
+hypothesis predicted:
+
+- The same-family author encoded the expected test-independence bias in **1 of 3
+  chunks** — chunk 1, the read-model test, which omitted the standalone
+  DB-seeding fixture the frontier control included. Chunks 2–3 (which used the
+  `client` fixture) matched the control with 0 findings.
+- **Validators split on it:** `grok-4.5` caught it (`REJECT_TEST`, correctly
+  attributed to the test); `gemini-3.1-pro-preview` observed the identical
+  standalone failure in writing but dismissed it and returned `ACCEPT`. So
+  **frontier validation *alone* did not reliably compensate** — a single-gemini
+  config would have shipped the weakened test. A **multi-model panel with
+  any-reject-blocks did** compensate.
+- Independently, the **family-blind deterministic gate** (`verify-green.py`,
+  standalone) caught it every time and is the cheapest, most reliable backstop.
+- After **one capped test-author retry** fed the cross-family finding, the cheap
+  seat restored independence (a `tmp_path` + `init_db()` fixture, arguably more
+  robust than the control's) and the panel reached unanimous ACCEPT.
+
+**So the documented fallback is conditional, not free:** cheap same-family
+authorship is acceptable *only* paired with (a) a deterministic standalone test
+gate and (b) a ≥2-model fail-closed validation panel with mandatory
+retry-on-reject. Drop either backstop and the degradation is silent. Cost was
+~2.38x the control, but roughly half of that is the rejection+retry cycle, and
+cross-family token sums are noisy (KI-3 accounting); the real lesson is
+structural — the degraded loop only saves money if it passes first try.
+
+This feeds Phase 5 calibration and the §13 efficacy surface as evidence, not
+intuition: same-family authorship raised the blocking-finding rate from 0 → 1
+across three chunks, concentrated entirely at the model-layer/no-fixture seam,
+and the catch was 1-of-2 (panel size and fail-closed semantics are load-bearing).
 
 ## Relationship to Phase 3
 
