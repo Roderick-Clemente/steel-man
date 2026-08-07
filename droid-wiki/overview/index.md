@@ -148,26 +148,28 @@ So the gap this project fills is not intelligence and not tooling. It is the **h
 
 ## Roadmap
 
-The north star is a **replayable demo of the method on one bounded pilot change**, with the manual harness at Phase 0.5 as the honest comparison arm.
+The north star is a **replayable demo of the method on one bounded pilot change**, with the manual harness at Phase 0.5 as the honest comparison arm. **Phases 0–3 are the MVP**, the point at which the core loop runs end-to-end and the §13 comparison produces a measured result. Everything past 3 is earned by using that MVP, not required to have proven it.
 
 | Phase | What it delivers | Status |
 |---|---|---|
 | **0 — Feasibility spike** | Eight probes and a go/no-go on platform capabilities | **Done, GO** |
-| **0.5 — Manual baseline harness** | The smallest honest two-CLI harness; the §13 comparison arm and Act 1 of the demo | Not started |
-| **1 — Test-evidence slice** | Valid-RED classification, test locking, RED → GREEN on the pilot | Not started |
-| **2 — Adversarial planning slice** | Blind plan review, bounded reconciliation, human decision packets | Not started |
-| **3 — Factory end-to-end** | The full loop on one pilot change, plus a replayable demo and the baseline comparison | Not started |
-| **4 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started |
+| **0.5 — Manual baseline harness** | The smallest honest two-CLI harness; the §13 comparison arm and Act 1 of the demo | Not started (owed as the §13 baseline arm) |
+| **1 — Test-evidence slice** | Valid-RED classification, test locking, RED → GREEN on the pilot | **Done** — shipped `9940d40`, ACCEPT-WITH-NITS from cross-family review |
+| **2 — Adversarial planning slice** | Blind plan review, bounded reconciliation, human decision packets | **Plan gated** — `plan-v1` hash-bound and panel-APPROVED, awaiting the human gate ([story](phase-2-planning-slice.md)) |
+| **3 — Factory end-to-end** | The full loop on one pilot change, plus a replayable demo and the baseline comparison | Not started — **the MVP finish line** |
+| **4 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (post-MVP) |
+| **5 — Hardening (settling pass)** | Consolidation of parked low-priority items; hardens the loop's own invariants at no new behaviour | Not started (post-MVP) |
+| **6 — Human-in-the-loop compression** | Review panel, hats-across-families, escalation-on-disagreement knob, calibration telemetry, to compress the operator seat | Not started ([post-MVP, pain-point-driven](../human-in-the-loop.md)) |
 
-Each phase carries written exit criteria in `PRD.md` §11. A phase is finished when those are met, not when it looks finished, which is the same standard the probe records hold themselves to.
+Each phase carries written exit criteria in `PRD.md` §11. A phase is finished when those are met, not when it looks finished, which is the same standard the probe records hold themselves to. The §13 efficacy metrics are computed over the measured **0–5 arc**; [Phase 6](../human-in-the-loop.md) is deliberately outside it, because it targets the operator's cost rather than the loop's correctness or spend.
 
 Phase 0.5 is the one most easily misread as optional. It is the baseline arm the §13 evaluation already requires, and the PRD is explicit that it must not be strawmanned: if a two-CLI shell harness turns out to be nearly as good as the plugin, that is a finding worth having before a demo rather than during one.
 
 ## Where we are against it
 
-**Only Phase 0 has been built.** Everything from 0.5 onward is specified and not started. No code exists for any of it, and there is no partial implementation of a later phase hiding anywhere in the tree.
+**Phases 0–2 have landed work; Phase 3 onward is specified and not started.** Phase 0 is complete (GO). Phase 1 shipped its test-evidence slice, valid-RED classification, test locking, and a RED → GREEN on the pilot (`9940d40`, ACCEPT-WITH-NITS from cross-family review). Phase 2 produced a hash-bound, panel-APPROVED `plan-v1` now parked at the human gate; no `/profile` implementation exists yet, because writing it is Phase 3's execute step. Phase 0.5, the manual baseline harness, was specified and skipped forward, and is still owed as the §13 comparison arm.
 
-There is deliberately no application code yet. The repository is currently a **build gate**: a full product spec (`PRD.md`), the canonical sprint method it packages (`templates/SPRINT-PLANNING-TEMPLATE.md`), and a set of executed probes that test whether the platform can enforce what the spec assumes. Plugin directories get created once the probes say the design is buildable, not before.
+The repository grew from a pure **build gate** (spec `PRD.md`, the canonical method in `templates/SPRINT-PLANNING-TEMPLATE.md`, and executed probes) into that plus the Phase 1 enforcement code and the Phase 2 planning artifacts under `phase-1/`, `phase-2/`, and `tools/`. What still does not exist under any configuration is the thing the whole gate is there to produce: a measured §13 result.
 
 **Phase 0 is complete and the verdict is GO, with one mandatory design change:** build it command-orchestrated rather than Mission-native. See `phase-0/GO-NO-GO.md`, summarised in [Findings](../findings/index.md).
 

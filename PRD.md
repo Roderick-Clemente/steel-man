@@ -499,6 +499,23 @@ Things explicitly out of scope: new feature work, new behaviour, any change that
 
 **Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole 6-phase arc at the end of Phase 5.
 
+### Phase 6 — Human-in-the-loop compression (post-MVP, pain-point-driven)
+
+Deferred until the MVP (Phases 0–3) has been run in anger. Phases 0–3 are the product; 4–6 are what use of the product earns. This phase exists because of a cost the §13 surface does not track: the method *moves* human effort rather than removing it, and it moves it onto the two most expensive seats, reconciliation tie-breaks and decision packets. Both are O(n) in the number of concurrent loops, so at scale the operator, not the model, becomes the bottleneck ("run 30 loops, busier than ever"). This is entered as the trigger for the phase, a finding to be measured, not a claim already proven.
+
+The bet: compress the human seat from "read every finding" to "rule only on genuine disagreement", without breaking invariant #1. Candidate mechanisms, all sitting on machinery that already exists (`telemetry/findings.jsonl`, `telemetry/aggregate.py`, the self-declared-risk input from Probe 8):
+
+- a review **panel** rather than a single reviewer, with thinking-hats-style lenses (caution, facts, alternatives) assigned *across families* so the hats add lens coverage while family separation stays the independence control. Hats on one model are one opinion in costume, not two opinions;
+- an **escalation knob** that gates human tag-in on *disagreement*, not volume: the panel resolves what it agrees on, and only a genuine conflict, or a finding above a severity/risk threshold, reaches the human;
+- panel size scaled by the chunk's risk and complexity (Probe 8 self-report plus the declared complexity ceiling), so a simple slice gets one reviewer or none and only high-stakes work convenes the full panel;
+- calibration telemetry tracked over time (which hat/family seat catches which finding-family, hit rate, unique-vs-overlap), turning marginal-reviewer cost into a keep/cut decision.
+
+Explicit guard: consensus is not correctness. A panel that agrees can be wrong together, so the calibration record must include panel-agreed-but-wrong cases caught later, or the knob will tune the human out on the strength of agreement that was never evidence, the same "a run's own account of itself is not evidence" principle applied to the panel instead of the executor.
+
+Distinct from Phases 4 and 5: Phase 4 generalises the loop across stacks; Phase 5 hardens the loop's own invariants at no new behaviour; Phase 6 is new behaviour aimed at the *operator's* cost, and is deliberately kept **outside the measured 0–5 arc**. Its own efficacy (operator-minutes per landed change, tag-in rate, panel calibration) is a separate measurement, opened only once the MVP has produced real operating pain to size it against.
+
+**Exit:** the human tag-in rate on a representative batch of loops drops materially against the hand-run baseline with no regression in hidden acceptance-test pass rate, and the panel calibration record is complete enough to justify each seat's token cost. Until the MVP is run, this phase carries no committed target: the pain it addresses has to be measured before it can be sized.
+
 ---
 
 ## 12. v1 Acceptance Criteria
