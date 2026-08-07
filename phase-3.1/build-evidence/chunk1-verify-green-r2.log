@@ -1,0 +1,5 @@
+GREEN ACCEPTED
+  test_file: test/test_profile_model.py
+  sha256:    d2b8380053fcb6fc273d79c8dbddfe1b6b16c6723883059c39628844ef6d3473
+  pytest:    exit 0
+  assertion: profile key-set equals contract

@@ -1,0 +1,5 @@
+GREEN ACCEPTED
+  test_file: test/test_profile_seed.py
+  sha256:    17184b77ec87110abc245da9859bb884d85b2e8518d80f9746137a46ec5b6aad
+  pytest:    exit 0
+  assertion: seeded identity is Jean-Luc Picard

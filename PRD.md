@@ -748,6 +748,48 @@ Every `droid exec` invocation carries `--enabled-tools <comma-list>`. The allowl
 
 `tools/conventions/model-discipline.md` keeps the standing lists and the rationale for each tool.
 
+### 17.6 Degrading the test-author family invariant is an outage fallback, not a cost lever
+
+The **default is not to degrade.** If an independent-family test-author cannot be
+seated, invariant #7 governs: **stop** — do not silently weaken. Dropping the
+test-author ↔ executor family separation (invariant #1) is permitted **only** as a
+documented response to a **confirmed frontier-model outage or exhaustion**,
+recorded as an explicit exception in `phase-N/KNOWN-ISSUES.md`. It is **never** a
+cost optimization (see the cost finding below).
+
+When a run is degraded this way, **both** backstops are mandatory and
+non-negotiable; a run missing **either** MUST stop rather than land:
+
+1. **A family-blind deterministic gate** that runs each locked test **in
+   isolation** (`verify-green.py` standalone). Full-suite green is not
+   sufficient evidence — it can be parasitic on test-module ordering, which is
+   exactly the defect a same-family author is prone to introduce.
+2. **A fail-closed, cross-family validator panel of ≥2 distinct families** in
+   which **any REJECT blocks**, with **mandatory retry-on-reject** (round cap per
+   §5.3). A **single-validator panel is explicitly insufficient** for
+   degrade-authored code. Same-family authorship reviewed by a single model MUST
+   NOT land on `main`.
+
+**Evidence (Phase 3.1 spike — `phase-3.1/RESULTS.md`; sample size 1).** With the
+test-author moved to the executor's own family (`glm-5.2`), the author encoded a
+test-independence defect in 1 of 3 chunks (a locked test that passed only inside
+full-suite ordering). The deterministic gate caught it every time. The pinned
+frontier panel **split**: `grok-4.5` returned `REJECT_TEST`; `gemini-3.1-pro`
+observed the same standalone failure and returned `ACCEPT` — so a single-gemini
+configuration would have shipped the defect. The reject forced a full retry that
+**erased the cheap-seat token savings** (run cost ≈ 2.4× the full-invariant
+control). Cross-family token counts are not directly comparable (per-provider
+cache accounting), so read the multiplier as directional, not a price.
+
+**Standing posture until more data changes it (deliberately strict on n=1).** The
+combination *deterministic standalone gate + fail-closed ≥2-family panel +
+retry-on-reject* is the recommended hardening for **every** run, degraded or not;
+single-reviewer acceptance is treated as insufficient independence. The cheap
+same-family author is classified as a **survivable degradation for outages only**,
+not a default and not a saving. Revisit these thresholds as the sample grows;
+strengthen first, relax only on evidence. This subsection is bound by §17.2 and by
+invariants #1 and #7.
+
 ---
 
 

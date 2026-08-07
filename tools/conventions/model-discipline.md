@@ -2,11 +2,12 @@
 
 Operational form of `PRD.md` §17. Read this before invoking `droid exec` on a feature branch.
 
-## Three rules
+## Rules
 
 1. **Every invocation's model is recorded; separation-bearing seats are pinned.** Attribution (which model ran) is recoverable from the envelope; enforcement (guaranteeing family separation *before* the run) is not. So (per PRD §17.1): the **plan reviewer** and **validator** seats MUST pin `--model` (or a router family-exclude) before running, because a colliding family voids independence and post-hoc detection wastes the round; the **planner** and **executor** seats MAY use `--auto`, provided the resolved `modelId`/`providerLock`/`apiProviderLock` are recorded in the commit body and `telemetry/runs.jsonl`. An author seat on `--auto` runs a collision guard that swaps a same-family reviewer to the `claude-opus-4-8` fallback. This supersedes the earlier blanket "no silent `--auto`" — the rule is "always *know* the model, and pin wherever a family constraint must be guaranteed."
 2. **Cross-family review is by design.** A non-author-family reviewer is required for any code that lands on `main`. Standing panel: `Gemini-Pro` + `Grok-4.5` (cross-family primary); `Claude-Opus-4.8` (fallback). `Codex-class` is excluded when the author was OpenAI-family.
 3. **Telemetry data is git-ignored.** `telemetry/runs.jsonl`, `telemetry/findings.jsonl`, and `telemetry/dispositions.jsonl` never enter `git` history. Schema lives in `telemetry/SCHEMA.md`; aggregate script reads from a configurable path.
+4. **Degrading the test-author family invariant is an outage fallback, not a cost lever** (PRD §17.6). Default: if you cannot seat an independent-family test-author, **stop** (invariant #7). A same-family test-author (author family == executor family) is allowed **only** under a confirmed frontier outage recorded in `phase-N/KNOWN-ISSUES.md`, and **only** with **both**: (a) a family-blind deterministic gate that runs each locked test **in isolation** (`verify-green.py` standalone — full-suite green is not enough), and (b) a fail-closed **≥2-family** validator panel where **any REJECT blocks**, with retry-on-reject. A single-validator panel is insufficient; same-family + single reviewer MUST NOT land on `main`. Evidence: Phase 3.1 (`phase-3.1/RESULTS.md`, n=1) — the frontier panel split (grok REJECT, gemini ACCEPT), so a single reviewer would have shipped the defect, and the forced retry erased the cheap-seat savings (~2.4× control tokens). Strict on small n by design; strengthen first, relax only on evidence.
 
 ## Commit body recipe
 
