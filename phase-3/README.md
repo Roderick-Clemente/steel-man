@@ -42,7 +42,7 @@ was rewritten during cleanup), but it is the correct tree state.
 |---|---|---|---|
 | Orchestrator/driver | Factory (this session) | — | Conducts, no role seat |
 | Test-author | `claude-opus-5` | anthropic | ≠ executor family (invariant 1) |
-| Executor | `gpt-5.4-mini` | openai | Cheap tier; no family invariant binds (§17.1 allows --auto, but pinned for cost predictability + to fix validator separation) |
+| Executor | ~~`gpt-5.4-mini` (openai)~~ → `glm-5.2` | zhipu | Cheap tier; no family invariant binds (§17.1). Planned openai seat was down (KI-1); substituted glm-5.2 with human approval. Separation preserved: zhipu ≠ anthropic/xai/google |
 | Validator 1 | `grok-4.5` | xai | ≠ executor family; pinned (§17.2) |
 | Validator 2 | `gemini-3.1-pro-preview` | google | ≠ executor family; pinned (§17.2) |
 

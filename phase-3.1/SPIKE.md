@@ -82,3 +82,49 @@ there is no clean baseline to measure against.
   tests a middle ground.
 - Does the spike belong in the §13 efficacy evaluation, or is it a separate
   operational resilience measurement?
+
+---
+
+## Related but distinct: per-seat fallback registry (resilience, NOT a panel)
+
+**Origin.** During Phase 3 chunk 1 the planned openai executor tier
+(`gpt-5.4-mini`) was down for hours (KI-1). The human approved substituting
+`glm-5.2` (zhipu). It worked and chunk 1 reached cross-family ACCEPT. The
+question raised: make model-substitution "part for the course" — a first-class
+mechanism rather than an ad-hoc decision.
+
+**The idea.** A small, ordered **fallback registry per seat**: each seat lists
+candidate model IDs with family tags; the orchestrator resolves the first
+*available* candidate that still satisfies the seat's separation constraints,
+reusing the existing collision guard (fail closed on `unknown`). Example:
+
+```
+executor:   [gpt-5.4-mini(openai), glm-5.2(zhipu), <deepseek?>]
+validator:  [grok-4.5(xai), gemini-3.1-pro-preview(google)]  # pinned, no auto-fallback
+```
+
+**Why this is easy and worth doing:** it exercises the collision guard against a
+*real* outage instead of the synthetic `--model auto` proxy Probe 2 used, and it
+turns "the run stops because one provider is down" into "the run picks the next
+compliant model and records the swap."
+
+**Important boundary — this is NOT the review panel.** Two different seats, two
+different purposes; conflating them would weaken the method:
+
+- **Executor fallback = resilience / cost.** The executor is the seat where *no*
+  family invariant binds beyond pairwise separation (§17.1). Multiple executor
+  candidates buy availability and cost-tiering, **not** independence. Adding
+  models here does not make the code more trustworthy.
+- **Review panel = independence.** The validator/reviewer seat is where family
+  multiplicity buys uncorrelated blind-spot coverage (the Phase-6 thinking-hats
+  concept). That is the "panel," and it belongs at the review seat only.
+
+So the fallback registry should ship as an **operational resilience feature**
+under model-discipline, explicitly *not* branded as "the first part of the
+panel." Validator seats stay pinned (a family invariant binds them); only the
+non-separation-critical seats (planner, executor) get auto-fallback.
+
+**Open question for the registry:** where does the candidate list live and who
+owns it? Natural home is alongside `model-families.json` (same curation +
+review-date discipline), since availability and family provenance are both
+hand-maintained facts the resolver needs.

@@ -1,0 +1,1 @@
+{"type":"result","subtype":"failure","is_error":true,"duration_ms":1293,"num_turns":0,"result":"Exec failed","session_id":"55266930-8f4c-47d6-97de-0c8b5a8da413","usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}
