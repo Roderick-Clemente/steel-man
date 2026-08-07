@@ -8,7 +8,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 
 | key            | type    | required | note |
 |---             |---      |---       |---   |
-| `schema_version` | string | yes | `"v1"` for now. |
+| `schema_version` | string | yes | `"v2"` for rows written from Phase 3.2 onward; `"v1"` for legacy rows. |
 | `ts`             | ISO-8601 datetime UTC | yes | the time the row was appended. |
 
 ## runs.jsonl — one row per `droid exec` invocation
@@ -18,7 +18,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 | `run_id`              | string   | yes | stable id; same id appears in commit-body `Telemetry-row:` line |
 | `phase`               | string   | yes | `phase-0`, `phase-0-5`, `phase-1`, … |
 | `branch`              | string   | yes | branch the run executed against |
-| `role`                | enum     | yes | `planner` / `executor` / `validator` / `reviewer` |
+| `role`                | enum     | yes | `planner` / `executor` / `validator` / `reviewer` / `test-designer` |
 | `model_id`            | string   | yes | the `--model` value passed |
 | `provider`            | string   | yes | openai / google / xai / anthropic / fireworks / … |
 | `family`              | string   | yes | openai-family / gemini-family / grok-family / claude-family / … |
@@ -36,6 +36,10 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 | `review_target_branch`| string   | when role=reviewer | the branch the review was against |
 | `verdict_text_first_240` | string | no | truncated verdict text (first 240 chars) |
 | `envelope_path`       | string   | no | path to raw envelope on disk for the audit run |
+| `evidence_source`     | enum     | no | `in-session` (validator ran pytest itself) / `bundle` (validator read an EvidenceBundle). Required for Phase 3.2+ validator rows so the H-CI A/B is attributable. |
+| `mcp_call_tokens`     | int      | no | tokens consumed by the MCP evidence-pull *request* (the call that fetches the bundle). Zero/absent when `evidence_source=in-session`. |
+| `mcp_payload_tokens`  | int      | no | tokens of the *returned* EvidenceBundle that entered the agent's context (the bundle read). This is the replacement cost measured by the §3.2 fairness rule. Zero/absent when `evidence_source=in-session`. |
+| `raw_test_output_tokens` | int   | no | tokens of the in-session raw pytest output that `mcp_payload_tokens` replaces. Recorded on the control arm (`evidence_source=in-session`) so the fairness ceiling `size(2)` is measured, not assumed. |
 
 ## findings.jsonl — one row per finding surfaced in a review pass
 
@@ -82,3 +86,33 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 ## Stability
 
 When schema changes, increment `schema_version` and write a migration note into this file under a new heading. The aggregator refuses to read rows with `schema_version` higher than the one it was written against, so old aggregates can be re-run for back-compat.
+
+## Migration v1 → v2 (Phase 3.2)
+
+**Date:** 2026-08-07. **Driver:** Phase 3.2 evidence-tier externalization.
+
+Changes:
+
+1. **`role` enum extended** with `test-designer` (KI-4 fix). The Phase 3
+   `runs.jsonl` rows already used `role: "test-designer"` ahead of the schema;
+   v2 makes the schema match the data. No data migration needed for existing
+   rows.
+
+2. **Four new optional fields on `runs.jsonl`** for the H-CI fairness rule
+   (SPIKE.md §3.2):
+   - `evidence_source` — `in-session` (control) vs `bundle` (treatment). Marks
+     which arm a validator row belongs to so the A/B is attributable.
+   - `mcp_call_tokens` — the MCP request cost (treatment only).
+   - `mcp_payload_tokens` — the bundle-read cost; the replacement for the raw
+     test output. The fairness rule compares this against
+     `raw_test_output_tokens`.
+   - `raw_test_output_tokens` — the in-session pytest-output cost (control
+     only). This is the `size(2)` ceiling the spike must instrument.
+
+   All four are optional. Legacy v1 rows omit them; the aggregator treats
+   missing as "not applicable" (the field did not exist when the row was
+   written). No backfill.
+
+3. **`schema_version` front-matter** bumped from `"v1"` to `"v2"`. The
+   aggregator continues to read v1 rows for back-compat; v2 rows carry the new
+   fields.

@@ -1,0 +1,13 @@
+[1m============================= test session starts ==============================[0m
+platform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.5.0 -- /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/factory/work/quantum-bank--llms-txt-pilot
+configfile: pytest.ini
+plugins: cov-5.0.0
+[1mcollecting ... [0mcollected 3 items
+
+../quantum-bank--llms-txt-pilot/test/test_profile_model.py::test_profile_returns_contract_keys [32mPASSED[0m[32m [ 33%][0m
+../quantum-bank--llms-txt-pilot/test/test_profile_model.py::test_profile_returns_none_for_unknown_user [32mPASSED[0m[32m [ 66%][0m
+../quantum-bank--llms-txt-pilot/test/test_profile_model.py::test_profile_address_non_empty [32mPASSED[0m[32m [100%][0m
+
+[32m============================== [32m[1m3 passed[0m[32m in 0.06s[0m[32m ===============================[0m

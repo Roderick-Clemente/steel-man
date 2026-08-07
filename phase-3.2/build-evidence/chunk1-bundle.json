@@ -1,0 +1,34 @@
+{
+  "bundle_schema_version": "v1",
+  "producer": "local",
+  "change": {
+    "commit_sha": "d120c971a9cc5565d4df33b91c532518de2061f2",
+    "locked_test_sha_observed": "8041e6073c42a367483a5ce4e4c984ffdb0e3acaa8ee147140b82afead88e79e"
+  },
+  "tests": {
+    "passed": 103,
+    "failed": 0,
+    "skipped": 0,
+    "suite_exit_code": 0,
+    "failures": []
+  },
+  "provenance": {
+    "producer_run_id": "acae5b21-2d60-4845-a1ad-e293cdbb1dd6",
+    "started_at": "2026-08-07T22:31:23Z",
+    "finished_at": "2026-08-07T22:31:24Z",
+    "tool_versions": {
+      "python": "Python 3.12.12",
+      "pytest": "pytest 9.0.3",
+      "verify_green": "phase-1/scripts/verify-green.py",
+      "bandit": "__main__.py 1.9.4"
+    }
+  },
+  "security": {
+    "findings": []
+  },
+  "signature": {
+    "algorithm": "HMAC-SHA256",
+    "value": "325591396468133ca876c91d7004d132d319f7305fd941d4373d632d3bba9d7c",
+    "key_id": "local-default"
+  }
+}
