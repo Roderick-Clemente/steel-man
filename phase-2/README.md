@@ -157,16 +157,43 @@ non-trivial to review (the point of a planning slice):
 2. **Output contract** — render only the intended fields, never internal
    identifiers or unintended columns (over-exposure boundary).
 3. **The `address` design fork** — `address` does not exist in the schema. The
-   plan must propose either (a) add a nullable `address` column + seed the demo
-   user + handle NULL rendering for pre-existing rows, or (b) ship the three
-   existing fields and defer address. This fork is deliberately left for the
-   **planner to propose and the panel to critique** — it is exactly the kind of
-   design decision a plan review exists to stress.
+   plan must propose one of:
+   - **(a) Add a nullable `address` column** — but note this touches **both**
+     backends: `_create_sqlite_schema` (`models.py:126`) **and**
+     `_apply_postgres_schema` (`models.py:114`), plus `_convert_query` at
+     `models.py:53`, plus the seed at `models.py:428`, plus NULL rendering for
+     pre-existing rows in both. Not trivial.
+   - **(b) Static / config-constant address now, with a TODO to migrate to the
+     DB in a later sprint.** Least scope; the product owner has explicitly
+     approved this fallback if the column work is more than low-effort.
+   - **(c) Introduce a DAO / repository layer** and route the address change
+     through it. Grounded fact: **no DAO exists today** — data access is
+     module-level functions in `models.py` — so this is a real reorg, larger
+     than a 2-4 chunk slice. Flag it as a *future-sprint* option, not this
+     slice's default.
+
+   **Product-owner steer:** prefer the **least-scope** option that still
+   displays Picard's address. Static/config (b) is acceptable with a migration
+   TODO; add the column (a) only if genuinely low-effort given the two-schema
+   duplication; the DAO reorg (c) is a later sprint, not this slice. The
+   planner still owns the recommendation and the panel critiques it — this is
+   exactly the kind of scope/design decision a plan review exists to stress.
 
 Chunk sketch (2–4): model getter (`get_user_by_id`/`get_user_profile`) →
 route + template (`api/profile.py`, `templates/profile.html`) → optional
 schema/seed for `address` → tests (auth-required, field-presence,
 no-over-exposure).
+
+**Demo seed identity (product input).** The single demo user's profile should
+render as **Jean-Luc Picard**: `full_name = "Jean-Luc Picard"`,
+`email = "jpicard@starfleet.fed"`, `address = "Captain's Quarters, Deck 9,
+USS Enterprise NCC-1701-D"`. The seed insert lives at `models.py:428`
+(`INSERT INTO users (username, email, full_name) …`). Because a themed
+**address must be displayed** and no `address` column exists, this is a real
+product requirement that feeds the address fork above — but it does **not**
+pre-decide the *how*: the planner still chooses the storage mechanism (nullable
+column vs. config constant vs. profile table) and the panel critiques it. The
+requirement is "an address is shown", not "add a column".
 
 ---
 
@@ -299,15 +326,24 @@ Per PRD §17.2 / §17.5 and the commit-body recipe:
 
 - **Author:** Factory-family (Droid, orchestrator). The orchestrator conducts;
   it does not occupy a role seat.
-- **Planner seat:** Factory **auto-router** (`--auto`), with the resolved
-  `modelId` / `providerLock` / family **recorded** from the result envelope
-  into the ledger + telemetry. This is a deliberate, reviewed refinement of
-  PRD §17.1 (see the model-discipline convention amendment on
-  `factory/convention-*`): `--auto` is permitted at seats where **no family
-  invariant binds**, provided the resolved model is attributed post-hoc. A
-  **collision guard** runs after the planner: if the resolved planner family is
-  xAI or Google (colliding with a standing reviewer), that reviewer is swapped
-  to the `claude-opus-4-8` fallback so cross-family separation is preserved.
+- **Planner seat (THIS run): PINNED to `claude-opus-5` (anthropic).** A pinned
+  planner is fully compliant with *current* `main` §17.1 (no dependency on the
+  unmerged convention amendment) and is family-distinct from both pinned
+  reviewers (xAI, Google), so separation is guaranteed with no collision-guard
+  needed tonight. This is the lowest-risk choice for an unattended, zero-buffer
+  budget run.
+- **Planner seat (future, once the amendment lands): auto-router with recorded
+  attribution.** `--auto` is permitted at seats where **no family invariant
+  binds**, provided the resolved model is attributed post-hoc (the
+  attribution-vs-enforcement refinement on
+  `factory/convention-model-discipline-v2`). A **collision guard** then runs
+  after resolution: if the resolved planner family collides with a standing
+  reviewer, that reviewer is swapped to a non-colliding fallback. **The guard
+  fails closed:** if the resolved planner family is `unknown` or otherwise
+  cannot be *proved* distinct from every reviewer (PRD §4: `unknown` cannot
+  satisfy a hard separation constraint), the run **stops** rather than
+  proceeding on an unprovable separation — it does not merely swap on the two
+  known colliding families. (Grok round-1 major.)
 - **Standing review panel:** `grok-4.5` (xAI) + `gemini-3.1-pro-preview`
   (google), **pinned** so family separation vs. the planner is guaranteed
   *before* the run — the same pair Phase 1 used, keeping results comparable to
@@ -316,15 +352,22 @@ Per PRD §17.2 / §17.5 and the commit-body recipe:
 - **Fallback:** `claude-opus-4-8` (anthropic) if a standing model is
   unavailable or the collision guard fires; recorded in
   `phase-2/KNOWN-ISSUES.md` when used.
-- **Reviewer tool surface:** `--enabled-tools Read,Glob,Grep,LS,Execute`.
-  `Execute` is mandatory (F-plan-4).
-- **Planner tool surface:**
-  `Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute` (PRD §17.5
-  executor set; all four editor tools present).
-- Every invocation still records its resolved model (PRD §17.1's attribution
-  requirement); pinned seats pass `--model` explicitly via
-  `tools/run-with-model.sh`, the auto planner seat records the resolved model
-  from the envelope.
+- **Reviewer tool surface:** `--enabled-tools Read,Glob,Grep,LS,Execute`, run
+  at `--auto medium` (read-only autonomy gates the `Execute` tool entirely, so
+  `Execute` needs ≥ medium; the reviewer still cannot edit files because no
+  editor tool is enabled). `Execute` is mandatory (F-plan-4). This was learned
+  live: at read-only autonomy the reviewer exits `num_turns:0` with
+  "insufficient permission to proceed".
+- **Planner tool surface:** `Read,Glob,Grep,LS,Execute` (read-only on the
+  **pilot** repo) **plus `Create,Edit`** scoped to writing the plan artifact
+  (`phase-2/plan-v1.md`) in *this* repo. The planner is a GROK/planning seat,
+  **not** an executor — it must **not** modify pilot code, so it does not get
+  the full executor editor set (`ApplyPatch`/`MultiEdit` and pilot-write are
+  withheld). (Grok round-1 major.) The plan states outcomes and interfaces, not
+  an implementation (F-plan-5).
+- Every invocation records its resolved model (PRD §17.1 attribution); the
+  pinned planner and reviewers pass `--model` explicitly via
+  `tools/run-with-model.sh`.
 
 ---
 
@@ -367,7 +410,29 @@ Phase 5:
 ### Commit-body trailers
 Every commit carries `Telemetry-row: telemetry/runs.jsonl:<id>`. Reviewer
 passes add `Findings: <count>: <ids>` (0 is legitimate closure). Disposition
-trailers appear only on commits closing prior findings.
+trailers appear only on commits closing prior findings. Per
+`commit-body-recipe.md`, every **role-bearing** commit also carries the
+mandatory `Model: <resolved-id>` and `Role: planner|reviewer` lines, and
+reviewer-pass commits additionally carry `Reviewer-panel:
+grok-4.5,gemini-3.1-pro-preview` (recorded even after any collision-guard
+swap). (Grok round-1 minor.)
+
+### Severity / category crosswalk (§5.3 ⇄ telemetry/SCHEMA.md)
+The §5.3 finding vocabulary and the `telemetry/SCHEMA.md` enums are **mapped,
+not forked** — telemetry rows always persist the SCHEMA.md enum, with the
+planner-review label preserved in `raw_text_first_240`. (Grok round-1 major.)
+
+| §5.3 review label | → `telemetry/SCHEMA.md` `severity` |
+|---|---|
+| blocker | `blocking` |
+| high | `major` |
+| medium | `minor` |
+| low | `nit` |
+
+Category: §5.3 semantic/scope/spec labels map onto SCHEMA.md
+`correctness|security|performance|readability|spec-deviation`; anything without
+a clean target uses `other` with the original label retained in
+`raw_text_first_240`. No `schema_version` bump.
 
 ---
 
@@ -434,22 +499,36 @@ Operating parameters, recorded for audit:
 
 ---
 
-## 12. Open decisions for the panel
+## 12. Panel decisions (round-1 cross-family review — RESOLVED)
 
-- **D1 — RESOLVED.** Objective locked to the read-only `/profile` page (§2.5).
-  The `address` schema fork inside it is left for the planner to propose and
-  the panel to critique.
-- **D2** — confirm fresh-reviewer-always for Phase 2, with the reuse /
-  artifact-injection-depth knob and its cost flip-point deferred to Phase 5,
-  contingent on logged `cache_read_tokens` data (§3.1).
-- **D3** — accept the §0 scope decision (Move 1: planning slice; calibration
-  stays Phase 5), or argue calibration must precede planning. Load-bearing: if
-  the panel rejects §0, the whole scope changes.
-- **D4** — `max_review_rounds` stays at the PRD default of 2 for this slice, or
-  a different value with recorded rationale (§2.3).
-- **D5** — confirm the §7 model-policy refinement (auto planner + recorded
-  attribution + collision guard; pinned reviewers). This depends on the §17.1
-  amendment landing on `main` via the convention branch; if that amendment is
-  rejected, the planner degrades to a pinned `--model`.
+Both reviewers ran on brief v1 (envelopes in `build-evidence/`):
+**Grok-4.5 = ACCEPT-WITH-NITS** (3 majors + nits), **Gemini-3.1-Pro = ACCEPT**
+(0 findings). No blocker/high from either family → **the brief is ACCEPTED**;
+Grok's majors are folded into this v2 as improvements.
 
-— droid, Phase-2 driver, brief v1 draft on `factory/phase-2-slice`
+- **D1 — RESOLVED (both ACCEPT).** Objective locked to the read-only `/profile`
+  page (§2.5); the `address` fork stays a planner decision.
+- **D2 — RESOLVED (both ACCEPT).** Fresh-reviewer-always for Phase 2; reuse /
+  artifact-injection-depth knob deferred to Phase 5, contingent on logged
+  `cache_read_tokens`.
+- **D3 — RESOLVED (both ACCEPT).** §0 scope stands: Move 1 planning slice;
+  calibration stays Phase 5.
+- **D4 — RESOLVED (both ACCEPT).** `max_review_rounds` = 2 (PRD default).
+- **D5 — RESOLVED (both ACCEPT, with tightening).** Model-policy refinement is
+  sound. For **this** run the planner is **pinned to `claude-opus-5`** (§7), so
+  it is compliant with current `main` §17.1 regardless of whether the
+  convention amendment merges; the auto-router + collision-guard path is the
+  documented future default once the amendment lands.
+
+### 12.1 Round-1 finding dispositions
+| Finding (Grok) | Sev | Disposition |
+|---|---|---|
+| Collision guard incomplete for `unknown`/unprovable family | major | **FIXED** §7 — guard fails closed / stops the run. |
+| Planner given full executor editor set + pilot write | major | **FIXED** §7 — planner read-only on pilot + `Create,Edit` scoped to `plan-v1.md` only. |
+| §17.1 amendment not hard-gated on `main` | major | **FIXED** §7 — planner pinned this run, so no dependency on the amendment. |
+| Severity/category schema fork vs `SCHEMA.md` | major/minor | **FIXED** §8 — crosswalk table added, no schema bump. |
+| Missing `Model:`/`Role:`/`Reviewer-panel:` commit lines | minor | **FIXED** §8 — recorded on all role-bearing commits. |
+| F-plan-4 residual operator-error risk; telemetry gitignore; overnight backoff; exit criteria | nits | **ACK** — prompt template is source of truth; §11.1 backoff kept as a disclosed narrow deviation. |
+
+— droid, Phase-2 driver, brief **v2 (round-1 reconciled)** on
+`factory/phase-2-slice`
