@@ -163,6 +163,34 @@ only defect was in the degraded author's *test*.
   (claude) did not. Autonomy-gate behavior is family-dependent; the deterministic
   gates remained the source of truth.
 
+## Follow-up experiments (grow n before relaxing §17.6)
+
+§17.6 is deliberately strict on a **sample size of 1**. The way to earn any
+relaxation is data, not argument. Proposed program, run on **low-stakes features
+only** (read-only endpoints, copy/seed changes, non-security display logic — the
+same risk tier as this `/profile` slice) so a missed defect is cheap:
+
+- **Repeat the degraded loop across N≥10 low-stakes slices.** Measure how often
+  the same-family author introduces a test-independence (or other) defect, and
+  *where* (the model-layer/no-fixture seam is the current suspect).
+- **Measure the panel-split rate.** Here it was 1-of-2 (grok caught, gemini
+  missed). Is that stable, model-pair-specific, or defect-category-specific?
+  This is the number that decides whether "≥2 families, fail-closed" is
+  sufficient or needs ≥3.
+- **Track the retry-cost curve.** Does the degraded loop ever come out cheaper
+  net of retries, or is the first-pass-miss tax structural? Settle the
+  token-accounting skew with same-family-normalized cost where possible.
+- **A/B the backstops.** Re-run with each backstop removed in turn (gate-only;
+  panel-only) to confirm neither alone is sufficient — the current claim rests
+  on one observation.
+- **Vary the cheap seat.** One cheap family in both seats (worst case, tested
+  here) vs two *different* cheap families (middle ground) — does splitting the
+  cheap seats recover independence without frontier authorship?
+
+Gate on relaxing §17.6: a stable, low defect-escape rate **and** a panel-split
+rate that the fail-closed ≥2-family rule provably covers, across enough
+low-stakes slices to matter. Strengthen first; relax only on evidence.
+
 ## Reproduction
 
 - Prompts (path-adapted copies of `phase-3/prompts/`, repo path swapped to the
