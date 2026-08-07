@@ -493,6 +493,7 @@ Distinct from Phase 4: Phase 4 generalises the framework across multiple stacks;
 - ledger provenance promotions (every cited artefact as a committed file, where feasible);
 - any reviewer rubric finding that was deferred from earlier phases with `wontfix` or `deferred`;
 - the §17 model-discipline convention at `factory/convention-model-discipline @ 45061f4`: cross-family review then ff-merge to `main`, with wiki `telemetry/` references restored from descriptive placeholders to file links. The schema and wrapper are infrastructure; the data stays gitignored until the migration gate fires.
+- runtime-resilience against `Execute` tool cancellation (rate-limit / connection-reset on long smoke runs): every post-merge smoke test must be checkpointable, meaning each smoke step has a single observable outcome on disk (`git log --oneline -1`, `python3 -m py_compile <file>`, `bash <script> <args>`) and the agent can resume from the last green step without re-running the whole battery. Same idea for cross-family reviews: the prompt should be idempotent enough that re-firing it after a partial response produces the same verdict.
 
 Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-5 work for downstream feature completion. Phase 5 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
 
