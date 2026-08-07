@@ -1,8 +1,9 @@
 # Phase 3.1 — Spike: budget-degraded loop (cheap test-author + executor, frontier validation only)
 
-**Status:** NOT STARTED. Recorded as a future spike during Phase 3 prep on
-2026-08-07. Do not run during Phase 3 — Phase 3 must demonstrate the full
-invariant set intact first.
+**Status:** READY TO RUN. Phase 3 is complete and merged to `main` (ade12c0);
+the full-invariant baseline (the control arm) is recorded in
+`telemetry/runs.jsonl` (541k tokens total, validators ~84%). Execution handoff:
+`phase-3.1/RUN-PROMPT.md`.
 
 ## Origin
 
