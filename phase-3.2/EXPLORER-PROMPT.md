@@ -151,3 +151,16 @@ in this pass.
 `droid-wiki/overview/phase-3-execution-slice.md` (the cost finding);
 `phase-3/KNOWN-ISSUES.md` (KI-1..4); `phase-3.1/SPIKE.md` (the adjacent spike and
 the per-seat fallback-registry note).
+
+## Adjacent reminder: dogfood the framework repo through CI
+
+The human wants **this framework repo** (`adversarial-sprint-dev`), not just the
+pilot, run through a CI/CD pipe. Fold it into the 3.2 design as a second target
+of the *same* evidence-provider abstraction (local default + Harness backend):
+lint/format + validate the framework's own deterministic assets — the hook
+matcher and `phase-1/scripts/` (e.g. `verify-green.py`), `phase-3/gen-telemetry.py`,
+and `telemetry/runs.jsonl` against `telemetry/SCHEMA.md`. It is a distinct target
+from the pilot experiments (don't let it contaminate the H-CI token A/B), but it
+proves the abstraction generalizes beyond one repo and gives the framework its
+own regression net. A git trigger already exists on the pilot; the human plans to
+add one here too.
