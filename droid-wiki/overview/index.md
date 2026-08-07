@@ -271,3 +271,31 @@ ACCEPT-WITH-NITS from cross-family review and a Phase-2/Phase-3 paused
 state while the rest of the system catches up. The cross-family panel
 is the structural guarantee that keeps the framework honest as it
 grows; the build-review-find loop is itself the work being reviewed.
+
+## Phase 2 — the adversarial planning slice
+
+Phase 1 showed the loop reviewing code it wrote. **Phase 2 pushes it one step
+earlier: can the panel review a *plan* before any code exists, and reach an
+approval bound to that plan's exact bytes?** On one real slice — a read-only
+`GET /profile` page for the pilot bank — the answer is yes.
+
+Two single-blind cross-family stages (brief, then plan) each ran `grok-4.5` +
+`gemini-3.1-pro-preview`. The brief came back ACCEPT-WITH-NITS / ACCEPT and was
+reconciled; the pinned planner (`claude-opus-5`) then drafted a plan hashed to
+`sha256:72eccff5…`, and both families **APPROVED it with zero blocking
+findings**, satisfying the PRD §11 Phase 2 exit ("one real plan reaches a
+hash-bound approval") — now awaiting the human plan-approval gate.
+
+The sharpest result landed *before* the panel: the planner self-corrected three
+wrong file anchors in its own prompt and discovered that "just add an `address`
+column" was a hidden scope trap (no `ALTER TABLE`, no migration runner, a
+count-gated seed), turning a design coin-flip into a clear least-scope call. The
+calibration divergence also inverted Phase 1's: on specification and planning
+artifacts, Grok was the finder and Gemini the confirmer — the mirror of Phase 1,
+where Gemini was the security finder on hook code. That task-conditioned
+divergence is exactly the `first_seen_in_panel_position` signal Phase 5 will
+accumulate.
+
+The full round-by-round breakdown — verdicts, per-session tokens, the autonomy
+findings from running paid reviewers unattended, and the divergence matrix — is
+in [The Phase 2 planning slice](phase-2-planning-slice.md).
