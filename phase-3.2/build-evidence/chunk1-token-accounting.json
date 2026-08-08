@@ -1,0 +1,8 @@
+{
+  "control_raw_test_output_tokens": 511,
+  "treatment_bundle_read_tokens": 229,
+  "saving_tokens": 282,
+  "saving_pct": 55.2,
+  "fairness_rule_holds": true,
+  "note": "Token estimate = chars // 4 (proxy). The fairness rule (SPIKE \u00a73.2) holds iff treatment < control. This measures ONLY the test-output-read slice (2) of the validator run; diff-read (1) and verdict-reasoning (3) do not move."
+}

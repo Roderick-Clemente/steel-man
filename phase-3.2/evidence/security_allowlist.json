@@ -1,0 +1,11 @@
+{
+  "description": "Curated security allowlist (SPIKE section 4.4 lesson 2). Suppresses specific known-public values scoped to (rule_id, file, line) — NOT whole files, so a real future secret in the same file still trips. A line of 0 acts as a wildcard (matches any line for that rule_id + file pair).",
+  "allowlist": [
+    {
+      "rule_id": "B105",
+      "file": "./app.py",
+      "line": 0,
+      "reason": "Possible hardcoded password/string in app.py. The SPLIT_CLIENT_KEY is a Split.io client-side key, public by design (ships in browser JS). Scoped to this rule+file, not the whole repo. Line=0 wildcard because the line number may shift. NOTE: the original SPLIT_CLIENT_KEY false-fail was a gitleaks finding, not bandit — this entry is illustrative of the allowlist mechanism. Add real entries as actual false positives surface."
+    }
+  ]
+}

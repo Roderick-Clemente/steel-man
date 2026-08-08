@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adversarial-sprint/evidence-bundle/v1",
+  "title": "EvidenceBundle v1",
+  "description": "Signed compact structured evidence produced by an evidence provider. The ONLY thing agents read instead of re-running pytest. Compact by construction: failure records carry {nodeid, assertion_line, short_message}, never full tracebacks.",
+  "type": "object",
+  "required": [
+    "bundle_schema_version",
+    "producer",
+    "change",
+    "tests",
+    "provenance",
+    "signature"
+  ],
+  "properties": {
+    "bundle_schema_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Frozen schema version. Bump only on breaking change."
+    },
+    "producer": {
+      "type": "string",
+      "enum": ["local", "harness"],
+      "description": "Recorded, never trusted-blind. 'local' = ran on a dev machine; 'harness' = CI-as-native-producer."
+    },
+    "change": {
+      "type": "object",
+      "required": ["commit_sha", "locked_test_sha_observed"],
+      "properties": {
+        "commit_sha": {
+          "type": "string",
+          "description": "The change under review (feature branch HEAD)."
+        },
+        "locked_test_sha_observed": {
+          "type": "string",
+          "description": "sha256 the producer actually hashed and ran. The orchestrator cross-checks this against the lock manifest (SPIKE §4.1). Mismatch => fail closed."
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["passed", "failed", "skipped", "suite_exit_code"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "suite_exit_code": { "type": "integer" },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["nodeid", "assertion_line", "short_message"],
+            "properties": {
+              "nodeid": {
+                "type": "string",
+                "description": "pytest nodeid, e.g. test/test_profile_model.py::test_profile_returns_contract_keys"
+              },
+              "assertion_line": {
+                "description": "Line number of the assertion (int) or null if not available.",
+                "oneOf": [
+                  { "type": "integer", "minimum": 1 },
+                  { "type": "null" }
+                ]
+              },
+              "short_message": {
+                "type": "string",
+                "description": "One-line failure summary. NEVER a full traceback. Max 300 chars."
+              }
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "Optional coverage lens.",
+      "properties": {
+        "lines_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "changed_lines_covered": { "type": "integer", "minimum": 0 },
+        "changed_lines_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Optional security lens (SEPARATE from cost comparison per SPIKE §3.3). SARIF-derived.",
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rule_id", "severity", "file", "line", "short_message", "is_new", "scope"],
+            "properties": {
+              "rule_id": { "type": "string" },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              },
+              "file": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 },
+              "short_message": { "type": "string", "description": "Max 300 chars." },
+              "is_new": {
+                "type": "boolean",
+                "description": "New-vs-baseline flag (SPIKE §4.4). Gate keys on new=true only."
+              },
+              "scope": {
+                "type": "string",
+                "enum": ["diff", "history"],
+                "description": "diff = new commits only; history = full-history baseline scan."
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["producer_run_id", "started_at", "finished_at", "tool_versions"],
+      "properties": {
+        "producer_run_id": { "type": "string" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "tool_versions": {
+          "type": "object",
+          "description": "Versions of tools used (pytest, bandit, semgrep, python, etc.)",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "value", "key_id"],
+      "description": "HMAC-SHA256 signature so the producer is not spoofable inside an agent's context. Signs the canonical JSON of the bundle minus the signature field.",
+      "properties": {
+        "algorithm": { "type": "string", "const": "HMAC-SHA256" },
+        "value": { "type": "string", "description": "hex-encoded HMAC digest." },
+        "key_id": { "type": "string", "description": "Identifier for the signing key used." }
+      }
+    }
+  }
+}
