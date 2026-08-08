@@ -106,3 +106,30 @@ Phase 0). Therefore:
 - Assert on the hook log, per-tool `is_error`, file SHAs, and captured output — the
   actual artifacts of what occurred.
 - A finding is "reproducible from a clean shell" or it is not evidence.
+
+## 8. When scope shifts, name it — don't absorb it silently
+
+During Phase 3.2 (evidence provider), the orchestration gap was discovered: the
+process was ad hoc, run by an AI agent manually executing commands instead of by
+a scripted pipeline. That gap was a framework-level concern (PRD Act 2:
+automation), not a 3.2-specific concern (externalize the evidence tier). It got
+built inside 3.2 because it emerged naturally, but it should have been its own
+loop with its own prompt.
+
+The rule when scope shifts mid-phase:
+
+1. **Name it.** If the work you're doing is not what the phase's RUN-PROMPT
+   scoped, say so explicitly. Don't silently absorb it.
+2. **Decide: absorb or push out.** Small, in-scope additions that emerge
+   naturally can be absorbed (log in ASSUMPTIONS.md). Larger scope shifts that
+   are really a different concern should be **pushed out** to their own loop /
+   prompt / phase — record it as a follow-on, finish the current scope, then
+   give it the full treatment separately.
+3. **Record the decision.** Either way, the scope shift and the decision go in
+   the phase's ASSUMPTIONS.md or KNOWN-ISSUES.md. A scope shift that nobody
+   recorded is the same defect as a silent green: it happened, but there's no
+   evidence it was considered.
+
+The temptation is to keep building because you're already in the flow. The
+discipline is to stop, name the shift, and decide whether it belongs here or
+in its own loop. Most scope shifts want their own loop.
