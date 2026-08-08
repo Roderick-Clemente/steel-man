@@ -6,6 +6,7 @@ This repository is a specification plus a decision record. There is no applicati
 |---|---|
 | [Design decisions](./design-decisions.md) | The choices that were made, with the evidence or reasoning behind each |
 | [Open questions](./open-questions.md) | What is genuinely unresolved, plus the upstream defects Phase 0 found |
+| [Operating rules](./operating-rules.md) | The 8 operating rules learned the hard way running this repo across agents and machines |
 
 ## Where the project came from
 

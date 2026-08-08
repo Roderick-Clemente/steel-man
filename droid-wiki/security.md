@@ -116,6 +116,20 @@ Stated plainly, because an unmeasured thing recorded as unmeasured is a finding 
 - **Whether session search can be disabled by policy is unmeasured.** If it can be turned off at the settings or org layer, that is the first real mitigation available for the `droid search` path rather than a guard bolted on top.
 - **Every probe used `droid exec`.** Hook loading may differ in interactive mode, which is where a human operator actually works.
 
+## Evidence tier trust rules (Phase 3.2)
+
+The evidence provider introduces a new trust boundary: the bundle enters agent context, so it must not be spoofable or forgeable. Three rules govern this:
+
+1. **HMAC-SHA256 signature.** The local backend signs every bundle with a key from `EVIDENCE_SIGNING_KEY`. If the env var is not set, a random key is generated (valid for same-process only). The consumer refuses to verify without an explicit key. An agent that fabricates a bundle cannot sign it.
+
+2. **Locked-sha cross-check (SPIKE section 4.1).** The orchestrator gate compares `locked_test_sha_observed` from the bundle against the lock manifest. Both sides must be non-empty real digests. `None == None` or `"" == ""` does not pass. Mismatch, missing, or empty = fail closed.
+
+3. **Fail-closed on all trust violations.** Missing bundle, red bundle, vacuous green (0 tests passed), signature invalid, sha mismatch = all produce `FAIL_CLOSED`, not `PASS`. The gate never defaults to trusting.
+
+The `ValidatorConsumer` also requires `passed > 0` — a suite that reports 0 passed and 0 failed (all skipped or empty) is not green, it is silent.
+
+See [Evidence provider](./features/evidence-provider.md) for the implementation details.
+
 ## Related
 
 - [Probe 3 — context isolation](./probes/probe-3-context-isolation.md) · [Probe 4 — hook blocking](./probes/probe-4-hook-blocking.md) · [Probe 8 — self-declared risk](./probes/probe-8-self-declared-risk.md)

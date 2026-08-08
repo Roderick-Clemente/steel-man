@@ -191,6 +191,41 @@ Phase 0 used "another configured artifact path" — `phase-0/evidence/` — beca
 
 `PRD.md` §8 nominates `schemas/finding.schema.json` and `schemas/red-green.schema.json` as the two schemas that ship in v1; `run.schema.json` was deliberately deferred until the state machine stabilises.
 
+## EvidenceBundle v1 (built, Phase 3.2)
+
+The compact signed JSON artifact that validators consume instead of re-running pytest. Schema at `phase-3.2/evidence/bundle_schema_v1.json`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `bundle_schema_version` | string | `"v1"`, frozen |
+| `producer` | enum | `local` or `harness` |
+| `change.commit_sha` | string | the change under review |
+| `change.locked_test_sha_observed` | string | SHA-256 the provider actually hashed and ran |
+| `tests.passed/failed/skipped` | int | counts |
+| `tests.suite_exit_code` | int | pytest exit code |
+| `tests.failures[]` | array | `{nodeid, assertion_line, short_message}` — never full tracebacks |
+| `coverage` | object | optional: `lines_pct`, `changed_lines_covered` |
+| `security.findings[]` | array | optional: `{rule_id, severity, file, line, short_message, is_new, scope}` |
+| `provenance` | object | `producer_run_id`, `started_at`, `finished_at`, `tool_versions` |
+| `signature` | object | `algorithm: "HMAC-SHA256"`, `value`, `key_id` |
+
+Compact by construction: failure records are one-liners, never full tracebacks. Security findings only carry `is_new=true` entries (baseline debt is excluded).
+
+## Telemetry SCHEMA v2 (built, Phase 3.2)
+
+The data schema for the evaluation's telemetry files. Full text at `telemetry/SCHEMA.md`. Bumped from v1 to v2 in Phase 3.2.
+
+New fields on `runs.jsonl` (all optional, non-breaking for v1 rows):
+
+| Field | Type | Notes |
+|---|---|---|
+| `evidence_source` | enum | `in-session` (control) or `bundle` (treatment) — marks which H-CI arm |
+| `mcp_call_tokens` | int | tokens of the MCP evidence-pull request (treatment only) |
+| `mcp_payload_tokens` | int | tokens of the bundle that entered agent context (treatment) |
+| `raw_test_output_tokens` | int | tokens of the raw pytest output being replaced (control) |
+
+The `role` enum was also extended with `test-designer` (KI-4 fix — Phase 3 data already used it, the schema just didn't list it).
+
 ## Related
 
 - [Configuration](./configuration.md) — the settings that produce these shapes

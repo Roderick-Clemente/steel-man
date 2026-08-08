@@ -130,6 +130,25 @@ The system runs untrusted-ish model output against a real repository, so the bou
 - **Tool restriction is not path protection.** Disabling the `Edit` tool did not protect a file; the agent used a shell instead.
 - **The session store is a shared surface.** Any agent with `Grep` can read a prior agent's transcript from `~/.factory/sessions/`.
 
+## The evidence tier (Phase 3.2)
+
+Phase 3.2 externalized the deterministic evidence layer so validators consume a compact structured bundle instead of re-running pytest in-session. The components:
+
+```mermaid
+graph LR
+    LB["Local backend<br/>(pytest + verify-green + bandit)"] -->|produces| EB["EvidenceBundle<br/>(919 bytes, signed)"]
+    EB -->|consumed by| VC["Validator consumer<br/>(ACCEPT/REJECT, no pytest)"]
+    EB -->|consumed by| OG["Orchestrator gate<br/>(locked-sha cross-check)"]
+    TA["Token accounting<br/>(fairness rule)"] -->|measures| EB
+    TA -->|measures| RO["Raw pytest output<br/>(replaced)"]
+```
+
+The local backend runs the deterministic tier once (pytest, verify-green.py for the locked-hash check, Bandit for security) and normalizes the results into a signed JSON bundle. Validators read the bundle instead of re-running tests. The orchestrator cross-checks the bundle's `locked_test_sha_observed` against the lock manifest before trusting it.
+
+The orchestration script (`tools/orchestrate-review.py`) wires the full review cycle: produce evidence, call N validators via `droid exec`, check for stray writes, parse verdicts, append telemetry, and report the gate decision. It stops only on error.
+
+See [Evidence provider](../features/evidence-provider.md) and [Orchestration](../features/orchestration.md) for details.
+
 ## Key source files
 
 | File | Purpose |
@@ -143,3 +162,8 @@ The system runs untrusted-ish model output against a real repository, so the bou
 | `phase-0/evidence/README.md` | Standard every probe record must meet |
 | `phase-0/evidence/probe-4/reverify/rig/hook-protect2.py` | The fail-closed guard that holds against a shell bypass |
 | `phase-0/evidence/probe-2/rig/hook-family-gate.py` | The family gate that aborts a wrong-model run before any tool acts |
+| `phase-3.2/evidence/local_backend.py` | Local evidence producer: runs pytest + verify-green + Bandit, emits signed bundle |
+| `phase-3.2/evidence/consumer.py` | Validator + orchestrator consumers: read bundle, verify signature, cross-check locked-sha |
+| `tools/orchestrate-review.py` | Mechanical review pipeline: produce evidence, call validators, check stray writes, report gate |
+| `tools/adapters/factory.py` | Vendor shim: normalizes droid exec output into vendor-neutral envelope shape |
+| `telemetry/SCHEMA.md` | Data schema for the evaluation's telemetry (v2: test-designer role, MCP token fields) |

@@ -79,3 +79,19 @@ Terms as this repository uses them. Where a term has a common industry meaning t
 **`STEER.md`** — a gitignored async steering channel where the operator appends instructions between probes. Deliberately untracked: it is live control input, not part of the record. Anything in it that should survive belongs in a commit or a probe README.
 
 **Oversight** — the setting controlling human review frequency (`high`, `medium`, `low`) without weakening hard safety gates. PRD §16 flags the name itself as unsettled.
+
+## Evidence tier (Phase 3.2)
+
+**EvidenceBundle** — a compact, signed JSON artifact produced by an evidence provider. Contains test results (pass/fail counts, compact failure records), locked-test SHA, optional coverage and security findings, provenance, and an HMAC-SHA256 signature. The only thing agents read instead of re-running pytest. Schema at `phase-3.2/evidence/bundle_schema_v1.json`.
+
+**Evidence provider** — a neutral producer that runs the deterministic tier (pytest, locked-hash check, security scan) once and emits an EvidenceBundle. The local backend runs on a laptop with zero CI; the Harness backend (planned) pulls native results via MCP. Both produce the same bundle schema.
+
+**Locked-test SHA** — the SHA-256 of a locked test file, recorded in a lock manifest. The evidence provider publishes `locked_test_sha_observed` (what it actually hashed and ran). The orchestrator cross-checks this against the manifest before trusting the bundle. Mismatch means the provider ran a different test than the locked one.
+
+**H-CI experiment** — the headline experiment for Phase 3.2: run the same locked chunk through two arms (in-session pytest vs evidence bundle), measure token cost and acceptance quality. The only changed variable is the evidence source. Not yet run.
+
+**Fairness rule** — the rule that makes the H-CI experiment honest: the bundle enters an agent's context and costs input tokens to read. The win is real only if `tokens(bundle read) < tokens(raw test output it replaces)`. Instrumented in `phase-3.2/evidence/token_accounting.py`.
+
+**Orchestration script** — `tools/orchestrate-review.py`. The mechanical review pipeline that runs the full cycle (produce evidence, call validators, check stray writes, parse verdicts, append telemetry, report gate) with no human intervention. Stops only on error.
+
+**Scope shift** — when work during a phase drifts beyond the phase's RUN-PROMPT scope. Per OPERATING-RULES §8: name it, decide whether to absorb or push out to its own loop, and record the decision.
