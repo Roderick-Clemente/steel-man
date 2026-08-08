@@ -474,7 +474,7 @@ Build blind plan review, structured findings, bounded reconciliation, oversight 
 
 ### Phase 3 — Factory end-to-end
 
-Connect planning, test design, Mission execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change.
+Connect planning, test design, command-orchestrated execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change. (Originally specified as "Mission execution"; the GO-NO-GO decision (`phase-0/GO-NO-GO.md`) closed the Mission-native path — `droid exec --mission` is a no-op that reports success. Execution is command-orchestrated via `tools/orchestrate-review.py`.)
 
 **Exit:** one complete run plus a replayable demo and baseline comparison.
 
@@ -507,8 +507,9 @@ A consolidation phase that arrived ahead of schedule because the
 foundation needed attention before extending. The roadmap review
 (`ROADMAP-REVIEW.md`) audited all prior phases, went through two rounds of
 cross-family panel review (v1 REJECT → v2 APPROVE-WITH-NITS → v3 final),
-and produced new operating rules (§9–§17 in `tools/OPERATING-RULES.md`),
-a re-sequenced roadmap, and three parallel execution tracks.
+and proposed new operating rules (§9–§17, to be landed in
+`tools/OPERATING-RULES.md` as a Phase 4 exit item), a re-sequenced
+roadmap, and three parallel execution tracks.
 
 **Track A — Cheap closures (parallel, non-gating):**
 - Run `valid-red.py` against the existing locked test (closes Phase 1
@@ -552,7 +553,7 @@ a re-sequenced roadmap, and three parallel execution tracks.
 
 **Exit:** orchestration stabilized; H-CI and H3 results recorded; demo
 packaged with honest Act 1/2/3; telemetry system-of-record populated;
-new operating rules landed in `tools/OPERATING-RULES.md`.
+new operating rules §9–§17 landed in `tools/OPERATING-RULES.md`.
 
 ### Phase 5 — Generalize after evidence
 
@@ -719,7 +720,7 @@ An audience of engineers recognises this immediately, because it is what their t
 
 ### Act 2 — Push a button, go enjoy life.
 
-The same sprint as a Mission. Pinned models per role, hooks enforcing the locks, Droid Computer holding the run. Kick it off, close the laptop, come back to a completed sprint with an audit bundle.
+The same sprint as a command-orchestrated script. Pinned models per role, hooks enforcing the locks, the orchestrator holding the run. Kick it off, close the laptop, come back to a completed sprint with an audit bundle. *(Note: the GO-NO-GO decision closed the Mission-native path. Act 2 is rewritten as command-orchestrated execution via `tools/orchestrate-review.py`. "Close the laptop" requires a durable runner that has not yet been evidenced — either build one or drop the claim. See Phase 4 Track C for the honest demo packaging.)*
 
 Then the beat that separates this from every "autonomous agent" demo: **it comes back to you only when your judgment is actually required.** Not a stream of approval prompts — batched decision packets at the points that matter (§6): an unresolved semantic disagreement, a course-changing chunk, a repeated rejection. Each one arrives with what changed, why the run paused, the competing positions, the evidence, and the cost of delay.
 

@@ -153,7 +153,8 @@ formal cost claim is the PRD §13 three-arm comparison, not this single run.
 ## What Phase 3 leaves for Phase 4+
 
 A complete loop demonstrated end to end: plan → execute → review on one real
-slice. The framework is usable on real work. Phase 4 generalises across stacks;
-Phase 5 hardens the loop's own invariants.
+slice. The framework is usable on real work. Phase 4 hardens the foundation
+(roadmap review + orchestration stabilization + H-CI/H3 experiments); Phase 5
+generalises across stacks; Phase 6 hardens the loop's own invariants.
 
 The human merge gate (PRD §6) remains: the slice is presented, not merged.

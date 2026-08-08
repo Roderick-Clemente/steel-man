@@ -6,9 +6,9 @@ work is mechanical extraction and packaging of artifacts that already exist.
 
 ## Context
 
-The project is at `/Users/factory/work/adversarial-sprint-dev-3.2-build`. The
-pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`. Read
-`ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` for the spec.
+The project root is the repository containing `PRD.md` (this file's parent
+directory). The pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`.
+Read `ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` for the spec.
 
 ## Tasks
 
@@ -22,8 +22,9 @@ exit criteria.
 **Steps:**
 1. Read `phase-1/valid-red.md` for the classifier's specification.
 2. Read `phase-1/scripts/valid-red.py` for the implementation.
-3. Read `phase-1/locks/test/test_profile_model.py.lock.json` for the lock
+3. Read `phase-1/locks/test/test_llms_txt_charset.py.lock.json` for the lock
    manifest (contains the accepted assertion phrase and locked test sha).
+   This is the Phase 1 charset lock — NOT the Phase 3 profile lock.
 4. Check out the pre-fix commit of the pilot repo (the commit where the
    doubled-charset bug exists but the fix has not been applied). The lock
    manifest or `phase-1/RUN-LEDGER.md` should reference the exact commit.
@@ -33,7 +34,8 @@ exit criteria.
 6. Record the output as evidence in `phase-1/build-evidence/valid-red-result.txt`.
 7. Create 1-2 invalid-RED scenarios (e.g., introduce a syntax error, comment
    out the assertion) and verify the classifier rejects them. Record these
-   in the same evidence file.
+   in the same evidence file. (A2 creates the permanent fixtures; these are
+   quick inline checks.)
 
 **Exit:** `valid-red.py` has been run, the RED is accepted, invalid REDs are
 rejected, and the evidence is on disk.

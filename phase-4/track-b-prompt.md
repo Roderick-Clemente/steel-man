@@ -7,9 +7,9 @@ needs the hardened orchestrator from step B1).
 
 ## Context
 
-The project is at `/Users/factory/work/adversarial-sprint-dev-3.2-build`. The
-pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`. Read
-`ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` for the spec.
+The project root is the repository containing `PRD.md` (this file's parent
+directory). The pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`.
+Read `ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` for the spec.
 Read `phase-3.2/SPIKE.md` for the H-CI experiment design. Read
 `phase-3.2/BUILD-NOTES.md` for what was built.
 
@@ -152,9 +152,11 @@ not from a solution.
 1. **One genuine, un-hinted executor chunk.** Take the `/profile` model
    chunk (or a new chunk of similar scope). Write an executor prompt that
    describes the *problem* (what the behavior should be, what the test
-   asserts) but NOT the *fix* (don't say "change mimetype to
-   text/plain" — say "the Content-Type header should contain exactly one
-   charset= token").
+   asserts) but NOT the *fix*. For the /profile chunk, the prompt should
+   describe the profile key-set contract (what fields the endpoint should
+   return) without giving the implementation. Do NOT use the Phase 1
+   charset fix as the example — that is a different slice with a different
+   lock file.
 
 2. **Same locked test.** The test is already locked from Phase 1. The
    executor must make it pass without seeing the test source (test

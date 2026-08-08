@@ -1,6 +1,6 @@
 # Human-in-the-loop compression
 
-The method's cost model tracks credits and tokens. It does not track the operator. This page is about the seat the framework keeps for a human, why that seat gets *more* expensive as you run more loops, and the Phase 6 plan to compress it without breaking the independence that makes the loop work. It is forward-looking: none of it is built, and the pain it addresses has to be measured before it can be sized.
+The method's cost model tracks credits and tokens. It does not track the operator. This page is about the seat the framework keeps for a human, why that seat gets *more* expensive as you run more loops, and the Phase 7 plan to compress it without breaking the independence that makes the loop work. It is forward-looking: none of it is built, and the pain it addresses has to be measured before it can be sized.
 
 ## The problem: the loop moves human effort, it does not remove it
 
@@ -23,7 +23,7 @@ Reconciliation is not arbitration between two whole plans. It is *one plan plus 
 - the human cost is not O(number of critiques), it is O(number of *real* disagreements), which is much smaller, because most critiques are cheap and only a few are genuinely contested;
 - it is a natural place for a third-family reconciler to triage, auto-resolving the obvious ones and escalating only the genuine conflicts.
 
-The decision-packet seat is the harder one, because it is a judgment call rather than a ruling on a pre-formed list. Phase 6 attacks the reconciliation seat first for that reason.
+The decision-packet seat is the harder one, because it is a judgment call rather than a ruling on a pre-formed list. Phase 7 attacks the reconciliation seat first for that reason.
 
 ## The bet: compress the seat without breaking invariant #1
 
@@ -55,7 +55,7 @@ This is the project's founding principle turned on the panel itself: [a run's ow
 
 ## Status and placement
 
-This is **Phase 6** in `PRD.md` §11: post-MVP, pain-point-driven, and deliberately kept **outside the measured 0–5 arc**. The reasoning is in the [roadmap](overview/index.md#roadmap): Phases 0–3 are the MVP, the point at which the core loop runs end-to-end and the §13 comparison produces a measured result. Phase 4 generalises across stacks and Phase 5 hardens the loop's own invariants at no new behaviour. Phase 6 is different from both: it is new behaviour aimed at the *operator's* cost, and it is gated behind actually running the MVP and hitting the operator-bottleneck for real.
+This is **Phase 7** in `PRD.md` §11: post-MVP, pain-point-driven, and deliberately kept **outside the measured 0–6 arc**. The reasoning is in the [roadmap](overview/index.md#roadmap): Phases 0–4 are the MVP, the point at which the core loop runs end-to-end and the §13 comparison produces a measured result. Phase 5 generalises across stacks and Phase 6 hardens the loop's own invariants at no new behaviour. Phase 7 is different from both: it is new behaviour aimed at the *operator's* cost, and it is gated behind actually running the MVP and hitting the operator-bottleneck for real.
 
 Its efficacy is its own measurement (operator-minutes per landed change, tag-in rate, panel calibration), separate from the §13 correctness-and-spend surface, and it carries no committed target until the MVP has produced real operating pain to size it against.
 

@@ -100,7 +100,7 @@ output), this is a pure family/model divergence, not an ordering artifact: on
 confirmer, the mirror of Phase 1 where Gemini was the security finder on *hook
 code*. That is exactly the kind of task-conditioned divergence
 `first_seen_in_panel_position` exists to accumulate (`telemetry/SCHEMA.md`), and
-it is the input handed to Phase 5 calibration. One family alone would have
+it is the input handed to Phase 6 calibration. One family alone would have
 either shipped an under-specified brief (Gemini-only) or had no independent
 confirmation (Grok-only).
 

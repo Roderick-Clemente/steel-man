@@ -7,9 +7,9 @@ orchestrator. Act 1 and Act 3 do not.
 
 ## Context
 
-The project is at `/Users/factory/work/adversarial-sprint-dev-3.2-build`. The
-pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`. Read
-`ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` §15 for the demo
+The project root is the repository containing `PRD.md` (this file's parent
+directory). The pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`.
+Read `ROADMAP-REVIEW.md` for the full project audit. Read `PRD.md` §15 for the demo
 spec. Read `tools/PHASE-0.5-CLOSE.md` for Act 1 substance.
 
 ## The core principle

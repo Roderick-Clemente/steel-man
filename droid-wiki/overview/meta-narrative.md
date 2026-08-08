@@ -213,8 +213,9 @@ framework exists to prevent.
 
 v2 corrected all errors and returned APPROVE-WITH-NITS from both
 reviewers. v3 folded in the nits: three parallel tracks (cheap
-closures, orchestration→H-CI→H3, demo honesty), new operating rules
-(§9–§17), and an honest re-sequencing. See
+closures, orchestration→H-CI→H3, demo honesty), proposed operating
+rules (§9–§17, to be landed in `tools/OPERATING-RULES.md`), and an
+honest re-sequencing. See
 [The roadmap review](roadmap-review.md).
 
 The review itself was recognized as **Phase 4 (Hardening + roadmap

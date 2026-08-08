@@ -314,7 +314,7 @@ count-gated seed), turning a design coin-flip into a clear least-scope call. The
 calibration divergence also inverted Phase 1's: on specification and planning
 artifacts, Grok was the finder and Gemini the confirmer — the mirror of Phase 1,
 where Gemini was the security finder on hook code. That task-conditioned
-divergence is exactly the `first_seen_in_panel_position` signal Phase 5 will
+divergence is exactly the `first_seen_in_panel_position` signal Phase 6 will
 accumulate.
 
 The full round-by-round breakdown — verdicts, per-session tokens, the autonomy
