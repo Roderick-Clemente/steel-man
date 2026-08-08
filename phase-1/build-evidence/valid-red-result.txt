@@ -1,0 +1,129 @@
+# valid-red.py — RED verification evidence
+
+Phase 4 Track A, Task A1. The Phase 1 classifier (`phase-1/scripts/valid-red.py`)
+was run explicitly against the locked test at the pre-fix commit, closing the gap
+noted in `phase-1/RUN-LEDGER.md` ("A future Phase 1.1 should run the script
+explicitly and append its exit code to a `verifier_exit` column").
+
+Date: 2026-08-08
+
+## Setup
+
+- Pilot repo: /Users/factory/work/quantum-bank--llms-txt-pilot
+- Locked test: test/test_llms_txt_charset.py
+  - sha256: e78e46ff30bd89e34b6c2b9ea71c88bc457d956cceee01046b3fc55fe034d8b3
+  - accepted_assertion: "Content-Type contains exactly one charset= token"
+- Pre-fix commit: 2b70eae1 (parent of fix 308aaa70)
+  - api/llms_txt.py at that commit: mimetype="text/plain; charset=utf-8"
+  - This causes Flask/Werkzeug to append a second charset=utf-8, producing
+    "text/plain; charset=utf-8; charset=utf-8" (the doubled-charset bug).
+- The locked test file is untracked in the pilot repo (written by the
+  test-designer session, never committed). It was present in the working
+  tree during the run. The implementation was temporarily reverted to the
+  pre-fix version, then restored after the run.
+
+## Command
+
+    python3 phase-1/scripts/valid-red.py \
+      --pilot-root /Users/factory/work/quantum-bank--llms-txt-pilot \
+      --test-file test/test_llms_txt_charset.py \
+      --accepted-assertion "Content-Type contains exactly one charset= token" \
+      --python /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
+      -o json
+
+## Result: VALID RED (accepted)
+
+Classification:
+  valid: true
+  reason: "Valid RED: intended assertion ran and failed"
+  exit_code: 1
+
+Key pytest output excerpt:
+  collected 1 item
+
+  test/test_llms_txt_charset.py::test_llms_txt_content_type_has_exactly_one_charset FAILED [100%]
+
+  E   AssertionError: Content-Type contains exactly one charset= token (found 2 in 'text/plain; charset=utf-8; charset=utf-8')
+  E   assert 2 == 1
+
+  test/test_llms_txt_charset.py:24: AssertionError
+
+  FAILED test/test_llms_txt_charset.py::test_llms_txt_content_type_has_exactly_one_charset
+
+The classifier accepted the RED because:
+1. pytest exit code is non-zero (1).
+2. pytest reports at least one FAILED test.
+3. No invalid-RED signatures (syntax error, import error, tautology, mock,
+   service unavailable, empty selection) are present in the output.
+4. The accepted assertion phrase "Content-Type contains exactly one
+   charset= token" appears in the failure message.
+
+---
+
+## Invalid-RED Scenario 1: Syntax Error
+
+A temporary test file (`test/test_invalid_red_syntax.py`) was created with an
+intentional SyntaxError (missing closing parenthesis on an assert call).
+
+Command:
+
+    python3 phase-1/scripts/valid-red.py \
+      --pilot-root /Users/factory/work/quantum-bank--llms-txt-pilot \
+      --test-file test/test_invalid_red_syntax.py \
+      --accepted-assertion "Content-Type contains exactly one charset= token" \
+      --python /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
+      -o json
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: syntax error"
+  exit_code: 2
+
+The classifier detected `SyntaxError:` in the pytest output and rejected the
+RED. Exit code 2 is pytest's collection-error code.
+
+---
+
+## Invalid-RED Scenario 2: Green (assertion commented out)
+
+A temporary test file (`test/test_invalid_red_green.py`) was created with the
+charset-count assertion commented out. The test passes (exit code 0) because
+no assertion fails.
+
+Command:
+
+    python3 phase-1/scripts/valid-red.py \
+      --pilot-root /Users/factory/work/quantum-bank--llms-txt-pilot \
+      --test-file test/test_invalid_red_green.py \
+      --accepted-assertion "Content-Type contains exactly one charset= token" \
+      --python /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
+      -o json
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: test passed (no failure to fix)"
+  exit_code: 0
+
+The classifier detected exit code 0 with "passed" in the output and rejected
+the RED as a green (no failure to fix).
+
+---
+
+## Cleanup
+
+After the runs, the pilot repo was restored:
+- api/llms_txt.py reverted to the fixed version (mimetype="text/plain").
+- Temporary test files (test_invalid_red_syntax.py, test_invalid_red_green.py)
+  were removed.
+- The locked test file (test/test_llms_txt_charset.py) remains, untracked,
+  with sha256 matching the lock manifest.
+
+## Conclusion
+
+valid-red.py works correctly:
+- The valid RED at the pre-fix commit is accepted (the test fails for the
+  expected reason: doubled charset).
+- Invalid REDs are rejected with the correct rejection reason (syntax error,
+  green/no-failure).
