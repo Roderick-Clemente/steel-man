@@ -125,7 +125,17 @@ class OrchestratorGate:
         expected_sha = manifest.get("sha256")
         observed_sha = bundle.get("change", {}).get("locked_test_sha_observed")
 
-        # 3. Cross-check (§4.1)
+        # 3. Cross-check (§4.1) — require non-empty real digests on both sides.
+        #    None==None or ""=="" must NOT pass (fail-closed on missing evidence).
+        if not expected_sha or not observed_sha:
+            result["gate_decision"] = "FAIL_CLOSED"
+            result["reason"] = (
+                f"missing sha for cross-check: "
+                f"manifest={expected_sha or 'MISSING'} "
+                f"observed={observed_sha or 'MISSING'}"
+            )
+            return result
+
         if observed_sha != expected_sha:
             result["gate_decision"] = "FAIL_CLOSED"
             result["reason"] = (
