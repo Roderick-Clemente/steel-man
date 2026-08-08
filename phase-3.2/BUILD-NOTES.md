@@ -37,7 +37,10 @@ FRAMEWORK=/Users/factory/work/adversarial-sprint-dev-3.2-build
 PILOT=/Users/factory/work/quantum-bank--llms-txt-pilot
 PYTHON=$PILOT/.venv/bin/python
 
-# 1. Produce the bundle (locked-hash check + pytest + security scan)
+# 1. Set the signing key (required for both backend and consumer)
+export EVIDENCE_SIGNING_KEY="your-secret-key-here"
+
+# 2. Produce the bundle (locked-hash check + pytest + security scan)
 cd $FRAMEWORK
 $PYTHON phase-3.2/evidence/local_backend.py \
   --pilot-root $PILOT \
@@ -51,11 +54,11 @@ $PYTHON phase-3.2/evidence/local_backend.py \
   --security-allowlist phase-3.2/evidence/security_allowlist.json \
   --security-baseline phase-3.2/build-evidence/bandit-baseline.json
 
-# 2. Validator consumes the bundle (no pytest re-run)
+# 2. Validator consumes the bundle (no pytest re-run, requires EVIDENCE_SIGNING_KEY)
 $PYTHON phase-3.2/evidence/consumer.py validate \
   --bundle phase-3.2/build-evidence/chunk1-bundle.json
 
-# 3. Orchestrator gate (locked-sha cross-check)
+# 3. Orchestrator gate (locked-sha cross-check, requires EVIDENCE_SIGNING_KEY)
 $PYTHON phase-3.2/evidence/consumer.py gate \
   --bundle phase-3.2/build-evidence/chunk1-bundle.json \
   --lock-file phase-1/locks/test/test_profile_model.py.lock.json

@@ -182,9 +182,18 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    # Load bundle
-    with open(args.bundle) as f:
-        bundle = json.load(f)
+    # Load bundle — fail closed on missing/unreadable (not a raw exception)
+    try:
+        with open(args.bundle) as f:
+            bundle = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        fail = {
+            "evidence_verdict": "FAIL_CLOSED" if args.command == "validate" else None,
+            "gate_decision": "FAIL_CLOSED" if args.command == "gate" else None,
+            "reason": f"bundle missing or unreadable: {e}",
+        }
+        print(json.dumps(fail, indent=2))
+        return 1
 
     signing_key_env = os.environ.get(args.signing_key_env)
     if not signing_key_env:
