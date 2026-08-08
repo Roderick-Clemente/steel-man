@@ -73,9 +73,10 @@ only.
 
 ## What to review
 
-1. **Scope:** Only `models.py` was modified for this chunk. Use `git diff
-   --stat` to confirm scope. No test files, no `app.py`, no `api/`, no
-   `templates/` changes for chunk 1.
+1. **Scope:** Only `models.py` was modified for this chunk. Read `models.py`
+   and search for `get_user_profile` to confirm only the data-layer function
+   was added. No test files, no `app.py`, no `api/`, no `templates/` changes
+   for chunk 1.
 
 2. **Over-exposure prevention:** The function selects named columns
    (`username, email, full_name`) and NOT `SELECT *`. `id` and `created_at`
@@ -93,7 +94,7 @@ only.
    - `None` for unknown user
    - Address is non-empty
    No tautologies, no mocks of the subject, no conditional assertions.
-   (You may read the test file to verify this — but do NOT run it; the bundle
+   (Read the test file to verify this — but do NOT run it; the bundle
    already confirms it passes.)
 
 6. **Regression:** The EvidenceBundle confirms 103 passed, 0 failed,
@@ -102,12 +103,12 @@ only.
 7. **Connection safety:** The function opens and closes a connection, matching
    the existing pattern. No connection leak.
 
-## Commands you may run
+## What you can do (read-only tools only — no Execute)
 
-- `git diff` — see what changed
-- `git diff --stat` — confirm scope
-- `grep -n 'get_user_profile\|PROFILE_DEMO_ADDRESS' models.py` — inspect the code
-- Read `test/test_profile_model.py` — verify test quality (but do NOT run it)
+- Read `models.py` — inspect the implementation
+- Grep for `get_user_profile` or `PROFILE_DEMO_ADDRESS` in `models.py`
+- Read `test/test_profile_model.py` — verify test quality
+- Glob for files to confirm scope
 
 **Working directory:** `/Users/factory/work/quantum-bank--llms-txt-pilot`
 

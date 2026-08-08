@@ -1,0 +1,334 @@
+{
+  "experiment": "H-CI",
+  "hypothesis": "Routing deterministic evidence through a provider (EvidenceBundle) reduces average token cost at equal acceptance quality.",
+  "n_runs": 3,
+  "validators": [
+    "grok-4.5 (xAI)",
+    "gemini-3.1-pro-preview (Google)"
+  ],
+  "locked_chunk": "chunk 1 \u2014 profile read model (get_user_profile in models.py)",
+  "control_arm": {
+    "description": "In-session: validators get Execute tool, run pytest themselves, read raw output",
+    "enabled_tools": "Read,Glob,Grep,LS,Execute",
+    "evidence_source": "in-session"
+  },
+  "treatment_arm": {
+    "description": "Bundle: validators get EvidenceBundle embedded in prompt, no Execute tool (KI-2 fix)",
+    "enabled_tools": "Read,Glob,Grep,LS",
+    "evidence_source": "bundle",
+    "ki2_fix": "Execute dropped from validators \u2014 preventatively closes the write vector"
+  },
+  "per_run_telemetry": [
+    {
+      "arm": "control",
+      "run": 1,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 27621,
+      "output_tokens": 1755,
+      "total_tokens": 29376,
+      "cache_read_tokens": 39168,
+      "thinking_tokens": 549,
+      "duration_ms": 40590,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "control",
+      "run": 1,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 85589,
+      "output_tokens": 4468,
+      "total_tokens": 90057,
+      "cache_read_tokens": 54603,
+      "thinking_tokens": 1038,
+      "duration_ms": 48132,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "control",
+      "run": 2,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 18595,
+      "output_tokens": 2598,
+      "total_tokens": 21193,
+      "cache_read_tokens": 53248,
+      "thinking_tokens": 861,
+      "duration_ms": 49761,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "control",
+      "run": 2,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 233507,
+      "output_tokens": 4116,
+      "total_tokens": 237623,
+      "cache_read_tokens": 178304,
+      "thinking_tokens": 699,
+      "duration_ms": 70050,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "control",
+      "run": 3,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 17092,
+      "output_tokens": 1624,
+      "total_tokens": 18716,
+      "cache_read_tokens": 38272,
+      "thinking_tokens": 546,
+      "duration_ms": 34362,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "control",
+      "run": 3,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 52923,
+      "output_tokens": 2420,
+      "total_tokens": 55343,
+      "cache_read_tokens": 15640,
+      "thinking_tokens": 425,
+      "duration_ms": 25981,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "in-session"
+    },
+    {
+      "arm": "treatment",
+      "run": 1,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 11008,
+      "output_tokens": 2471,
+      "total_tokens": 13479,
+      "cache_read_tokens": 26240,
+      "thinking_tokens": 1048,
+      "duration_ms": 40040,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    },
+    {
+      "arm": "treatment",
+      "run": 1,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 110070,
+      "output_tokens": 16086,
+      "total_tokens": 126156,
+      "cache_read_tokens": 59620,
+      "thinking_tokens": 4323,
+      "duration_ms": 132558,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    },
+    {
+      "arm": "treatment",
+      "run": 2,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 23287,
+      "output_tokens": 2832,
+      "total_tokens": 26119,
+      "cache_read_tokens": 31232,
+      "thinking_tokens": 1231,
+      "duration_ms": 55466,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    },
+    {
+      "arm": "treatment",
+      "run": 2,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 92000,
+      "output_tokens": 9053,
+      "total_tokens": 101053,
+      "cache_read_tokens": 67213,
+      "thinking_tokens": 2404,
+      "duration_ms": 77314,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    },
+    {
+      "arm": "treatment",
+      "run": 3,
+      "validator": "grok-4.5",
+      "family": "grok-family",
+      "input_tokens": 12015,
+      "output_tokens": 3690,
+      "total_tokens": 15705,
+      "cache_read_tokens": 37120,
+      "thinking_tokens": 2242,
+      "duration_ms": 70410,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    },
+    {
+      "arm": "treatment",
+      "run": 3,
+      "validator": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "input_tokens": 42141,
+      "output_tokens": 2067,
+      "total_tokens": 44208,
+      "cache_read_tokens": 31437,
+      "thinking_tokens": 324,
+      "duration_ms": 23276,
+      "verdict": "ACCEPT",
+      "is_error": false,
+      "retry_count": 0,
+      "evidence_source": "bundle"
+    }
+  ],
+  "summary": {
+    "control_mean_total": 75384.7,
+    "control_median_total": 42359.5,
+    "treatment_mean_total": 54453.3,
+    "treatment_median_total": 35163.5,
+    "delta_mean": -20931.4,
+    "delta_mean_pct": -27.8,
+    "per_model": {
+      "grok-4.5": {
+        "control": {
+          "n": 3,
+          "mean_total": 23095,
+          "median_total": 21193,
+          "values": [
+            29376,
+            21193,
+            18716
+          ],
+          "mean_input": 21102.7,
+          "mean_output": 1992.3
+        },
+        "treatment": {
+          "n": 3,
+          "mean_total": 18434.3,
+          "median_total": 15705,
+          "values": [
+            13479,
+            26119,
+            15705
+          ],
+          "mean_input": 15436.7,
+          "mean_output": 2997.7
+        }
+      },
+      "gemini-3.1-pro-preview": {
+        "control": {
+          "n": 3,
+          "mean_total": 127674.3,
+          "median_total": 90057,
+          "values": [
+            90057,
+            237623,
+            55343
+          ],
+          "mean_input": 124006.3,
+          "mean_output": 3668
+        },
+        "treatment": {
+          "n": 3,
+          "mean_total": 90472.3,
+          "median_total": 101053,
+          "values": [
+            126156,
+            101053,
+            44208
+          ],
+          "mean_input": 81403.7,
+          "mean_output": 9068.7
+        }
+      }
+    },
+    "panel_per_run": [
+      {
+        "run": 1,
+        "control_total": 119433,
+        "treatment_total": 139635,
+        "delta": 20202,
+        "delta_pct": 16.9
+      },
+      {
+        "run": 2,
+        "control_total": 258816,
+        "treatment_total": 127172,
+        "delta": -131644,
+        "delta_pct": -50.9
+      },
+      {
+        "run": 3,
+        "control_total": 74059,
+        "treatment_total": 59913,
+        "delta": -14146,
+        "delta_pct": -19.1
+      }
+    ]
+  },
+  "fairness_rule": {
+    "tokenizer": "tiktoken cl100k_base",
+    "bundle_tokens_mcp_payload": 371,
+    "raw_test_output_tokens": 1069,
+    "fairness_rule_holds": true,
+    "saving_tokens": 698,
+    "saving_pct": 65.3,
+    "note": "Bundle (371 tokens) < raw combined pytest output (1069 tokens). The fairness rule (SPIKE \u00a73.2) holds: the bundle read costs less than the in-session raw test output it replaces."
+  },
+  "quality_guard": {
+    "control_verdicts": [
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT"
+    ],
+    "treatment_verdicts": [
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT",
+      "ACCEPT"
+    ],
+    "control_accept_rate": 1.0,
+    "treatment_accept_rate": 1.0,
+    "quality_holds": true,
+    "note": "All 12 runs returned ACCEPT. No quality drop in treatment arm."
+  },
+  "security_scans": {
+    "note": "Security scans are OUT of the cost comparison (SPIKE \u00a73.3). Bundle reports 0 new security findings. Security is a coverage gain, not a cost delta."
+  }
+}
