@@ -1,0 +1,27 @@
+{
+  "ts": "2026-08-08T17:16:05Z",
+  "branch": "factory/phase-3.2-evidence",
+  "validators": [
+    {
+      "label": "grok-4.5",
+      "model": "grok-4.5",
+      "family": "grok-family",
+      "verdict": "ACCEPT",
+      "ok": true,
+      "tokens_in": 34471,
+      "tokens_out": 14650,
+      "stray_writes": null
+    },
+    {
+      "label": "gemini-3.1-pro-preview",
+      "model": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "verdict": "ACCEPT",
+      "ok": true,
+      "tokens_in": 229914,
+      "tokens_out": 4575,
+      "stray_writes": null
+    }
+  ],
+  "gate": "ACCEPT"
+}
