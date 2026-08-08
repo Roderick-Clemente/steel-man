@@ -44,8 +44,21 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
+
+
+def _import_adapter(framework_root: str):
+    """Import the vendor-neutral adapter shim (OPERATING-RULES §14).
+
+    Returns the factory adapter module's to_envelope function.
+    """
+    tools_dir = os.path.join(framework_root, "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    from adapters.factory import to_envelope
+    return to_envelope
 
 
 def utcnow_iso() -> str:
@@ -98,7 +111,27 @@ def step1_produce_evidence(args) -> dict:
 
 # ── step 2: run validators ───────────────────────────────────────────────
 
-def step2_run_validators(args, validators: list[dict]) -> list[dict]:
+def capture_dirty_paths(framework_root: str) -> set[str]:
+    """Capture the set of currently-dirty git paths as a baseline.
+
+    This is the pre-run snapshot for the stray-write check (B1 fix #2).
+    Only paths that are NEWLY dirty after a validator run are flagged —
+    pre-existing dirty paths (untracked files, prior work) are excluded
+    via set difference, not set equality.
+    """
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=framework_root,
+        capture_output=True, text=True,
+    )
+    paths = set()
+    for line in result.stdout.strip().splitlines():
+        if len(line) > 3:
+            paths.add(line[3:])
+    return paths
+
+
+def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[dict]:
     """Run each validator via droid exec, capture envelope."""
     print("\n" + "=" * 60)
     print("STEP 2: Run cross-family validators")
@@ -106,6 +139,8 @@ def step2_run_validators(args, validators: list[dict]) -> list[dict]:
 
     results = []
     os.makedirs(args.review_output_dir, exist_ok=True)
+
+    run_with_model = os.path.join(args.framework_root, "tools", "run-with-model.sh")
 
     for v in validators:
         model_id = v["model_id"]
@@ -118,87 +153,116 @@ def step2_run_validators(args, validators: list[dict]) -> list[dict]:
         envelope_path = os.path.join(args.review_output_dir, f"review-{label}-envelope.json")
         stderr_path = os.path.join(args.review_output_dir, f"review-{label}-stderr.log")
 
+        # Build the droid exec command, routed through run-with-model.sh (§14)
+        # run-with-model.sh refuses to run without DROID_MODEL_ID set.
+        # Resolve prompt file to absolute path (validator CWD may differ from framework root)
+        prompt_file_abs = os.path.abspath(args.prompt_file)
         cmd = [
+            run_with_model,
             DROID_BIN, "exec",
             "--model", model_id,
             "--auto", args.auto_level,
             "--enabled-tools", args.enabled_tools,
-            "--cwd", args.framework_root,
-            "-f", args.prompt_file,
+            "--cwd", args.validator_cwd,
+            "-f", prompt_file_abs,
             "-o", "json",
         ]
 
         env = os.environ.copy()
         env["DROID_MODEL_ID"] = model_id
 
-        with open(envelope_path, "w") as enf, open(stderr_path, "w") as errf:
-            result = subprocess.run(
-                cmd, stdout=enf, stderr=errf,
-                cwd=args.framework_root, env=env,
-                timeout=600,
-            )
+        # Transient retry logic (B1 fix #3): retry on 0 output tokens or ERROR
+        # verdict, up to max_retries times with a short delay.
+        max_retries = args.max_retries
+        retry_delay = args.retry_delay
+        attempt = 0
+        v["retry_count"] = 0
 
-        v["envelope_path"] = envelope_path
-        v["exit_code"] = result.returncode
-        v["stderr_path"] = stderr_path
+        while True:
+            with open(envelope_path, "w") as enf, open(stderr_path, "w") as errf:
+                result = subprocess.run(
+                    cmd, stdout=enf, stderr=errf,
+                    cwd=args.validator_cwd, env=env,
+                    timeout=600,
+                )
 
-        # droid exec may exit non-zero but still write a valid envelope
-        # (e.g. is_error=true for a provider failure). Read the envelope
-        # regardless of exit code; only fail if the file is missing/invalid.
-        try:
-            envelope = json.load(open(envelope_path))
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"    ERROR: envelope unreadable: {e} (exit {result.returncode})")
-            v["ok"] = False
+            v["envelope_path"] = envelope_path
+            v["exit_code"] = result.returncode
+            v["stderr_path"] = stderr_path
+
+            # Use the adapter shim to parse the envelope (§14 — no raw field access)
+            try:
+                normalized = to_envelope_fn(envelope_path=envelope_path)
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                print(f"    ERROR: envelope unreadable: {e} (exit {result.returncode})")
+                if attempt < max_retries:
+                    attempt += 1
+                    v["retry_count"] = attempt
+                    print(f"    Retry {attempt}/{max_retries} after {retry_delay}s (unreadable envelope)...")
+                    time.sleep(retry_delay)
+                    continue
+                v["ok"] = False
+                results.append(v)
+                break
+
+            v["ok"] = True
+            v["is_error"] = normalized["is_error"]
+            v["num_turns"] = normalized["num_turns"]
+            v["input_tokens"] = normalized["usage"]["input"]
+            v["output_tokens"] = normalized["usage"]["output"]
+            v["cache_read_tokens"] = normalized["usage"]["cache_read"]
+            v["thinking_tokens"] = normalized["usage"]["thinking"]
+            v["duration_ms"] = normalized["duration_ms"]
+            v["result_text"] = normalized["result_text"]
+            v["adapter_model_id"] = normalized.get("model_id")
+            v["adapter_family"] = normalized.get("family")
+
+            # Check for transient failure: 0 output tokens or is_error
+            is_transient = (v["output_tokens"] == 0 or v["is_error"])
+
+            if is_transient and attempt < max_retries:
+                attempt += 1
+                v["retry_count"] = attempt
+                reason = "0 output tokens" if v["output_tokens"] == 0 else "is_error=true"
+                print(f"    Transient failure ({reason}), retry {attempt}/{max_retries} after {retry_delay}s...")
+                time.sleep(retry_delay)
+                continue
+
+            print(f"    turns={v['num_turns']} tokens_in={v['input_tokens']} tokens_out={v['output_tokens']} "
+                  f"cache_read={v['cache_read_tokens']} thinking={v['thinking_tokens']} "
+                  f"error={v['is_error']} retries={v['retry_count']}")
+
             results.append(v)
-            continue
-
-        v["envelope"] = envelope
-        v["ok"] = True
-        v["is_error"] = envelope.get("is_error", False)
-        v["num_turns"] = envelope.get("num_turns", 0)
-        v["input_tokens"] = envelope.get("usage", {}).get("input_tokens", 0)
-        v["output_tokens"] = envelope.get("usage", {}).get("output_tokens", 0)
-        v["duration_ms"] = envelope.get("duration_ms", 0)
-        v["result_text"] = envelope.get("result", "")
-
-        print(f"    turns={v['num_turns']} tokens_in={v['input_tokens']} tokens_out={v['output_tokens']} error={v['is_error']}")
-
-        results.append(v)
+            break
 
     return results
 
 
 # ── step 3: check stray writes ────────────────────────────────────────────
 
-def step3_check_stray_writes(args, validator: dict) -> bool:
+def step3_check_stray_writes(args, validator: dict, baseline: set[str]) -> bool:
     """Check for stray writes after a validator run (KI-2 mitigation).
 
-    Excludes the review output directory and known script artifacts — those
-    are written by the orchestrator, not by the validator.
+    Uses a pre-run baseline (B1 fix #2): only paths that are NEWLY dirty
+    after the run are flagged. Pre-existing dirty paths (untracked files,
+    prior work) are excluded via set difference, not set equality.
     """
-    result = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=args.framework_root,
-        capture_output=True, text=True,
-    )
+    current = capture_dirty_paths(args.validator_cwd)
+
     # Normalize the review output dir to a relative path for matching
-    review_dir_rel = os.path.relpath(args.review_output_dir, args.framework_root)
-    # Also exclude the orchestrator script itself
-    orchestrator_rel = os.path.relpath(
-        os.path.join(args.framework_root, "tools", "orchestrate-review.py"),
-        args.framework_root,
-    )
+    review_dir_rel = os.path.relpath(args.review_output_dir, args.validator_cwd)
 
-    stray_lines = []
-    for line in result.stdout.strip().splitlines():
-        # git status --porcelain format: "XY path"
-        path = line[3:] if len(line) > 3 else line
-        if path.startswith(review_dir_rel) or path == orchestrator_rel:
+    # New paths = current - baseline (set difference)
+    new_paths = current - baseline
+
+    # Exclude expected orchestrator artifacts
+    stray_paths = set()
+    for path in new_paths:
+        if path.startswith(review_dir_rel):
             continue  # expected output, not a stray write
-        stray_lines.append(line)
+        stray_paths.add(path)
 
-    stray = "\n".join(stray_lines)
+    stray = "\n".join(sorted(stray_paths))
     if stray:
         print(f"    WARNING: stray writes detected after {validator['label']}:")
         print(f"    {stray}")
@@ -257,7 +321,7 @@ def step5_append_telemetry(args, validators: list[dict]):
             row = {
                 "schema_version": "v2",
                 "ts": ts,
-                "run_id": f"r-phase32-review-{v['label']}",
+                "run_id": f"r-{args.run_label}-{v['label']}" if args.run_label else f"r-phase32-review-{v['label']}",
                 "phase": args.phase,
                 "branch": args.branch,
                 "role": "validator",
@@ -269,14 +333,22 @@ def step5_append_telemetry(args, validators: list[dict]):
                 "num_turns": v.get("num_turns", 0),
                 "input_tokens": v.get("input_tokens", 0),
                 "output_tokens": v.get("output_tokens", 0),
+                "cache_read_tokens": v.get("cache_read_tokens", 0),
+                "thinking_tokens": v.get("thinking_tokens", 0),
                 "duration_ms": v.get("duration_ms", 0),
                 "is_error": v.get("is_error", True),
                 "decision": v.get("verdict", "UNKNOWN"),
                 "evidence_source": args.evidence_source,
+                "retry_count": v.get("retry_count", 0),
                 "envelope_path": v.get("envelope_path", ""),
             }
+            # Fairness-rule token fields (SPIKE §3.2)
+            if args.evidence_source == "bundle":
+                row["mcp_payload_tokens"] = args.mcp_payload_tokens or 0
+            else:
+                row["raw_test_output_tokens"] = args.raw_test_output_tokens or 0
             f.write(json.dumps(row) + "\n")
-            print(f"  Appended: {v['label']} -> {v.get('verdict', 'UNKNOWN')}")
+            print(f"  Appended: {v['label']} -> {v.get('verdict', 'UNKNOWN')} (retries={v.get('retry_count', 0)})")
 
     print(f"  Total rows appended: {len(validators)}")
 
@@ -361,6 +433,9 @@ def main() -> int:
     parser.add_argument("--lock-file", required=True)
     parser.add_argument("--prompt-file", required=True)
     parser.add_argument("--review-output-dir", required=True)
+    parser.add_argument("--validator-cwd", default=None,
+                        help="Working directory for validator droid exec calls. "
+                             "Defaults to --framework-root. Set to pilot repo for H-CI.")
     parser.add_argument("--validators", required=True,
                         help="Comma-separated: model_id:provider:family[:label],...")
     parser.add_argument("--evidence-output", default=None,
@@ -370,15 +445,41 @@ def main() -> int:
     parser.add_argument("--security-allowlist", default=None)
     parser.add_argument("--security-baseline", default=None)
     parser.add_argument("--auto-level", default="high")
-    parser.add_argument("--enabled-tools", default="Read,Glob,Grep,LS,Execute")
+    parser.add_argument("--enabled-tools", default=None,
+                        help="Comma-separated tool list. If not set, auto-derived from --treatment.")
+    parser.add_argument("--treatment", action="store_true",
+                        help="Treatment mode (H-CI): validators get no Execute tool (KI-2 fix). "
+                             "Sets evidence_source=bundle and excludes Execute from enabled-tools.")
+    parser.add_argument("--run-label", default=None,
+                        help="Label for this run (e.g., 'h-ci-run1-control'). Used in run_id for N-run A/B.")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Max retries on transient API failure (0 output tokens or ERROR). Default: 2.")
+    parser.add_argument("--retry-delay", type=int, default=5,
+                        help="Delay in seconds between retries. Default: 5.")
     parser.add_argument("--phase", default="phase-3.2")
     parser.add_argument("--branch", default=None,
                         help="Branch name for telemetry. Auto-detected if not set.")
-    parser.add_argument("--evidence-source", default="in-session",
-                        help="evidence_source for telemetry rows: in-session (default) or bundle.")
+    parser.add_argument("--evidence-source", default=None,
+                        help="evidence_source for telemetry rows. Auto-derived from --treatment if not set.")
+    parser.add_argument("--mcp-payload-tokens", type=int, default=None,
+                        help="Bundle read token count (treatment arm, fairness rule).")
+    parser.add_argument("--raw-test-output-tokens", type=int, default=None,
+                        help="Raw pytest output token count (control arm, fairness rule).")
     parser.add_argument("--allow-single-family", action="store_true",
                         help="Allow a single-family validator panel. Default: refuse (PRD section 17.2).")
     args = parser.parse_args()
+
+    # Derive treatment-mode settings (B1 fix: parameterize KI-2 fix)
+    if args.treatment:
+        if args.evidence_source is None:
+            args.evidence_source = "bundle"
+        if args.enabled_tools is None:
+            args.enabled_tools = "Read,Glob,Grep,LS"  # NO Execute — KI-2 fix
+    else:
+        if args.evidence_source is None:
+            args.evidence_source = "in-session"
+        if args.enabled_tools is None:
+            args.enabled_tools = "Read,Glob,Grep,LS,Execute"  # control arm: validators run pytest
 
     if not args.branch:
         args.branch = subprocess.run(
@@ -388,6 +489,13 @@ def main() -> int:
 
     validators = parse_validators(args.validators)
 
+    # Import the adapter shim (OPERATING-RULES §14)
+    # Set validator CWD default (where validators run + stray writes checked)
+    if not args.validator_cwd:
+        args.validator_cwd = args.framework_root
+
+    to_envelope_fn = _import_adapter(args.framework_root)
+
     # Cross-family enforcement (PRD section 17.2: >=2 distinct families required)
     families = set(v["family"] for v in validators)
     if len(families) < 2 and not args.allow_single_family:
@@ -396,6 +504,9 @@ def main() -> int:
               f"Use --allow-single-family to override (not recommended).", file=sys.stderr)
         return 1
     print(f"Cross-family check: {len(families)} families ({families}) — OK")
+    print(f"Evidence source: {args.evidence_source} | Treatment: {args.treatment}")
+    print(f"Enabled tools: {args.enabled_tools}")
+    print(f"Validator CWD: {args.validator_cwd}")
 
     # Step 1: produce evidence (optional)
     if args.evidence_output:
@@ -406,16 +517,21 @@ def main() -> int:
     else:
         print("\nSTEP 1: Skipped (no --evidence-output)")
 
-    # Step 2: run validators
-    validators = step2_run_validators(args, validators)
+    # Capture stray-write baseline BEFORE running validators (B1 fix #2)
+    dirty_baseline = capture_dirty_paths(args.validator_cwd)
+    if dirty_baseline:
+        print(f"\n  Stray-write baseline: {len(dirty_baseline)} pre-existing dirty path(s) (will be excluded)")
 
-    # Step 3: check stray writes after each
+    # Step 2: run validators (via run-with-model.sh + adapter shim, with retry)
+    validators = step2_run_validators(args, validators, to_envelope_fn)
+
+    # Step 3: check stray writes after each (using baseline difference)
     print("\n" + "=" * 60)
-    print("STEP 3: Check stray writes (KI-2 mitigation)")
+    print("STEP 3: Check stray writes (KI-2 mitigation, baseline-aware)")
     print("=" * 60)
     for v in validators:
         if v.get("ok"):
-            step3_check_stray_writes(args, v)
+            step3_check_stray_writes(args, v, dirty_baseline)
             print(f"  {v['label']}: {'CLEAN' if not v.get('stray_writes') else 'STRAY WRITES'}")
 
     # Step 4: parse verdicts
@@ -431,6 +547,9 @@ def main() -> int:
     summary = {
         "ts": utcnow_iso(),
         "branch": args.branch,
+        "evidence_source": args.evidence_source,
+        "treatment": args.treatment,
+        "run_label": args.run_label,
         "validators": [
             {
                 "label": v["label"],
@@ -440,6 +559,9 @@ def main() -> int:
                 "ok": v.get("ok", False),
                 "tokens_in": v.get("input_tokens", 0),
                 "tokens_out": v.get("output_tokens", 0),
+                "cache_read": v.get("cache_read_tokens", 0),
+                "thinking": v.get("thinking_tokens", 0),
+                "retry_count": v.get("retry_count", 0),
                 "stray_writes": v.get("stray_writes"),
             }
             for v in validators

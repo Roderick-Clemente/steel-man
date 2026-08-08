@@ -1,0 +1,23 @@
+{
+  "ts": "2026-08-08T21:23:18Z",
+  "branch": "factory/phase-4-track-a",
+  "evidence_source": "in-session",
+  "treatment": false,
+  "run_label": "b1-test-run1",
+  "validators": [
+    {
+      "label": "gpt-5.4-mini",
+      "model": "gpt-5.4-mini",
+      "family": "openai-family",
+      "verdict": "ACCEPT",
+      "ok": true,
+      "tokens_in": 18068,
+      "tokens_out": 4441,
+      "cache_read": 108032,
+      "thinking": 3058,
+      "retry_count": 0,
+      "stray_writes": null
+    }
+  ],
+  "gate": "ACCEPT"
+}
