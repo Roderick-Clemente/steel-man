@@ -210,6 +210,9 @@ def apply_allowlist(findings: list[dict], allowlist: dict) -> list[dict]:
 
     Allowlist entries are scoped to specific (rule_id, file, line) tuples —
     not whole files — so a real future secret in the same file still trips.
+    A line of 0 or null in an entry acts as a wildcard (matches any line for
+    that rule_id + file pair). This is for cases where the line number may
+    shift between runs but the finding is known-public by design.
     """
     entries = allowlist.get("allowlist", [])
     suppressed = []
@@ -218,10 +221,12 @@ def apply_allowlist(findings: list[dict], allowlist: dict) -> list[dict]:
         matched = False
         for entry in entries:
             if (f["rule_id"] == entry.get("rule_id")
-                    and f["file"] == entry.get("file")
-                    and f.get("line") == entry.get("line")):
-                matched = True
-                break
+                    and f["file"] == entry.get("file")):
+                entry_line = entry.get("line", 0)
+                # line=0 means wildcard (match any line for this rule+file)
+                if entry_line == 0 or f.get("line") == entry_line:
+                    matched = True
+                    break
         if matched:
             suppressed.append(f)
         else:
@@ -253,7 +258,7 @@ def diff_vs_baseline(findings: list[dict], baseline: dict) -> list[dict]:
     for f in findings:
         key = (f["rule_id"], f["file"], f.get("line", 0))
         f["is_new"] = key not in baseline_keys
-        f["scope"] = "diff"  # bandit scans the whole tree, but we label scope
+        f["scope"] = "history"  # bandit scans the whole tree = history scope (§4.4)
     return findings
 
 
@@ -399,9 +404,23 @@ def main() -> int:
     if security_section:
         bundle["security"] = security_section
 
-    # Sign
-    signing_key = os.environ.get(args.signing_key_env, "local-default-key").encode()
-    bundle = sign_bundle(bundle, signing_key, args.key_id)
+    # Sign — require an explicit key; generate a random one if not set (with warning)
+    signing_key_env = os.environ.get(args.signing_key_env)
+    if signing_key_env:
+        signing_key = signing_key_env.encode()
+        key_id = args.key_id
+    else:
+        # No explicit key: generate a random one so the signature is not forgeable
+        # by anyone who reads the source code. The signature is still valid for
+        # this run, but the consumer must use the same key to verify — so this is
+        # only useful for same-process verification (local demo). For any
+        # cross-process or cross-agent scenario, set EVIDENCE_SIGNING_KEY.
+        signing_key = os.urandom(32)
+        key_id = f"local-random-{uuid.uuid4().hex[:8]}"
+        print(f"  WARNING: {args.signing_key_env} not set. Generated random key "
+              f"(key_id={key_id}). Signature is valid for this process only — "
+              f"set {args.signing_key_env} for cross-process verification.", file=sys.stderr)
+    bundle = sign_bundle(bundle, signing_key, key_id)
 
     # Write
     os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)

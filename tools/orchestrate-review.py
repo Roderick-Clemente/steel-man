@@ -217,7 +217,7 @@ def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
     print("=" * 60)
 
     verdict_pattern = re.compile(
-        r'\b(ACCEPT|ACCEPT-WITH-NITS|REJECT(?:_IMPLEMENTATION|_TEST)?|REJECT|HUMAN_DECISION)\b',
+        r'\b(ACCEPT-WITH-NITS|ACCEPT|REJECT_IMPLEMENTATION|REJECT_TEST|REJECT|HUMAN_DECISION)\b',
         re.IGNORECASE
     )
 
@@ -272,7 +272,7 @@ def step5_append_telemetry(args, validators: list[dict]):
                 "duration_ms": v.get("duration_ms", 0),
                 "is_error": v.get("is_error", True),
                 "decision": v.get("verdict", "UNKNOWN"),
-                "evidence_source": "in-session",
+                "evidence_source": args.evidence_source,
                 "envelope_path": v.get("envelope_path", ""),
             }
             f.write(json.dumps(row) + "\n")
@@ -374,6 +374,10 @@ def main() -> int:
     parser.add_argument("--phase", default="phase-3.2")
     parser.add_argument("--branch", default=None,
                         help="Branch name for telemetry. Auto-detected if not set.")
+    parser.add_argument("--evidence-source", default="in-session",
+                        help="evidence_source for telemetry rows: in-session (default) or bundle.")
+    parser.add_argument("--allow-single-family", action="store_true",
+                        help="Allow a single-family validator panel. Default: refuse (PRD section 17.2).")
     args = parser.parse_args()
 
     if not args.branch:
@@ -383,6 +387,15 @@ def main() -> int:
         ).stdout.strip()
 
     validators = parse_validators(args.validators)
+
+    # Cross-family enforcement (PRD section 17.2: >=2 distinct families required)
+    families = set(v["family"] for v in validators)
+    if len(families) < 2 and not args.allow_single_family:
+        print(f"ERROR: cross-family requirement not met. {len(families)} family(ies) "
+              f"in panel ({families}). Need >=2 distinct families per PRD section 17.2. "
+              f"Use --allow-single-family to override (not recommended).", file=sys.stderr)
+        return 1
+    print(f"Cross-family check: {len(families)} families ({families}) — OK")
 
     # Step 1: produce evidence (optional)
     if args.evidence_output:

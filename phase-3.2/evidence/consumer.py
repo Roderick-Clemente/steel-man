@@ -171,7 +171,13 @@ def main() -> int:
     with open(args.bundle) as f:
         bundle = json.load(f)
 
-    signing_key = os.environ.get(args.signing_key_env, "local-default-key").encode()
+    signing_key_env = os.environ.get(args.signing_key_env)
+    if not signing_key_env:
+        print(f"ERROR: {args.signing_key_env} not set. Cannot verify bundle signature "
+              f"without the signing key. Set it to the same value used by the backend.",
+              file=sys.stderr)
+        return 1
+    signing_key = signing_key_env.encode()
 
     if args.command == "validate":
         vc = ValidatorConsumer()

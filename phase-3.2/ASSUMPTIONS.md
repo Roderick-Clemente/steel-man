@@ -159,3 +159,20 @@ or ambiguous.
 - **Missing in spec:** §3.2 says "tokens(in-session raw test output it
   replaces)" without specifying whether "raw test output" is the locked test,
   the full suite, or both. The Phase 3 validator prompts show both were run.
+
+## 13. Orchestration script scope-shift (self-violation of §8)
+
+- **Decision:** Built `tools/orchestrate-review.py` (the mechanical review
+  pipeline) inside the Phase 3.2 loop, then wrote OPERATING-RULES.md §8 (the
+  scope-shift rule) to say this kind of thing should get its own loop — but
+  did not log the scope shift in ASSUMPTIONS.md until a cross-family reviewer
+  (grok-4.5) flagged the omission as a blocking finding.
+- **Why:** The orchestration gap was discovered mid-3.2 when the review process
+  proved ad hoc. It emerged naturally and was built in-flow. The scope-shift
+  rule was written after the fact to prevent this pattern, but the rule was not
+  applied retroactively to its own creation — a meta-violation.
+- **Missing in spec:** The RUN-PROMPT for 3.2 did not scope an orchestration
+  script. This was a framework-level concern (PRD Act 2: automation) that
+  should have been its own loop with its own prompt. Per §8, it should have
+  been pushed out, not absorbed. The decision to absorb it was not recorded at
+  the time — only caught in review.
