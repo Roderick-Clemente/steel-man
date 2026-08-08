@@ -8,18 +8,22 @@ or ambiguous.
 
 ## 1. Bundle signature scheme
 
-- **Decision:** HMAC-SHA256 with a key from an env var (`EVIDENCE_SIGNING_KEY`,
-  default `"local-default-key"`), key_id recorded in the signature.
+- **Decision:** HMAC-SHA256 with a key from an env var (`EVIDENCE_SIGNING_KEY`).
+  If the env var is not set, the backend generates a random key (`os.urandom(32)`)
+  and warns that the signature is valid for same-process verification only. The
+  consumer refuses to verify without an explicit key.
 - **Why:** The SPIKE (§8) explicitly defers the signature scheme as "an
   implementation detail of 'producer is not spoofable in-context'." HMAC-SHA256
   is the simplest scheme that satisfies "not spoofable inside an agent's
   context" — an agent that fabricates a bundle cannot sign it without the key.
-  Ed25519 would be stronger but adds a key-management dependency for no
-  marginal benefit in the local-backend-only scope of this run.
+  The initial implementation used a hardcoded default key ("local-default-key")
+  which a cross-family reviewer (grok-4.5) correctly flagged as forgeable by
+  anyone who reads the source. Fixed: random key if unset, consumer requires
+  explicit key.
 - **Missing in spec:** §8 names it as deferred. The key distribution model
   (how the consumer gets the key to verify) is also unspecified. For local mode
-  the default key is known; for Harness mode this would need a real key
-  distribution path.
+  the env var must be set in both the backend and consumer processes. For
+  Harness mode this would need a real key distribution path.
 
 ## 2. Token estimation method
 

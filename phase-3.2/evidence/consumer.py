@@ -135,11 +135,16 @@ class OrchestratorGate:
             return result
         result["sha_match"] = True
 
-        # 4. Check bundle is green
+        # 4. Check bundle is green — fail closed on red AND on vacuous green
+        #    (0 passed = all skipped or empty suite = silent-green defect)
         tests = bundle.get("tests", {})
         if tests.get("failed", 0) > 0 or tests.get("suite_exit_code", 1) != 0:
             result["gate_decision"] = "FAIL_CLOSED"
             result["reason"] = "bundle is red — test failures present"
+            return result
+        if tests.get("passed", 0) == 0:
+            result["gate_decision"] = "FAIL_CLOSED"
+            result["reason"] = "vacuous green — 0 tests passed (all skipped or empty suite)"
             return result
 
         result["gate_decision"] = "PASS"
