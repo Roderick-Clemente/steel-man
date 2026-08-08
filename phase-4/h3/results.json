@@ -1,0 +1,142 @@
+{
+  "experiment": "H3",
+  "hypothesis": "A cheap-tier executor can implement a bounded chunk without being handed the exact fix \u2014 the prompt describes the problem, not the solution.",
+  "executor": {
+    "model": "gpt-5.4-mini",
+    "provider": "openai",
+    "family": "openai-family",
+    "auto_level": "medium",
+    "enabled_tools": "Read,Glob,Grep,ApplyPatch,Execute",
+    "prompt_type": "un-hinted (describes problem, not solution)",
+    "num_turns": 15,
+    "input_tokens": 24786,
+    "output_tokens": 3588,
+    "cache_read_tokens": 268288,
+    "thinking_tokens": 1679,
+    "total_tokens": 28374,
+    "duration_ms": 58412,
+    "is_error": false,
+    "tool_error_count": 2,
+    "tool_calls": [
+      {
+        "name": "Read",
+        "is_error": false
+      },
+      {
+        "name": "Read",
+        "is_error": false
+      },
+      {
+        "name": "Glob",
+        "is_error": false
+      },
+      {
+        "name": "Read",
+        "is_error": false
+      },
+      {
+        "name": "Grep",
+        "is_error": false
+      },
+      {
+        "name": "Grep",
+        "is_error": false
+      },
+      {
+        "name": "Grep",
+        "is_error": false
+      },
+      {
+        "name": "ApplyPatch",
+        "is_error": true
+      },
+      {
+        "name": "Read",
+        "is_error": false
+      },
+      {
+        "name": "Read",
+        "is_error": false
+      },
+      {
+        "name": "ApplyPatch",
+        "is_error": false
+      },
+      {
+        "name": "Execute",
+        "is_error": true
+      },
+      {
+        "name": "Execute",
+        "is_error": false
+      },
+      {
+        "name": "Glob",
+        "is_error": false
+      },
+      {
+        "name": "Glob",
+        "is_error": false
+      },
+      {
+        "name": "Execute",
+        "is_error": false
+      },
+      {
+        "name": "Execute",
+        "is_error": false
+      },
+      {
+        "name": "Execute",
+        "is_error": false
+      },
+      {
+        "name": "Execute",
+        "is_error": false
+      }
+    ],
+    "result_text": "# Done\n\nImplemented `get_user_profile(user_id: int)` in `models.py` with a named-column query, `None` for unknown users, and a module-level `PROFILE_ADDRESS` constant with env override plus a TODO for migrating it to the DB.\n\n## Verification\n- `pytest test/test_profile_model.py -v` \u2705\n- `pytest -q` \u2705 `89 passed`"
+  },
+  "validation": {
+    "validators": [
+      {
+        "model": "grok-4.5",
+        "family": "grok-family",
+        "verdict": "ACCEPT",
+        "input_tokens": 16151,
+        "output_tokens": 1545,
+        "total_tokens": 17696,
+        "duration_ms": 36256,
+        "is_error": false,
+        "retry_count": 0,
+        "stray_writes": null
+      },
+      {
+        "model": "gemini-3.1-pro-preview",
+        "family": "gemini-family",
+        "verdict": "ACCEPT",
+        "input_tokens": 74142,
+        "output_tokens": 2709,
+        "total_tokens": 76851,
+        "duration_ms": 69395,
+        "is_error": false,
+        "retry_count": 0,
+        "stray_writes": null
+      }
+    ],
+    "gate": "ACCEPT"
+  },
+  "green_verification": {
+    "locked_test": "3/3 passed",
+    "full_suite": "89/89 passed",
+    "method": "Independent pytest run (assert on reality, not exit code \u2014 \u00a77)"
+  },
+  "diff_summary": {
+    "files_changed": 1,
+    "file": "models.py",
+    "lines_added": 31,
+    "lines_removed": 0,
+    "scope_clean": true,
+    "notes": "Executor chose PROFILE_ADDRESS (not PROFILE_DEMO_ADDRESS) and a realistic address default. Used explicit key mapping in return dict instead of modifying _row_to_dict result."
+  }
+}

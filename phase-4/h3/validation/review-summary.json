@@ -1,0 +1,36 @@
+{
+  "ts": "2026-08-08T21:48:30Z",
+  "branch": "factory/phase-4-track-a",
+  "evidence_source": "in-session",
+  "treatment": false,
+  "run_label": "h3-validation",
+  "validators": [
+    {
+      "label": "grok-4.5",
+      "model": "grok-4.5",
+      "family": "grok-family",
+      "verdict": "ACCEPT",
+      "ok": true,
+      "tokens_in": 16151,
+      "tokens_out": 1545,
+      "cache_read": 38656,
+      "thinking": 431,
+      "retry_count": 0,
+      "stray_writes": null
+    },
+    {
+      "label": "gemini-3.1-pro-preview",
+      "model": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "verdict": "ACCEPT",
+      "ok": true,
+      "tokens_in": 74142,
+      "tokens_out": 2709,
+      "cache_read": 23567,
+      "thinking": 489,
+      "retry_count": 0,
+      "stray_writes": null
+    }
+  ],
+  "gate": "ACCEPT"
+}

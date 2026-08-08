@@ -1,0 +1,49 @@
+diff --git a/models.py b/models.py
+index cee4f329..4bc9f626 100644
+--- a/models.py
++++ b/models.py
+@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
+ DATABASE_URL_ENV = "DATABASE_URL"
+ DEFAULT_DB = "quantum_bank.db"
+ MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "migrations")
++PROFILE_ADDRESS_ENV = "PROFILE_ADDRESS"
++PROFILE_ADDRESS = os.environ.get(
++    PROFILE_ADDRESS_ENV,
++    "123 Demo Street, Springfield, IL 62704",
++)
++# TODO: migrate profile address into a database column once a migration runner exists.
+ 
+ # Rewards ledger used for progressive delivery walkthroughs.
+ REWARDS_LEDGER_TABLE = "rewards_ledger"
+@@ -575,6 +581,31 @@ def get_user_by_username(username: str) -> dict | None:
+     return _row_to_dict(user)
+ 
+ 
++def get_user_profile(user_id: int) -> dict | None:
++    """Get display-safe profile data for an account page."""
++    conn = get_db()
++    cursor = conn.cursor()
++    cursor.execute(
++        _sql("""
++            SELECT username, email, full_name
++            FROM users
++            WHERE id = ?
++            """),
++        (user_id,),
++    )
++    user = cursor.fetchone()
++    conn.close()
++    if user is None:
++        return None
++    data = _row_to_dict(user)
++    return {
++        "username": data["username"],
++        "email": data["email"],
++        "full_name": data["full_name"],
++        "address": PROFILE_ADDRESS,
++    }
++
++
+ def get_accounts_by_user(user_id: int) -> list[dict]:
+     """Get all accounts for a user."""
+     conn = get_db()
