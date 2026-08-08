@@ -1,0 +1,219 @@
+{
+  "artifact": "ROADMAP-REVIEW.md",
+  "artifact_version": "v2",
+  "reviewer_role": "cross-family-panel-re-review",
+  "reviewer_family": "xai/grok-4.5",
+  "date": "2026-08-08",
+  "method": "Independent re-audit of ROADMAP-REVIEW.md v2 against PRD §§11/12/13/15/17, OPERATING-RULES §§7-8, phase-0/GO-NO-GO.md, phase-3/README.md exit criteria, phase-3.2 BUILD-NOTES/SPIKE, telemetry/runs.jsonl (12 rows), tools/orchestrate-review.py, tools/PHASE-0.5-CLOSE.md, phase-1 executor prompt + RUN-LEDGER, phase-2/3 KI-2, and v1 panel findings. No production code modified.",
+  "verdict": "APPROVE-WITH-NITS",
+  "verdict_rationale": "v2 corrected the material v1 errors (Phase 0.5 treated as unbuilt; orchestration treated as never-run; forgeable signing key listed open; §12 conflicting with PRD §13). The roadmap conclusion is now sound: stabilize orchestration just enough, run H-CI before evidence-tier extension, rewrite Act 2 as command-orchestrated, treat clean nulls as valid completion with named gaps. Remaining findings refine sequencing, fix residual factual nits, and tighten rules — they do not reverse the conclusion.",
+  "findings": [
+    {
+      "id": "F-RR-v2-001",
+      "severity": "medium",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §1 / §3.1",
+      "claim": "12 telemetry rows in runs.jsonl, 8 from orchestrated runs with real decisions.",
+      "evidence": [
+        "telemetry/runs.jsonl: wc -l => 12 rows, all phase-3.2",
+        "Rows 1-2 envelope_path = phase-3.2/reviews/review-{grok,gemini}-envelope.json (non-orchestrated path)",
+        "Rows 3-12 envelope_path = phase-3.2/reviews/orchestrated/* (10 rows, not 8)",
+        "Decisions present: ACCEPT×6, ACCEPT-WITH-NITS×2, REJECT×2, ERROR×1, UNKNOWN×1; non-zero token runs on successful rows"
+      ],
+      "recommended_change": "Correct to 10 orchestrated rows + 2 prior manual/scripted review rows. Keep the partial-success + residual flakiness characterization (ERROR/UNKNOWN still real).",
+      "risk_if_ignored": "Small credibility nick on a document whose v1 failure mode was miscounting the system of record; easy to fix, easy to weaponize if left wrong."
+    },
+    {
+      "id": "F-RR-v2-002",
+      "severity": "medium",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §3.1 / §4 P1",
+      "claim": "Residual orchestration flakiness is empty/0-byte envelopes; Priority 1 harden list is adapter shim + fail on empty envelopes + multi-run determinism + keep telemetry append.",
+      "evidence": [
+        "phase-3.2/reviews/orchestrated/review-grok-4.5-envelope.json currently 8120 bytes; gemini envelope 2961 bytes — not 0-byte",
+        "0-byte files currently observed: phase-3.2/reviews/roadmap-review-grok-envelope.json and roadmap-review-v2-gemini-envelope.json (roadmap-review artifacts, not the orchestrated product path)",
+        "phase-3.2/reviews/orchestrated/review-summary.json gate=STOP with stray_writes listing untracked review docs (ROADMAP-REVIEW.md, REVIEW-PROMPT.md, findings JSON) — dirty-tree false positive, not validator mutation of product code",
+        "tools/orchestrate-review.py step3_check_stray_writes: excludes only review_output_dir + orchestrate-review.py itself; no pre-run baseline snapshot of already-dirty paths",
+        "tools/orchestrate-review.py docstring cites tools/run-with-model.sh and tools/adapters/factory.py; body invokes DROID_BIN directly and raw-parses envelope['usage']['input_tokens'] at lines 160-161"
+      ],
+      "recommended_change": "Retarget residual flakiness: (a) ERROR/UNKNOWN verdict rows and non-deterministic re-runs are the live defects; (b) add stray-write baseline/allowlist so a dirty worktree does not STOP a clean validator; (c) name dual missed reuse — adapter shim AND run-with-model.sh. Empty-envelope fail-closed remains good defense-in-depth but is not the currently observed primary failure mode on the orchestrated path.",
+      "risk_if_ignored": "Priority 1 'fixes' a stale symptom, leaves the false-positive STOP that breaks N-run H-CI, and under-specifies what 'stable enough for N identical runs' actually requires."
+    },
+    {
+      "id": "F-RR-v2-003",
+      "severity": "high",
+      "category": "sequencing",
+      "section": "ROADMAP-REVIEW.md §4 Priority 0 vs P1–P3",
+      "claim": "Priority 0 is reconstruction + valid-red closure first; then harden orchestration; then H-CI; then demo. Deadlock check claims no later priority is a hidden prerequisite.",
+      "evidence": [
+        "Telemetry reconstruction is mechanical hygiene for §13 SoR; it does not unblock H-CI, Act 1 packaging, or Act 2",
+        "tools/PHASE-0.5-CLOSE.md already supplies Act 1 substance — packaging can start immediately and in parallel (review's own deadlock check admits this, but P0 does not schedule it)",
+        "phase-2/KNOWN-ISSUES.md KI-2 + phase-3/KNOWN-ISSUES.md KI-2: validator Execute write vector is detective-only; review §3.13 correctly calls this a demo blocker for 'read-only validators'",
+        "§4 P3 schedules demo packaging without requiring a preventive KI-2 fix; §4 P4 leaves KI-2-ish work in calibration backlog",
+        "PRD.md:531 v1 acceptance criterion still requires a controlled drill of retry/re-plan/human-decision — distinct from reopening Phase 2 completion under PRD §13 null-result rule"
+      ],
+      "recommended_change": "Reshape near-term capacity to three parallelizable tracks, not a six-bucket serial program: (T1) cheap closures — run valid-red.py + 3–4 invalid-RED fixtures; package Act 1 from 0.5; optional telemetry reconstruct as non-gating hygiene. (T2) orchestration harden just enough for H-CI — adapter + run-with-model, empty-envelope fail-closed, stray-write baseline, deterministic multi-run — then H-CI N-run as the economic fork. (T3) demo honesty — rewrite Act 2 command-orchestrated; preventive KI-2 (read-only runner or throwaway checkout) before any 'read-only validator' / enforced-independence beat; drop or qualify 'close the laptop'. Keep PRD §12 controlled drill as an MVP acceptance item in the calibration track, labeled calibration/acceptance — not a Phase-2 reopen.",
+      "risk_if_ignored": "Serial P0 reconstruction burns attention without leverage; demo Act 2 ships with a known independence hole; MVP acceptance still fails the written controlled-drill criterion while the roadmap pretends foundations are settled."
+    },
+    {
+      "id": "F-RR-v2-004",
+      "severity": "medium",
+      "category": "omission",
+      "section": "ROADMAP-REVIEW.md §4 Priority 3 / §5 §16",
+      "claim": "Act 3 = Phase-0-verified controls only: model pinning, Droid Shield, OpenTelemetry traces.",
+      "evidence": [
+        "phase-0/GO-NO-GO.md invariant scorecard and exit criteria verify model pinning (Probe 2), hook enforcement (Probe 4), isolation path (Probe 3), plugin scaffold (Probe 6) — not a PASS line for Droid Shield or OpenTelemetry export",
+        "PRD.md:636-644 Act 3 lists model rules, Droid Shield, deployment flexibility, OpenTelemetry — and itself says 'Build Act 3 only on capabilities Phase 0 verified'",
+        "ROADMAP-REVIEW §5 §16 correctly states the binding rule but §4 P3 re-lists Droid Shield and OTel as if already verified"
+      ],
+      "recommended_change": "Act 3 demo beats = only controls with Phase-0 evidence (pinned models fail-closed, reference guard / locked-test hook, isolation guard, per-role invocation). List Droid Shield / OTel / air-gap as roadmap narrative only until re-probed. Apply §16 to the review's own Act 3 bullet list.",
+      "risk_if_ignored": "Demo Act 3 overclaims the same way Act 2 overclaimed Mission — the exact failure §16 was written to prevent."
+    },
+    {
+      "id": "F-RR-v2-005",
+      "severity": "medium",
+      "category": "process",
+      "section": "ROADMAP-REVIEW.md §5 §10",
+      "claim": "A phase that completes without telemetry rows in the system of record has not met its exit criteria, even if the envelope JSONs exist on disk.",
+      "evidence": [
+        "ROADMAP-REVIEW §3.2 correctly argues §13 inputs are partially recoverable from committed envelopes + gen-telemetry.py",
+        "tools/PHASE-0.5-CLOSE.md used tools/RUN-LEDGER.md as the cost/intervention SoR, not telemetry/runs.jsonl",
+        "phase-1/RUN-LEDGER.md is structured cost data outside runs.jsonl",
+        "§10 as written would retroactively void Phase 0.5/1/2 completions that have envelopes/ledgers but no runs.jsonl rows"
+      ],
+      "recommended_change": "Rewrite §10 forward-looking: from adoption forward, multi-invocation phases must emit runs.jsonl (and findings/dispositions when applicable) from the orchestration script. Committed envelopes + auditable reconstruction recipes remain valid evidence for past phases and for disaster recovery. Do not equate 'missing live SoR row' with 'phase incomplete' when reconstructable artifacts exist.",
+      "risk_if_ignored": "Rule creates paper incompleteness, contradicts the reconstruction plan in §3.2/§4 P0, and incentivizes busywork over measurement."
+    },
+    {
+      "id": "F-RR-v2-006",
+      "severity": "low",
+      "category": "process",
+      "section": "ROADMAP-REVIEW.md §5 §9 / §17",
+      "claim": "If the script doesn't exist yet, the first deliverable of the phase is to build it; capacity envelope refuses unbounded foundation programs.",
+      "evidence": [
+        "§9 spike exception is sound; 'first deliverable is the script' for every multi-invocation phase can re-expand Priority 1 into a foundation program",
+        "§4 still lists Priority 0–5 (six buckets) while §17 and the capacity stanza say name 1–3 deliverables",
+        "phase-0/GO-NO-GO.md Phase 1 build order wanted a thin per-role wrapper, not today's full multi-validator orchestrate-review.py"
+      ],
+      "recommended_change": "Tighten §9: script the invocations the phase will actually repeat; do not require a full panel orchestrator as Phase-N's first deliverable unless the phase exit needs N-run review. Reconcile §17 with §4 by naming the actual next 1–3 deliverables in the capacity stanza (e.g. valid-red closure, orchestration harden-for-H-CI, H-CI N-run) and marking the rest as ordered backlog, not active priorities.",
+      "risk_if_ignored": "Capacity rule is theater while the priority list remains an unbounded program; thin vertical slices get blocked on orchestration completeness."
+    },
+    {
+      "id": "F-RR-v2-007",
+      "severity": "low",
+      "category": "sequencing",
+      "section": "ROADMAP-REVIEW.md §4 Priority 2 / SPIKE H-CI",
+      "claim": "With a stabilized orchestrator, run the full N-run A/B; H-CI is the economic fork that decides further evidence-tier investment.",
+      "evidence": [
+        "phase-3.2/SPIKE.md §3: only evidence source changes; fairness rule counts bundle-read tokens; null result redirects to panel-size/context levers",
+        "phase-3.2/BUILD-NOTES.md + chunk1-token-accounting.json: directional 55.2% saving on full-suite combined raw, fairness does not hold at locked-test-only scope — review states this correctly",
+        "H-CI primary metric is tokens-to-same-ACCEPT at equal quality; it needs a stable evidence produce+consume path and comparable validator runs, not every future orchestration feature"
+      ],
+      "recommended_change": "Keep H-CI before Harness/3.3/dogfood (uncontested). Explicitly bound P1 to the minimum needed for credible N-run A/B (deterministic invoke, parseable envelopes, correct token fields via adapter, worktree isolation). Do not gate H-CI on demo packaging, telemetry reconstruction, or full KI-2 preventive redesign.",
+      "risk_if_ignored": "Either H-CI slips behind unrelated demo polish, or P1 expands until the economic fork never runs."
+    },
+    {
+      "id": "F-RR-v2-008",
+      "severity": "low",
+      "category": "omission",
+      "section": "ROADMAP-REVIEW.md §3 Missed wins",
+      "claim": "v2 missed-win set (§3.1–3.14) is the material set after panel additions.",
+      "evidence": [
+        "Accurate and still material: §3.4 invalid-RED, §3.5 review-tests (take the L), §3.6 Phase 3 exits, §3.7 executor given the answer, §3.10 adapter bypass, §3.11–3.14 panel additions",
+        "§3.8 correctly closed; residual key-distribution note is right",
+        "§3.9 Gemini non-blocking-not-no-op is right; 3.2 orchestrated REJECT/ACCEPT pairs strengthen it",
+        "Additional missed win under-weighted: orchestrate-review.py also bypasses tools/run-with-model.sh (docstring-cited enforcement wrapper) — family/model pinning discipline is not only an adapter concern",
+        "Additional process gap: review-summary gate STOP on dirty worktree means 'scripted' runs are still not hermetic — belongs next to §3.1/§3.10"
+      ],
+      "recommended_change": "Add a short §3.x (or fold into §3.10): orchestration bypasses both the adapter shim and run-with-model.sh; stray-write check is not hermetic against pre-existing dirty trees. No need to expand the missed-win list further.",
+      "risk_if_ignored": "P1 harden checklist stays incomplete; N-run stability work misses the actual STOP failure mode."
+    },
+    {
+      "id": "F-RR-v2-009",
+      "severity": "low",
+      "category": "process",
+      "section": "ROADMAP-REVIEW.md §5 §12 / §4 P4",
+      "claim": "Unexercised safety paths are named gaps/calibration, not phase blockers; mine existing disagreement before manufacturing new ones.",
+      "evidence": [
+        "PRD.md:572: clean null is valid; manufactured disagreement is not a success gate — v2 §12 rewrite is correct",
+        "PRD.md:531 v1 acceptance still wants one controlled drill of rejection→retry/re-plan/human-decision",
+        "Existing corpora: Phase 2 amendments path, Phase 3.1 panel split, Phase 3.2 orchestrated grok REJECT vs gemini ACCEPT — review lists these correctly"
+      ],
+      "recommended_change": "Keep §12 as rewritten. In P4, add an explicit MVP-acceptance line: one controlled rejection drill before v1 acceptance claims, fed preferably by replaying an existing REJECT corpus through the retry state machine rather than inventing new blocking findings. Label it acceptance/calibration, not phase-completion.",
+      "risk_if_ignored": "Either the controlled drill stays forever-deferred while claiming MVP, or someone reopens honest null phases — both worse than naming it once in P4."
+    },
+    {
+      "id": "F-RR-v2-010",
+      "severity": "low",
+      "category": "semantic",
+      "section": "ROADMAP-REVIEW.md §2 / §4 P5",
+      "claim": "Current roadmap order is Harness → H-CI → 3.3 → dogfood; this is backwards; evidence-tier extension only if H-CI non-null.",
+      "evidence": [
+        "phase-3.2/BUILD-NOTES.md follow-ons list Harness before full H-CI — review's read is fair",
+        "phase-3.2/SPIKE.md §3.5: null result is valid and redirects levers — review correctly preserves this",
+        "Agree without contest: do not build Harness/3.3/dogfood as the next active investment before H-CI"
+      ],
+      "recommended_change": "No change to the deferral. Optional clarification only: a null H-CI may still justify a thin flavor-(a) CI-as-runner for coverage/reliability, but not flavor-(b) Harness-native investment as a cost play.",
+      "risk_if_ignored": "Low — already directionally correct."
+    }
+  ],
+  "missed_wins_scorecard": [
+    {"id": "3.1", "accurate": "mostly", "material": true, "note": "Late/flaky orchestration is real; row split is 10 orchestrated not 8; primary residual is ERROR/UNKNOWN + dirty-tree STOP, not currently-empty orchestrated envelopes."},
+    {"id": "3.2", "accurate": true, "material": true, "note": "SoR incomplete but recoverable — correct framing."},
+    {"id": "3.3", "accurate": true, "material": "medium", "note": "True calibration gap; v2 correctly avoids manufactured-disagreement gates. Still need one MVP controlled drill somewhere."},
+    {"id": "3.4", "accurate": true, "material": true, "note": "Cheap to close; belongs in near-term track."},
+    {"id": "3.5", "accurate": true, "material": "medium", "note": "Take the L is the right disposition."},
+    {"id": "3.6", "accurate": true, "material": true, "note": "Demo/baseline/PR exits unmet remains correct."},
+    {"id": "3.7", "accurate": true, "material": true, "note": "phase-1/prompts/executor.md is the smoking gun."},
+    {"id": "3.8", "accurate": true, "material": "closed", "note": "Fix verified in local_backend.py/consumer.py; residual is key distribution."},
+    {"id": "3.9", "accurate": true, "material": true, "note": "Non-blocking not no-op; 3.2 splits add evidence."},
+    {"id": "3.10", "accurate": true, "material": true, "note": "Extend to run-with-model.sh bypass + non-hermetic stray-write check."},
+    {"id": "3.11", "accurate": true, "material": true, "note": "0.5 closed; packaging gap real."},
+    {"id": "3.12", "accurate": true, "material": true, "note": "Act 2 still Mission-shaped after GO forbade it."},
+    {"id": "3.13", "accurate": true, "material": true, "note": "KI-2 still detective-only; must sequence before independence demo beats."},
+    {"id": "3.14", "accurate": true, "material": true, "note": "No laptop-closed durability evidence — drop or build, do not claim."}
+  ],
+  "proposed_resequence": {
+    "agree_with_v2_core": true,
+    "adjustments": [
+      "Do not serialize telemetry reconstruction ahead of H-CI/demo-honesty work; make it non-gating hygiene.",
+      "Parallel Track A (cheap closures): valid-red.py + invalid-RED fixtures; Act 1 packaging from PHASE-0.5-CLOSE; optional telemetry reconstruct.",
+      "Serial Track B (economic fork): minimal orchestration harden (adapter, run-with-model, empty-envelope fail-closed, stray-write baseline, deterministic multi-run) → H-CI N-run with provider tokenizers.",
+      "Serial Track C (demo honesty, can overlap B after harden): rewrite Act 2 command-orchestrated; preventive KI-2 before read-only-validator claims; Act 3 only on Phase-0-evidenced controls; no close-laptop claim without a durable runner.",
+      "Backlog D (calibration/MVP acceptance, not gates for B): mine disagreement corpora; one controlled rejection drill for PRD §12; Gemini precision; review-tests remains taken L.",
+      "Backlog E (only after H-CI): Harness flavor-(b) / 3.3 / dogfood if non-null or explicitly accepted as coverage-not-cost."
+    ],
+    "why_not_reject": "v2 already adopted the load-bearing corrections from v1 REJECT (0.5 exists, orchestration partially runs, §12 null-result safe, H-CI before Harness, Act 2 rewrite, capacity envelope). Remaining issues change ordering detail and rule sharpness, not the roadmap thesis."
+  },
+  "rules_verdict": {
+    "accept_as_written": ["§11", "§13", "§15", "§16 (once Act 3 bullet list obeys it)"],
+    "accept_with_edits": [
+      "§9 — keep spike exception; bound 'first deliverable' to the phase's actual repeat surface, not a full panel orchestrator by default",
+      "§10 — forward-looking script emission required; do not void past phases with reconstructable envelopes/ledgers",
+      "§12 — keep v2 rewrite; add MVP controlled-drill pointer in calibration backlog",
+      "§14 — extend to run-with-model.sh / any cited enforcement wrapper, not only adapters/factory.py",
+      "§17 — force the capacity stanza to name 1–3 active deliverables; everything else is ordered backlog"
+    ],
+    "reject": [],
+    "add": [
+      "Hermetic stray-write checks: baseline the tree before validator invoke; only new paths outside the allowlist count as KI-2 violations",
+      "Optional but useful: when a docstring cites a shim/wrapper, the implementation must call it or the citation is a §8-style silent scope lie"
+    ]
+  },
+  "v1_finding_disposition": {
+    "F-RR-001": "addressed in v2",
+    "F-RR-002": "addressed in v2 (partial-success framing); residual row-count nit as F-RR-v2-001",
+    "F-RR-003": "addressed in v2",
+    "F-RR-004": "addressed/closed in v2",
+    "F-RR-005": "addressed in v2 §12 rewrite",
+    "F-RR-006": "mostly addressed; residual sequencing shape as F-RR-v2-003",
+    "F-RR-007": "addressed in v2 demo strategy; Act 3 list still drifts as F-RR-v2-004",
+    "F-RR-008": "addressed in v2 §3.1 timing",
+    "F-RR-009": "addressed in v2; MVP drill residual as F-RR-v2-009",
+    "F-RR-010": "addressed in v2 §3.9",
+    "F-RR-011": "addressed via §3.11–3.14; small adds in F-RR-v2-008",
+    "F-RR-012": "mostly addressed; §10/§9/§17 edits remain",
+    "F-RR-013": "uncontested agreement remains",
+    "F-RR-014": "addressed in capacity envelope; tension with six-priority list as F-RR-v2-006"
+  }
+}

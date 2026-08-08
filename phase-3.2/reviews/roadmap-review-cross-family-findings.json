@@ -1,0 +1,247 @@
+{
+  "artifact": "ROADMAP-REVIEW.md",
+  "reviewer_role": "cross-family-panel",
+  "date": "2026-08-08",
+  "method": "Independent audit of ROADMAP-REVIEW.md against PRD, OPERATING-RULES, phase evidence, telemetry/runs.jsonl, and tools/orchestrate-review.py. No production code modified for the audit conclusions.",
+  "verdict": "REJECT",
+  "verdict_rationale": "Directionally right that evidence-tier extension should wait on measurement and that H-CI should precede Harness/3.3. Material factual errors (Phase 0.5 treated as unbuilt; orchestration treated as never-run) and a process over-correction (§12 vs PRD §13 null-result rule) change the roadmap conclusion enough that the document should not be adopted as written.",
+  "findings": [
+    {
+      "id": "F-RR-001",
+      "severity": "blocker",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §4 Priority 4",
+      "claim": "Act 1 (manual baseline harness) was scoped as Phase 0.5 but was never built.",
+      "evidence": [
+        "tools/PHASE-0.5-CLOSE.md: marks Phase 0.5 DONE with checked exit criteria (headless real runs, blind validators, reality-asserting gates, RUN-LEDGER cost/latency/intervention logging, fake-pass regression fixture)",
+        "PRD.md:453-461: Phase 0.5 is the §13 baseline arm and Act 1 of the demo",
+        "tools/RUN-LEDGER.md referenced by PHASE-0.5-CLOSE as carrying the five validator runs and operator-intervention=1 proof"
+      ],
+      "recommended_change": "Rewrite the demo gap: Phase 0.5 exists and closed; what is missing is packaging it as the Act 1 narrative beat and connecting it to a command-orchestrated Act 2. Do not plan to rebuild Act 1 from zero.",
+      "risk_if_ignored": "Roadmap spends a full priority rebuilding work already done, delays the only demo beat that does not depend on Mission-native automation, and misstates project maturity to any external reader."
+    },
+    {
+      "id": "F-RR-002",
+      "severity": "high",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §1 / §3.1",
+      "claim": "orchestrate-review.py was built but never successfully run; phase-3.2/reviews/orchestrated/ contains empty 0-byte files.",
+      "evidence": [
+        "telemetry/runs.jsonl: 10 rows, all phase-3.2; 8 rows point at phase-3.2/reviews/orchestrated/* envelopes",
+        "telemetry/runs.jsonl rows include non-zero token runs and real decisions: ACCEPT, ACCEPT-WITH-NITS, REJECT, ERROR, UNKNOWN",
+        "phase-3.2/reviews/orchestrated/review-grok-4.5-envelope.json is currently 10603 bytes with a full review body; some sibling files are 0-byte (partial/flaky, not never-ran)",
+        "tools/orchestrate-review.py step5_append_telemetry writes runs.jsonl — the 8 orchestrated rows are evidence the script's telemetry path executed"
+      ],
+      "recommended_change": "Correct to: orchestration ran multiple times with partial success and residual flakiness (empty envelopes, gemini ERROR/UNKNOWN rows). Priority 1 is stabilize + make deterministic, not invent the loop from nothing.",
+      "risk_if_ignored": "Overstates foundation breakage, mis-sizes Priority 1, and hides the already-available signal that the panel disagrees under orchestration (grok REJECT vs gemini ACCEPT)."
+    },
+    {
+      "id": "F-RR-003",
+      "severity": "medium",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §3.2",
+      "claim": "telemetry/runs.jsonl contains only 6 rows, all from Phase 3.2; §13 efficacy evaluation has no data.",
+      "evidence": [
+        "telemetry/runs.jsonl: wc -l => 10 rows (not 6)",
+        "phase-3/gen-telemetry.py: auditable recipe to regenerate Phase 3 rows from committed envelopes",
+        "phase-3.2/SPIKE.md control-arm citation: ≈540.6k tokens over 12 successful Phase 3 role runs from envelopes",
+        "phase-1/RUN-LEDGER.md and tools/RUN-LEDGER.md: structured cost rows outside runs.jsonl"
+      ],
+      "recommended_change": "Say the system-of-record file is incomplete and Phase-mixed data was lost/overwritten locally, but §13 inputs are partially recoverable from envelopes + ledgers. Distinguish missing SoR from missing evidence.",
+      "risk_if_ignored": "Undervalues recoverable evaluation inputs and overstates the 'no measurement possible' case."
+    },
+    {
+      "id": "F-RR-004",
+      "severity": "medium",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §3.8",
+      "claim": "Default HMAC signing key (\"local-default-key\") is in-repo and forgeable; gate would PASS on a forged green bundle.",
+      "evidence": [
+        "phase-3.2/ASSUMPTIONS.md §1: documents the initial hardcoded key, the grok finding, and the fix (random key if unset; consumer requires explicit key)",
+        "phase-3.2/evidence/local_backend.py: uses os.urandom(32) when EVIDENCE_SIGNING_KEY unset; warns signature is same-process only",
+        "phase-3.2/evidence/consumer.py: --signing-key-env EVIDENCE_SIGNING_KEY; no hardcoded shared secret in current consumer path",
+        "rg local-default-key across *.py: no remaining secret default (only ASSUMPTIONS/review prose + key_id label 'local-default')"
+      ],
+      "recommended_change": "Reclassify as a closed finding with residual gap: key distribution for multi-agent/CI is still unspecified. Do not list forgeable default key as a current open trust hole.",
+      "risk_if_ignored": "Roadmap prioritizes an already-fixed nit and underweights the real residual (key distribution / producer authenticity in CI)."
+    },
+    {
+      "id": "F-RR-005",
+      "severity": "high",
+      "category": "process",
+      "section": "ROADMAP-REVIEW.md §5 §12",
+      "claim": "If a phase's safety mechanism was not triggered, the phase is not complete — deliberately construct a triggering case or record a named gap.",
+      "evidence": [
+        "PRD.md:572: 'models disagree at least once' are NOT success gates; both would incentivize manufactured findings. A clean null result is valid data.",
+        "ROADMAP-REVIEW.md §5 §12: phases that did not trigger reconciliation/retry are 'not complete' / 'incomplete with a clean null result'",
+        "phase-2/APPROVAL.md + phase-2/findings.md: exit criterion was hash-bound approval OR escalated non-convergence; round-1 APPROVE with amendments satisfied the written exit"
+      ],
+      "recommended_change": "Rewrite §12 to match PRD §13: clean null is valid completion data. Require explicit recording of unexercised safety paths as known gaps / follow-ons, without reopening phase completion or mandating manufactured disagreement. Optional adversarial fixtures are calibration work, not exit gates.",
+      "risk_if_ignored": "Creates Goodhart pressure to stage fake conflicts, contradicts the evaluation design, and turns honest null results into process failures."
+    },
+    {
+      "id": "F-RR-006",
+      "severity": "high",
+      "category": "sequencing",
+      "section": "ROADMAP-REVIEW.md §4 Priorities 1–4",
+      "claim": "Fix orchestration first, then H-CI, then adversarial path, then build the demo; foundations-before-extending is the right frame.",
+      "evidence": [
+        "F-RR-001/002: 0.5 exists; orchestration already partially runs",
+        "phase-0/GO-NO-GO.md: build is command-orchestrated, not Mission-native; Probe 5 Mission rejection routing unreachable",
+        "PRD.md:625-633 Act 2 demo narrative is Mission-shaped ('same sprint as a Mission', Droid Computer), which the GO decision already rejected as the runtime spine",
+        "telemetry/runs.jsonl: orchestrated panel already produced grok REJECT vs gemini ACCEPT — disagreement data exists without a dedicated 'adversarial construction' phase",
+        "phase-3.2/SPIKE.md §3: H-CI is the headline economic experiment; predicted partial win; null result redirects roadmap"
+      ],
+      "recommended_change": "Adopt a revised sequence: (1) minimal orchestration harden (adapter shim, non-empty envelope assert, deterministic multi-run) — days not a program; (2) H-CI N-run immediately, because it decides whether evidence-tier investment continues; (3) demo packaging now that 0.5 exists — Act 1 = closed 0.5 harness, Act 2 = command-orchestrated button not Mission fantasy, Act 3 only on Phase-0-verified controls; (4) adversarial-path calibration fixtures as measurement, not blockers; (5) Harness/3.3/dogfood only after H-CI.",
+      "risk_if_ignored": "Priority 1 expands into endless plumbing; demo stays blocked on a Mission story the architecture abandoned; H-CI (the economic fork) slips behind work that does not change the fork."
+    },
+    {
+      "id": "F-RR-007",
+      "severity": "high",
+      "category": "omission",
+      "section": "ROADMAP-REVIEW.md §4 Priority 4 / §15 treatment",
+      "claim": "Demo treatment is adequate: build Act 1+2+3 after orchestration/cost/adversarial evidence.",
+      "evidence": [
+        "PRD.md:607-644 three-act narrative; Act 2 is Mission automation; Act 3 constrained to Phase-0-verified capabilities",
+        "phase-0/GO-NO-GO.md recommendation: GO with mandatory design change to command-orchestrated",
+        "ROADMAP-REVIEW never reconciles Act 2's Mission script with the command-orchestrated spine",
+        "tools/PHASE-0.5-CLOSE.md already supplies Act 1 substance (manual/ladder harness with cost and intervention counts)"
+      ],
+      "recommended_change": "Add an explicit demo-strategy decision: rewrite Act 2 around the command-orchestrated wrapper (push a scripted button, close laptop only if a real durable runner exists — do not demo Mission). Keep Act 3 strictly inside verified probes. Package 0.5 as Act 1 immediately.",
+      "risk_if_ignored": "Demo either overclaims Mission capabilities Phase 0 disproved, or never ships because it waits on a path the GO decision closed."
+    },
+    {
+      "id": "F-RR-008",
+      "severity": "medium",
+      "category": "semantic",
+      "section": "ROADMAP-REVIEW.md §3.1",
+      "claim": "The orchestration script should have been built in Phase 1, not discovered in Phase 3.2.",
+      "evidence": [
+        "PRD.md:463-467 Phase 1 exit is invalid-RED rejection + hashed RED→GREEN on one behavior — not full multi-role orchestration",
+        "phase-0/GO-NO-GO.md 'Build order for Phase 1': reference guard, per-role invocation wrapper, locked-test enforcement, isolation, rejection state machine — a thinner wrapper than today's multi-validator orchestrate-review.py",
+        "phase-3/README.md: Phase 3 is where full loop + cross-family validation became the operating mode"
+      ],
+      "recommended_change": "Keep the missed-win, retarget the timing: per-role invocation wrapper belonged at Phase 0 contingency / Phase 1 spine; full review orchestration belonged no later than Phase 3 kickoff. 'Should have been Phase 1' overstates relative to Phase 1's written exit.",
+      "risk_if_ignored": "Blames the wrong phase gate and teaches the wrong sizing lesson for future vertical slices."
+    },
+    {
+      "id": "F-RR-009",
+      "severity": "medium",
+      "category": "scope",
+      "section": "ROADMAP-REVIEW.md §3.3 / Priority 3",
+      "claim": "Reconciliation/retry never tested under disagreement is among the highest-leverage next proofs; deliberately construct blocking cases.",
+      "evidence": [
+        "PRD.md:572 clean null is valid; disagreement is not a success gate",
+        "phase-2/findings.md: Grok raised medium/low findings that became binding amendments A1–A5 without re-review by design (hash freeze + zero-buffer)",
+        "telemetry/runs.jsonl: already contains orchestrated REJECT vs ACCEPT split on 3.2 code review",
+        "phase-3.1/RESULTS.md (cited in review): degraded-loop panel split already produced disagreement data"
+      ],
+      "recommended_change": "Downgrade from 'must exercise before close' to 'calibration backlog with named fixtures.' Mine existing disagreement (Phase 2 amendments path, 3.1 split, 3.2 orchestrated REJECT) before manufacturing new ones. If a fixture is built, label it calibration, not phase-completion.",
+      "risk_if_ignored": "Burns budget on staged fights while real disagreement corpora sit unanalyzed; conflicts with evaluation ethics in PRD §13."
+    },
+    {
+      "id": "F-RR-010",
+      "severity": "low",
+      "category": "factual",
+      "section": "ROADMAP-REVIEW.md §3.9",
+      "claim": "Across Phase 2 and Phase 3, Gemini raised zero findings in every review except Phase 3.1 degraded chunk 1; panel independence is concentrated in one family.",
+      "evidence": [
+        "phase-2/findings.md: Gemini 0 findings / APPROVE; Grok 3 medium + 3 low — claim holds for Phase 2",
+        "phase-3/build-evidence/chunk{1,2,3}-validator-gemini-envelope.json: ACCEPT with multi-step evidence walkthroughs, not empty confirms — still zero blocking findings",
+        "telemetry/runs.jsonl orchestrated rows: gemini ACCEPT paired with grok REJECT on later 3.2 reviews — strengthens the calibration concern beyond the review's sample"
+      ],
+      "recommended_change": "Keep the calibration finding; sharpen it: Gemini is not a no-op reviewer (it produces long evidenced ACCEPTs) but it is systematically non-blocking relative to Grok. Add 3.2 orchestrated REJECT/ACCEPT split as additional evidence. Treat as Phase 5 calibration input, not a roadmap fork by itself.",
+      "risk_if_ignored": "Either over-dismisses Gemini (throws away a seat) or under-measures precision/recall per family for §13."
+    },
+    {
+      "id": "F-RR-011",
+      "severity": "medium",
+      "category": "omission",
+      "section": "ROADMAP-REVIEW.md §3 Missed wins",
+      "claim": "The listed missed wins (orchestration timing, telemetry, reconciliation, invalid-RED, review-tests, exit criteria, executor over-spec, signing key, Gemini, adapter bypass) are the material set.",
+      "evidence": [
+        "Missing: Phase 0.5 closed but never productized as Act 1 (F-RR-001)",
+        "Missing: Act 2 narrative still Mission-native after GO-NO-GO forbade that spine (F-RR-007)",
+        "Missing: KI-2 validator Execute write vector remains detective-only across Phase 2 and 3 (phase-2/KNOWN-ISSUES.md KI-2, phase-3/KNOWN-ISSUES.md KI-2) — independence hole for any demo of 'read-only validators'",
+        "Missing: Probe 5/7 still unanswered (review notes this in §1 table) but does not promote the durable-runner / laptop-closed claim as a demo blocker",
+        "Accurate and material among listed: §3.4 invalid-RED, §3.5 review-tests, §3.6 Phase 3 exits, §3.7 executor given the answer, §3.10 adapter bypass"
+      ],
+      "recommended_change": "Add missed wins: (a) 0.5 not packaged as Act 1; (b) demo Act 2 not rewritten for command-orchestration; (c) validator write-vector still unenforced; (d) 'close the laptop' durability never evidenced. Keep §3.4–3.7 and §3.10. Drop or close §3.8 as fixed.",
+      "risk_if_ignored": "Roadmap optimizes the wrong backlog and ships a demo that fails the first engineer question about Mission vs wrapper or validator purity."
+    },
+    {
+      "id": "F-RR-012",
+      "severity": "medium",
+      "category": "process",
+      "section": "ROADMAP-REVIEW.md §5 §9–§11, §13–§14",
+      "claim": "Proposed operating rules §9–§14 are sound additions.",
+      "evidence": [
+        "§9 script-the-loop: matches Phase 0 command-orchestrated contingency and observed manual drift — sound if scoped to multi-invocation phases, not every spike probe",
+        "§10 telemetry-by-script: sound; already partially implemented in orchestrate-review.py step 5",
+        "§11 check exit criteria against artifacts: sound and overdue (Phase 1/3 exits)",
+        "§12 adversarial-must-fire: unsound as written (F-RR-005)",
+        "§13 don't give executor the answer: sound; phase-1/prompts/executor.md lines 18-33 are the smoking gun vs PRD §5.5",
+        "§14 use adapter shim: sound; orchestrate-review.py docstring cites adapters/factory.py but body parses envelope['usage']['input_tokens'] raw at lines 160-161"
+      ],
+      "recommended_change": "Accept §9 (with spike exception), §10, §11, §13, §14. Reject/rewrite §12 per F-RR-005. Add one missing rule: demo claims must bind to Phase-0-verified capabilities and the command-orchestrated decision (no Mission demo beats without a new GO).",
+      "risk_if_ignored": "Either codifies a harmful completeness rule (§12) or leaves the demo-claim/verification binding unenforced."
+    },
+    {
+      "id": "F-RR-013",
+      "severity": "low",
+      "category": "sequencing",
+      "section": "ROADMAP-REVIEW.md §4 Priority 5 / §2",
+      "claim": "Current roadmap order is Harness backend → H-CI → 3.3 → dogfood → Phase 5 → Phase 6; this should be inverted so evidence-tier extension is last.",
+      "evidence": [
+        "phase-3.2/BUILD-NOTES.md follow-ons list Harness before H-CI — review's 'current sequencing' read is fair",
+        "phase-3.2/SPIKE.md §3: H-CI is the headline experiment that should decide further backend investment",
+        "Agree with review: Harness-before-H-CI is the wrong order"
+      ],
+      "recommended_change": "Keep the deferral of Harness/3.3/dogfood until after H-CI. Do not treat this portion as contested.",
+      "risk_if_ignored": "Building Harness/3.3 before H-CI risks scaffolding an abstraction whose token thesis may null out."
+    },
+    {
+      "id": "F-RR-014",
+      "severity": "medium",
+      "category": "omission",
+      "section": "ROADMAP-REVIEW.md §4",
+      "claim": "Implied constraint model is 'fix foundations then extend'; no explicit budget/timeline/platform constraint shaping.",
+      "evidence": [
+        "phase-0/GO-NO-GO.md: platform silent-green is structural; durable Mission path unavailable",
+        "phase-3/KNOWN-ISSUES.md KI-1: planned cheap openai executor tier was unavailable; glm substitution",
+        "PRD.md:87 H3 conditional on Probe 7; command-orchestrated path partially unblocked per-role credits",
+        "Review proposes six new operating rules + five priority programs without a capacity envelope"
+      ],
+      "recommended_change": "Add a constraints stanza: near-term capacity is one orchestration harden + one H-CI experiment + demo packaging. Defer rule-lawyering expansion, manufactured adversarial campaigns, and new evidence backends until H-CI returns. Name platform limits (no Mission Act 2, no unverified laptop-closed claim).",
+      "risk_if_ignored": "The re-sequence becomes another unbounded backlog and recreates the missed-exit pattern it criticizes."
+    }
+  ],
+  "missed_wins_scorecard": [
+    {"id": "3.1", "accurate": "partial", "material": true, "note": "Missed automation is real; 'never ran' and 'should have been Phase 1' are overstated."},
+    {"id": "3.2", "accurate": "partial", "material": true, "note": "SoR gap real; row count wrong; 'no §13 data' overstates recoverability."},
+    {"id": "3.3", "accurate": true, "material": "medium", "note": "True gap; must not become a manufactured-disagreement exit gate."},
+    {"id": "3.4", "accurate": true, "material": true, "note": "valid-red.py exists; invalid cases not demonstrated; RED taken from designer envelope."},
+    {"id": "3.5", "accurate": true, "material": "medium", "note": "PRD §11 Phase 1 first deliverable still external."},
+    {"id": "3.6", "accurate": true, "material": true, "note": "Demo/baseline/PR exits unmet remains correct for Phase 3."},
+    {"id": "3.7", "accurate": true, "material": true, "note": "Executor prompt contains the exact one-line fix; H3 seat untested."},
+    {"id": "3.8", "accurate": "stale", "material": "low-now", "note": "Finding was real; code/ASSUMPTIONS show fix landed. Residual is key distribution."},
+    {"id": "3.9", "accurate": "mostly", "material": true, "note": "Calibration concentration real; Gemini is lenient/non-blocking more than silent."},
+    {"id": "3.10", "accurate": true, "material": "medium", "note": "Docstring cites adapter; implementation raw-parses Factory fields."}
+  ],
+  "proposed_resequence": {
+    "priority_1": "Harden orchestration just enough for N identical runs (adapter shim, fail on empty envelope, stray-write check, telemetry append). Do not boil the ocean.",
+    "priority_2": "Run H-CI N-run A/B with provider tokenizers. This is the economic fork for all evidence-tier work.",
+    "priority_3": "Demo packaging: Act 1 = existing Phase 0.5 close artifacts; Act 2 = command-orchestrated script (honest rewrite of PRD Mission beat); Act 3 = only Phase-0-verified controls. No Mission cosplay.",
+    "priority_4": "Calibration backlog (not gates): invalid-RED fixtures, mine existing disagreement corpora (2/3.1/3.2), optional retry/re-plan fixture, Gemini precision study.",
+    "priority_5": "Evidence-tier extension (Harness backend, 3.3 visual, framework dogfood) only if H-CI is non-null or explicitly accepted as coverage-not-cost.",
+    "deferred_unchanged": "Phase 5 hardening settling pass; Phase 6 human compression post-MVP pain."
+  },
+  "rules_verdict": {
+    "accept": ["§9 (with spike exception)", "§10", "§11", "§13", "§14"],
+    "reject_or_rewrite": ["§12"],
+    "add": [
+      "Demo claims bind to Phase-0-verified capabilities and the command-orchestrated GO decision",
+      "Capacity envelope: name the next 1–3 deliverables; refuse unbounded foundation programs"
+    ]
+  }
+}

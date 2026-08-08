@@ -148,3 +148,78 @@ case study gave us:
    rounds of two reviewers is a price worth paying for the level of
    review it produces. The marginal cost per extra reviewer is the
    strongest efficacy sensor.
+
+## Phase 2 — the planning slice on itself
+
+Phase 2 pushed the loop one step earlier: can the panel review a *plan*
+before any code exists? On one real slice (a read-only `GET /profile`
+page for the pilot bank), two single-blind cross-family stages (brief,
+then plan) each ran Grok + Gemini. The brief came back
+ACCEPT-WITH-NITS / ACCEPT and was reconciled; the pinned planner
+(`claude-opus-5`) drafted a plan hashed to `sha256:72eccff5…`, and both
+families **APPROVED it with zero blocking findings** — a clean null per
+PRD §13.
+
+The calibration divergence inverted Phase 1's pattern: on specification
+and planning artifacts, Grok was the finder and Gemini the confirmer —
+the mirror of Phase 1, where Gemini was the security finder on hook
+code. That task-conditioned divergence is exactly the
+`first_seen_in_panel_position` signal Phase 6 will accumulate.
+
+## Phase 3 — end-to-end execution
+
+Three chunks built through the full loop, all cross-family ACCEPT, 99
+tests passing. The mechanism works. But 3 of 4 exit criteria were
+missed: no replayable demo, no baseline comparison, no local PR
+creation. Orchestration was manual (run by hand, not scripted). The
+retry/re-plan path was never exercised (zero rejections — a valid clean
+null per §13). Telemetry rows were reconstructable from 13 committed
+envelopes via `gen-telemetry.py`.
+
+## Phase 3.1 — the degraded spike
+
+Deliberately violated invariant #1 (same-family test-author + executor)
+to measure whether cross-family validation alone compensates for lost
+test-independence. Result: **panel-dependent**. The deterministic
+standalone gate caught the bias every time. The cross-family panel
+split — Grok caught the encoded bias, Gemini dismissed the identical
+failure. Cost 2.38x control (mostly from the retry cycle). Fed back
+into PRD §17.6 as a binding rule. See
+[Phase 3.1 degraded spike](phase-3.1-degraded-spike.md).
+
+## Phase 3.2 — the evidence provider
+
+Externalized the deterministic evidence tier into a compact signed
+`EvidenceBundle` that validators consume instead of re-running pytest.
+Local backend as default (zero CI); Harness as an interchangeable
+backend behind the same interface. The orchestration script
+(`orchestrate-review.py`) ran with partial success — 12 telemetry rows,
+10 from orchestrated runs with real decisions (ACCEPT, REJECT,
+ACCEPT-WITH-NITS, ERROR, UNKNOWN). H-CI experiment designed but not
+yet run. See [Phase 3.2 evidence provider](phase-3.2-evidence-provider.md).
+
+## Phase 4 — the roadmap review (hardening on itself)
+
+The roadmap review was the framework hardening itself ahead of
+schedule. A single-family (Claude) audit of all prior phases was sent
+to Grok and Gemini for cross-family panel review — the same treatment
+every artifact gets. **v1 was REJECTED by both reviewers** for three
+material factual errors: Phase 0.5 was declared "never built" (it was
+done), orchestration was declared "never ran" (it did, 10 rows with
+real decisions), and proposed rule §12 conflicted with PRD §13's
+null-result rule. The irony is the point: a single-family review is
+not independence, and the panel caught exactly the blind spot the
+framework exists to prevent.
+
+v2 corrected all errors and returned APPROVE-WITH-NITS from both
+reviewers. v3 folded in the nits: three parallel tracks (cheap
+closures, orchestration→H-CI→H3, demo honesty), new operating rules
+(§9–§17), and an honest re-sequencing. See
+[The roadmap review](roadmap-review.md).
+
+The review itself was recognized as **Phase 4 (Hardening + roadmap
+review)** — a consolidation phase that arrived ahead of schedule
+because the foundation needed attention before extending. All
+subsequent phases were renumbered: old Phase 4 → Phase 5 (Generalize),
+old Phase 5 → Phase 6 (Hardening settling pass), old Phase 6 → Phase 7
+(Human compression).

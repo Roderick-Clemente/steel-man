@@ -1,16 +1,16 @@
 {
-  "ts": "2026-08-08T17:16:05Z",
+  "ts": "2026-08-08T18:03:20Z",
   "branch": "factory/phase-3.2-evidence",
   "validators": [
     {
       "label": "grok-4.5",
       "model": "grok-4.5",
       "family": "grok-family",
-      "verdict": "ACCEPT",
+      "verdict": "ACCEPT-WITH-NITS",
       "ok": true,
-      "tokens_in": 34471,
-      "tokens_out": 14650,
-      "stray_writes": null
+      "tokens_in": 98462,
+      "tokens_out": 18247,
+      "stray_writes": "M phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-envelope.json\n?? REVIEW-PROMPT.md\n?? ROADMAP-REVIEW.md\n?? phase-3.2/reviews/roadmap-review-cross-family-findings.json\n?? phase-3.2/reviews/roadmap-review-gemini-envelope.json\n?? phase-3.2/reviews/roadmap-review-grok-envelope.json\n?? result.txt"
     },
     {
       "label": "gemini-3.1-pro-preview",
@@ -18,10 +18,10 @@
       "family": "gemini-family",
       "verdict": "ACCEPT",
       "ok": true,
-      "tokens_in": 229914,
-      "tokens_out": 4575,
-      "stray_writes": null
+      "tokens_in": 421023,
+      "tokens_out": 5008,
+      "stray_writes": "M phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-envelope.json\n?? REVIEW-PROMPT.md\n?? ROADMAP-REVIEW.md\n?? phase-3.2/reviews/roadmap-review-cross-family-findings.json\n?? phase-3.2/reviews/roadmap-review-gemini-envelope.json\n?? phase-3.2/reviews/roadmap-review-grok-envelope.json\n?? result.txt"
     }
   ],
-  "gate": "ACCEPT"
+  "gate": "STOP"
 }

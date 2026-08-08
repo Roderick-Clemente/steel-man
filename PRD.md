@@ -478,15 +478,98 @@ Connect planning, test design, Mission execution, validator blocking, retry/re-p
 
 **Exit:** one complete run plus a replayable demo and baseline comparison.
 
-### Phase 4 — Generalize after evidence
+### Phase 3.1 — Degraded loop spike (completed during Phase 3 execution)
 
-Only after the pilot: repo ingest/adapter generation, Harness feedback ingestion, a second stack, and the portable Claude/Codex CLI runtime.
+Deliberately violated invariant #1 (same-family test-author + executor) to
+measure whether cross-family validation alone compensates for lost
+test-independence. Result: panel-dependent — the deterministic standalone
+gate caught the bias every time; the cross-family panel split (grok caught,
+gemini dismissed). Fed back into §17.6 as a binding rule. See
+`phase-3.1/RESULTS.md`.
 
-### Phase 5 — Hardening (settling pass)
+### Phase 3.2 — Evidence provider (completed during Phase 3 execution)
 
-A deliberately-low-velocity consolidation phase that parks low-priority items noted during active phases so they do not slow the active-phase work. The "settling pass" language is deliberate: items are *noted* at the moment they arise but held until the framework catches up. The phase promotes, re-classifies, or drops them on the framework's own terms.
+Externalized the deterministic evidence tier into a compact signed
+`EvidenceBundle` that validators consume instead of re-running pytest.
+Local backend as default (zero CI); Harness as an interchangeable backend
+behind the same interface. H-CI experiment designed but not yet run. See
+`phase-3.2/BUILD-NOTES.md`, `phase-3.2/SPIKE.md`.
 
-Distinct from Phase 4: Phase 4 generalises the framework across multiple stacks; Phase 5 hardens the framework's own invariants. Things in scope:
+### Phase 3.3 — Visual/behavioral evidence tier (seed only)
+
+Extends the evidence-provider abstraction with screenshot/DOM evidence.
+Spike document exists (`phase-3.3/SPIKE.md`); building waits on Phase 4
+H-CI result. Not yet started.
+
+### Phase 4 — Hardening + roadmap review (current)
+
+A consolidation phase that arrived ahead of schedule because the
+foundation needed attention before extending. The roadmap review
+(`ROADMAP-REVIEW.md`) audited all prior phases, went through two rounds of
+cross-family panel review (v1 REJECT → v2 APPROVE-WITH-NITS → v3 final),
+and produced new operating rules (§9–§17 in `tools/OPERATING-RULES.md`),
+a re-sequenced roadmap, and three parallel execution tracks.
+
+**Track A — Cheap closures (parallel, non-gating):**
+- Run `valid-red.py` against the existing locked test (closes Phase 1
+  "never run" gap).
+- Create 3–4 invalid-RED fixtures (closes "invalid RED never demonstrated").
+- Package Act 1 from Phase 0.5 (substance exists, needs demo packaging).
+- Reconstruct Phase 2 + Phase 3 telemetry rows from committed envelopes.
+
+**Track B — Orchestration harden → H-CI → H3 (serial economic fork):**
+- Harden `orchestrate-review.py` just enough for N identical runs: use
+  adapter shim + `run-with-model.sh`, add stray-write baseline, add
+  transient retry for provider API failures, make multi-run deterministic.
+- Run the H-CI experiment: same locked chunk, same models/prompts/diff,
+  only evidence source changes. Parameterize KI-2 fix (treatment arm drops
+  `Execute`, control arm keeps it). Determines whether the evidence provider
+  saves review-side tokens.
+- Run an H3 validation: one genuine, un-hinted executor chunk (prompt
+  describes the problem, not the fix). Determines whether cheap executors
+  can actually implement — the primary cost-saving mechanism.
+
+**Track C — Demo honesty (overlaps Track B after harden):**
+- Act 1 = package Phase 0.5 (done in Track A).
+- Act 2 = command-orchestrated script, NOT Mission cosplay (GO decision
+  forbade Mission-native). Validators read bundles, no `Execute` tool =
+  KI-2 fixed preventatively.
+- Act 3 = ONLY Phase-0-verified controls (model pinning, hook enforcement,
+  isolation guard, plugin scaffold). Droid Shield/OTel/air-gap = roadmap
+  narrative until re-probed.
+- "Close the laptop" = build a durable runner or drop the claim.
+
+**Backlog D — Calibration + MVP acceptance (not gates for B or C):**
+- Mine existing disagreement corpora (Phase 2 amendments, 3.1 panel split,
+  3.2 orchestrated REJECT/ACCEPT).
+- One controlled rejection drill for PRD §12 v1 acceptance.
+- Gemini precision/recall study.
+- `review-tests` skill port remains a scheduled follow-on.
+
+**Backlog E — Evidence-tier extension (only after H-CI):**
+- Harness backend, 3.3 visual tier, framework-repo dogfood. Only if H-CI
+  is non-null, or null is explicitly accepted as coverage-not-cost.
+
+**Exit:** orchestration stabilized; H-CI and H3 results recorded; demo
+packaged with honest Act 1/2/3; telemetry system-of-record populated;
+new operating rules landed in `tools/OPERATING-RULES.md`.
+
+### Phase 5 — Generalize after evidence
+
+Only after the pilot and Phase 4 hardening: repo ingest/adapter generation,
+Harness feedback ingestion, a second stack, and the portable Claude/Codex
+CLI runtime.
+
+### Phase 6 — Hardening (settling pass)
+
+A deliberately-low-velocity consolidation phase that parks low-priority
+items noted during active phases so they do not slow the active-phase work.
+The "settling pass" language is deliberate: items are *noted* at the moment
+they arise but held until the framework catches up. The phase promotes,
+re-classifies, or drops them on the framework's own terms.
+
+Distinct from Phase 5: Phase 5 generalises the framework across multiple
+stacks; Phase 6 hardens the framework's own invariants. Things in scope:
 - cross-family calibration artifacts (where the two reviewers diverge, why, and what `first_seen_in_panel_position` says);
 - case-sensitivity alignments between red/green checks;
 - regex tightening (any signature broad enough to false-reject);
@@ -495,13 +578,20 @@ Distinct from Phase 4: Phase 4 generalises the framework across multiple stacks;
 - the §17 model-discipline convention at `factory/convention-model-discipline @ 45061f4`: cross-family review then ff-merge to `main`, with wiki `telemetry/` references restored from descriptive placeholders to file links. The schema and wrapper are infrastructure; the data stays gitignored until the migration gate fires.
 - runtime-resilience against `Execute` tool cancellation (rate-limit / connection-reset on long smoke runs): every post-merge smoke test must be checkpointable, meaning each smoke step has a single observable outcome on disk (`git log --oneline -1`, `python3 -m py_compile <file>`, `bash <script> <args>`) and the agent can resume from the last green step without re-running the whole battery. Same idea for cross-family reviews: the prompt should be idempotent enough that re-firing it after a partial response produces the same verdict.
 
-Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-5 work for downstream feature completion. Phase 5 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
+Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-6 work for downstream feature completion. Phase 6 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
 
-**Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole 6-phase arc at the end of Phase 5.
+**Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole arc at the end of Phase 6.
 
-### Phase 6 — Human-in-the-loop compression (post-MVP, pain-point-driven)
+### Phase 7 — Human-in-the-loop compression (post-MVP, pain-point-driven)
 
-Deferred until the MVP (Phases 0–3) has been run in anger. Phases 0–3 are the product; 4–6 are what use of the product earns. This phase exists because of a cost the §13 surface does not track: the method *moves* human effort rather than removing it, and it moves it onto the two most expensive seats, reconciliation tie-breaks and decision packets. Both are O(n) in the number of concurrent loops, so at scale the operator, not the model, becomes the bottleneck ("run 30 loops, busier than ever"). This is entered as the trigger for the phase, a finding to be measured, not a claim already proven.
+Deferred until the MVP (Phases 0–4) has been run in anger. Phases 0–4 are
+the product; 5–7 are what use of the product earns. This phase exists
+because of a cost the §13 surface does not track: the method *moves* human
+effort rather than removing it, and it moves it onto the two most expensive
+seats, reconciliation tie-breaks and decision packets. Both are O(n) in the
+number of concurrent loops, so at scale the operator, not the model, becomes
+the bottleneck ("run 30 loops, busier than ever"). This is entered as the
+trigger for the phase, a finding to be measured, not a claim already proven.
 
 The bet: compress the human seat from "read every finding" to "rule only on genuine disagreement", without breaking invariant #1. Candidate mechanisms, all sitting on machinery that already exists (`telemetry/findings.jsonl`, `telemetry/aggregate.py`, the self-declared-risk input from Probe 8):
 
@@ -512,7 +602,12 @@ The bet: compress the human seat from "read every finding" to "rule only on genu
 
 Explicit guard: consensus is not correctness. A panel that agrees can be wrong together, so the calibration record must include panel-agreed-but-wrong cases caught later, or the knob will tune the human out on the strength of agreement that was never evidence, the same "a run's own account of itself is not evidence" principle applied to the panel instead of the executor.
 
-Distinct from Phases 4 and 5: Phase 4 generalises the loop across stacks; Phase 5 hardens the loop's own invariants at no new behaviour; Phase 6 is new behaviour aimed at the *operator's* cost, and is deliberately kept **outside the measured 0–5 arc**. Its own efficacy (operator-minutes per landed change, tag-in rate, panel calibration) is a separate measurement, opened only once the MVP has produced real operating pain to size it against.
+Distinct from Phases 5 and 6: Phase 5 generalises the loop across stacks;
+Phase 6 hardens the loop's own invariants at no new behaviour; Phase 7 is
+new behaviour aimed at the *operator's* cost, and is deliberately kept
+**outside the measured 0–6 arc**. Its own efficacy (operator-minutes per
+landed change, tag-in rate, panel calibration) is a separate measurement,
+opened only once the MVP has produced real operating pain to size it against.
 
 **Exit:** the human tag-in rate on a representative batch of loops drops materially against the hand-run baseline with no regression in hidden acceptance-test pass rate, and the panel calibration record is complete enough to justify each seat's token cost. Until the MVP is run, this phase carries no committed target: the pain it addresses has to be measured before it can be sized.
 

@@ -148,28 +148,47 @@ So the gap this project fills is not intelligence and not tooling. It is the **h
 
 ## Roadmap
 
-The north star is a **replayable demo of the method on one bounded pilot change**, with the manual harness at Phase 0.5 as the honest comparison arm. **Phases 0–3 are the MVP**, the point at which the core loop runs end-to-end and the §13 comparison produces a measured result. Everything past 3 is earned by using that MVP, not required to have proven it.
+The north star is a **replayable demo of the method on one bounded pilot change**, with the manual harness at Phase 0.5 as the honest comparison arm. **Phases 0–4 are the MVP**, the point at which the core loop runs end-to-end, the foundation is hardened, and the §13 comparison produces a measured result. Everything past 4 is earned by using that MVP, not required to have proven it.
 
 | Phase | What it delivers | Status |
 |---|---|---|
 | **0 — Feasibility spike** | Eight probes and a go/no-go on platform capabilities | **Done, GO** |
-| **0.5 — Manual baseline harness** | The smallest honest two-CLI harness; the §13 comparison arm and Act 1 of the demo | Not started (owed as the §13 baseline arm) |
-| **1 — Test-evidence slice** | Valid-RED classification, test locking, RED → GREEN on the pilot | **Done** — shipped `9940d40`, ACCEPT-WITH-NITS from cross-family review |
-| **2 — Adversarial planning slice** | Blind plan review, bounded reconciliation, human decision packets | **Plan gated** — `plan-v1` hash-bound and panel-APPROVED, awaiting the human gate ([story](phase-2-planning-slice.md)) |
-| **3 — Factory end-to-end** | The full loop on one pilot change, plus a replayable demo and the baseline comparison | Not started — **the MVP finish line** |
-| **4 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (post-MVP) |
-| **5 — Hardening (settling pass)** | Consolidation of parked low-priority items; hardens the loop's own invariants at no new behaviour | Not started (post-MVP) |
-| **6 — Human-in-the-loop compression** | Review panel, hats-across-families, escalation-on-disagreement knob, calibration telemetry, to compress the operator seat | Not started ([post-MVP, pain-point-driven](../human-in-the-loop.md)) |
+| **0.5 — Manual baseline harness** | The smallest honest two-CLI harness; the §13 comparison arm and Act 1 of the demo | **Done** — `tools/PHASE-0.5-CLOSE.md`, all exit criteria checked |
+| **1 — Test-evidence slice** | Valid-RED classification, test locking, RED → GREEN on the pilot | **Partial** — lock + GREEN works; `valid-red.py` never run, invalid-RED never demonstrated |
+| **2 — Adversarial planning slice** | Blind plan review, bounded reconciliation, human decision packets | **Complete (clean null)** — hash-bound APPROVE, zero blocking findings (valid per §13) |
+| **3 — Factory end-to-end** | The full loop on one pilot change, plus a replayable demo and the baseline comparison | **Core done, exits missed** — 3 chunks built, all cross-family ACCEPT, 99 tests passing; no demo, no baseline comparison, no local PR |
+| **3.1 — Degraded loop spike** | Same-family test-author + executor to measure bias | **Complete** — deterministic gate caught bias every time; panel split ([story](phase-3.1-degraded-spike.md)) |
+| **3.2 — Evidence provider** | Local EvidenceBundle, zero-CI default, orchestration script | **Complete (milestone)** — 55.2% token saving (directional); orchestration partially working ([story](phase-3.2-evidence-provider.md)) |
+| **4 — Hardening + roadmap review** | Orchestration stabilization, H-CI/H3 experiments, demo packaging, new operating rules | **Current** — roadmap review done (v3), three parallel tracks defined ([story](roadmap-review.md)) |
+| **5 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (post-MVP) |
+| **6 — Hardening (settling pass)** | Consolidation of parked low-priority items; hardens the loop's own invariants at no new behaviour | Not started (post-MVP) |
+| **7 — Human-in-the-loop compression** | Review panel, hats-across-families, escalation-on-disagreement knob, calibration telemetry, to compress the operator seat | Not started ([post-MVP, pain-point-driven](../human-in-the-loop.md)) |
 
-Each phase carries written exit criteria in `PRD.md` §11. A phase is finished when those are met, not when it looks finished, which is the same standard the probe records hold themselves to. The §13 efficacy metrics are computed over the measured **0–5 arc**; [Phase 6](../human-in-the-loop.md) is deliberately outside it, because it targets the operator's cost rather than the loop's correctness or spend.
+Each phase carries written exit criteria in `PRD.md` §11. A phase is finished when those are met, not when it looks finished, which is the same standard the probe records hold themselves to. The §13 efficacy metrics are computed over the measured **0–6 arc**; [Phase 7](../human-in-the-loop.md) is deliberately outside it, because it targets the operator's cost rather than the loop's correctness or spend.
 
 Phase 0.5 is the one most easily misread as optional. It is the baseline arm the §13 evaluation already requires, and the PRD is explicit that it must not be strawmanned: if a two-CLI shell harness turns out to be nearly as good as the plugin, that is a finding worth having before a demo rather than during one.
 
 ## Where we are against it
 
-**Phases 0–2 have landed work; Phase 3 onward is specified and not started.** Phase 0 is complete (GO). Phase 1 shipped its test-evidence slice, valid-RED classification, test locking, and a RED → GREEN on the pilot (`9940d40`, ACCEPT-WITH-NITS from cross-family review). Phase 2 produced a hash-bound, panel-APPROVED `plan-v1` now parked at the human gate; no `/profile` implementation exists yet, because writing it is Phase 3's execute step. Phase 0.5, the manual baseline harness, was specified and skipped forward, and is still owed as the §13 comparison arm.
+**Phases 0–3.2 have landed work; Phase 4 (hardening + roadmap review) is
+current.** Phase 0 is complete (GO, command-orchestrated). Phase 0.5 is
+closed with all exit criteria checked. Phase 1 shipped its test-evidence
+slice with partial completion (lock + GREEN works, valid-red.py never run).
+Phase 2 produced a hash-bound, panel-APPROVED plan — a clean null (zero
+blocking findings, valid per §13). Phase 3 built 3 chunks through the full
+loop with all cross-family ACCEPT and 99 tests passing, but missed 3 of 4
+exit criteria (no demo, no baseline comparison, no local PR). Phase 3.1 ran
+the degraded loop spike and found panel-dependent bias detection. Phase 3.2
+built the evidence provider with a 55.2% directional token saving and a
+partially working orchestration script. Phase 4 is the hardening phase that
+arrived ahead of schedule — the roadmap review audited everything, went
+through two rounds of cross-family panel review (v1 REJECT → v2
+APPROVE-WITH-NITS → v3 final), and produced three parallel execution
+tracks plus new operating rules.
 
-The repository grew from a pure **build gate** (spec `PRD.md`, the canonical method in `templates/SPRINT-PLANNING-TEMPLATE.md`, and executed probes) into that plus the Phase 1 enforcement code and the Phase 2 planning artifacts under `phase-1/`, `phase-2/`, and `tools/`. What still does not exist under any configuration is the thing the whole gate is there to produce: a measured §13 result.
+What still does not exist under any configuration is the thing the whole
+gate is there to produce: a measured §13 result. The H-CI and H3
+experiments in Phase 4 Track B are the next steps toward that.
 
 **Phase 0 is complete and the verdict is GO, with one mandatory design change:** build it command-orchestrated rather than Mission-native. See `phase-0/GO-NO-GO.md`, summarised in [Findings](../findings/index.md).
 
