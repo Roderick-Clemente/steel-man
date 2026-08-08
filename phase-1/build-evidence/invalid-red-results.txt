@@ -1,0 +1,121 @@
+# invalid-RED fixtures — classifier rejection evidence
+
+Phase 4 Track A, Task A2. Four invalid-RED fixture files were created in
+`phase-1/fixtures/invalid-red/` to exercise each rejection category documented
+in `phase-1/valid-red.md`. Each fixture was run through `valid-red.py` and
+the classifier confirmed the rejection with the correct reason.
+
+Date: 2026-08-08
+
+## Bug fix in valid-red.py
+
+During A2 testing, a bug was found in `valid-red.py`: the classifier did not
+strip ANSI color escape codes from pytest output before running regex
+patterns. Pytest's colored output inserts escape codes between tokens (e.g.
+`\x1b[94massert\x1b[39;49;00m \x1b[94mTrue`), so patterns like
+`assert\s+True` failed to match because the regex expects whitespace, not
+escape codes, between "assert" and "True".
+
+Fix: added `strip_ansi()` function and applied it to the combined stdout/stderr
+before pattern matching in `classify()`. The fix is in
+`phase-1/scripts/valid-red.py`.
+
+This fix was verified not to break the valid-RED acceptance path — the locked
+test at the pre-fix commit is still accepted as a valid RED.
+
+## Fixtures
+
+All fixtures live in `phase-1/fixtures/invalid-red/`. They were copied to the
+pilot repo's `test/` directory, run against `valid-red.py` at the pre-fix
+commit (api/llms_txt.py with mimetype="text/plain; charset=utf-8"), and then
+removed. The pilot repo was restored after testing.
+
+### Fixture 1: test_syntax_error.py — Syntax/import failure
+
+File: `phase-1/fixtures/invalid-red/test_syntax_error.py`
+
+A test file with an intentional SyntaxError (missing closing parenthesis on
+an assert call). The test never collects — pytest reports a collection error.
+
+Command:
+
+    python3 phase-1/scripts/valid-red.py \
+      --pilot-root /Users/factory/work/quantum-bank--llms-txt-pilot \
+      --test-file test/test_syntax_error.py \
+      --accepted-assertion "Content-Type contains exactly one charset= token" \
+      --python /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
+      -o json
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: syntax error"
+  exit_code: 2
+
+### Fixture 2: test_tautological.py — Tautological test
+
+File: `phase-1/fixtures/invalid-red/test_tautological.py`
+
+A test file containing `assert True` and `assert 1 == 1` — tautologies that
+always pass regardless of the SUT. The test also includes a real assertion
+(the charset count check) that fails at the pre-fix commit, causing pytest to
+show the full test source (including the tautological lines) in the failure
+traceback. The classifier detects the tautological pattern and rejects the RED.
+
+Must be run at the pre-fix commit so the charset assertion fails and the test
+source appears in the traceback.
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: tautological assertion"
+  exit_code: 1
+
+### Fixture 3: test_mocked_sut.py — Subject under test mocked
+
+File: `phase-1/fixtures/invalid-red/test_mocked_sut.py`
+
+A test file that replaces the SUT with a MagicMock. The mock is configured
+with a doubled charset so the assertion fails, causing pytest to show the
+test source (including `mock = MagicMock()`) in the traceback. The classifier
+detects the mock pattern and rejects the RED.
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: subject under test mocked"
+  exit_code: 1
+
+### Fixture 4: test_green_pass.py — No failure (green)
+
+File: `phase-1/fixtures/invalid-red/test_green_pass.py`
+
+A test file with the charset-count assertion commented out. All remaining
+assertions pass, so the test exits 0. The classifier detects a passing test
+and rejects it as green (no failure to fix).
+
+Result: INVALID RED (rejected)
+
+  valid: false
+  reason: "Invalid RED: test passed (no failure to fix)"
+  exit_code: 0
+
+## Summary
+
+| Fixture | Rejection Category | Classifier Reason | Exit Code |
+|---|---|---|---|
+| test_syntax_error.py | Syntax/import failure | syntax error | 2 |
+| test_tautological.py | Tautological test | tautological assertion | 1 |
+| test_mocked_sut.py | Subject under test mocked | subject under test mocked | 1 |
+| test_green_pass.py | No failure (green) | test passed (no failure to fix) | 0 |
+
+All 4 fixtures are correctly rejected by the classifier with the matching
+rejection reason.
+
+## Cleanup
+
+After the runs, the pilot repo was restored:
+- api/llms_txt.py reverted to the fixed version (mimetype="text/plain").
+- Temporary fixture copies in test/ were removed.
+- The locked test file (test/test_llms_txt_charset.py) remains, untracked,
+  with sha256 matching the lock manifest.

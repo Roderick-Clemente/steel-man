@@ -18,6 +18,17 @@ import sys
 from typing import Tuple
 
 
+# Regex to strip ANSI color escape codes from pytest output. Without this,
+# patterns like `assert\s+True` fail to match because pytest inserts escape
+# codes between tokens (e.g. \x1b[94massert\x1b[39;49;00m \x1b[94mTrue).
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI color escape codes from text."""
+    return _ANSI_RE.sub("", text)
+
+
 # Invalid-RED signatures we can detect from pytest output. Each tuple is
 # (regex, reason). A match makes the RED invalid regardless of the intended
 # assertion.
@@ -54,7 +65,10 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> Tuple[int, str, 
 
 
 def classify(exit_code: int, stdout: str, stderr: str, accepted_assertion: str) -> dict:
-    combined = f"{stdout}\n{stderr}"
+    # Strip ANSI color codes so regex patterns match across pytest's colored
+    # output. Without this, escape codes between tokens (e.g. between
+    # "assert" and "True") break whitespace-based patterns.
+    combined = strip_ansi(f"{stdout}\n{stderr}")
 
     # 1. A passing test is not a RED.
     if exit_code == 0 and "passed" in combined.lower():

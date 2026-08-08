@@ -120,6 +120,23 @@ After the runs, the pilot repo was restored:
 - The locked test file (test/test_llms_txt_charset.py) remains, untracked,
   with sha256 matching the lock manifest.
 
+## Note: ANSI stripping fix applied in A2
+
+After the A1 runs above, a bug was found during A2 fixture testing: the
+classifier did not strip ANSI color escape codes from pytest output, causing
+regex patterns like `assert\s+True` to miss tautological assertions in
+colored output. The fix (adding `strip_ansi()`) was applied to
+`phase-1/scripts/valid-red.py` and documented in
+`phase-1/build-evidence/invalid-red-results.txt`.
+
+The A1 results above were obtained with the pre-fix classifier. The syntax
+error and green scenarios do not depend on ANSI-sensitive patterns, so their
+results are unchanged. The valid RED acceptance also does not depend on
+ANSI-sensitive patterns (it uses a substring match on the assertion phrase,
+which appears in the `AssertionError:` line without intervening escape
+codes). The fix was verified not to change the A1 results — the valid RED
+is still accepted after the fix.
+
 ## Conclusion
 
 valid-red.py works correctly:
@@ -127,3 +144,5 @@ valid-red.py works correctly:
   expected reason: doubled charset).
 - Invalid REDs are rejected with the correct rejection reason (syntax error,
   green/no-failure).
+- After the ANSI fix (A2), tautological and mock-based invalid REDs are also
+  correctly rejected.
