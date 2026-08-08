@@ -1,0 +1,15 @@
+{
+  "tokenizer": "tiktoken cl100k_base",
+  "control": {
+    "source": "phase-3.2/build-evidence/chunk1-raw-pytest-combined.txt",
+    "chars": 2045,
+    "tokens": 1069
+  },
+  "treatment": {
+    "source": "phase-3.2/build-evidence/chunk1-bundle.json",
+    "chars": 919,
+    "tokens": 371
+  },
+  "saving_pct": 65.3,
+  "fairness_rule_holds": true
+}

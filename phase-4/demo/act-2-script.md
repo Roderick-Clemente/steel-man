@@ -21,7 +21,7 @@ build one or drop the claim").
 
 ```sh
 python3 tools/orchestrate-review.py \
-    --framework-root /Users/factory/work/adversarial-sprint-dev-3.2-build \
+    --framework-root . \
     --pilot-root /Users/factory/work/quantum-bank--llms-txt-pilot \
     --pilot-python /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
     --test-file test/test_profile_model.py \
@@ -178,47 +178,38 @@ comparison). The guarantees — cross-family validation, evidence-bundle
 consumption, stray-write checks, telemetry — are enforced by the script,
 not by operator discipline.
 
-### Orchestrator flakiness — shown honestly
+### Orchestrator hardening — COMPLETE
 
-Track B step B1 (orchestration hardening) has NOT been completed. The
-orchestrator works end-to-end (12 telemetry rows in `telemetry/runs.jsonl`
-from 6 orchestrated runs prove it), but it has residual flakiness:
+Track B step B1 (orchestration hardening) has been completed and committed.
+The orchestrator now includes:
 
-**Observed telemetry (from committed `telemetry/runs.jsonl`):**
+- **Retry logic** for transient API failures (up to 2 retries with delay
+  when a validator returns 0 output tokens or `is_error=True`).
+- **Stray-write baseline** using set difference (only newly dirty paths are
+  flagged, not pre-existing dirty-tree paths).
+- **Adapter shim** via `tools/adapters/factory.py` `to_envelope()` and
+  `tools/run-with-model.sh` enforcement wrapper (OPERATING-RULES §14).
+- **`--treatment` flag** to parameterize the KI-2 fix (excludes `Execute`
+  from validator tools in treatment mode).
+- **`--run-label`** for N-run A/B distinction.
 
-| Run | Grok verdict | Gemini verdict | Gate | Notes |
-|-----|-------------|----------------|------|-------|
-| 1 | ACCEPT-WITH-NITS | ACCEPT | ACCEPT | clean |
-| 2 | ACCEPT | **ERROR** (0 tokens) | STOP | gemini provider API hiccup |
-| 3 | ACCEPT | ACCEPT | ACCEPT | clean |
-| 4 | **REJECT** | ACCEPT | REJECT | split verdict — grok found issues |
-| 5 | **REJECT** | **UNKNOWN** (is_error) | STOP | both validators problematic |
-| 6 | ACCEPT-WITH-NITS | ACCEPT | ACCEPT | clean |
+The H-CI experiment (B2) and H3 validation (B3) have also been completed:
 
-2 of 6 runs had ERROR/UNKNOWN for gemini (provider API returning 0 tokens).
-1 of 6 had a split verdict (grok REJECT, gemini ACCEPT — a genuine
-cross-family disagreement, not a flake). The B1 hardening would add:
-- retry logic for transient API failures (up to 2 retries with delay)
-- stray-write baseline (set difference, not set equality — avoids false
-  positives from pre-existing dirty-tree paths)
-- adapter shim + `run-with-model.sh` usage (OPERATING-RULES §14)
+- **H-CI:** 27.8% mean token saving (bundle vs in-session), quality holds
+  (6/6 ACCEPT both arms), fairness rule holds (371 vs 1069 tokens).
+  See `phase-4/h-ci/analysis.md`.
+- **H3:** cheap executor (gpt-5.4-mini) implemented from un-hinted spec in
+  15 turns, GREEN on first attempt, cross-family ACCEPT.
+  See `phase-4/h3/analysis.md`.
 
-Until B1 is done, the flakiness is shown honestly. A failed run is shown as
-a failure, not hidden.
+Residual caveats: high variance in H-CI results (N=3 is minimum), and the
+orchestrator is still a foreground script (no durable runner).
 
-### What the orchestrator does NOT do yet
+### What the orchestrator does NOT do
 
-- **No retry logic.** A validator returning 0 tokens or an ERROR verdict
-  is recorded as-is. B1 adds retry (up to 2 times with delay).
-- **No stray-write baseline.** The current check compares `git status
-  --porcelain` before and after, and STOPs if anything changed — including
-  pre-existing dirty paths (false positive). B1 fixes this with a set
-  difference.
-- **No adapter shim.** The script calls `DROID_BIN` directly instead of
-  using `tools/adapters/factory.py` and `tools/run-with-model.sh`
-  (OPERATING-RULES §14). B1 fixes this.
 - **No durable runner.** The script runs in the foreground. Closing the
-  terminal kills it.
+  terminal kills it. A background process / systemd / CI trigger has not
+  been built.
 
 ---
 
@@ -228,13 +219,13 @@ a failure, not hidden.
 
 - `droid` CLI at 0.186.0 (or re-verify probes after upgrade)
 - The pilot repo with its venv: `/Users/factory/work/quantum-bank--llms-txt-pilot`
-- The framework repo: `/Users/factory/work/adversarial-sprint-dev-3.2-build`
+- The framework repo (this repo — the directory containing `PRD.md`)
 - Cross-family validator models accessible: `grok-4.5`, `gemini-3.1-pro-preview`
 
 ### Run the orchestrator
 
 ```sh
-cd /Users/factory/work/adversarial-sprint-dev-3.2-build
+cd /path/to/adversarial-sprint-dev
 
 python3 tools/orchestrate-review.py \
     --framework-root . \

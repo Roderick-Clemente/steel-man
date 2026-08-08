@@ -102,7 +102,7 @@ discipline.
 
 - `droid` CLI at the version the probes were scoped to (0.186.0)
 - The pilot repo: `/Users/factory/work/quantum-bank--llms-txt-pilot`
-- The framework repo: `/Users/factory/work/adversarial-sprint-dev-3.2-build`
+- The framework repo (this repo — the directory containing `PRD.md`)
 
 ### Step 1: Reproduce the gate verdicts from committed evidence
 

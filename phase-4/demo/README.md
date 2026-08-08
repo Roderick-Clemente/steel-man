@@ -80,7 +80,9 @@ deployment. None were verified by Phase 0 probes.
 - **The evidence provider saves tokens.** In bundle-consuming mode,
   validators read a pre-built bundle instead of running tests themselves.
   The KI-2 fix (dropping `Execute`) closes the write vector preventatively.
-  (Full H-CI cost comparison is Track B's B2 experiment — not yet run.)
+  H-CI experiment (B2) confirmed: 27.8% mean token saving (bundle vs
+  in-session), quality holds (6/6 ACCEPT both arms), fairness rule holds.
+  See `phase-4/h-ci/analysis.md`.
 - **The platform enforces the core invariants.** Model pinning, hook
   enforcement, context isolation (tool schema), and plugin distribution are
   all probe-verified and reproducible from committed evidence.
@@ -88,6 +90,10 @@ deployment. None were verified by Phase 0 probes.
   rejects forged evidence. Backstop-verified on a clean clone.
 - **The operator cost dropped from N to 1.** Phase 0.5's §13 proof: 1
   operator intervention across 5 runs, down from ~16+ in the prior method.
+- **Cheap executors can implement from spec.** H3 validation (B3) proved
+  gpt-5.4-mini implemented from an un-hinted prompt (no solution in the
+  prompt), GREEN on first attempt, cross-family ACCEPT.
+  See `phase-4/h3/analysis.md`.
 
 ### What the demo does NOT prove
 
@@ -101,16 +107,10 @@ deployment. None were verified by Phase 0 probes.
   narrative.
 - **Mission-native orchestration.** `droid exec --mission` is a no-op
   (Probe 1). The demo is command-orchestrated, not Mission cosplay.
-- **Orchestrator reliability (yet).** Track B step B1 (hardening) is in
-  progress but not committed. 2 of 6 orchestrated runs had ERROR/UNKNOWN
-  for gemini (provider API hiccups). B1 adds retry logic, stray-write
-  baseline, and adapter shim usage. Until B1 is committed, flakiness is
-  shown honestly.
-- **H-CI cost delta.** Track B step B2 (the controlled token-cost A/B
-  experiment) has not been run. The bundle mode is demonstrated
-  functionally; the cost comparison is pending.
-- **H3 cheap-executor thesis.** Track B step B3 (cheap executor
-  implementing from spec, not solution) has not been run.
+- **H-CI with high confidence.** The H-CI experiment ran N=3 (minimum
+  viable). Variance is high (run 1 treatment +16.9%, run 2 -50.9%). The
+  27.8% mean saving is directional, not a tight CI. See
+  `phase-4/h-ci/analysis.md` for the full variance analysis.
 
 ### The honest version of PRD §15
 
@@ -136,7 +136,7 @@ re-probing before they can be demoed.
   invalidates the go/no-go until probes are re-run, OPERATING-RULES §3)
 - The pilot repo: `/Users/factory/work/quantum-bank--llms-txt-pilot`
   (with its `.venv` for running tests)
-- The framework repo: `/Users/factory/work/adversarial-sprint-dev-3.2-build`
+- The framework repo (this repo — the directory containing `PRD.md`)
 - Cross-family validator models accessible: `grok-4.5`, `gemini-3.1-pro-preview`
 
 ### Act 1 — from a clean checkout
@@ -144,7 +144,7 @@ re-probing before they can be demoed.
 The gates run against committed fixtures — no live `droid exec` needed:
 
 ```sh
-cd /path/to/adversarial-sprint-dev-3.2-build
+cd /path/to/adversarial-sprint-dev
 
 # Reproduce gate verdicts from committed evidence
 python3 tools/fixtures/rung3-gate.py --exit-loud \
@@ -173,7 +173,7 @@ Full instructions: [`act-1-script.md`](act-1-script.md)
 Requires a live `droid` CLI with access to cross-family models:
 
 ```sh
-cd /path/to/adversarial-sprint-dev-3.2-build
+cd /path/to/adversarial-sprint-dev
 
 python3 tools/orchestrate-review.py \
     --framework-root . \
@@ -206,7 +206,7 @@ The probe reproduction scripts rebuild their scratch repos from committed
 artifacts:
 
 ```sh
-cd /path/to/adversarial-sprint-dev-3.2-build
+cd /path/to/adversarial-sprint-dev
 
 # Model pinning + family gate (Probe 2)
 bash phase-0/evidence/probe-2/run.sh
