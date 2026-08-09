@@ -33,12 +33,17 @@ PYTHONPATH=tools $PILOT_PY -c 'import yaml; yaml.safe_load(open(".github/workflo
 PYTHONPATH=tools $PILOT_PY tools/sprint-loop.py --help
 # → expect: usage banner
 
-# (5) dry-run end-to-end exists
-PYTHONPATH=tools $PILOT_PY tools/sprint-loop.py \
-    --config examples/sprint-loop-config.json \
-    --chunks-file examples/sprint-loop-chunks-example.json \
+# (5) dry-run end-to-end exists (pass-r3 H-7 fix: per-pilot overlay is
+#     the operator-facing entrypoint; examples/ was removed in chunk-12b)
+$PYTHONPATH_OVERLAY <PILOT_REPO>/.adversarial-sprint/bin/run-sprint \
     --dry-run --non-interactive
 # → expect: COMPLETED · run_id=...; exit 0
+
+# (alt) framework-level dry-run only for debugging — NOT operator-facing:
+PYTHONPATH=tools $PILOT_PY tools/sprint-loop.py \
+    --config templates/overlay/sprint-loop-config.template.json \
+    --chunks-file templates/overlay/sprint-loop-chunks-example.template.json \
+    --dry-run --non-interactive
 
 # (6) family guard refuses unknowns (KNOWN-ISSUES.md §KNE encouraged check)
 PYTHONPATH=tools $PILOT_PY -c '
@@ -104,7 +109,7 @@ print("\\nFAMILY GUARD REFUSES UNKNOWN MODEL ✓")
 
 ## Phase 4.5 = COMPLETE — when?
 
-This phase's deliverables build green (75/75 tests at chunk-12a
+This phase's deliverables build green (80/80 tests at chunk-13
 close, dry-run + live-path smoke-tests end-to-end).
 The operator may declare Phase 4.5 complete when:
 

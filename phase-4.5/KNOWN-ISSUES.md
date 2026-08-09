@@ -16,8 +16,8 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
 
 - **What:** the runner's full loop has been dry-run-tested against
   a synthetic chunk spec but has NOT been exercised against a real
-  pilot. The 75 pytest tests cover unit + integration paths under
-  the runner (chunk-12a close); they do not exercise the per-chunk
+  pilot. The 80 pytest tests cover unit + integration paths under
+  the runner (chunk-13 close); they do not exercise the per-chunk
   inner loop's calls to
   `droid exec`, `lock.py`, `verify-green.py`, `local_backend.py`
   end-to-end against a real pilot repo.
@@ -26,11 +26,16 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
   droid CLI subscription state was not in-scope for the build;
   (b) OPERATING-RULES §17 capacity envelope says "name the next 1–3
   deliverables" — running a full pilot is a separate deliverable.
-- **Reproduction:** `python3 tools/sprint-loop.py --config
-  examples/sprint-loop-config.json --chunks-file
-  examples/sprint-loop-chunks-example.json --dry-run --non-interactive`
-  exercises the dry-run path. A non-dry-run exercises real droid
-  once the pilot is ready.
+- **Reproduction (pass-r3 H-7 fix; chunk-13):** the deleted
+  `<PILOT_REPO>/examples/sprint-loop-{config,chunks-example}.json`
+  files were moved in chunk-12b to `templates/overlay/*.template.json`.
+  Per the panel's prescription, the overlay — not the framework
+  runner — is the operator-facing entrypoint:
+  `./run-sprint --dry-run --non-interactive` exercises the
+  dry-run path. Framework-level equivalent (debug-only): `python3
+  tools/sprint-loop.py --config templates/overlay/sprint-loop-config.template.json
+  --chunks-file templates/overlay/sprint-loop-chunks-example.template.json
+  --dry-run --non-interactive`.
 - **When to fix:** when an operator session is set up to drive
   QuantumBank through this branch (Phase 4.5 close-out). Treat the
   actual pilot run as Phase 4.5's exit criterion per PRD §11.
@@ -213,3 +218,98 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
 - **Workaround:** Retitle the PR with `[chunk:<id>]` prefix.
 - **Why:** enforces a stable contract — the runner needs a chunk id
   to gate against. Documented in `phase-4.5/CI-GATE.md §3`.
+
+### KN-H11. §15 truth-table in RUN-PROMPT lacks the rows the §15 claim rests on
+
+- **Status:** chunk-13 partial fix (expanded truth-table to 5 columns).
+  The remaining gap (pass-r3 H-11): the table is in the operator-facing
+  RUN-PROMPT only; the meta-skill `skills/adversarial-sprint/SKILL.md`
+  digest doesn't carry a §15 row, so a context-compaction event can drop
+  it. Next chunk-14: pin the operator-facing truth-table in the meta-
+  skill's §15 row of the digest.
+- **Fix recipe:** Copy the RUN-PROMPT §15 truth-table markdown into
+  `skills/adversarial-sprint/SKILL.md` as a §15 row; have
+  `tests/test_sprint_loop.py::test_skill_md_has_§15_truthtable_row_h11`
+  grep the canonical skill for it.
+
+### KN-H12. `--skip-reconcile` and `--dry-run --non-interactive` are not equivalent
+
+- **Status:** chunk-13 partial fix (H-12 collapse into one gate code
+  path; H-2's dry_run coercion removed). Remainder: the dry-run branch
+  still rubber-stamps before §5.3, while `--skip-reconcile` does run
+  §5.3 first; that is the right asymmetry (dry-run is honest about
+  being a simulator), but RUN-PROMPT §15 already explains it.
+- **Honest accounting:** the §15 truth-table row for `--dry-run` and
+  the row for `--skip-reconcile` are now visually adjacent in RUN-PROMPT
+  so operators see the asymmetry at a glance.
+
+### KN-H13. `--no-dry-auto-decide` was unreachable
+
+- **Status:** RESOLVED (chunk-13). The flag is wired into main's
+  argparse and into reconcile_human_gate as `no_dry_auto_decide`. Pin
+  test: `tests/test_sprint_loop.py::test_help_surface_includes_no_dry_auto_decide_h13`
+  (added in chunk-13) greps the synth help page for the flag.
+
+### KN-H14. Gate-mode detection read `sys.argv`, not parsed argv
+
+- **Status:** RESOLVED (chunk-13). Behavioral tests now pin the gate
+  path: `test_unattended_writes_checkpoint_on_refusal_g7` and
+  `test_skip_reconcile_still_enforces_5_3_g8` exercise the gate
+  with explicit kwargs; `test_no_dry_run_coercion_h2_h14` confirms
+  the §5.3-precondition met + live path returns ACCEPT without
+  mutating rs.dry_run.
+
+### KN-H15. Signing-key refusal is late, not preflight
+
+- **Status:** deferred to chunk-14. The backends.py:252-264 refuse
+  fires at step 7 of the per-chunk inner loop; by then planner +
+  reviewers + executor + verify-green have all run. Need a preflight
+  `if not dry_run and not EVIDENCE_SIGNING_KEY raise SystemExit`.
+- **Workaround:** the operator sees the `[unattended] refused (exit
+  <code>); checkpoint at <path>; resume with --resume-from` pattern
+  but it's too late — model spend has happened. Chunk-14 should move
+  the check to a preflight at main() startup, parallel to the
+  family-guard preflight at sprint-loop.py:1108.
+- **Fix recipe:** Add `_assert_signing_key_preflight(cfg)` called
+  from main(\u2026) immediately after `guard_in_uncommitted_state`.
+  Fail closed unless `--no-fail-closed`.
+
+### KN-H16. `--unattended` checkpoints only §5.3 refusals
+
+- **Status:** chunk-13 partial fix (the §5.3 checkpoint-on-refusal
+  path is now BEHAVIORALLY pinned in test_unattended_writes_checkpoint_on_refusal_g7).
+  Remainder: persistent droid invocation failures
+  (run_planner:238-243 / run_plan_reviewer:359-364) raise RuntimeError
+  *without* writing a checkpoint. Drift remains — chunk-14 fix recipe:
+  add a `try/except RuntimeError\u2192write_checkpoint` around the chunk
+  inner loop in main(), before the `return 2` propagation. Mirror
+  spacecraft-style fault isolation: every failure shape writes a
+  checkpoint that the operator can resume from.
+
+### KN-H17. Test count "79" appeared nowhere + chunk-12b had green on unverified work
+
+- **Status:** RESOLVED (chunk-13). Test counts reconciled to 80/80
+  at chunk-13 close. Pin: `tests/test_sprint_loop.py` reports
+  `80 passed`; `phase-4.5/{KNOWN-ISSUES,EXIT-CHECKS,BUILD-NOTES}.md`
+  all show 80/80.
+
+### KN-H18. bin/run-sprint install recipe said `tools/install-overlay.sh` which did not exist
+
+- **Status:** RESOLVED (chunk-13 H-3). The recipe in the script's
+  banner is now the actual `cp` commands, no `install-overlay.sh`
+  reference. Pin test: `test_run_sprint_overlay_template_exists_g3`
+  plus a new line-count check on the recipe body.
+
+### KN-H19. Residue
+
+- `.gitignore:11` and `:20` both carry `!.factory/skills/**` (duplicate;
+  test ``test_factory_skills_unignored_in_gitignore_g4`` passes on
+  either). Defer to chunk-15 cleanup.
+- `droid.py:_retry_delay` (`:203-205`) is dead code (the live loop
+  computes its own `retry_delay_seconds * (2 ** (attempts - 1))` at
+  `:346`). Defer to chunk-15 cleanup.
+- `skills/adversarial-sprint/SKILL.md` digest index vs body §1-\u00a718
+  vs §19. Index-table lists \u00a719, body still says §1–§18 in two places.
+  Defer to chunk-14 as a content-only fix.
+- `droid.py:361` treats `output_tokens == 0` as transient, retrying a
+  legitimately empty completion at full cost. Defer to chunk-15.

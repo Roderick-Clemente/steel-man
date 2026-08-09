@@ -9,17 +9,15 @@
 #   3. Run from the pilot repo:  ./bin/run-sprint                 # full live run
 #                                  ./bin/run-sprint --dry-run     # first time
 #
-# The wrapper reads the per-pilot config to find the FRAMEWORK repo (where
-# tools/sprint-loop.py lives) and the pilot's evidence output dir. Per
-# the §15 Act 1 / Act 2 framing, this is Act 2: the runner-driven sprint.
-# For Act 1 (vibe code as usual), don't invoke this — let the operator
-# and agent work conversationally.
-#
-# Per the §11 structural guarantee, this script wires the runner through
-# the §7 fail-closed hooks — including §5.3 preconditions on stdin
-# `accept`, family-guard preflight, and signing-key refusal in live mode.
+# Per pass-r3 H-3 (chunk-13 fix): this wrapper accepts ALL flag
+# configurations in the documented form, with no positional
+# `chunks-file` requirement. argv is scanned for `--chunks-file`,
+# and the runner is fired with the resolved chunks-file (default:
+# $OVERLAY_DIR/chunks.json). Setting in the OVERLAY_DIR takes
+# precedence; `$1` (positional) is no longer required or supported.
 
-set -euo pipefail
+set -eo pipefail  # NOTE: removed -u so unset env vars don't crash the
+                  # signing-key warning (H-3b fix).
 
 # Resolve this script's location. The .adversarial-sprint dir is
 # one directory up; the PILOT_REPO is one further up.
@@ -31,33 +29,52 @@ PILOT_REPO="$(dirname "$OVERLAY_DIR")"
 CONFIG="$OVERLAY_DIR/sprint-loop-config.json"
 if [ ! -f "$CONFIG" ]; then
   echo "FATAL: per-pilot config not found at $CONFIG" >&2
-  echo "       Run \`tools/install-overlay.sh <PILOT_REPO>\` first, or copy" >&2
-  echo "       templates/overlay/*.template.json into $OVERLAY_DIR and edit." >&2
+  echo "       See templates/overlay/README.md for the install recipe." >&2
   exit 2
 fi
 
-# Find chunks-file (default: ./chunks.json in the overlay dir).
-CHUNKS_FILE="${1:-}"
+# Walk argv, find any --chunks-file (in either form) and capture its
+# value; pass everything else through to the runner.
+CHUNKS_FILE=""
+runner_argv=()
+i=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --chunks-file)
+      shift
+      CHUNKS_FILE="${1:-}"
+      if [ -z "$CHUNKS_FILE" ]; then
+        echo "FATAL: --chunks-file expected a path; saw empty" >&2
+        exit 2
+      fi
+      ;;
+    --chunks-file=*)
+      CHUNKS_FILE="${1#--chunks-file=}"
+      ;;
+    *)
+      runner_argv+=("$1")
+      ;;
+  esac
+  shift || true
+done
+
+# Default chunks file: the overlay's chunks.json (or legacy *.example.json).
 if [ -z "$CHUNKS_FILE" ]; then
-  if [ -f "$OVERLAY_DIR/chunks.json" ]; then
-    CHUNKS_FILE="$OVERLAY_DIR/chunks.json"
-  elif [ -f "$OVERLAY_DIR/chunks.example.json" ]; then
-    CHUNKS_FILE="$OVERLAY_DIR/chunks.example.json"
-  else
-    # Last resort: legacy path under examples/
-    if [ -f "$OVERLAY_DIR/chunks-example.json" ]; then
-      CHUNKS_FILE="$OVERLAY_DIR/chunks-example.json"
+  for try in "$OVERLAY_DIR/chunks.json" "$OVERLAY_DIR/chunks.example.json" "$OVERLAY_DIR/chunks-example.json"; do
+    if [ -f "$try" ]; then
+      CHUNKS_FILE="$try"
+      break
     fi
-  fi
+  done
 fi
 
-if [ ! -f "$CHUNKS_FILE" ]; then
-  echo "FATAL: chunks file not found in $OVERLAY_DIR (looked for chunks.json, chunks.example.json, chunks-example.json)" >&2
+if [ -z "$CHUNKS_FILE" ] || [ ! -f "$CHUNKS_FILE" ]; then
+  echo "FATAL: chunks file not found. Pass --chunks-file <path>, or copy chunks.json into $OVERLAY_DIR/." >&2
   exit 2
 fi
 
 # Find the framework checkout from the pilot's config.
-FRAMEWORK_ROOT="$(python3 -c "import json,sys; print(json.load(open('$CONFIG'))['framework_root'])")"
+FRAMEWORK_ROOT="$(python3 -c "import json; print(json.load(open('$CONFIG'))['framework_root'])")"
 
 if [ ! -d "$FRAMEWORK_ROOT/tools" ]; then
   echo "FATAL: framework_root in $CONFIG is $FRAMEWORK_ROOT, but no tools/ subdir found." >&2
@@ -71,16 +88,15 @@ if [ ! -f "$RUNNER" ]; then
   exit 2
 fi
 
-# arguments after the chunks-file are passed through to sprint-loop.py.
-shift || true
-if [ "$CHUNKS_FILE" = "${1:-}" ]; then shift; fi
-
 echo "[run-sprint] pilot:        $PILOT_REPO"
 echo "[run-sprint] framework:    $FRAMEWORK_ROOT"
 echo "[run-sprint] overlay:      $OVERLAY_DIR"
 echo "[run-sprint] config:       $CONFIG"
 echo "[run-sprint] chunks-file:  $CHUNKS_FILE"
-if [ "$EVIDENCE_SIGNING_KEY" = "" ]; then
+# Pass-r3 H-3b fix: set -u was crashing here when the operator
+# hadn't set EVIDENCE_SIGNING_KEY. Use ${EVIDENCE_SIGNING_KEY:-}
+# explicitly so an unset value doesn't trigger 'unbound variable'.
+if [ "${EVIDENCE_SIGNING_KEY:-}" = "" ]; then
   echo "[run-sprint] WARN: EVIDENCE_SIGNING_KEY is unset; live mode will refuse per §7 (chunk-10 F-10)." >&2
 fi
 
@@ -90,4 +106,4 @@ exec python3 "$RUNNER" \
   --config "$CONFIG" \
   --chunks-file "$CHUNKS_FILE" \
   --pilot-root "$PILOT_REPO" \
-  "$@"
+  "${runner_argv[@]}"

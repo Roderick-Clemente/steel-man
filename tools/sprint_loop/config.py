@@ -59,7 +59,10 @@ class Config:
     """All configurable knobs of the loop runner.
 
     CLI: ``python3 tools/sprint-loop.py --config <cfg.json> [overrides]``
-    JSON: see ``examples/sprint-loop-config.json`` for the schema.
+    JSON: see ``templates/overlay/sprint-loop-config.template.json``
+    for the schema. Pass-r3 H-7 fix: the legacy
+    ``examples/sprint-loop-config.json`` was deleted in chunk-12b;
+    the operator-facing JSON lives in the per-pilot overlay.
 
     The config dataclass is also serialised as the *initial*
     ``RunState`` for pause/resume.
@@ -107,6 +110,19 @@ class Config:
     create_pr: bool = False
     validation_backend: str = "local"
     signing_key_env: str = "EVIDENCE_SIGNING_KEY"
+
+    # Gate auto-decide path: separate from dry_run so that
+    # --non-interactive / --unattended / --gate-auto-decide don't
+    # accidentally simulate the entire pipeline. Set by main() from
+    # argv OR env vars, ONLY when the operator wants the gate to give
+    # an automated decision WITHOUT pausing; the per-chunk loop + git
+    # commits still run on the real path. (Pass-r3 finding H-2.)
+    gate_auto_decide: bool = False
+    # --unattended: similar to gate_auto_decide but writes a
+    # checkpoint on §5.3 refusal, so the operator can resume. Set
+    # from argv OR env vars. (Pass-r3 finding H-14 — passed via
+    # parsed namespace, not sys.argv.)
+    unattended: bool = False
 
     # §17.6 outage override (must be recorded in phase-N/KNOWN-ISSUES.md)
     allow_test_author_collide: bool = False
@@ -273,6 +289,24 @@ def build_config(argv: list[str] | None = None,
 
     parser.add_argument("--dry-run", action="store_true",
                         help="Do not invoke droid exec or git commit; record planned actions.")
+    parser.add_argument("--non-interactive", action="store_true",
+                        help="Bypass the human reconcile gate stdin pause; §5.3 preconditions "
+                             "still run. Maps to gate_auto_decide=True. (Pass-r3 H-2: this was "
+                             "previously an alias for dry_run=True; chunk-13 fixes it to be a "
+                             "distinct gate-only mode.")
+    parser.add_argument("--gate-auto-decide", action="store_true",
+                        help="Reconcile gate auto-decides ACCEPT after running §5.3 preconditions; "
+                             "the rest of the pipeline (planner/reviewer/executor/validation/git) "
+                             "runs as in live mode. Distinct from --dry-run (which simulates) and "
+                             "--unattended (which also writes a checkpoint on refusal).")
+    parser.add_argument("--unattended", action="store_true",
+                        help="Run unattended-live. Same as --gate-auto-decide for the reconcile "
+                             "gate; on §5.3 refusal, write a checkpoint and SystemExit(4/5). Repeatable "
+                             "from §5.3 onward via --resume-from. Per pass-r3 finding H-2, this does "
+                             "NOT change dry_run semantics; the pipeline stays live.")
+    parser.add_argument("--no-dry-auto-decide", action="store_true",
+                        help="Disable the dry-run auto-accept shortcut, so a dry-run still pauses for "
+                             "the reconcile gate input. (Pass-r3 finding H-13: was unreachable.)")
     parser.add_argument("--skip-reconcile", action="store_true",
                         help="Skip the human reconciliation gate (operator accepts ad-hoc).")
     parser.add_argument("--create-pr", action="store_true",
@@ -337,6 +371,13 @@ def build_config(argv: list[str] | None = None,
 
     if args.dry_run:
         cfg.dry_run = True
+    if args.non_interactive:
+        cfg.gate_auto_decide = True
+    if args.gate_auto_decide:
+        cfg.gate_auto_decide = True
+    if args.unattended:
+        cfg.unattended = True
+        cfg.gate_auto_decide = True
     if args.skip_reconcile:
         cfg.skip_reconcile = True
     if args.create_pr:

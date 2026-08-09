@@ -130,23 +130,29 @@ The skill's job is to teach the agent WHEN, not to BE the runner.
 
 ## How to invoke
 
-The runner is a CLI artifact that lives in the framework repo, not
-in this skill. Path convention (per the chunk-12b per-pilot
-overlay):
+The runner is invoked through the **per-pilot overlay**, not
+through the framework CLI. The overlay is the operator's
+one-true path. Path convention (chunk-12b + chunk-13):
 
 ```
 <PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive   # first time (wiring test)
 <PILOT_REPO>/.adversarial-sprint/bin/run-sprint                                  # real run, operator in seat
 <PILOT_REPO>/.adversarial-sprint/bin/run-sprint --unattended                    # unattended mode
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --resume-from <cp.json>         # resume after §5.3 refusal
 ```
 
-The overlay is the per-pilot install surface (one path). For operators
-who want the runner's CLI flags directly, the runner is at
-`<FRAMEWORK_REPO>/tools/sprint-loop.py`. See
-`tools/sprint-loop.py --help` and `tools/sprint_loop/config.py` for the
-full surface. The skill is the *Universal Rules* layer; the overlay is
-the per-pilot config + entrypoint — they are different distribution
-shapes and live at different locations, by design.
+The overlay is the per-pilot install surface (one path). The
+**Universal Rules** live in *this* skill; the **per-pilot config
++ entrypoint** lives in the overlay. They are different
+distribution shapes and live at different locations, by design.
+
+The meta-skill does NOT teach the framework CLI: it would invite
+operators (and agents) to skip the per-pilot overlay and bypass
+its dry-run → live → unattended mode distinction. Per pass-r3
+finding H-6, that bypass was the cause of three false claims in
+chunk-12b's build record. For the framework CLI surface, see
+`tools/sprint-loop.py --help` — that's the *debugging* surface,
+not the operator-facing one.
 
 ## What this skill is NOT
 

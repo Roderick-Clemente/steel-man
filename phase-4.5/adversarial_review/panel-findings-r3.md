@@ -1,0 +1,259 @@
+I have enough to answer all three decisions. Findings below.
+
+---
+
+# Phase 4.5 — adversarial panel findings, pass-r3 (commit `0feaaa4`)
+
+**Scope reviewed:** §15 demo-delta claim, Act-1/Act-2 path collapse, truth-table honesty. Read-only audit.
+
+---
+
+## Decision 1 — did the operator path collapse to one?
+
+**No.** The four-path drift was not collapsed; it was renamed. There are still four operator-facing paths, and two of them teach a *broken* invocation.
+
+### H-1 — BLOCKER — `skills/sprint-invocation/SKILL.md` is a live second operator path that bypasses the overlay entirely and lies about §5.3
+
+The panel prompt's audit scope never mentions this file, which is precisely the gap. It is a **committed, installed, auto-triggered skill** (`install-skill.sh:SKILLS=("adversarial-sprint" "sprint-invocation")`, mirrored into `.factory/skills/`, `.claude/skills/`, `.cursor/rules/sprint-invocation.mdc`) whose `when-to-invoke` fires on *"run a sprint," "run an adversarial pass," "fire the runner."* That is the exact operator utterance the overlay was supposed to own.
+
+Its content at HEAD:
+
+- `SKILL.md:27-31` — primary invocation is `<PILOT_REPO>/tools/sprint-loop.py --config <PILOT_REPO>/examples/sprint-loop-config.json`. The runner does not live in the pilot repo, and `examples/sprint-loop-config.json` was deleted in chunk-12b (pinned by `test_overlay_replaces_examples`). Both halves of the command are wrong.
+- `SKILL.md:49-54, 62-68, 89` — two more full CLI invocations and a chunk-spec pointer, all against deleted `examples/` paths.
+- `SKILL.md:37-38` — *"`--non-interactive` — bypass the stdin pause at reconcile (the §5.3 machine-check still runs; auto-decision is accept)."* This is false in code (see **H-2**).
+- `SKILL.md:56-58` — *"If dry-run exits 0 and prints `COMPLETED · run_id=...`, the runner is wired correctly."* This trains the operator to read the simulator's banner as the verdict, the exact §7 silent-green shape RUN-PROMPT §15 warns against two files away.
+- The word `run-sprint` appears **zero** times. `templates/overlay` appears zero times. `--unattended` appears zero times.
+
+An operator (or agent) taking this path gets a `COMPLETED` banner from a fully simulated run and never touches a structural guarantee. That is the "second operator-facing path where a structural guarantee is silently skipped" the prompt asked about, and it is the highest-severity finding in this pass.
+
+**Recommended change:** either delete `skills/sprint-invocation/` or rewrite it to `bin/run-sprint` only, and add a test that greps *every* file under `skills/` and `.cursor/rules/` for `sprint-loop.py` and for `examples/sprint-loop-`.
+
+### H-6 — HIGH — the meta-skill still contains a "How to invoke" block teaching the framework CLI; the G-2 test pins a string, not the property
+
+`skills/adversarial-sprint/SKILL.md:131-149` is still headed `## How to invoke`, and lines 143-147 read: *"For operators who want the runner's CLI flags directly, the runner is at `<FRAMEWORK_REPO>/tools/sprint-loop.py`. See `tools/sprint-loop.py --help` and `tools/sprint_loop/config.py` for the full surface."* There is also a separate `## When to invoke the runner` section at 118-129.
+
+`tests/test_sprint_loop.py:1544` asserts only `"<PILOT_REPO>/tools/sprint-loop.py" not in meta`. The skill says `<FRAMEWORK_REPO>/tools/sprint-loop.py`. The test passes on a one-token rename while the second path survives verbatim, and `.cursor/rules/adversarial-sprint.mdc:145-146` propagates it to Cursor adopters.
+
+Two build-record claims are therefore false:
+- `BUILD-NOTES.md:168-169` — *"strips the duplicated 'How to invoke' block; meta-skill now Universal Rules only."*
+- `BUILD-NOTES.md:172-173` — *"Smoke: meta-skill contains no `tools/sprint-loop.py` invocation block."*
+
+**Recommended change:** assert absence of the substring `tools/sprint-loop.py` (unqualified) in the meta-skill body, not a `<PILOT_REPO>`-prefixed variant.
+
+### H-7 — HIGH — 20+ live references to the deleted `examples/sprint-loop-*.json`, including the Track A exit criterion itself
+
+Chunk-12b moved the files and pinned their absence, but updated **no consumer**. At HEAD:
+
+| File | Line | What breaks |
+|---|---|---|
+| `phase-4.5/EXIT-CHECKS.md` | 38-39 | check **(5) "dry-run end-to-end exists"** — the Track A exit criterion — is unrunnable |
+| `phase-4.5/RUN-PROMPT.md` | 143-144 | operator Step 3 copy-paste fails |
+| `phase-4.5/KNOWN-ISSUES.md` | 30-31 | KN1 reproduction command fails |
+| `phase-4.5/BUILD-NOTES.md` | 108-109 | quoted run command fails |
+| `phase-4.5/ASSUMPTIONS.md` | 29 | stale contract pointer |
+| `phase-4.5/CI-GATE.md` | 72 | stale chunk-spec pointer |
+| `tools/sprint_loop/config.py` | 62 | `Config` docstring points at deleted schema |
+| `tools/sprint-loop.py` | 1208 | the runner's own FATAL message tells the operator to *"Provide examples/sprint-loop-chunks-example.json shape"* |
+| `skills/sprint-invocation/SKILL.md`, `.cursor/rules/sprint-invocation.mdc` | 4 each | see H-1 |
+
+`examples/` is now an empty directory (untracked by git, so it will silently vanish on clone — a second adopter gets "no such file"). A repo whose §11 rule is *"exit criteria are checked, not assumed"* currently ships an exit-checks file whose central command cannot execute.
+
+### H-3 — BLOCKER — `templates/overlay/bin/run-sprint` fails on all three of its own documented invocations
+
+The "one true entrypoint" does not run. Two independent defects:
+
+**(a) flag-first argument parsing.** `bin/run-sprint:41` does `CHUNKS_FILE="${1:-}"`. When `$1` is a flag, the `-z` guard at :42 is skipped, so `$1` is treated as a chunks-file path:
+
+```
+$ .adversarial-sprint/bin/run-sprint --dry-run --non-interactive
+FATAL: chunks file not found in ... (looked for chunks.json, chunks.example.json, chunks-example.json)   # exit 2
+```
+
+The only working form is `run-sprint <chunks-file> [flags]` or bare `run-sprint`. Every documented invocation with a leading flag is dead:
+- `templates/overlay/README.md:38,44`
+- `phase-4.5/RUN-PROMPT.md:88-97` (all three blocks)
+- `skills/adversarial-sprint/SKILL.md:138,140` → `.cursor/rules/adversarial-sprint.mdc:138,140`
+- `bin/run-sprint:10` (its own header comment)
+
+So the *dry-run wiring test* — the first thing a new adopter is told to do, and the whole point of the overlay — cannot succeed.
+
+**(b) `set -u` kills the signing-key warning.** `bin/run-sprint:20` sets `set -euo pipefail`; `:83` reads `[ "$EVIDENCE_SIGNING_KEY" = "" ]` unbraced. When the variable is unset — the *only* case the check exists for — bash aborts with `EVIDENCE_SIGNING_KEY: unbound variable` and the warning never prints. Needs `${EVIDENCE_SIGNING_KEY:-}`.
+
+`tests/test_sprint_loop.py:1565-1588` (G-3) asserts only that the file exists, is executable, and that the config template has a placeholder. Nothing executes the script, which is why both defects shipped.
+
+### H-18 — LOW — `bin/run-sprint:34` directs the operator to `tools/install-overlay.sh <PILOT_REPO>`, which does not exist
+
+No such file anywhere in the repo. The real install is the 5-line `cp` recipe in `templates/overlay/README.md:19-24`, which is itself unscripted and untested.
+
+**Decision 1 verdict:** the collapse is not real. Path count at HEAD: (1) `bin/run-sprint` (broken for documented flag usage), (2) meta-skill → `<FRAMEWORK_REPO>/tools/sprint-loop.py`, (3) `sprint-invocation` skill → `<PILOT_REPO>/tools/sprint-loop.py` + deleted `examples/`, (4) RUN-PROMPT Steps 3/5 + EXIT-CHECKS (5) → deleted `examples/`. Four, same as pass-r2, and now three of the four are non-functional rather than merely redundant.
+
+---
+
+## Decision 2 — is the §15 truth-table honest?
+
+**No.** There is a code path that produces GREEN where the table claims RED, and it is the flag the docs recommend most.
+
+### H-2 — BLOCKER — `--non-interactive` silently coerces the entire run to dry-run, short-circuiting `_enforce_5_3_preconditions`
+
+`tools/sprint-loop.py:1092-1096`:
+
+```python
+if ns.non_interactive:
+    cfg.dry_run = True  # ``--non-interactive`` ⇒ behave as dry-run
+                         # for the reconcile gate; the orchestrator
+                         # otherwise still runs.
+```
+
+The comment is wrong about its own blast radius. `cfg.dry_run` is global, not gate-local. Consequences of `sprint-loop.py --non-interactive` **without** `--dry-run`:
+
+1. `reconcile_human_gate(..., dry_run=cfg.dry_run)` enters the dry-run branch at `:600-605`, which `return ReconcileDecision.ACCEPT` **before** the `env_ni`/`env_unattended` block at `:612-641`. `_enforce_5_3_preconditions` is never called. The entire G-7 "decoupling" is dead code on the flag path (it is reachable only via `SPRINT_LOOP_NON_INTERACTIVE=1` with the flag omitted).
+2. `rs.dry_run=True` → `commit_chunk_change:781` returns early. No commits.
+3. `dry_run=True` reaches `invoke_droid` → `droid.py:216-268` writes synthetic envelopes. **No model is ever called.** Planner, both reviewers, executor, and every validator are simulated.
+4. `guard_in_uncommitted_state()` at `:1160` is skipped (`if not cfg.dry_run`).
+
+So an operator who runs live `--non-interactive` gets a full simulation that prints `COMPLETED · run_id=...` and exits 0, with zero structural guarantees exercised. Three artifacts assert the opposite:
+
+- `sprint-loop.py:615-621` (the inline comment): *"In live mode, the §5.3 preconditions (chunk-10 F-7 fix) STILL run"* — unreachable via the flag.
+- `BUILD-NOTES.md:151-153`: *"`--unattended` flag + decoupled `--non-interactive` from `--dry-run`. §5.3 preconditions run in all three modes now."* — false.
+- `skills/sprint-invocation/SKILL.md:37-38`: *"`--non-interactive` … the §5.3 machine-check still runs"* — false, and this is the operator-facing copy.
+
+The decoupling landed at the argparse layer only, exactly as the panel prompt suspected. This is the answer to *"does dry_run=True short-circuit bypassing `_enforce_5_3_preconditions`?"* — yes, and `--non-interactive` is a hidden alias for `dry_run=True`.
+
+### H-4 — BLOCKER — `--resume-from <path>` is rejected before the runner starts
+
+`sprint-loop.py:1085-1087` strips runner-only flags before handing argv to `build_config`:
+
+```python
+cfg_argv = [a for a in raw_argv
+            if a not in ("--dry-run", "--non-interactive", "--unattended")
+            and not a.startswith("--resume-from=")]
+```
+
+Only the `=`-joined form is stripped. `build_config` uses strict `parser.parse_args()` (`config.py:404`) and defines no `--resume-from`, so the documented space-separated form dies at config parse:
+
+```
+sprint-loop.py: error: unrecognized arguments: --resume-from checkpoint.json   # exit 2
+```
+
+Every resume instruction in the repo uses that form — `sprint-loop.py:38` (module docstring), `:634` (`"resume with --resume-from"`), `:1058` argparse help. So the `--unattended` → checkpoint → resume story terminates at the first step. `KNOWN-ISSUES.md KNR2` records resume as *"not demonstrated end-to-end"*; it is stronger than undemonstrated, it is unreachable.
+
+### H-5 — HIGH — `--dry-run` **does** commit to git on the resume path; the truth-table's "Git commit / simulated; no commit" row is false
+
+`load_checkpoint` (`sprint-loop.py:118-176`) restores `run_id`, paths, status, chunks, findings — and drops `dry_run`, `skip_reconcile`, `plan_round`, `plan_reviewer_verdicts`, `max_review_rounds`, `retry_threshold`, and every `RoleAssignment`. Then `:1164-1165` does `rs = load_checkpoint(...)`, replacing the fully-configured `RunState`.
+
+`RunState.dry_run` therefore defaults to `False` while `cfg.dry_run` stays `True`. The chunk loop passes `cfg.dry_run` (simulated evidence, fake envelopes), but `commit_chunk_change:781` branches on `rs.dry_run` → **False** → real `git checkout -b`, real `git add -f`, real `git commit`. A `--dry-run --resume-from=…` run mutates framework git history with commits whose bodies attest to a chunk that was never executed. That is a §7/§15 falsified audit trail generated by the mode advertised as side-effect-free.
+
+Two further consequences of the same lossy restore: `plan_reviewer_verdicts` is empty after resume, so `_enforce_5_3_preconditions` will always `SystemExit(5)`; and `plan_round` resets to 0, so resume re-fires the planner and both reviewers at full cost rather than continuing. The `--unattended` refusal message *"checkpoint at …; resume with --resume-from"* promises continuation that the loader cannot deliver.
+
+### H-9 — HIGH — `--evidence-output-dir` breaks the live commit when used as documented
+
+`config.py:229-233` help text: *"Set this for per-pilot overlays so the framework repo's `phase-4.5/build-evidence` dir stays clean."* Doing so breaks `commit_chunk_change:806-808`:
+
+```python
+stage_paths = [os.path.relpath(evidence_output_dir, _REPO_ROOT)]
+_git("add", "-f", p, cwd=_REPO_ROOT)
+```
+
+With the evidence tree in the pilot repo, `relpath` yields `../<pilot>/.adversarial-sprint/…`, and `git add -f` from the framework root fails (`fatal: … is outside repository`). `_git` raises `RuntimeError`, uncaught → traceback mid-run, after model spend. So the flag's stated purpose is the one configuration that crashes.
+
+Meanwhile the overlay ships `"evidence_output_dir": ""` (`sprint-loop-config.template.json:8`) and `bin/run-sprint` never passes the flag, so the chunk-12b rationale (*"so the framework's `phase-4.5/build-evidence` stays clean"*, `BUILD-NOTES.md:166-167`) is unrealized in the only surface that would use it. The feature is simultaneously unused and unsafe.
+
+### H-10 — HIGH — the run-level `checkpoint.json` is never committed; Definition of Done claims it is
+
+`RUN-PROMPT.md` Definition of Done: *"`phase-4.5/build-evidence/<run-id>/checkpoint.json` is committed to the audit branch."*
+
+`.gitignore:38-39` ignores `phase-4.5/build-evidence/` and `phase-*/build-evidence/`. The only force-add is the **per-chunk subdirectory** (`stage_paths`, `:806`), and `write_checkpoint(rs, …/checkpoint.json)` runs *after* `commit_chunk_change` (`:1249-1250`) and again at `:1254` post-loop. The run-level checkpoint is written to an ignored path and never staged. Step 6 tells the operator to read it from the audit branch, where it will not be.
+
+### H-8 — HIGH — `--help` shows 6 of ~26 flags; the "runner CLI is the debug surface" claim rests on it
+
+`main()` builds a shell parser with `--config`, `--chunks-file`, `--resume-from`, `--dry-run`, `--non-interactive`, `--unattended` and calls `parse_known_args` (`:1041-1082`). Argparse handles `-h/--help` in that first parser and exits, so `build_config` is never reached. `--evidence-output-dir`, `--validators`, all `--*-model` flags, `--skip-reconcile`, `--create-pr`, `--allow-single-family`, `--no-fail-closed`, `--max-review-rounds` etc. are invisible.
+
+Downstream falsehoods:
+- `BUILD-NOTES.md:173-174`: *"assertion: `tools/sprint-loop.py --help` emits `--evidence-output-dir` and `--unattended`."* Only `--unattended` appears. That is why `test_runner_help_exposes_unattended` passes and no companion test for `--evidence-output-dir` exists.
+- `RUN-PROMPT.md:101-102`: *"For runner-level CLI flags (debug, advanced), invoke directly: `tools/sprint-loop.py --help`."* The debug escape hatch documents almost nothing.
+- `EXIT-CHECKS.md` check (4) (*"--help works → expect usage banner"*) passes vacuously.
+
+### H-11 — MEDIUM — the truth-table does not contain the rows the §15 claim rests on
+
+The panel prompt describes a table distinguishing `--dry-run --non-interactive` / live / live `--non-interactive` / live `--unattended` / live `--skip-reconcile`. The artifact at `RUN-PROMPT.md:36-46` has **three columns**: Act 1, Act 2 live, Act 2 `--dry-run`. Neither `--non-interactive`, `--unattended`, nor `--skip-reconcile` appears as a distinguished mode anywhere in the table.
+
+This matters beyond bookkeeping: the four-way distinction is exactly where the real behavior diverges (H-2, H-12), and the table's absence of those rows is why the divergence went unnoticed. The three rows that *are* present are honest about plain `--dry-run` — credit where due — but the claim "the truth-table distinguishes what `--dry-run --non-interactive` simulates vs what live mode enforces" is not supported by the file.
+
+### H-12 — MEDIUM — the two documented "gate opt-outs" behave in opposite directions
+
+`RUN-PROMPT.md:127`: *"Reconciliation gate: human-pause via stdin. `--skip-reconcile` or `--dry-run --non-interactive` opt out."* Presented as equivalent. In code:
+
+- `--dry-run --non-interactive` → always ACCEPT, §5.3 never evaluated (H-2).
+- `--dry-run --skip-reconcile` → `:1218-1237` runs `_enforce_5_3_preconditions`, but dry-run envelopes carry no `VERDICT:` line (`KNOWN-ISSUES KNE1`), so `rs.plan_reviewer_verdicts` holds only `UNKNOWN` → **always `SystemExit(5)`**.
+
+One opt-out can never refuse; the other can never succeed. Both are documented as the same thing.
+
+### H-13 — MEDIUM — `--no-dry-auto-decide` is unreachable
+
+`:600` guards the dry-run auto-accept with `"--no-dry-auto-decide" not in sys.argv`. The token is defined in neither parser; `build_config`'s strict `parse_args` rejects it (`unrecognized arguments`) → `SystemExit(2)`. The only way to make dry-run *not* rubber-stamp the gate cannot be invoked.
+
+### H-14 — MEDIUM — gate-mode detection reads `sys.argv`, not the parsed `argv`, making the branch untestable by construction
+
+`:623-626` detects the modes via `("--non-interactive" in sys.argv)` / `("--unattended" in sys.argv)`, though `main(argv)` accepts an explicit argv and `ns.unattended` is parsed at `:1055` and then never used. Under `pytest`, `main(["--config", …, "--unattended"])` sees pytest's `sys.argv`, misses the flag, falls through to `input()` → `EOFError` → `SystemExit(1)`.
+
+This is why `test_unattended_writes_checkpoint_on_refusal_g7` (`tests:1464-1475`) is a 1500-character source-string grep for `write_checkpoint` rather than a behavioral test, and why `test_skip_reconcile_still_enforces_5_3_g8` (`:1478-1489`) is the same shape. Both would still pass with H-2's short-circuit in place. The pass-r2 blockers were closed against the source text, not the behavior.
+
+### H-15 — MEDIUM — signing-key refusal is late, not preflight, and the overlay's stated guard is dead code
+
+The truth-table row *"EVIDENCE_SIGNING_KEY unset → live: refuses closed (Stop)"* is technically true but fires at `backends.py:252-264`, which is **step 7** of the per-chunk inner loop. By then the planner, both plan reviewers, `lock`, `valid-red`, the executor, and `verify-green` have all run for real. There is no preflight key check in `main()`.
+
+`templates/overlay/README.md:57` lists *"Missing `EVIDENCE_SIGNING_KEY` → runner refuses in live mode per §7"* under **"Failure modes the overlay guards against"** — but the overlay's own guard crashes under `set -u` before printing (H-3b). So nothing guards it early.
+
+### H-16 — MEDIUM — `--unattended` checkpoints only §5.3 refusals; and no live run ever commits the pilot repo
+
+Two gaps in the "close the laptop" story that `KNR2` does not cover:
+
+1. On a persistent droid failure, `invoke_droid` returns `is_error=True` after the bounded retries and `run_planner:238-243` / `run_plan_reviewer:359-364` raise `RuntimeError` — **no checkpoint written**. Unattended runs die unrecoverably on the most likely real-world failure.
+2. `commit_chunk_change` stages only framework-side audit files. Nothing commits the pilot repo, and `guard_in_uncommitted_state` inspects only `_REPO_ROOT`. After a live run the executor's actual code changes sit uncommitted in the pilot working tree while the framework branch carries commits asserting the chunk was accepted. "Come back to a completed sprint" leaves the delivered work unversioned — and §15 says git history is reality.
+
+### Clean nulls (credit where the audit found the claim holds)
+
+- **`droid.py` bounded retry (F-8) holds.** `:293-380` is a single contiguous `while True` with monotonic `attempts` and an `attempts > max_retries + 1` exhaustion branch returning an `is_error=True` record. Envelope-parse and post-parse transient failures share one budget. No recursion, no per-retry budget reset. `--unattended` does not accumulate retries — it inherits the same bound. (The absence of a per-retry checkpoint is covered by H-16, not a retry-loop defect.)
+- **`--skip-reconcile` is not papered over.** `:1218-1237` genuinely calls `_enforce_5_3_preconditions` inside the branch, writes a checkpoint on refusal, and re-raises. KNR4 → RESOLVED is accurate. (Its dry-run interaction is H-12.)
+- **The plain `--dry-run` column is honest.** `RUN-PROMPT.md:48-53` explicitly names the simulated-ACCEPT and the §7 silent-green risk of treating it as a green light. That paragraph is the strongest writing in the pass; the defects are that `--non-interactive` is a hidden alias for it (H-2) and that a shipped skill contradicts it (H-1).
+
+---
+
+## Decision 3 — is Act 1 silently doing Act 2's job?
+
+**Partly, and via the skill layer rather than the rules layer.**
+
+- **`tools/OPERATING-RULES.md §19` — clean null.** Lines 328-353 are inert prose about when to ask the operator to choose versus shipping a recommendation. No orchestration, no invocation, no runner reference. It does not conflict with Act 1 semantics.
+- **The meta-skill does not *invoke*, but it does *teach Act 2 badly*.** `skills/adversarial-sprint/SKILL.md:118-129` (`When to invoke the runner`) is legitimately Act 1 — deciding *whether* to enter Act 2 is the agent's job. The leak is `:131-149` (`How to invoke`), which hands the agent a framework-CLI path (H-6). The stated boundary — *"The skill's job is to teach the agent WHEN, not to BE the runner"* — is right; the file violates it three lines later.
+- **The real Act-1/Act-2 collapse is H-1.** `sprint-invocation` fires on "run a sprint" from inside a conversational Act 1 session, hands the agent a raw CLI command with `--non-interactive`, and tells it that `COMPLETED · run_id=` means success. Under H-2 that produces a fully simulated run. So an Act 1 agent, following its installed skills faithfully, will report a completed Act 2 sprint having exercised zero structural guarantees. **The demo's delta is erased by the shipped skill layer** — not by an operator mistake, but by the artifact doing what it says.
+
+---
+
+## Bookkeeping
+
+### H-17 — LOW — the test count "79" appears nowhere, and chunk-12b carries a green check on unverified work
+
+- `BUILD-NOTES.md:175` — *"Tests: ✅ — pending verification at chunk-12c."* A ✅ next to "pending verification" is the §7 shape the project exists to prevent, in the project's own build record.
+- Three mutually inconsistent counts survive: `EXIT-CHECKS.md:27` *"expect: 52 passed"*; `EXIT-CHECKS.md:107` *"75/75 tests at chunk-12a close"*; `KNOWN-ISSUES.md:19` *"The 75 pytest tests"*. None says 79. The claimed 63 → 75 → 79 update did not land.
+
+### H-19 — LOW — residue
+
+- `.gitignore:11` and `:20` both carry `!.factory/skills/**` (duplicate; the G-4 test at `tests:1491` passes on either).
+- `droid.py:_retry_delay` (`:203-205`) is dead code — the live loop computes its own `retry_delay_seconds * (2 ** (attempts - 1))` at `:346`.
+- `config.py:62` — `Config` docstring cites the deleted `examples/sprint-loop-config.json` as the schema of record.
+- `skills/adversarial-sprint/SKILL.md:158` says the rule source is *"§1–§18"* while the same file's index table lists §19; `RUN-PROMPT.md` Step 1 repeats *"§1–§18"*.
+- `droid.py:361` treats `output_tokens == 0` as transient, retrying a legitimately empty completion at full cost.
+
+---
+
+## Summary
+
+**Decision 1 — collapse not achieved.** Four operator paths remain; three are non-functional (H-1, H-3, H-6, H-7). A committed, auto-triggered skill teaches a runner path that does not exist against config files that were deleted, and a broken `bin/run-sprint` means the documented replacement cannot run either.
+
+**Decision 2 — truth-table not honest.** `--non-interactive` is an undocumented global alias for `dry_run=True`, short-circuiting §5.3 and every model call while printing `COMPLETED` (H-2). `--dry-run` performs real git commits on the resume path (H-5). `--resume-from` cannot be invoked at all (H-4). The table lacks the rows the claim is built on (H-11). The pass-r2 "fixes" were pinned by source-text greps that cannot detect any of this (H-14).
+
+**Decision 3 — §19 is clean; the skill layer is not.** §19 is inert prose with no Act-2 behavior. But `sprint-invocation` collapses Act 1 into a simulated Act 2 and reports it as success, which is the demo-delta claim failing at exactly the seam §15 says is the deliverable.
+
+The §15 structural guarantee — "the runner can complete one real chunk end-to-end" — is not demonstrable at `0feaaa4` by any documented invocation. Minimum set to re-open: H-1, H-2, H-3, H-4 (blockers), then H-5..H-10, then re-pin H-6/H-14 with behavioral rather than source-string tests.
+
+REJECT_IMPLEMENTATION

@@ -68,8 +68,11 @@ same shape: trigger → checkout → run `local_backend.py` → run
 ## How the chunk spec gets into the runner
 
 The workflow reads the chunk id from the PR title — convention is
-`[chunk:<id>]` prefix. The runner is invoked WITH this chunk id; the
-chunks-file convention lives inside `examples/sprint-loop-chunks-example.json`.
+`[chunk:<id>]` prefix. The runner is invoked WITH this chunk id;
+the chunks-file convention lives in
+`templates/overlay/sprint-loop-chunks-example.template.json`
+(copied at install time to
+`<PILOT_REPO>/.adversarial-sprint/chunks.json`).
 
 If the PR title does not include `[chunk:<id>]`, the workflow
 surfaces an `::error::` and the gate is **`STOP`** until the PR is

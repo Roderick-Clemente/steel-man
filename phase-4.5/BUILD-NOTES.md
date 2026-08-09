@@ -74,7 +74,9 @@ shape.
    - `examples/sprint-loop-config.json` + `examples/sprint-loop-chunks-example.json`
      *(moved to `templates/overlay/*.template.json` in chunk 12b —
      per-pilot overlay with `bin/run-sprint` one-command firing;
-     see chunk 12b below)*
+     see chunk 12b below. Pass-r3 H-7 fix chunk-13: the operator-
+     facing entrypoint is `<PILOT_REPO>/.adversarial-sprint/bin/run-sprint`,
+     invoked via the per-pilot overlay; see chunk 13 below.)*
    - Tests: ✅ — adds 2 integration tests (dry-run end-to-end;
      family-guard refuse on unknown model).
 
@@ -102,13 +104,13 @@ shape.
 PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m py_compile tools/sprint-loop.py tools/sprint_loop/*.py tests/test_sprint_loop.py
 PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest tests/ -v
 
-# Dry-run end-to-end against the example config + chunks file
-PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
-  tools/sprint-loop.py \
-  --config examples/sprint-loop-config.json \
-  --chunks-file examples/sprint-loop-chunks-example.json \
-  --dry-run --non-interactive
-  # (chunk 12b: updated to call via .adversarial-sprint/bin/run-sprint)
+# Dry-run end-to-end via the per-pilot overlay (chunk 12b + chunk 13):
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive
+# (Framework-level equivalent for debugging only; not operator-facing:)
+# PYTHONPATH=tools $PILOT_PY tools/sprint-loop.py \
+#   --config templates/overlay/sprint-loop-config.template.json \
+#   --chunks-file templates/overlay/sprint-loop-chunks-example.template.json \
+#   --dry-run --non-interactive
 
 # Real run (interactive; pauses at reconcile for accept/reject/amend)
 export EVIDENCE_SIGNING_KEY="$( python3 -c 'import secrets; print(secrets.token_hex(32))' )"

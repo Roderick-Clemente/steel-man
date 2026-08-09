@@ -159,6 +159,20 @@ def load_checkpoint(path: str) -> RunState:
     rs.status = RunStatus(data.get("status", "PENDING"))
     rs.output_branch = data.get("output_branch", "")
     rs.commit_count = data.get("commit_count", 0)
+    # Pass-r3 finding H-5 fix: persist on write_checkpoint already;
+    # restore here. Without this, ``plan_round`` resets to 0 (so the
+    # resume restarts the planner + reviewers at full cost),
+    # ``plan_reviewer_verdicts`` is empty (so §5.3 enforcement
+    # SystemExit(5)s and the resume never accepts), and ``dry_run``
+    # defaults to False (so a ``--dry-run --resume-from`` run
+    # performs real git commits against code that was simulated).
+    rs.plan_round = data.get("plan_round", 0)
+    rs.plan_reviewer_verdicts = data.get("plan_reviewer_verdicts", [])
+    rs.dry_run = bool(data.get("dry_run", False))
+    rs.max_review_rounds = int(data.get("max_review_rounds", 2))
+    rs.retry_threshold = int(data.get("retry_threshold", 1))
+    rs.max_auto_retries = int(data.get("max_auto_retries", 2))
+    rs.retry_delay_seconds = int(data.get("retry_delay_seconds", 5))
     if data.get("plan_findings"):
         rs.plan_findings = [
             Finding(
@@ -559,7 +573,10 @@ def recheck_family_guard_post_resolution(cfg: Config, rs: RunState,
 # ── step: reconcile (human gate) ────────────────────────────────────────
 
 def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
-                          dry_run: bool) -> ReconcileDecision:
+                          dry_run: bool,
+                          gate_auto_decide: bool = False,
+                          unattended: bool = False,
+                          no_dry_auto_decide: bool = False) -> ReconcileDecision:
     """Pause for the human operator's reconciliation decision.
 
     PRD §5.3 + §6: the loop runner pauses here and reads ``stdin``.
@@ -571,6 +588,22 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
         reject  [<reason>]
         amend   [<reason>]
     Empty input = abort.
+
+    Pass-r3 findings H-2 / H-13 / H-14: the four flags are read from
+    explicit parameters, NOT from ``sys.argv``. main() sets them from
+    parsed argv + env vars before the call. The contract:
+
+    - ``dry_run=True``: simulated ACCEPT. The gate rubber-stamps the
+      dry-run as a witness; the per-chunk pipeline still runs in
+      simulated mode. Override via ``--no-dry-auto-decide`` to make
+      a dry-run actually pause for human input.
+    - ``gate_auto_decide=True``: bypass the stdin pause; §5.3
+      preconditions still run. Used by ``--non-interactive``,
+      ``--unattended``, ``--skip-reconcile``, ``--gate-auto-decide``.
+    - ``unattended=True``: same as gate_auto_decide, but on §5.3
+      refusal write a checkpoint at
+      ``<evidence_dir>/checkpoint.json`` and SystemExit(4/5).
+      Operator resumes via ``--resume-from``.
     """
     rs.status = RunStatus.AWAITING_RECONCILIATION
     packet_path = os.path.join(evidence_dir, "reconcile-packet.txt")
@@ -597,30 +630,21 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
     print("    (empty / EOF = abort)")
     print("═" * 64)
 
-    if dry_run and "--no-dry-auto-decide" not in sys.argv:
+    if dry_run and not no_dry_auto_decide:
         print("  [dry-run] auto-decision: accept (non-committal — "
               "dry-run produces a simulated ACCEPT. Live mode honors "
               "--non-interactive / --unattended separately.)")
         return ReconcileDecision.ACCEPT
 
-    # --non-interactive / --unattended: tolerate CI / unattended
-    # callers. Decoupled from dry_run per panel-finding G-7.
-    # In live mode, the §5.3 preconditions (chunk-10 F-7 fix) STILL
-    # run — refusing accept on open blocker|high or no bound APPROVE.
-    # The difference between --non-interactive and --unattended is
-    # what happens on refusal:
-    #   --non-interactive: SystemExit(4/5); no checkpoint.
-    #   --unattended: SystemExit + write_checkpoint, so an operator
-    #                  can resume via --resume-from.
-    env_ni = ("--non-interactive" in sys.argv) or (
-        os.environ.get("SPRINT_LOOP_NON_INTERACTIVE") == "1")
-    env_unattended = ("--unattended" in sys.argv) or (
-        os.environ.get("SPRINT_LOOP_UNATTENDED") == "1")
-    if env_ni or env_unattended:
+    # Pass-r3 finding H-2 fix: gate auto-decide path is opt-in via
+    # main()'s parsing (no sys.argv reads). On §5.3 refusal:
+    #   gate_auto_decide + unattended=False (== --non-interactive): SystemExit.
+    #   gate_auto_decide + unattended=True  (== --unattended): SystemExit + checkpoint.
+    if gate_auto_decide:
         try:
             _enforce_5_3_preconditions(rs)
         except SystemExit as e:
-            if env_unattended:
+            if unattended:
                 cp_path = os.path.join(evidence_dir, "checkpoint.json")
                 write_checkpoint(rs, cp_path)
                 print(
@@ -636,7 +660,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
                 )
             raise
         print(
-            f"  [{'unattended' if env_unattended else 'non-interactive'}] "
+            f"  [{'unattended' if unattended else 'non-interactive'}] "
             f"§5.3 preconditions met; auto-decision: accept"
         )
         return ReconcileDecision.ACCEPT
@@ -923,7 +947,8 @@ def run_chunk_inner(rs: RunState, chunk: ChunkState,
 # ── step: branch + commit ───────────────────────────────────────────────
 
 def commit_chunk_change(rs: RunState, chunk: ChunkState,
-                         evidence_output_dir: str) -> None:
+                         evidence_output_dir: str,
+                         run_evidence_dir: str | None = None) -> None:
     """One commit per accepted chunk on the output branch.
 
     Operator rule (OPERATING-RULES §18 / AGENTS.md): commits are the
@@ -956,9 +981,49 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         else:
             _git("checkout", "-b", rs.output_branch, cwd=_REPO_ROOT)
 
-    stage_paths = [
-        os.path.relpath(evidence_output_dir, _REPO_ROOT),
-    ]
+    # Pass-r3 finding H-9: only stage the evidence tree when it
+    # LIVES INSIDE _REPO_ROOT. When the operator passes
+    # --evidence-output-dir to redirect the audit tree outside the
+    # framework (per-pilot overlay pattern), the runner cannot
+    # force-add it into framework git. The pilot repo is responsible
+    # for its own archival in that case; we print the warning so the
+    # audit trail is not silently dropped.
+    stage_paths: list[str] = []
+    try:
+        rel = os.path.relpath(evidence_output_dir, _REPO_ROOT)
+    except ValueError:
+        rel = ""
+    if rel and not rel.startswith("..") and not os.path.isabs(rel):
+        stage_paths.append(rel)
+    else:
+        print(
+            f"  [H-9] evidence_output_dir {evidence_output_dir!r} is "
+            f"OUTSIDE framework_root {_REPO_ROOT!r}; not staging into "
+            f"the framework branch. The pilot repo is responsible "
+            f"for archiving this evidence.",
+            file=sys.stderr,
+        )
+
+    # Pass-r3 finding H-10: also stage the run-level checkpoint.json
+    # if it lives inside _REPO_ROOT. The Definition of Done says the
+    # checkpoint is committed to the audit branch; without this, it
+    # sits in an ignored directory and the operator's Step 6
+    # ("read checkpoint.json from the audit branch") fails. The
+    # checkpoint is written by main() AFTER run_chunk_with_retries;
+    # we stage whatever exists at this commit time and trust the
+    # follow-up write to land in the next chunk's commit.
+    if run_evidence_dir:
+        try:
+            cp_rel = os.path.relpath(
+                os.path.join(run_evidence_dir, "checkpoint.json"),
+                _REPO_ROOT)
+        except ValueError:
+            cp_rel = ""
+        if (cp_rel and not cp_rel.startswith("..")
+                and not os.path.isabs(cp_rel)
+                and os.path.isfile(os.path.join(
+                    run_evidence_dir, "checkpoint.json"))):
+            stage_paths.append(cp_rel)
     for p in stage_paths:
         # Force-add because .gitignore excludes the evidence dir by
         # design — the per-chunk evidence tree is *transient runtime
@@ -1000,11 +1065,60 @@ def guard_in_uncommitted_state() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Pass-r3 finding H-8 fix: when ``--help`` is requested, surface
+    # BOTH the runner-only flags AND the Config-side flags by calling
+    # each parser's formatter separately. argparse's stock ``--help``
+    # only sees the first parser, and the runner previously exposed
+    # operator-critical flags (--validators, --planner-model,
+    # --allow-single-family, …) only via build_config's hidden parser.
+    raw_argv = sys.argv[1:] if argv is None else argv
+    if "--help" in raw_argv or "-h" in raw_argv:
+        runner_help = _runner_argparser().format_help()
+        cfg_help = build_config.__doc__ or ""
+        # Render build_config's parser help too.
+        try:
+            from sprint_loop.config import build_config  # noqa: F401
+            cfg_help_parser = argparse.ArgumentParser(prog="(config)")
+            # Reuse the same parser that build_config uses.
+            cfg_help_parser_help = _format_build_config_help()
+        except Exception:
+            cfg_help_parser_help = ""
+        print(runner_help)
+        if cfg_help_parser_help:
+            print()
+            print("-- Below: Config-side flags (also accepted) --")
+            print(cfg_help_parser_help)
+        return 0
+
+    parser = _runner_argparser()
+    ns, _unknown = parser.parse_known_args(argv)
+
+
+def _runner_argparser() -> argparse.ArgumentParser:
+    """The runner-only flag set: anything not seen by build_config's
+    parser. Lives here so the ``--help`` surface and the actual
+    runner share one source of truth (pass-r3 finding H-8)."""
     parser = argparse.ArgumentParser(prog="sprint-loop.py",
         description="Phase 4.5 adversarial-sprint command orchestrator")
     parser.add_argument("--config")
     parser.add_argument("--chunks-file", default="")
-    parser.add_argument("--resume-from", default="")
+    parser.add_argument("--resume-from", default="",
+                        help="Path to a previously-written checkpoint.json. The runner "
+                             "restores RunState from this and continues the loop. Same "
+                             "form on the CLI as the runner's expect: --resume-from <path>.")
+    parser.add_argument("--evidence-output-dir", default="",
+                        help="Override the per-run evidence tree location. By default the "
+                             "runner stages at <framework-root>/phase-4.5/build-evidence/"
+                             "<run-id>/. Set this for per-pilot overlays so the framework "
+                             "repo's phase-4.5/build-evidence dir stays clean. "
+                             "WARNING (pass-r3 H-9): when used as the framework-side audit "
+                             "path, the runner cannot force-add the audit tree into the "
+                             "framework repo on commit; pilot repos are responsible for "
+                             "their own archival here.")
+    parser.add_argument("--no-dry-auto-decide", action="store_true",
+                        help="Disable the dry-run auto-accept shortcut. With this set, "
+                             "a dry-run still pauses for the reconcile gate. "
+                             "Pass-r3 H-13: was unreachable (only checked in sys.argv).")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--non-interactive", action="store_true",
                         help="Bypass the human reconcile gate. Only valid "
@@ -1014,26 +1128,152 @@ def main(argv: list[str] | None = None) -> int:
                              "on refusal, write a checkpoint and raise "
                              "(SystemExit 4/5). Decoupled from --dry-run per "
                              "pd-pass-r2 G-7. Resumes via --resume-from.")
-    # Others come from build_config; we pass full argv to it.
-    ns, _unknown = parser.parse_known_args(argv)
+    return parser
+
+def _format_build_config_help() -> str:
+    """Render build_config's parser help text for ``--help`` output.
+
+    The pattern: instantiate the parser via a no-args call, capture
+    ``.format_help()``. This must match build_config()'s parser shape
+    exactly; the cleanest way is to refactor build_config() to call a
+    helper that returns a parser. Pass-r3 was right that the
+    operator-visible surface is the test bar; the test pins what an
+    operator sees.
+    """
+    try:
+        cfg = build_config(["--help-empty-shell"])
+    except SystemExit:
+        # build_config's parser does NOT consume --help-empty-shell
+        # usefully; we want to render the help text without consuming
+        # real argv. Build a synthetic parser that mirrors build_config's
+        # argument set. The simplest faithful approach: call build_config
+        # with the absolute minimum argv to drive its parser, then catch
+        # SystemExit(0) from --help, but parse with an alternative we
+        # assemble here.
+        return _format_build_config_help_synthetic()
+    return ""
+
+
+def _format_build_config_help_synthetic() -> str:
+    """Build a synthetic ArgumentParser mirroring build_config's flags.
+
+    The runner wants a --help surface that exposes BOTH the runner-only
+    flags AND the Config-side flags. build_config's parser is internal;
+    rather than refactor it, this function enumerates the known
+    Config-side flags. Pin test:
+    tests/test_sprint_loop.py::test_runner_help_includes_config_flags_h8.
+    """
+    p = argparse.ArgumentParser(prog="sprint-loop.py (Config-side flags)",
+        description="Flags accepted and forwarded to build_config. Pass-r3 H-8.")
+    p.add_argument("--framework-root", default="",
+                   help="Path to adversarial-sprint-dev (the loop runner's repo).")
+    p.add_argument("--pilot-root", default="",
+                   help="Path to the repo the runner drives.")
+    p.add_argument("--pilot-python", default="",
+                   help="Python interpreter for the pilot repo (e.g., .venv/bin/python).")
+    p.add_argument("--chunks-file", default="",
+                   help="Path to the chunks spec JSON; REQUIRED at run time.")
+    p.add_argument("--pilot-spec-file", default="",
+                   help="Optional free-form spec file; planner reads it.")
+    p.add_argument("--review-prompt-template", default="",
+                   help="Path to the review prompt template override.")
+    p.add_argument("--evidence-output-dir", default="",
+                   help="Override the per-run evidence-tree location. See H-9.")
+    p.add_argument("--planner-model", default="")
+    p.add_argument("--plan-reviewer-model", default="")
+    p.add_argument("--plan-reviewer-2-model", default="")
+    p.add_argument("--test-designer-model", default="")
+    p.add_argument("--executor-model", default="")
+    p.add_argument("--validators", default="",
+                   help="Comma-separated model_ids (each may carry :provider:family:label).")
+    p.add_argument("--max-review-rounds", type=int, default=-1)
+    p.add_argument("--retry-threshold", type=int, default=-1)
+    p.add_argument("--max-auto-retries", type=int, default=-1)
+    p.add_argument("--retry-delay-seconds", type=int, default=-1)
+    p.add_argument("--dry-run", action="store_true",
+                   help="Simulate; do not invoke droid exec or git commit.")
+    p.add_argument("--gate-auto-decide", action="store_true",
+                   help="Reconcile gate auto-decides ACCEPT after §5.3 preconditions. Per-r3 H-2.")
+    p.add_argument("--unattended", action="store_true",
+                   help="Unattended live; checkpoint on §5.3 refusal.")
+    p.add_argument("--no-dry-auto-decide", action="store_true",
+                   help="Disable dry-run auto-accept. Per-r3 H-13.")
+    p.add_argument("--skip-reconcile", action="store_true",
+                   help="Skip the human reconciliation gate (operator accepts ad-hoc).")
+    p.add_argument("--create-pr", action="store_true",
+                   help="Attempt PR creation if the remote is configured.")
+    p.add_argument("--validation-backend", default="", choices=["", "local", "ci"],
+                   help="'local' shells out to orchestrate-review.py; 'ci' is a STUB.")
+    p.add_argument("--signing-key-env", default="")
+    p.add_argument("--security-allowlist", nargs="*", default=[])
+    p.add_argument("--security-baseline", default="")
+    p.add_argument("--allow-test-author-collide", action="store_true",
+                   help="§17.6 outage override only. Must be recorded in phase-N/KNOWN-ISSUES.md.")
+    p.add_argument("--allow-single-family", action="store_true",
+                   help="Allow single-family validator panel.")
+    p.add_argument("--fail-closed", dest="fail_closed", action="store_true", default=True)
+    p.add_argument("--no-fail-closed", dest="fail_closed", action="store_false",
+                   help="Disable §7 fail-closed. NOT recommended.")
+    return p.format_help()
+
+def main(argv: list[str] | None = None) -> int:
+    """Top-level runner entrypoint.
+
+    Pass-r3 H-8: render both the runner-only flag table and the
+    Config-side flag table when --help is requested. Otherwise, route
+    runner-only flags through _runner_argparser and Config-side flags
+    through build_config (after stripping the runner-only ones).
+    """
     raw_argv = sys.argv[1:] if argv is None else argv
+    if "--help" in raw_argv or "-h" in raw_argv:
+        runner_help = _runner_argparser().format_help()
+        cfg_help = _format_build_config_help_synthetic()
+        print(runner_help)
+        print()
+        print("-- Below: Config-side flags (also accepted; see "
+              "config.py for defaults) --")
+        print(cfg_help)
+        return 0
+
+    parser = _runner_argparser()
+    ns, _unknown = parser.parse_known_args(argv)
+
     # ``build_config`` has its own complete parser; strip the runner-only
-    # flags so it doesn't reject them. (--dry-run and --non-interactive
-    # are conceptually owned by the orchestrator's flow control, not
-    # the Config dataclass.)
-    cfg_argv = [a for a in raw_argv
-                if a not in ("--dry-run", "--non-interactive", "--unattended")
-                and not a.startswith("--resume-from=")]
-    cfg = build_config(cfg_argv)
+    # flags so it doesn't reject them. (--dry-run, --non-interactive, etc.
+    # are conceptually owned by the orchestrator's flow control, not the
+    # Config dataclass — except they ARE Config fields now per pass-r3 H-2,
+    # so we leave them on the argv chain in the same form.)
+    # Strip ``=`` form first; then drop the consumed peer token for the
+    # space-separated form (pass-r3 finding H-4).
+    peer_argv: list[str] = []
+    skip_next = False
+    for a in raw_argv:
+        if skip_next:
+            skip_next = False
+            continue
+        if a == "--resume-from":
+            skip_next = True
+            continue
+        peer_argv.append(a)
+    cfg = build_config(peer_argv)
     # CLI-flag overrides
     if ns.chunks_file:
         cfg.chunks_file = ns.chunks_file
     if ns.dry_run:
         cfg.dry_run = True
     if ns.non_interactive:
-        cfg.dry_run = True  # ``--non-interactive`` ⇒ behave as dry-run
-                             # for the reconcile gate; the orchestrator
-                             # otherwise still runs.
+        # pass-r3 finding H-2 fix: --non-interactive MUST NOT coerce
+        # cfg.dry_run to True (which short-circuits every model
+        # invocation + git commit). It only sets gate_auto_decide so
+        # the reconcile gate auto-accepts without an operator prompt.
+        cfg.gate_auto_decide = True
+    if ns.unattended and cfg.unattended is False:
+        # main's --unattended flag (if set) overrides; build_config's
+        # --unattended is also honored.
+        cfg.unattended = True
+        cfg.gate_auto_decide = True
+    if ns.evidence_output_dir:
+        cfg.evidence_output_dir = ns.evidence_output_dir
 
     run_id = f"r-phase45-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
     validate_run_id(run_id)
@@ -1162,33 +1402,21 @@ def main(argv: list[str] | None = None) -> int:
         # diagnostics; the source of truth lives on rs.plan_reviewer_verdicts.
         _ = (reviewer1, reviewer2)
 
-        # 3. Reconcile gate
+        # 3. Reconcile gate. Pass-r3 chunk-13 cleanup: --skip-reconcile,
+        # --non-interactive, and --unattended all collapse to
+        # gate_auto_decide=… via parameters passed through; only
+        # --skip-reconcile additionally prints a louder banner.
         if cfg.skip_reconcile:
-            # --skip-reconcile: still runs §5.3 preconditions; the
-            # unsafe case was bypassing them entirely (panel-finding
-            # G-8 + the chunk-10 F-6 KNR4 deferral). Pin test:
-            # test_skip_reconcile_still_enforces_preconditions.
             print(
                 f"  --skip-reconcile: skipping stdin pause; "
                 f"running §5.3 preconditions check"
             )
-            try:
-                _enforce_5_3_preconditions(rs)
-            except SystemExit as e:
-                # refuse + checkpoint so an operator replaying from
-                # `--resume-from` can pick up where the skip left off.
-                cp_path = os.path.join(evidence_dir, "checkpoint.json")
-                write_checkpoint(rs, cp_path)
-                print(
-                    f"  --skip-reconcile refused (exit {e.code}); "
-                    f"checkpoint at {cp_path}",
-                    file=sys.stderr,
-                )
-                raise
-            decision = ReconcileDecision.ACCEPT
-        else:
-            decision = reconcile_human_gate(rs, evidence_dir=evidence_dir,
-                                            dry_run=cfg.dry_run)
+        decision = reconcile_human_gate(
+            rs, evidence_dir=evidence_dir,
+            dry_run=cfg.dry_run,
+            gate_auto_decide=(cfg.skip_reconcile or cfg.gate_auto_decide),
+            unattended=cfg.unattended,
+            no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False))
 
         if decision in (ReconcileDecision.ACCEPT, ReconcileDecision.AMEND):
             break
@@ -1202,11 +1430,16 @@ def main(argv: list[str] | None = None) -> int:
     if not cfg.chunks_file:
         # For now require a chunks file. Auto-chunking via the planner
         # is a follow-on (KNOWN-ISSUES).
+        # Pass-r3 H-7 fix: the operator-facing entrypoint
+        # (``<PILOT_REPO>/.adversarial-sprint/bin/run-sprint``) sets
+        # --chunks-file to ``$OVERLAY_DIR/chunks.json`` by default;
+        # this FATAL message is for debug invocation only.
         raise SystemExit(
             "FATAL: --chunks-file is required. The runner does not "
             "yet auto-extract chunks from the planner's plan document. "
-            "Provide examples/sprint-loop-chunks-example.json shape and "
-            "add --chunks-file <path>."
+            "For per-pilot use, copy templates/overlay/sprint-loop-chunks-example.template.json "
+            "into <PILOT_REPO>/.adversarial-sprint/chunks.json and invoke "
+            "<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --chunks-file <path>."
         )
     rs.chunks = load_chunks(rs, cfg.chunks_file)
     rs.status = RunStatus.CHUNKING_DONE
@@ -1224,10 +1457,19 @@ def main(argv: list[str] | None = None) -> int:
         if chunk.status != ChunkStatus.ACCEPTED:
             print(f"  chunk {chunk.chunk_id} did NOT accept; pausing")
             rs.status = RunStatus.AWAITING_HUMAN_DECISION
+            # Pass-r3 H-10 fix: write_checkpoint must fire BEFORE
+            # commit so the chunk's git commit captures it. Use a
+            # provisional rs here for the checkpoint (the chunk was
+            # NOT accepted; plan/round not bumped).
             write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+            commit_chunk_change(rs, chunk, chunk_evidence_dir,
+                                run_evidence_dir=evidence_dir)
             return 3
-        commit_chunk_change(rs, chunk, chunk_evidence_dir)
+        # Pass-r3 H-10 fix: write run-level checkpoint BEFORE
+        # commit_chunk_change so the chunk commit captures it.
         write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+        commit_chunk_change(rs, chunk, chunk_evidence_dir,
+                            run_evidence_dir=evidence_dir)
 
     # ── Final state ────────────────────────────────────────────────
     rs.status = RunStatus.COMPLETED

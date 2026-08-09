@@ -14,6 +14,8 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
+import sys
 
 # Make tools/ importable so ``sprint_loop.*`` resolves when pytest runs
 # from the repo root.
@@ -1378,17 +1380,38 @@ def test_skills_have_yml_frontmatter():
 
 
 def test_sprint_invocation_skill_is_small_and_trigger_focused():
-    """The small skill is *small*: ~50 lines, focused on invocation
-    + flags + 3 examples. Keeps low-context-load per Cursor/Codex."""
+    """The small skill is *small*: focused on the overlay invocation
+    + flag semantics + 3 example invocations. Keeps low-context-load
+    per Cursor/Codex. Pass-r3 H-1: this skill must NOT teach the
+    framework-CLI path or the (deleted) examples/ files."""
     repo = subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"],
         cwd=os.path.dirname(_TOOLS),
     ).decode().strip()
-    lines = open(f"{repo}/skills/sprint-invocation/SKILL.md").read().splitlines()
-    # Bound: not a re-pitched meta-skill (~169 lines), not a stub.
-    assert 30 <= len(lines) <= 120, (
-        f"sprint-invocation skill {len(lines)} lines; expected 30-120 "
-        f"(trigger + flags + 3 examples + not-a-rerun-of-meta)"
+    body = open(f"{repo}/skills/sprint-invocation/SKILL.md").read()
+    # Chunk-13 bound: skill expanded to teach the overlay (chunk-12)
+    # but the spirit is "low-context-load trigger + reference", never
+    # the full meta-skill (which is ~169 lines + index tables).
+    lines = body.splitlines()
+    assert 30 <= len(lines) <= 160, (
+        f"sprint-invocation skill {len(lines)} lines; expected 30-160 "
+        f"(trigger + flags + 3 examples + overlay install + "
+        f"NOT-a-rerun-of-meta)"
+    )
+    # Pass-r3 H-1: skill must NOT teach the framework runner path…
+    assert "tools/sprint-loop.py" not in body, (
+        "H-1: sprint-invocation skill teaches the framework runner "
+        "path. Operators should use the per-pilot overlay."
+    )
+    # …AND must NOT reference the deleted ``examples/`` files.
+    assert "examples/sprint-loop-" not in body, (
+        "H-1: sprint-invocation skill references deleted examples/ "
+        "config/chunk files. Pin to the per-pilot overlay."
+    )
+    # …AND must teach the overlay as the one true entrypoint.
+    assert ".adversarial-sprint/bin/run-sprint" in body, (
+        "H-1: sprint-invocation skill doesn't reference the overlay "
+        "entrypoint. The overlay is the per-pilot one-true-path."
     )
 
 
@@ -1462,30 +1485,161 @@ def test_install_skill_sh_cursor_mdc_body_matches_canonical_g6():
 
 
 def test_unattended_writes_checkpoint_on_refusal_g7():
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
-    src_path = os.path.join(repo, "tools", "sprint-loop.py")
-    body = open(src_path).read()
-    assert "--unattended" in body, (
-        "G-7 regression: --unattended flag not wired into reconcile gate"
+    """Behavioral pin for pass-r3 G-7 (chunk-13 rewrite): when
+    ``--unattended`` is set AND the §5.3 preconditions refuse, the
+    runner must write a ``checkpoint.json`` at the evidence dir
+    before SystemExit(4/5). The source-grep test that previously
+    pinned this missed H-2 (cfg.dry_run coercion) and H-14
+    (sys.argv reading).
+    """
+    repo_root = os.path.dirname(_TOOLS)
+    from sprint_loop.state import RunState, RunStatus, Role, RoleAssignment
+    from sprint_loop.state import Finding as StateFinding
+    import importlib
+    sprint_loop = importlib.import_module("sprint-loop")
+
+    # Mock RunState with one open blocker|high finding + a bound
+    # plan_reviewer verdict; matches §5.3 will identify this as a
+    # refusing state.
+    rs = RunState(
+        run_id="r-test-unattended",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root=repo_root,
+        pilot_root=repo_root,
+        pilot_python=sys.executable,
     )
-    idx = body.find("--unattended")
-    window = body[idx:idx + 1500]
-    assert "write_checkpoint" in window, (
-        "G-7: --unattended refusal path doesn't write a checkpoint"
-    )
+    rs.status = RunStatus.AWAITING_RECONCILIATION
+    rs.plan_doc_path = "/tmp/fake-plan.md"
+    rs.plan_sha256 = "deadbeef" * 8
+    rs.plan_round = 1
+    rs.plan_findings = [
+        StateFinding(
+            finding_id="f-blocker-1",
+            severity="blocker",
+            category="correctness",
+            claim="test finding",
+            evidence=["line:42", "src:tools/x.py:1"],
+            recommended_change="fix it",
+            source_role="reviewer",
+            source_run_id="r-test-unattended",
+            source_model_id="fake",
+            source_family="fake-family",
+        ),
+    ]
+    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "REJECT"}]
+
+    with tempfile.TemporaryDirectory() as evidence_dir:
+        try:
+            sprint_loop.reconcile_human_gate(
+                rs, evidence_dir=evidence_dir, dry_run=False,
+                gate_auto_decide=True, unattended=True)
+            assert False, "unattended refusal should SystemExit"
+        except SystemExit as e:
+            assert e.code in (4, 5), f"unexpected exit code {e.code}"
+            # The checkpoint file is the §11 / pass-r3 G-7 contract.
+            cp = os.path.join(evidence_dir, "checkpoint.json")
+            assert os.path.isfile(cp), (
+                f"G-7: unattended refusal didn't write checkpoint at {cp}"
+            )
+            data = json.load(open(cp))
+            assert data["run_id"] == "r-test-unattended"
 
 
 def test_skip_reconcile_still_enforces_5_3_g8():
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
-    src_path = os.path.join(repo, "tools", "sprint-loop.py")
-    body = open(src_path).read()
-    idx_first = body.find("cfg.skip_reconcile")
-    assert idx_first != -1
-    idx = body.find("cfg.skip_reconcile", idx_first + 1)
-    assert idx != -1, "G-8: --skip-reconcile gating branch not found"
-    window = body[idx:idx + 1500]
-    assert "_enforce_5_3_preconditions" in window, (
-        "G-8 regression: --skip-reconcile branch doesn't run §5.3"
+    """Behavioral pin: ``cfg.skip_reconcile`` routes through
+    reconcile_human_gate(gate_auto_decide=True) which DOES run §5.3
+    preconditions. The previous source-grep test missed H-2 (the
+    cfg.dry_run coercion) and H-14 (sys.argv reading); the
+    behavioral test catches them both."""
+    from sprint_loop.state import RunState, RunStatus
+    from sprint_loop.state import Finding as StateFinding
+    import importlib
+    sprint_loop = importlib.import_module("sprint-loop")
+
+    rs = RunState(
+        run_id="r-test-skip-reconcile",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root=os.path.dirname(_TOOLS),
+        pilot_root=os.path.dirname(_TOOLS),
+        pilot_python=sys.executable,
+    )
+    rs.status = RunStatus.AWAITING_RECONCILIATION
+    rs.plan_doc_path = "/tmp/fake-plan.md"
+    rs.plan_sha256 = "deadbeef" * 8
+    rs.plan_round = 1
+    rs.plan_findings = [
+        StateFinding(
+            finding_id="f-high-1",
+            severity="high",
+            category="correctness",
+            claim="test finding",
+            evidence=["line:42"],
+            recommended_change="fix",
+            source_role="reviewer",
+            source_run_id="r-test-skip-reconcile",
+            source_model_id="fake",
+            source_family="fake-family",
+        ),
+    ]
+    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "REJECT"}]
+    # Mark as skip_reconcile (the orchestrator sets cfg.skip_reconcile;
+    # in the gate we model it as gate_auto_decide=True from the
+    # orchestrator's `if cfg.skip_reconcile or cfg.gate_auto_decide`
+    # assignment).
+    with tempfile.TemporaryDirectory() as evidence_dir:
+        try:
+            sprint_loop.reconcile_human_gate(
+                rs, evidence_dir=evidence_dir, dry_run=False,
+                gate_auto_decide=True, unattended=False)
+            assert False, "skip-reconcile refusal should SystemExit"
+        except SystemExit as e:
+            assert e.code in (4, 5), f"unexpected exit code {e.code}"
+            # --non-interactive refuses WITHOUT checkpoint (operator
+            # in the seat has to scope their own retry).
+            cp = os.path.join(evidence_dir, "checkpoint.json")
+            assert not os.path.exists(cp), (
+                f"G-8 regression: --skip-reconcile (--non-interactive "
+                f"semantics) wrote a checkpoint; expected only "
+                f"--unattended to write one."
+            )
+
+
+def test_no_dry_run_coercion_h2_h14():
+    """Behavioral pin for pass-r3 H-2 (the alias bug). With
+    ``--non-interactive`` *not* combined with ``--dry-run``, the
+    runner must NOT take the dry-run code path. We confirm by
+    constructing a careful case: dry_run=False, gate_auto_decide=True,
+    and inspecting rs.dry_run afterwards — it must still be False."""
+    import importlib
+    sprint_loop = importlib.import_module("sprint-loop")
+
+    from sprint_loop.state import RunState, RunStatus
+    rs = RunState(
+        run_id="r-h2",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp", pilot_root="/tmp", pilot_python="python3",
+    )
+    rs.status = RunStatus.AWAITING_RECONCILIATION
+    rs.plan_doc_path = "/tmp/p.md"
+    rs.plan_sha256 = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    rs.plan_round = 1
+    rs.plan_findings = []
+    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "APPROVE",
+                                  "plan_sha256_at_time_of_review": rs.plan_sha256}]
+    with tempfile.TemporaryDirectory() as ed:
+        # In live mode (dry_run=False), no --dry-run, with
+        # gate_auto_decide=True + §5.3 met, the gate accepts.
+        decision = sprint_loop.reconcile_human_gate(
+            rs, evidence_dir=ed, dry_run=False,
+            gate_auto_decide=True, unattended=False)
+    # The decision is ACCEPT, not the dry-run simulated simulator.
+    # ReconcileDecision is an Enum so .value gives the string form.
+    assert str(decision.value).upper() == "ACCEPT"
+    # Critically: rs.dry_run must still be False after the call —
+    # --non-interactive must NOT mutate cfg.dry_run to True.
+    assert rs.dry_run is False, (
+        "H-2 regression: gate path mutated rs.dry_run (was the "
+        "alias-for-dry-run bug)."
     )
 
 

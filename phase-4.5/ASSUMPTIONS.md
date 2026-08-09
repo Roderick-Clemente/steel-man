@@ -25,8 +25,11 @@ was added is recorded so a re-reviewer can find the call.
 
 ## A2. Chunking input is a `--chunks-file` argument, not auto-extracted from the plan document
 
-- **Decision:** the chunk list is a structured input. The runner
-  reads `examples/sprint-loop-chunks-example.json` shape.
+- **Decision:** the chunk list is a structured input. Per
+  chunk-12b / chunk-13 (pass-r3 H-7 fix): the runner reads
+  `templates/overlay/sprint-loop-chunks-example.template.json`
+  shape, copied at install time into
+  `<PILOT_REPO>/.adversarial-sprint/chunks.json`.
 - **Why:** PRD §5.5 says chunking happens AFTER test design; the
   planner may do it or the human may. Both paths require a stable
   intermediate format. Auto-extracting chunks from natural-language

@@ -1,11 +1,11 @@
 ---
 name: sprint-invocation
 description: |
-  How to invoke the adversarial-sprint runner from inside a session.
+  Fire the adversarial-sprint runner via the per-pilot overlay.
   Triggered when the operator asks for an adversarial sprint, a
   review-driven build, or a multi-chunk change with cross-family gates.
-  Single-file, low-context-load — operators running sprints at high
-  cadence don't need to re-read the meta-skill each time. For durable
+  Single-purpose: get the operator from "fire the runner" to a run
+  command, without re-teaching them the framework CLI. For durable
   principles (digest + index + rehydration), see
   skills/adversarial-sprint/SKILL.md.
 when-to-invoke: |
@@ -15,79 +15,118 @@ when-to-invoke: |
     drive the per-chunk inner loop.
   - Operator asks for a one-batch rebuild of a feature surface
     with reviewer gates between chunks.
+  - Operator says "let's see if the wiring is right" — point them
+    at the dry-run wiring test below.
 ---
 
 # Sprint Invocation — Skill
 
-Single-purpose: fire the runner correctly the first time.
+Single-purpose: fire the runner via the **per-pilot overlay** —
+the one true entrypoint. No framework CLI surface in this skill.
 
-## Invocation
+Per pass-r3 finding H-1: this skill previously taught a runner CLI
+path (the framework runner, invoked with config + chunk-spec files
+that have since been moved out of `examples/` into the per-pilot
+overlay templates dir). That was the second operator-facing path
+the chunk-12b collapse didn't actually collapse. The per-pilot
+overlay is the **only** operator-facing entrypoint after chunk 13.
+
+## Operator surface — one command, three modes
 
 ```
-PYTHONPATH=tools <PILOT_REPO>/.venv/bin/python \
-    <PILOT_REPO>/tools/sprint-loop.py \
-    --config <PILOT_REPO>/examples/sprint-loop-config.json \
-    --chunks-file <CHUNKS.json>
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint                                  # real run, operator in seat
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive       # wiring test
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --unattended                      # unattended live
 ```
 
-Flags you'll commonly want:
+If the overlay is not yet installed, the operator installs it once:
 
-- `--dry-run --non-interactive` — pause the reconcile gate; useful
-  for the first end-to-end pass on a new pilot repo.
-- `--non-interactive` — bypass the stdin pause at reconcile (the
-  §5.3 machine-check still runs; auto-decision is accept).
-- `--create-pr` — off by default; the runner **never** pushes.
-- `--validation-backend=local` — the only working backend today;
-  `ci` raises `NotImplementedError` per §11 Track B.
+```sh
+# From the framework repo, with <PILOT_REPO> the absolute path of the pilot repo:
+mkdir -p <PILOT_REPO>/.adversarial-sprint/bin
+cp templates/overlay/sprint-loop-config.template.json \
+   <PILOT_REPO>/.adversarial-sprint/sprint-loop-config.json
+cp templates/overlay/sprint-loop-chunks-example.template.json \
+   <PILOT_REPO>/.adversarial-sprint/chunks.json
+cp templates/overlay/bin/run-sprint \
+   <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+chmod +x <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+# Then edit the config JSON: replace placeholder paths, set validators.
+```
 
-## Three example invocations
+(For the scriptable version of that recipe, see
+`templates/overlay/README.md`. The skill is the high-level
+recap; the README is the line-by-line install.)
+
+## Flag semantics — what the overlay forwards
+
+- `--dry-run` — simulate the entire pipeline; do NOT invoke droid
+  exec; do NOT commit. The gate prints `[dry-run] auto-decision:
+  accept` and exits 0. The simulator's `COMPLETED · run_id=...`
+  banner is NOT a real-verdict: it is a §7 silent-green shape
+  (see §15 in `phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
+  wiring test, not as proof that a chunk would land.
+- `--non-interactive` — bypass the reconcile gate stdin pause.
+  The §5.3 machine-check still runs; refuse-on-blocker|high
+  is `SystemExit(4/5)`. Per pass-r3 H-2 (fixed in chunk 13),
+  this is *not* a synonym for `--dry-run`: the planner, both
+  reviewers, and the executor are still invoked for real.
+- `--unattended` — same as `--non-interactive`, but on §5.3
+  refusal writes a `checkpoint.json` and `SystemExit(4/5)`;
+  the operator resumes via `--resume-from <cp-path>`.
+- `--skip-reconcile` — same gate semantics as
+  `--non-interactive` (still runs §5.3) + prints a louder banner.
+
+## Three example invocations (overlay form)
 
 **1. First dry-run against a new pilot repo (recommended start).**
 
-```
-# Test the wiring without spending model credits.
-PYTHONPATH=tools ./pilot/.venv/bin/python \
-    ./tools/sprint-loop.py \
-    --config ./examples/sprint-loop-config.json \
-    --chunks-file ./examples/sprint-loop-chunks-example.json \
-    --dry-run --non-interactive
+```sh
+# Test the wiring without spending model credits. The simulator's
+# ``COMPLETED`` exit-0 banner proves the overlay → runner plumbing
+# is intact; it does NOT prove that a live run would accept.
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive
 ```
 
-If dry-run exits 0 and prints `COMPLETED · run_id=...`, the runner
-is wired correctly. Move to a real run.
+If overlay exits 0 and the runner prints `COMPLETED · run_id=...`,
+the wiring is good. **Then move to a real run.**
 
 **2. Real run on a known-good config (operator present at reconcile).**
 
-```
+```sh
 # Operator in the seat; type 'accept' / 'amend' / 'reject' at the gate.
-PYTHONPATH=tools ./pilot/.venv/bin/python \
-    ./tools/sprint-loop.py \
-    --config ./pilot/sprint-config.json \
-    --chunks-file ./pilot/chunks-r3.json
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint
 ```
 
 If both reviewers flag a blocker|high finding, `accept` will refuse
-(SystemExit 4). Use `amend <reason>` to record a disposition, or
+(`SystemExit 4`). Use `amend <reason>` to record a disposition, or
 `reject <reason>` to loop back to the planner.
 
-**3. CI flavor — gate a chunk via status check.**
+**3. Unattended live run.**
 
-The runner does NOT support CI mode (`--validation-backend=ci`
-raises `NotImplementedError` per §11 Track B). For CI, use the
-GitHub Actions workflow directly:
-
-```
-# .github/workflows/adversarial-sprint-ci.yml reads PR title
-# '[chunk:<id>]' and gates via status check.
-# See phase-4.5/CI-GATE.md.
+```sh
+# CI / "close the laptop" workload. §5.3 preconditions ALWAYS run.
+# Refusals write a checkpoint + SystemExit(4/5) — never silent.
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --unattended
+# To resume if the run paused for a §5.3 refusal:
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --resume-from <checkpoint.json>
 ```
 
 ## What this skill does NOT cover
 
 - The §1–§19 *operating rules*. Read `skills/adversarial-sprint/SKILL.md`
   for the durable principles (digest + index + rehydration).
-- The chunk spec format. See `examples/sprint-loop-chunks-example.json`.
+- The chunk spec format. See `<PILOT_REPO>/.adversarial-sprint/chunks.json`
+  (installed from `templates/overlay/sprint-loop-chunks-example.template.json`)
+  alongside the rest of the overlay.
 - The role/prompt design. See `tools/sprint_loop/prompts/`.
+- The framework CLI. The overlay is the operator-facing surface;
+  the framework CLI is a debug-only surface (not operator-facing).
+  See `tools/sprint_loop/config.py` for the dataclass as the source
+  of truth, and `tools/run-with-model.sh` for the run-with-model
+  wrapper convention. (Historical H-1 fix: this skill used to point
+  operators at the framework CLI directly; the panel flagged that as
+  the second operator-facing path.)
 
 ## Rehydration reminder
 

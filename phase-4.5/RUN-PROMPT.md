@@ -136,18 +136,18 @@ framework-repo dogfood), Phase 5 (generalisation), Phase 6
 2. Sanity:
    `PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m py_compile tools/sprint-loop.py tools/sprint_loop/*.py`
    `PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest tests/`
-3. Dry-run end-to-end:
+3. Dry-run end-to-end (per-pilot overlay is the one true entrypoint):
    ```
-   PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python \
-     tools/sprint-loop.py \
-     --config examples/sprint-loop-config.json \
-     --chunks-file examples/sprint-loop-chunks-example.json \
-     --dry-run --non-interactive
+   <PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive
    ```
+   (The overlay wires `tools/sprint-loop.py --config <cfg>.json
+   --chunks-file <chunks>.json` for you. DO NOT invoke the
+   framework runner directly; the overlay is what the panel
+   recognised as the operator-facing entrypoint per H-1.)
 4. Set `$EVIDENCE_SIGNING_KEY` to a non-empty hex string (random).
    Best-effort: `python3 -c "import secrets; print(secrets.token_hex(32))"`.
 5. Real run (interactive; pauses at reconcile):
-   `tools/sprint-loop.py --config <cfg>.json --chunks-file <chunks>.json`
+   `<PILOT_REPO>/.adversarial-sprint/bin/run-sprint`
 6. After-run review: read `phase-4.5/build-evidence/<run-id>/checkpoint.json`
    + the per-chunk `c1/reviews/review-summary.json` to confirm what
    landed.
