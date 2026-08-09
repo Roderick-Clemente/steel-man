@@ -555,11 +555,79 @@ roadmap, and three parallel execution tracks.
 packaged with honest Act 1/2/3; telemetry system-of-record populated;
 new operating rules §9–§17 landed in `tools/OPERATING-RULES.md`.
 
+### Phase 4.5 — Full loop runner + CI integration
+
+Phase 4 proved the mechanism and the cost thesis. But only the review
+step is scripted — planning, test design, execution, and reconciliation
+are still manual `droid exec` calls. Phase 4.5 turns the method from a
+collection of scripts into a product: push one button, get a complete
+adversarial sprint with cross-family validation and a gate decision.
+
+**Track A — Full loop runner (local):**
+
+Build a `sprint-loop.py` (or `.sh`) that coordinates all five roles from
+one command:
+
+1. **Planner** — fires `droid exec --model <planner>` with the planning
+   prompt, captures the plan.
+2. **Plan reviewer** — fires cross-family `droid exec` validators on the
+   plan (blind), captures findings.
+3. **Reconcile** — human gate: presents findings, waits for
+   accept/reject/amend decision. (This step stays human — reconciliation
+   is the operator seat Phase 7 will later compress.)
+4. **Chunking** — the planner or human cuts the approved plan into chunks.
+5. **Per chunk:** test-designer → executor → evidence production
+   (`local_backend.py`) → validators (`orchestrate-review.py`) → gate
+   decision. If REJECT → feed rejection to executor → retry (up to
+   threshold). If retry exhausted → human decision packet.
+6. **PR/branch creation** — the missing Phase 3 exit criterion. The loop
+   runner creates a local branch/commit bundle (or PR if remote is
+   configured) as its output artifact.
+7. **Telemetry** — every role invocation appends to `runs.jsonl` and
+   `findings.jsonl` per §10.
+
+**Track B — Pluggable validation backend:**
+
+Abstract the local-vs-CI difference. The loop runner calls
+`validation_backend.validate(chunk, evidence)` and gets back a gate
+decision. Today the backend is local (`orchestrate-review.py` via
+`droid exec`). Tomorrow it can be CI (create PR, wait for CI status
+check, read gate result). Same interface, different backend. This is
+the same pattern as the evidence provider's local/CI backend split.
+
+**Track C — CI integration (flavor a first, flavor b optional):**
+
+1. **Flavor (a) — CI-as-runner:** run `local_backend.py` as a CI job
+   step. The bundle is produced by our code; CI supplies only the
+   trigger + compute. Maximally portable — works on GitHub Actions,
+   GitLab CI, Harness, or a cron box. The evidence provider already
+   produces the same bundle regardless of where it runs.
+2. **CI gate enforcement:** the gate decision (ACCEPT/REJECT/STOP from
+   `orchestrate-review.py`) is surfaced as a PR status check. REJECT
+   blocks merge. STOP blocks merge. ACCEPT allows merge. This is the
+   enforcement mechanism that makes the method useful to anyone who
+   isn't the developer running it on their laptop.
+3. **CI feedback loop:** when CI REJECTs, the feedback is posted on the
+   PR. The executor (agent or human) reads the rejection, fixes the
+   code, pushes again. CI re-runs. Repeated REJECT escalates to human
+   decision packet.
+4. **Flavor (b) — Harness-native (optional, only if extras justify):**
+   pull native tests/coverage/SARIF via Harness MCP. Platform-specific
+   but inherits flaky-test detection, incremental testing, baseline
+   diffing. Only worth building if the H-CI saving at scale justifies
+   the vendor-specific work.
+
+**Exit:** the full sprint loop runs from one command locally (all five
+roles coordinated, retry on rejection, PR/branch created). CI
+flavor-(a) runs the evidence provider in a pipeline and gates on the
+verdict. The validation backend is pluggable (local now, CI later).
+The method is a product, not a collection of scripts.
+
 ### Phase 5 — Generalize after evidence
 
-Only after the pilot and Phase 4 hardening: repo ingest/adapter generation,
-Harness feedback ingestion, a second stack, and the portable Claude/Codex
-CLI runtime.
+Only after the pilot, Phase 4 hardening, and Phase 4.5 loop + CI:
+repo ingest/adapter generation, Harness feedback ingestion, a second
+stack, and the portable Claude/Codex CLI runtime.
 
 ### Phase 6 — Hardening (settling pass)
 
@@ -585,7 +653,7 @@ Things explicitly out of scope: new feature work, new behaviour, any change that
 
 ### Phase 7 — Human-in-the-loop compression (post-MVP, pain-point-driven)
 
-Deferred until the MVP (Phases 0–4) has been run in anger. Phases 0–4 are
+Deferred until the MVP (Phases 0–4.5) has been run in anger. Phases 0–4.5 are
 the product; 5–7 are what use of the product earns. This phase exists
 because of a cost the §13 surface does not track: the method *moves* human
 effort rather than removing it, and it moves it onto the two most expensive

@@ -160,7 +160,8 @@ The north star is a **replayable demo of the method on one bounded pilot change*
 | **3.1 — Degraded loop spike** | Same-family test-author + executor to measure bias | **Complete** — deterministic gate caught bias every time; panel split ([story](phase-3.1-degraded-spike.md)) |
 | **3.2 — Evidence provider** | Local EvidenceBundle, zero-CI default, orchestration script | **Complete (milestone)** — 55.2% token saving (directional); orchestration partially working ([story](phase-3.2-evidence-provider.md)) |
 | **4 — Hardening + roadmap review** | Orchestration stabilization, H-CI/H3 experiments, demo packaging, new operating rules | **Complete** — H-CI: 27.8% token saving, H3: cheap executor GREEN from spec, §9-§17 landed ([story](roadmap-review.md)) |
-| **5 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (post-MVP) |
+| **4.5 — Full loop runner + CI** | Script all 5 roles from one command, pluggable validation backend, CI gate enforcement | **Next** — only the review step is scripted today; the other 4 roles are manual |
+| **5 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (after 4.5) |
 | **6 — Hardening (settling pass)** | Consolidation of parked low-priority items; hardens the loop's own invariants at no new behaviour | Not started (post-MVP) |
 | **7 — Human-in-the-loop compression** | Review panel, hats-across-families, escalation-on-disagreement knob, calibration telemetry, to compress the operator seat | Not started ([post-MVP, pain-point-driven](../human-in-the-loop.md)) |
 
@@ -170,7 +171,7 @@ Phase 0.5 is the one most easily misread as optional. It is the baseline arm the
 
 ## Where we are against it
 
-**Phases 0–4 have landed work; Phase 5 (generalize) is next.**
+**Phases 0–4 have landed work; Phase 4.5 (full loop runner + CI) is next.**
 Phase 0 is complete (GO, command-orchestrated). Phase 0.5 is
 closed with all exit criteria checked. Phase 1 shipped its test-evidence
 slice with partial completion (lock + GREEN works, valid-red.py never run).

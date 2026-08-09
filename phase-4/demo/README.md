@@ -66,6 +66,66 @@ deployment. None were verified by Phase 0 probes.
 
 **Script:** [`act-3-script.md`](act-3-script.md)
 
+### Act 4 — Eat our own dog food. (FUTURE — depends on Phase 4.5)
+
+The framework runs on itself. The pilot target is this repo — the
+adversarial sprint framework's own code. A real change to the framework
+(e.g., a bug fix in `orchestrate-review.py`, a new feature in the evidence
+provider, a refactor of `valid-red.py`) goes through the full adversarial
+sprint: plan → test → execute → validate → gate decision.
+
+This is the ultimate test. The method's entire thesis is that cross-family
+independence catches what single-family review misses. Running it on its
+own codebase answers: does the method catch bugs in the method? The
+roadmap review already showed one case of this (v1 REJECT by cross-family
+panel caught factual errors in a single-family document). Act 4 makes it
+routine, not a one-off.
+
+**What Act 4 demonstrates:**
+- The framework is not a special case. It runs on its own code the same
+  way it runs on QuantumBank. The evidence provider produces a bundle for
+  the framework's own tests. Cross-family validators review the framework's
+  own diffs. The gate blocks the framework's own PRs on REJECT.
+- The calibration data feeds back. Every dogfooding run adds rows to
+  `findings.jsonl`, accumulating the `first_seen_in_panel_position` signal
+  that Phase 6 calibration needs. The framework's own bugs become
+  calibration data for the framework's own panel optimization.
+- The telemetry is real. The framework's own `runs.jsonl` and
+  `findings.jsonl` are the §13 system of record, not a demo fixture.
+
+**What Act 4 does NOT demonstrate (honesty bounds):**
+- Act 4 cannot be demoed today. It depends on Phase 4.5's full loop
+  runner (only the review step is scripted; planning, test design, and
+  execution are still manual `droid exec` calls). Once the loop runner
+  exists, Act 4 is "point it at this repo instead of QuantumBank."
+- Family separation still applies. The planner/executor that built the
+  framework was Claude-family. Validators must be cross-family (Grok,
+  Gemini, or others). The framework reviewing its own code with the same
+  family that wrote it would violate invariant #1.
+- Dogfooding is not proof of generality. It proves the method works on
+  its own codebase, not on any arbitrary codebase. That's Phase 5
+  (generalize to a second stack).
+
+**Script:** `act-4-script.md` (to be created in Phase 4.5)
+
+**Replay (future):**
+```sh
+cd /path/to/adversarial-sprint-dev
+
+# Point the loop runner at this repo instead of QuantumBank
+python3 sprint-loop.py \
+    --framework-root . \
+    --pilot-root . \
+    --pilot-python $(which python3) \
+    --test-file test/test_framework_own_tests.py \
+    --lock-file locks/test_framework_own_tests.py.lock.json \
+    --change-description "Fix ANSI regex in valid-red.py to handle CSI codes"
+```
+
+The loop runner plans the change, writes a test, executes, produces
+evidence, runs cross-family validators, and creates a PR with a gate
+decision. The framework has reviewed its own code.
+
 ---
 
 ## Honesty summary
@@ -94,6 +154,10 @@ deployment. None were verified by Phase 0 probes.
   gpt-5.4-mini implemented from an un-hinted prompt (no solution in the
   prompt), GREEN on first attempt, cross-family ACCEPT.
   See `phase-4/h3/analysis.md`.
+- **The framework can review its own code (future).** Act 4 (dogfooding)
+  will prove the method works on its own codebase. The roadmap review
+  already showed one case (v1 REJECT caught single-family errors). Act 4
+  makes it routine — pending the full loop runner from Phase 4.5.
 
 ### What the demo does NOT prove
 
@@ -111,6 +175,9 @@ deployment. None were verified by Phase 0 probes.
   viable). Variance is high (run 1 treatment +16.9%, run 2 -50.9%). The
   27.8% mean saving is directional, not a tight CI. See
   `phase-4/h-ci/analysis.md` for the full variance analysis.
+- **Dogfooding (yet).** Act 4 is planned but depends on Phase 4.5's full
+  loop runner. The framework has not yet reviewed its own code through the
+  full loop — only the review step is scripted today.
 
 ### The honest version of PRD §15
 
