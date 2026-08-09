@@ -159,7 +159,7 @@ The north star is a **replayable demo of the method on one bounded pilot change*
 | **3 — Factory end-to-end** | The full loop on one pilot change, plus a replayable demo and the baseline comparison | **Core done, exits missed** — 3 chunks built, all cross-family ACCEPT, 99 tests passing; no demo, no baseline comparison, no local PR |
 | **3.1 — Degraded loop spike** | Same-family test-author + executor to measure bias | **Complete** — deterministic gate caught bias every time; panel split ([story](phase-3.1-degraded-spike.md)) |
 | **3.2 — Evidence provider** | Local EvidenceBundle, zero-CI default, orchestration script | **Complete (milestone)** — 55.2% token saving (directional); orchestration partially working ([story](phase-3.2-evidence-provider.md)) |
-| **4 — Hardening + roadmap review** | Orchestration stabilization, H-CI/H3 experiments, demo packaging, new operating rules | **Current** — roadmap review done (v3), three parallel tracks defined ([story](roadmap-review.md)) |
+| **4 — Hardening + roadmap review** | Orchestration stabilization, H-CI/H3 experiments, demo packaging, new operating rules | **Complete** — H-CI: 27.8% token saving, H3: cheap executor GREEN from spec, §9-§17 landed ([story](roadmap-review.md)) |
 | **5 — Generalize** | A second stack and a portable Claude/Codex runtime | Not started (post-MVP) |
 | **6 — Hardening (settling pass)** | Consolidation of parked low-priority items; hardens the loop's own invariants at no new behaviour | Not started (post-MVP) |
 | **7 — Human-in-the-loop compression** | Review panel, hats-across-families, escalation-on-disagreement knob, calibration telemetry, to compress the operator seat | Not started ([post-MVP, pain-point-driven](../human-in-the-loop.md)) |
@@ -170,8 +170,8 @@ Phase 0.5 is the one most easily misread as optional. It is the baseline arm the
 
 ## Where we are against it
 
-**Phases 0–3.2 have landed work; Phase 4 (hardening + roadmap review) is
-current.** Phase 0 is complete (GO, command-orchestrated). Phase 0.5 is
+**Phases 0–4 have landed work; Phase 5 (generalize) is next.**
+Phase 0 is complete (GO, command-orchestrated). Phase 0.5 is
 closed with all exit criteria checked. Phase 1 shipped its test-evidence
 slice with partial completion (lock + GREEN works, valid-red.py never run).
 Phase 2 produced a hash-bound, panel-APPROVED plan — a clean null (zero
@@ -180,15 +180,15 @@ loop with all cross-family ACCEPT and 99 tests passing, but missed 3 of 4
 exit criteria (no demo, no baseline comparison, no local PR). Phase 3.1 ran
 the degraded loop spike and found panel-dependent bias detection. Phase 3.2
 built the evidence provider with a 55.2% directional token saving and a
-partially working orchestration script. Phase 4 is the hardening phase that
-arrived ahead of schedule — the roadmap review audited everything, went
-through two rounds of cross-family panel review (v1 REJECT → v2
-APPROVE-WITH-NITS → v3 final), and produced three parallel execution
-tracks plus new operating rules.
+partially working orchestration script. Phase 4 hardened the foundation:
+orchestrator stabilized, H-CI confirmed 27.8% token saving (bundle vs
+in-session), H3 confirmed cheap executors can implement from spec, demo
+packaged with honesty bounds, 9 new operating rules (§9-§17) landed, and
+findings.jsonl calibration baseline created from 71 findings across 9
+review rounds.
 
-What still does not exist under any configuration is the thing the whole
-gate is there to produce: a measured §13 result. The H-CI and H3
-experiments in Phase 4 Track B are the next steps toward that.
+The §13 cost thesis now has empirical support: both H-CI (review-side
+saving) and H3 (execution-side capability) are confirmed.
 
 **Phase 0 is complete and the verdict is GO, with one mandatory design change:** build it command-orchestrated rather than Mission-native. See `phase-0/GO-NO-GO.md`, summarised in [Findings](../findings/index.md).
 

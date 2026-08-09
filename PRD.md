@@ -501,7 +501,7 @@ Extends the evidence-provider abstraction with screenshot/DOM evidence.
 Spike document exists (`phase-3.3/SPIKE.md`); building waits on Phase 4
 H-CI result. Not yet started.
 
-### Phase 4 — Hardening + roadmap review (current)
+### Phase 4 — Hardening + roadmap review (complete)
 
 A consolidation phase that arrived ahead of schedule because the
 foundation needed attention before extending. The roadmap review

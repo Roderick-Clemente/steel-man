@@ -224,3 +224,32 @@ because the foundation needed attention before extending. All
 subsequent phases were renumbered: old Phase 4 → Phase 5 (Generalize),
 old Phase 5 → Phase 6 (Hardening settling pass), old Phase 6 → Phase 7
 (Human compression).
+
+### Phase 4 execution
+
+Three parallel tracks executed the review's plan:
+
+- **Track A** ran `valid-red.py` against the Phase 1 locked test
+  (closing the "never run" gap), created 4 invalid-RED fixtures, found
+  and fixed an ANSI stripping bug in the classifier, reconstructed 34
+  telemetry rows from committed envelopes, and created
+  `findings.jsonl` with 71 findings from 9 review rounds.
+- **Track B** hardened the orchestrator (adapter shim, stray-write
+  baseline, transient retry, deterministic multi-run), ran the H-CI
+  experiment (27.8% mean token saving, quality holds, fairness rule
+  holds), and ran H3 validation (gpt-5.4-mini implemented from
+  un-hinted spec, GREEN on first attempt, cross-family ACCEPT).
+- **Track C** packaged the demo with strict honesty bounds: Act 1
+  (manual baseline), Act 2 (command-orchestrated, no Mission cosplay,
+  "close the laptop" dropped), Act 3 (Phase-0-verified controls only).
+
+The track execution was itself cross-family reviewed. Grok returned
+REJECT (7 findings, 2 HIGH: demo claimed Track B unfinished after it
+shipped, telemetry reconstruction not actually run). Gemini returned
+APPROVE (0 findings). The calibration divergence continued: Grok
+catches honesty violations, Gemini gives clean passes. All HIGH
+findings were fixed.
+
+Phase 4 closed with all exit criteria met: orchestration stabilized,
+H-CI and H3 results recorded, demo packaged, telemetry SoR populated,
+and §9–§17 operating rules landed in `tools/OPERATING-RULES.md`.

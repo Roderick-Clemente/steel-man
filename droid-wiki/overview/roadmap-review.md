@@ -144,7 +144,34 @@ blind spots that shared priors hide.
 The new operating rule proposed by Gemini (§15: "assert on reality includes
 git history") was aimed directly at the v1 failure: inspecting a dirty
 working tree instead of the committed state. It is the project's own
-epistemology applied to the project's own review.
+epistemology applied to the project's own review. All 9 proposed rules
+(§9–§17) have been landed in `tools/OPERATING-RULES.md` as part of Phase 4
+closure.
+
+## Phase 4 completion
+
+Phase 4 is complete. All exit criteria met:
+
+- **Orchestration stabilized** — adapter shim, stray-write baseline,
+  transient retry, deterministic multi-run (Track B1).
+- **H-CI results recorded** — 27.8% mean token saving (bundle vs
+  in-session), quality holds (6/6 ACCEPT both arms), fairness rule holds
+  (371 vs 1069 tokens, 65.3% saving on test-output slice).
+- **H3 results recorded** — gpt-5.4-mini implemented from un-hinted spec,
+  GREEN on first attempt, cross-family ACCEPT (Track B3).
+- **Demo packaged** — Act 1 (manual baseline), Act 2 (command-orchestrated,
+  no Mission cosplay, "close the laptop" dropped), Act 3 (Phase-0-verified
+  controls only). Track C.
+- **Telemetry SoR populated** — 34 rows in `runs.jsonl`, 71 findings in
+  `findings.jsonl` from 9 review rounds.
+- **Operating rules §9–§17 landed** in `tools/OPERATING-RULES.md`.
+
+The track execution was itself cross-family reviewed. Grok returned REJECT
+(7 findings, 2 HIGH: demo claimed Track B unfinished after it shipped,
+telemetry not actually merged). Gemini returned APPROVE (0 findings). All
+HIGH findings were fixed. The calibration divergence (Grok catches honesty
+violations, Gemini gives clean passes) is now structured in `findings.jsonl`
+for Phase 6 calibration.
 
 ## Artifacts
 
