@@ -658,6 +658,193 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
     )
 
 
+# ── per_chunk inner loop (Chunk 4) ──────────────────────────────────────
+
+def test_validate_red_dry_run_returns_valid_envelope(tmp_path):
+    from sprint_loop.per_chunk import validate_red
+    from sprint_loop.state import ChunkState
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="add /llms.txt route",
+        locked_test_files=["test/test_x.py"],
+        accepted_assertion="Quantum Bank content match",
+    )
+    res = validate_red(
+        chunk,
+        framework_root="/unused",
+        pilot_root="/unused",
+        pilot_python="/usr/bin/python3",
+        dry_run=True,
+    )
+    assert res["valid"] is True
+    assert "dry-run" in res["reason"]
+
+
+def test_produce_evidence_dry_run_roundtrip(tmp_path):
+    from sprint_loop.per_chunk import produce_evidence
+    from sprint_loop.state import ChunkState
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="add /llms.txt route",
+        locked_test_files=["test/test_x.py"],
+        accepted_assertion="Quantum Bank content match",
+        locked_test_sha="dry-run-sha",
+    )
+    bundle_path = str(tmp_path / "bundle.json")
+    bundle = produce_evidence(
+        chunk,
+        framework_root="/unused",
+        pilot_root="/unused",
+        pilot_python="/usr/bin/python3",
+        evidence_output_path=bundle_path,
+        dry_run=True,
+    )
+    assert os.path.isfile(bundle_path)
+    assert bundle["bundle_schema_version"] == "v1"
+    assert bundle["change"]["locked_test_sha_observed"] == "dry-run-sha"
+    assert bundle["tests"]["failed"] == 0
+    assert bundle["tests"]["suite_exit_code"] == 0
+
+
+def test_verify_green_dry_run_returns_true(tmp_path):
+    from sprint_loop.per_chunk import verify_green
+    from sprint_loop.state import ChunkState
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="x",
+        locked_test_files=["test/test_x.py"],
+        lock_manifest_path=str(tmp_path / "fake.lock.json"),
+        locked_test_sha="dry-run-sha",
+    )
+    res = verify_green(
+        chunk,
+        framework_root="/unused",
+        pilot_root="/unused",
+        pilot_python="/usr/bin/python3",
+        dry_run=True,
+    )
+    assert res["green"] is True
+
+
+def test_render_test_designer_prompt_substitutes(tmp_path):
+    from sprint_loop.per_chunk import render_test_designer_prompt
+    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="add /llms.txt route that returns Quantum Bank content",
+        locked_test_files=["test/test_x.py"],
+        observable_criteria=["GET /llms.txt returns 200", "body contains 'Quantum Bank'"],
+    )
+    rs = RunState(
+        run_id="r-test", started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        pilot_python="/usr/bin/python3",
+    )
+    out = render_test_designer_prompt(chunk, rs, pilot_spec_text="ignored",
+                                       output_path=str(tmp_path / "td.md"))
+    assert os.path.isfile(out)
+    text = open(out).read()
+    assert "c1" in text  # chunk_id rendered
+    assert "add /llms.txt route" in text  # scope rendered
+
+
+def test_render_executor_prompt_substitutes(tmp_path):
+    from sprint_loop.per_chunk import render_executor_prompt
+    from sprint_loop.state import ChunkState, RunState
+    chunk = ChunkState(
+        chunk_id="c2",
+        scope="add chunk handler that returns contract keys",
+        locked_test_files=["test/test_profile_model.py"],
+        observable_criteria=["profile includes new fields"],
+        commands=["pytest test/test_profile_model.py -v"],
+    )
+    rs = RunState(
+        run_id="r-test", started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        pilot_python="/usr/bin/python3",
+    )
+    out = render_executor_prompt(chunk, rs, output_path=str(tmp_path / "ex.md"))
+    text = open(out).read()
+    assert "c2" in text
+    assert "pytest test/test_profile_model.py -v" in text
+
+
+def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
+    from sprint_loop.per_chunk import invoke_executor, render_executor_prompt
+    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role
+    chunk = ChunkState(
+        chunk_id="c1", scope="add chunk",
+        locked_test_files=["test/test_x.py"],
+        commands=["pytest test/test_x.py -v"],
+    )
+    rs = RunState(
+        run_id="r-test", started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        pilot_python="/usr/bin/python3",
+        executor=RoleAssignment(
+            role=Role.EXECUTOR,
+            pinned_model_id="gpt-5.4-mini",
+            pinned_family="openai-family",
+            pinned_provider="openai",
+            auto_level="medium",
+            enabled_tools="Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
+        ),
+    )
+    env_dir = tmp_path / "env" / "executor"
+    env_dir.mkdir(parents=True)
+    rendered = render_executor_prompt(chunk, rs, output_path=str(tmp_path / "ex.md"))
+    rec = invoke_executor(
+        chunk, rs,
+        evidence_output_dir=str(env_dir),
+        rendered_prompt_path=rendered,
+        envelope_path=str(tmp_path / "env" / "executor" / "envelope.json"),
+        dry_run=True,
+    )
+    assert rec["record"].is_error is False
+    assert "dry-run" in rec["record"].note
+    # Telemetry fields
+    assert chunk.executor_run_id == rec["record"].run_id
+    assert rs.executor.resolved_model_id == "gpt-5.4-mini"
+
+
+def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
+    from sprint_loop.per_chunk import run_validators
+    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role, GateDecision
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="add /llms.txt",
+        locked_test_files=["test/test_x.py"],
+        lock_manifest_path=str(tmp_path / "fake.lock.json"),
+        locked_test_sha="dry-run-sha",
+        evidence_bundle_path=str(tmp_path / "fake-bundle.json"),
+    )
+    rs = RunState(
+        run_id="r-test", started_at="2026-08-09T00:00:00Z",
+        framework_root=str(tmp_path / "fw"),
+        pilot_root=str(tmp_path / "pilot"),
+        pilot_python="/usr/bin/python3",
+        validators=[
+            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="grok-4.5",
+                           pinned_family="grok-family", pinned_provider="xai",
+                           enabled_tools="Read,Glob,Grep,LS"),
+            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="gemini-3.1-pro-preview",
+                           pinned_family="gemini-family", pinned_provider="google",
+                           enabled_tools="Read,Glob,Grep,LS"),
+        ],
+    )
+    (tmp_path / "fw").mkdir()
+    (tmp_path / "pilot").mkdir()
+    res = run_validators(
+        chunk, rs,
+        evidence_output_dir=str(tmp_path / "evidence"),
+        dry_run=True,
+    )
+    assert res.gate == GateDecision.ACCEPT
+    assert "dry-run" in res.reason
+    assert os.path.isfile(res.summary_path)
+    assert len(res.validators) == 2
+
+
 # ── run-with-model.sh refinements (Chunk 1 inline primitive fix) ─────────
 
 def test_run_with_model_refuses_mission_by_default():
