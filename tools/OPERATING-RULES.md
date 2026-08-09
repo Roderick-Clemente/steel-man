@@ -133,3 +133,140 @@ The rule when scope shifts mid-phase:
 The temptation is to keep building because you're already in the flow. The
 discipline is to stop, name the shift, and decide whether it belongs here or
 in its own loop. Most scope shifts want their own loop.
+
+
+## 9. If it's not scripted, it didn't happen
+
+A phase that runs its `droid exec` invocations by manually copy-pasting
+commands has no reproducible evidence. The orchestration script must be the
+default way reviews are run. A RUN-COMMANDS.md file is documentation for the
+script, not a substitute for it. If the script doesn't exist yet, the first
+deliverable of the phase is to build it — **bounded to the phase's actual
+repeat surface**, not a full panel orchestrator by default.
+
+*Exception:* pure probe spikes (Phase 0-style) may run manually — they are
+one-off capability checks, not repeatable loops.
+
+*Rationale:* Phases 1-3 ran manually. The orchestration script was built in
+3.2 and partially works. This rule makes "script the loop" the default, not
+the retrofit.
+
+
+## 10. Telemetry rows are written by the script, not by the operator
+
+From adoption forward, multi-invocation phases must emit `runs.jsonl` (and
+`findings.jsonl` / `dispositions.jsonl` when applicable) from the
+orchestration script as part of each `droid exec` invocation, not appended
+manually after the fact. Committed envelopes + auditable reconstruction
+recipes (e.g. `gen-telemetry.py`) remain valid evidence for past phases and
+disaster recovery. Do not equate "missing live SoR row" with "phase
+incomplete" when reconstructable artifacts exist.
+
+*Rationale:* Phase 2 planned telemetry in detail and wrote zero rows. Phase
+3's rows were overwritten. Phase 0.5 and Phase 1 used `RUN-LEDGER.md` as
+their SoR, which was valid at the time. This rule is forward-looking, not
+retroactive.
+
+
+## 11. Exit criteria are checked, not assumed
+
+A phase's exit criteria must be checked against actual artifacts before the
+phase is declared complete. "Invalid RED cases are rejected" means at least
+one invalid-RED case was run and rejected — not that the classifier script
+exists. "Replayable demo" means a demo artifact exists — not that the wiki
+entry is comprehensive. "Local PR creation" means a PR was created — not
+that the README says "present the slice."
+
+*Rationale:* Phase 1 declared "invalid RED cases are rejected" as met, but
+`valid-red.py` was never run. Phase 3 declared completion without a demo,
+baseline comparison, or PR. The exit criteria exist to be checked, not to
+be interpreted.
+
+
+## 12. Unexercised safety paths are named gaps, not phase blockers
+
+If a phase's purpose is to test a mechanism (reconciliation, validation
+blocking, retry/re-plan), and the mechanism was not triggered (e.g., the
+plan converged on round 1, or all validators returned ACCEPT), the phase is
+**complete with a clean null result** — this is valid data per PRD §13 ("a
+clean null result is valid data; models disagree at least once is NOT a
+success gate"). The unexercised path must be **recorded as a named
+gap/follow-on** in the phase's KNOWN-ISSUES.md. Optional adversarial
+fixtures may be built as calibration work, but they are **not exit gates**.
+
+*Rationale:* Phase 2's reconciliation loop was never tested under
+disagreement. Phase 3's retry path was never exercised. Both are valid
+completions with named gaps. Forcing disagreement would incentivize
+manufactured findings — the exact failure mode PRD §13 warns against.
+
+
+## 13. Don't give the executor the answer
+
+The executor prompt must describe the problem and the constraints, not the
+implementation. If the prompt contains the exact code change to make, the
+executor is a `sed` command, not an independent implementation. The
+cheap-executor seat's value (H3) depends on the executor solving the
+problem, not applying a known fix.
+
+*Rationale:* Phase 1's executor prompt specified the exact one-line fix.
+The executor's 4-turn run confirmed it was mechanical. The H3 cost
+hypothesis (cheap executors can do the work) was never genuinely tested
+until Phase 4 Track B H3 validated it.
+
+
+## 14. Use the adapter shim and the model-discipline wrapper
+
+Any script that reads `droid exec` envelope data must go through
+`tools/adapters/factory.py` (or the equivalent vendor adapter). Any script
+that invokes `droid exec` must go through `tools/run-with-model.sh` (or the
+equivalent model-discipline wrapper). Reading raw envelope fields directly
+or invoking `DROID_BIN` directly bypasses both the vendor-neutral
+abstraction and the model-pinning enforcement, making the code brittle to
+platform field-name drift and model-discipline gaps.
+
+*Rationale:* `orchestrate-review.py` cited both the adapter and
+`run-with-model.sh` in its docstring but bypassed both in the
+implementation body. When a docstring cites a shim/wrapper, the
+implementation must call it — or the citation is a §8-style silent scope
+lie.
+
+
+## 15. Assert on reality includes git history
+
+Never judge the success of past phases solely on uncommitted working tree
+state. Always inspect git history and the system of record (committed
+artifacts, telemetry, lock manifests) before concluding that something was
+"never built" or "never ran." A dirty working directory with empty files is
+not evidence of failure if the committed state and telemetry tell a
+different story.
+
+*Rationale:* The v1 roadmap review concluded that `orchestrate-review.py`
+"never successfully ran" based on 0-byte files in a dirty working tree. The
+committed telemetry (12 rows, 10 from orchestrated runs with real
+decisions) told a different story. This is the exact failure mode §7 warns
+about, extended to include git history as part of "reality."
+
+
+## 16. Demo claims bind to Phase-0-verified capabilities and the command-orchestrated GO decision
+
+No demo beat may claim a capability that Phase 0 did not verify. Act 2
+must be honest about the command-orchestrated spine — no Mission cosplay.
+"Close the laptop" requires a demonstrated durable runner, not a promise.
+Act 3 stays inside the probes that returned PASS.
+
+*Rationale:* The PRD §15 Act 2 is Mission-shaped, but the GO-NO-GO
+decision was command-orchestrated. The demo narrative has never been
+reconciled with this decision. An audience will catch a Mission demo that
+doesn't actually use Missions.
+
+
+## 17. Capacity envelope: name the next 1-3 deliverables; refuse unbounded foundation programs
+
+A roadmap re-sequencing must name a capacity bound: what can actually be
+done next, not an unbounded list of priorities. If the proposed work is a
+"foundation program" with no clear exit, it is the same anti-pattern as the
+missed exits it criticizes.
+
+*Rationale:* The v1 roadmap review proposed five priorities and six rules
+without naming constraints. The cross-family panel flagged this as
+recreating the unbounded-backlog pattern.
