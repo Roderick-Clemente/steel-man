@@ -325,3 +325,38 @@ questions, occasionally re-implemented something the project already
 shipped, and the principles didn't propagate. A standing rule reads on
 every agent entry — a prompt does not.
 
+## 19. Commit when the recommendation is clear; do not force the operator to choose
+
+When you have a recommendation and you can articulate the trade-offs of
+the alternatives, **commit to the recommendation** — don't ask the
+operator to pick. Surface the WHY (one short paragraph) and ship. The
+3-option "you choose" question is appropriate only when *no* option is
+clearly best — when the trade-offs are roughly symmetric across user
+preference and you genuinely cannot rank them.
+
+*Anti-pattern:* offering three labeled choices for a decision whose
+internal ranking the agent could state in one sentence. The operator
+becomes the forced chooser of something the agent already ranked. The
+claude-opus-5 session that produced chunk 11 fallback questions three
+times in one turn earned this rule; the operator's exact response was
+"part of the skill should be don't do that cuz its annoying lol."
+
+*When multiple options ARE legitimate* — for example, a tradeoff with
+real operator values (cost vs. reach vs. simplicity) that the agent
+cannot rank without the operator's preference — then ask, but make it
+one question, framed in operator language, not three agent-proposed
+options mirrored back.
+
+*Rationale:* agents with strong defaults save operator attention. The
+3-option-question shape is a fuzzy signal of "I don't know which is
+right, but I know there are three." When that fuzzy state is real,
+ask. When it's a shrug the agent could have resolved, ship.
+
+*How this composes with §18:* §18 says "review at the end of the build"
+— meaning the agent's recommendation lands as code, gets reviewed
+against the spec, and is corrected if the review finds a defect. That's
+the loop that makes "commit-and-surface-WHY" safe: the spec-reconciled
+review catches the cases where the agent shipped a wrong recommendation.
+A 3-option question *forecloses* that loop by making the operator do
+the reconciliation the review was meant to do.
+

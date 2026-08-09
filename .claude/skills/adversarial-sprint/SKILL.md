@@ -1,0 +1,1 @@
+../../../skills/adversarial-sprint/SKILL.md

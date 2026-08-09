@@ -40,3 +40,22 @@ Three agents work in this repo — Factory Droid, Codex, and Claude Code. They s
 This mirrors the method the repo itself specifies — independent context, no transcript bleed. If it feels clumsy in practice, that is real signal about the design. Record it in `phase-0/README.md` under Notes.
 
 **A note on which agent does what.** Roles here are not interchangeable, and the split should be deliberate rather than whoever is open in a window: the agent that authored a plan should not be the one that approves it, and the agent that writes an implementation should not be the one that validates it. That is invariant #1 applied to the humans-and-agents layer, not just the runtime.
+
+## Skill asset (canonical)
+
+All three agents share **`skills/adversarial-sprint/SKILL.md`** as
+the canonical adversarial-sprint asset — the digest + index +
+rehydration hybrid that survives long-context compaction. Each
+agent's install path is documented in
+`tools/conventions/skill-distribution.md` and the project
+**does not** maintain per-agent body copies. Cursor is documented
+there for open-source reach even though it is not in this repo's
+roster.
+
+When operating as the **planner / executor / validator** roles
+per `OPERATING-RULES §18`, agents **MUST** read the canonical
+asset at the start of their session and apply its principles. The
+rehydration step in the skill is the loop-closing rule: re-read
+`tools/OPERATING-RULES.md` whenever conversation crosses ~150k
+tokens, before a new chunk, on §13 disambiguation, or when an
+operator explicitly re-points the agent.

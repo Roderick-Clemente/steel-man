@@ -1,0 +1,97 @@
+---
+name: sprint-invocation
+description: |
+  How to invoke the adversarial-sprint runner from inside a session.
+  Triggered when the operator asks for an adversarial sprint, a
+  review-driven build, or a multi-chunk change with cross-family gates.
+  Single-file, low-context-load — operators running sprints at high
+  cadence don't need to re-read the meta-skill each time. For durable
+  principles (digest + index + rehydration), see
+  skills/adversarial-sprint/SKILL.md.
+when-to-invoke: |
+  - Operator says "run a sprint," "run an adversarial pass,"
+    "fire the runner," or "do this cross-family."
+  - Operator hands you a chunks file and expects the runner to
+    drive the per-chunk inner loop.
+  - Operator asks for a one-batch rebuild of a feature surface
+    with reviewer gates between chunks.
+---
+
+# Sprint Invocation — Skill
+
+Single-purpose: fire the runner correctly the first time.
+
+## Invocation
+
+```
+PYTHONPATH=tools <PILOT_REPO>/.venv/bin/python \
+    <PILOT_REPO>/tools/sprint-loop.py \
+    --config <PILOT_REPO>/examples/sprint-loop-config.json \
+    --chunks-file <CHUNKS.json>
+```
+
+Flags you'll commonly want:
+
+- `--dry-run --non-interactive` — pause the reconcile gate; useful
+  for the first end-to-end pass on a new pilot repo.
+- `--non-interactive` — bypass the stdin pause at reconcile (the
+  §5.3 machine-check still runs; auto-decision is accept).
+- `--create-pr` — off by default; the runner **never** pushes.
+- `--validation-backend=local` — the only working backend today;
+  `ci` raises `NotImplementedError` per §11 Track B.
+
+## Three example invocations
+
+**1. First dry-run against a new pilot repo (recommended start).**
+
+```
+# Test the wiring without spending model credits.
+PYTHONPATH=tools ./pilot/.venv/bin/python \
+    ./tools/sprint-loop.py \
+    --config ./examples/sprint-loop-config.json \
+    --chunks-file ./examples/sprint-loop-chunks-example.json \
+    --dry-run --non-interactive
+```
+
+If dry-run exits 0 and prints `COMPLETED · run_id=...`, the runner
+is wired correctly. Move to a real run.
+
+**2. Real run on a known-good config (operator present at reconcile).**
+
+```
+# Operator in the seat; type 'accept' / 'amend' / 'reject' at the gate.
+PYTHONPATH=tools ./pilot/.venv/bin/python \
+    ./tools/sprint-loop.py \
+    --config ./pilot/sprint-config.json \
+    --chunks-file ./pilot/chunks-r3.json
+```
+
+If both reviewers flag a blocker|high finding, `accept` will refuse
+(SystemExit 4). Use `amend <reason>` to record a disposition, or
+`reject <reason>` to loop back to the planner.
+
+**3. CI flavor — gate a chunk via status check.**
+
+The runner does NOT support CI mode (`--validation-backend=ci`
+raises `NotImplementedError` per §11 Track B). For CI, use the
+GitHub Actions workflow directly:
+
+```
+# .github/workflows/adversarial-sprint-ci.yml reads PR title
+# '[chunk:<id>]' and gates via status check.
+# See phase-4.5/CI-GATE.md.
+```
+
+## What this skill does NOT cover
+
+- The §1–§19 *operating rules*. Read `skills/adversarial-sprint/SKILL.md`
+  for the durable principles (digest + index + rehydration).
+- The chunk spec format. See `examples/sprint-loop-chunks-example.json`.
+- The role/prompt design. See `tools/sprint_loop/prompts/`.
+
+## Rehydration reminder
+
+When this skill has been loaded across many turns or conversation
+crosses ~150k tokens, re-read `tools/OPERATING-RULES.md` and the
+canonical meta-skill before firing the runner. That's §18 + §19 of
+the meta-skill's digest.
