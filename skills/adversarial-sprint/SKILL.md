@@ -1,0 +1,122 @@
+# Adversarial Sprint — Skill
+
+A SKILL asset for agents (Droid, Claude Code, Codex, etc.) that
+work on a project adopting the adversarial-sprint framework. This
+skill teaches the agent the project's rules + WHY + when-to-invoke
+the runner **without** carrying the whole rule set inline. It is
+the lightweight pointer per the discussion at chunk 7 / chunk 9:
+the **digest is in the skill body** (durability across long-context
+sessions), while the **full rules are referenced by index**.
+
+## Skill digest (load-bearing principles — embedded so they
+survive compaction)
+
+These are the load-bearing invariants distilled from
+`tools/OPERATING-RULES.md`. They are not the full text — they are
+the distilled forms that, if dropped, break a real decision the
+agent makes.
+
+1. **Every droid call is a script invocation. No manual paste.**
+   §1 / §9 — the orchestrator script is the default; manual paste
+   is a paragraph-not-a-script.
+2. **Assert on artifacts** (file SHAs, git log entries, signed
+   bundles), **never on exit codes or plausible strings.**
+   §7 — silent-green is the platform's default failure mode.
+3. **Prompts describe problems and constraints, not fixes.**
+   §13 — the executor is a solver, not a sed-command.
+4. **Droid exec routes through `tools/run-with-model.sh`;
+   envelopes parse through `tools/adapters/factory.py`.**
+   §14 — never raw.
+5. **Git history is reality.** §15 — never judge a phase on
+   uncommitted working-tree state alone.
+6. **Refuse unbounded foundation programs. Name 1–3 deliverables.**
+   §17 — capacity envelopes are the rule, not the goal.
+7. **Compose existing primitives; fix ergonomic friction inline;
+   build in chunks; review at the end; distill reusable principles.**
+   §18 — *this rule* itself; if you find yourself reinventing,
+   you are running afoul of the framework's own methodology.
+
+## Skill rules — referenced by index (full text in OPERATING-RULES.md)
+
+For the full text of any rule, open `tools/OPERATING-RULES.md` and
+read the corresponding section. The digest is the survival pack;
+the index is the source of truth.
+
+| §   | Rule (one-line)                                     | When you'd reference the full text |
+|-----|-----------------------------------------------------|------------------------------------|
+| 1-2 | commits are the only cross-machine channel          | when debugging multi-machine runs   |
+| 3-5 | (intake / preflight / GROK)                        | when designing a new sprint        |
+| 6   | human judgment policy                               | when configuring oversight         |
+| 7   | assert on reality, never on exit code               | *most common citation — read often*|
+| 8   | when scope shifts, name it                          | when absorbing a PRD gap           |
+| 9   | if it's not scripted, it didn't happen              | when arguing for a runner          |
+| 10  | telemetry rows are written by the script            | when reviewing telemetry SoR       |
+| 11  | exit criteria are checked, not assumed              | *most common citation*             |
+| 12  | unexercised safety paths are named gaps             | when paths fire zero                |
+| 13  | don't give the executor the answer                  | when writing the executor prompt   |
+| 14  | use the adapter shim + model-discipline wrapper     | when wiring droid                   |
+| 15  | assert on reality includes git history              | when judging past phases            |
+| 16  | demo claims bind to Phase-0-verified capabilities   | when narrating a demo              |
+| 17  | capacity envelope                                   | when sketching a "foundation"      |
+| 18  | compose / chunk / fix friction / review / distill   | when about to start a build        |
+
+## When to invoke the runner
+
+The skill's job is to teach the agent WHEN, not to BE the runner.
+
+- **Don't** invoke the runner for a one-shot code edit.
+- **DO** invoke the runner when:
+  - The user asks for "a sprint", "an adversarial pass",
+    "review-driven development," "the adversarial-sprint workflow."
+  - The change is bounded but cross-family review would help —
+    e.g., one feature, one bug fix, one API surface — and the
+    reviewer panel is configured.
+
+## How to invoke
+
+The runner is a CLI artifact that lives in the project (not in
+the skill). Path convention:
+
+```
+<PILOT_REPO>/tools/sprint-loop.py
+```
+
+Default invocation:
+
+```
+PYTHONPATH=tools <PILOT_REPO>/.venv/bin/python \
+    <PILOT_REPO>/tools/sprint-loop.py \
+    --config <PILOT_REPO>/examples/sprint-loop-config.json \
+    --chunks-file <PILOT_REPO>/examples/sprint-loop-chunks-example.json
+```
+
+`-f non-interactive` or `--dry-run --non-interactive` opt out of
+the reconcile gate. See `phase-4.5/RUN-PROMPT.md` in the same repo
+for the full CLI surface.
+
+## What this skill is NOT
+
+- Not a runner — the runner script is what runs the loop.
+- Not the rules — `tools/OPERATING-RULES.md` §1–§18 is the rule
+  source of truth. The skill carries a *digest* so context
+  compaction doesn't drop the load-bearing parts.
+- Not a phase-by-phase playbook — `phase-N/RUN-PROMPT.md` files
+  are. The skill references them by phase.
+
+## Why this shape (digest + index)
+
+Per chunk 7's design discussion: long-context droid sessions lose
+references during compaction. Carrying the whole rule set inline
+would bloat every prompt; carrying none would mean the agent
+operates without principles. The digest + index hybrid:
+- **Digest survives compaction** (the load-bearing parts are
+  always in the prompt).
+- **Index points to deeper text** (full rule text is one
+  file-read away, not zero).
+- **Single source of truth** (`tools/OPERATING-RULES.md` is the
+  one place; the digest is regenerated when the source changes).
+
+This is the answer to "if in active use must hydrate frequently,
+or part of core skill if tight?" The skill light-skills the
+digest (always present, tight) and references the full text for
+anything that needs more (one file-read away, not zero).
