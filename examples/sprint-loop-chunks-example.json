@@ -1,0 +1,26 @@
+{
+  "chunks": [
+    {
+      "chunk_id": "c1",
+      "scope": "Add /llms.txt route returning the project description",
+      "observable_criteria": [
+        "GET /llms.txt returns 200",
+        "Content-Type starts with text/plain",
+        "Body contains 'Quantum Bank' and a demo disclaimer plus a Split.io mention"
+      ],
+      "allowed_files": [
+        "app.py",
+        "api/llms_txt.py"
+      ],
+      "locked_test_files": [
+        "test/test_public_routes.py"
+      ],
+      "commands": [
+        "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest test/test_public_routes.py -v",
+        "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest -v"
+      ],
+      "rollback": "git checkout HEAD -- app.py api/llms_txt.py",
+      "accepted_assertion": "body contains 'Quantum Bank'"
+    }
+  ]
+}

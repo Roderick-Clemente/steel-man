@@ -845,6 +845,119 @@ def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
     assert len(res.validators) == 2
 
 
+# ── sprint-loop runner end-to-end (Chunk 5) ─────────────────────────────
+
+def test_sprint_loop_dry_run_end_to_end(tmp_path):
+    """The runner drives planner → 2 plan-reviewers → reconcile →
+    chunk → commit across a single chunk, dry-run == no real droid.
+    """
+    cfg_path = tmp_path / "cfg.json"
+    cfg_payload = {
+        "framework_root": str(tmp_path / "fw"),
+        "pilot_root": str(tmp_path / "pilot"),
+        "pilot_python": "/usr/bin/python3",
+        "validators": ["grok-4.5:xai:grok-family:grok-4.5",
+                        "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview"],
+    }
+    cfg_path.write_text(json.dumps(cfg_payload))
+    # Bootstrap a fake framework + pilot so the directory-validation passes.
+    (tmp_path / "fw" / "tools" / "sprint_loop").mkdir(parents=True)
+    (tmp_path / "fw" / "phase-1" / "scripts").mkdir(parents=True)
+    (tmp_path / "fw" / "phase-3.2" / "evidence").mkdir(parents=True)
+    (tmp_path / "fw" / "tools" / "orchestrate-review.py").write_text("# stub")
+    (tmp_path / "pilot").mkdir()
+    chunks_path = tmp_path / "chunks.json"
+    chunks_path.write_text(json.dumps({
+        "chunks": [{
+            "chunk_id": "c1",
+            "scope": "add /llms.txt route",
+            "observable_criteria": ["GET /llms.txt returns 200"],
+            "allowed_files": ["app.py"],
+            "locked_test_files": ["test/test_x.py"],
+            "commands": ["pytest test/test_x.py -v"],
+            "rollback": "git checkout HEAD -- app.py",
+            "accepted_assertion": "GET /llms.txt returns 200",
+        }],
+    }))
+    # Also configure a 2nd reviewer so the test exercises both.
+    cfg_payload["plan_reviewer_2_model"] = "gemini-3.1-pro-preview"
+    cfg_path.write_text(json.dumps(cfg_payload))
+
+    # The runner is at tools/sprint-loop.py (a module, not a package).
+    # Import directly via runpy so PYTHONPATH is honoured.
+    import runpy
+    import sys as _sys
+    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools",
+                                "sprint-loop.py")
+    runner_path = os.path.abspath(runner_path)
+    saved = list(_sys.argv)
+    try:
+        _sys.argv = ["sprint-loop.py",
+                     "--config", str(cfg_path),
+                     "--chunks-file", str(chunks_path),
+                     "--dry-run", "--non-interactive"]
+        # runpy.run_path executes the module-level code and gives us the
+        # module's globals; we then call main().
+        ns = runpy.run_path(runner_path, run_name="sprint_loop_runner")
+        rc = ns["main"]()
+    finally:
+        _sys.argv = saved
+    assert rc == 0, f"runner exited {rc}"
+    # Evidence dir produced
+    evidence_root = tmp_path / "fw" / "phase-4.5" / "build-evidence"
+    runs = list(evidence_root.glob("r-phase45-*"))
+    assert runs, f"no evidence dir under {evidence_root}"
+    run_dir = runs[0]
+    assert (run_dir / "plan.md").is_file()  # plan was written
+    assert (run_dir / "planner-envelope.json").is_file()
+    assert (run_dir / "plan-reviewer-1-envelope.json").is_file()
+    assert (run_dir / "plan-reviewer-2-envelope.json").is_file()
+    assert (run_dir / "reconcile-packet.txt").is_file()
+    assert (run_dir / "c1" / "c1-bundle.json").is_file()  # evidence produced
+    assert (run_dir / "c1" / "reviews" / "review-summary.json").is_file()  # validators ran
+    assert (run_dir / "checkpoint.json").is_file()
+
+
+def test_sprint_loop_dry_run_refuses_unknown_validator_family(tmp_path):
+    """An operator who picks a model not in MODEL_FAMILY_MAP triggers
+    the §4 family guard before any droid call. PRD §4 provenance rule.
+    """
+    cfg_path = tmp_path / "cfg.json"
+    cfg_payload = {
+        "framework_root": "/Users/factory/work/adversarial-sprint-dev",
+        "pilot_root": "/Users/factory/work/quantum-bank--llms-txt-pilot",
+        "pilot_python": "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python",
+        "validators": ["totally-unknown-model:unknown:unknown:label"],
+        "planner_model": "claude-opus-5",
+    }
+    cfg_path.write_text(json.dumps(cfg_payload))
+
+    import runpy
+    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools",
+                                "sprint-loop.py")
+    runner_path = os.path.abspath(runner_path)
+    import sys as _sys
+    saved = list(_sys.argv)
+    try:
+        _sys.argv = ["sprint-loop.py",
+                     "--config", str(cfg_path),
+                     "--dry-run", "--non-interactive",
+                     "--chunks-file", "/tmp/non-existent-blocks-prelaunch.json"]
+        # preflight guard runs *before* the chunks-file existence check,
+        # so the guard surface is what surfaces here.
+        ns = runpy.run_path(runner_path, run_name="sprint_loop_runner")
+        try:
+            rc = ns["main"]()
+            caught = None
+        except SystemExit as e:
+            rc = None
+            caught = e.code
+    finally:
+        _sys.argv = saved
+    # The §4 / §17.2 guard exits with code 2.
+    assert caught == 2 or rc == 2, f"expected SystemExit(2); got rc={rc}, caught={caught}"
+
+
 # ── run-with-model.sh refinements (Chunk 1 inline primitive fix) ─────────
 
 def test_run_with_model_refuses_mission_by_default():

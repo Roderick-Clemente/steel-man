@@ -286,6 +286,10 @@ class RunState:
     validation_backend: str = "local"    # local|ci (Track B)
     signing_key_env: str = "EVIDENCE_SIGNING_KEY"
 
+    # Inputs the runner reads across pauses
+    pilot_spec_file: str = ""
+    signing_key: str = ""
+
     # Track which submission keys the family guard accepted — once any role's
     # family becomes known post-run, the guard re-runs to confirm nothing
     # collides that wasn't allowed to.
