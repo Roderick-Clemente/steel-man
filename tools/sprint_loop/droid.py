@@ -302,6 +302,13 @@ def invoke_droid(
     # ── live path: route through run-with-model.sh, retry on transient
     # failures (0-output-tokens, is_error=True from a provider hiccup,
     # non-zero droid exit with no envelope).
+    #
+    # Single contiguous retry loop: envelope-parse failures AND
+    # post-parse transient failures both retry through this loop,
+    # so `attempts` increments monotonically. Recursion
+    # (panel-finding F-8) would re-enter with a fresh local
+    # `attempts = 0`, defeating the budget guard and firing N
+    # unbounded paid calls before Python's recursion limit kicks in.
     envelope_path_abs = os.path.abspath(envelope_path)
     stderr_path_abs = os.path.abspath(stderr_path) if stderr_path else os.path.join(
         os.path.dirname(envelope_path_abs), "stderr.log"
@@ -312,29 +319,11 @@ def invoke_droid(
 
     last_error: str | None = None
     attempts = 0
+    env_parsed: dict | None = None
+    result: subprocess.CompletedProcess | None = None
     while True:
         attempts += 1
-        with open(envelope_path_abs, "wb") as enf, open(stderr_path_abs, "wb") as errf:
-            result = subprocess.run(
-                [run_with_model] + droid_args,
-                stdout=enf, stderr=errf,
-                cwd=cwd, env=env,
-                timeout=options.timeout_seconds,
-            )
-
-        # Try to parse the envelope. If unreadable, this is a transient
-        # failure (provider hiccup or wrapper failure). Retry.
-        try:
-            env_parsed = parse_envelope(envelope_path_abs)
-            break
-        except (FileNotFoundError, ValueError) as e:
-            last_error = str(e)
-            if attempts <= max_retries:
-                delay = retry_delay_seconds * (2 ** (attempts - 1))
-                print(f"[droid] retry {attempts}/{max_retries} after {delay}s "
-                      f"({last_error!r})", file=sys.stderr)
-                time.sleep(delay)
-                continue
+        if attempts > max_retries + 1:
             # Persistent — surface as a real error record (don't silently degrade).
             return RunRecord(
                 run_id=f"r-error-{int(time.time()*1000)}",
@@ -352,31 +341,53 @@ def invoke_droid(
                 envelope_raw_bytes=os.path.getsize(envelope_path_abs),
                 started_at=started_at,
                 finished_at=_utcnow_iso(),
-                note=f"envelope parse failed after {max_retries} retries: {last_error}",
+                note=f"retry budget exhausted after {max_retries} retries: "
+                     f"{last_error!r}",
             )
 
-    # Detect transient failure post-parse: 0 output_tokens, is_error=True,
-    # etc. The retry-loopguard re-reads from this point.
-    is_transient = (
-        env_parsed["is_error"] is True
-        or env_parsed["usage"]["output"] == 0
-    )
-    if is_transient and attempts <= max_retries:
-        delay = retry_delay_seconds * (2 ** (attempts - 1))
-        print(f"[droid] transient failure (is_error={env_parsed['is_error']}, "
-              f"output_tokens={env_parsed['usage']['output']}); "
-              f"retry {attempts}/{max_retries} after {delay}s",
-              file=sys.stderr)
-        time.sleep(delay)
-        # Re-enter the live path; we need to fire the call again.
-        return invoke_droid(
-            role, options=options, envelope_path=envelope_path,
-            stderr_path=stderr_path,
-            max_retries=max_retries,
-            retry_delay_seconds=retry_delay_seconds,
-            dry_run=dry_run,
-            allowed_mission=allowed_mission,
+        with open(envelope_path_abs, "wb") as enf, open(stderr_path_abs, "wb") as errf:
+            result = subprocess.run(
+                [run_with_model] + droid_args,
+                stdout=enf, stderr=errf,
+                cwd=cwd, env=env,
+                timeout=options.timeout_seconds,
+            )
+
+        # Try to parse the envelope. If unreadable, this is a transient
+        # failure (provider hiccup or wrapper failure). Retry.
+        try:
+            env_parsed = parse_envelope(envelope_path_abs)
+        except (FileNotFoundError, ValueError) as e:
+            last_error = f"envelope parse failed: {e}"
+            delay = retry_delay_seconds * (2 ** (attempts - 1))
+            print(f"[droid] retry {attempts}/{max_retries + 1} after {delay}s "
+                  f"({last_error!r})", file=sys.stderr)
+            time.sleep(delay)
+            continue
+
+        # Detect transient failure post-parse: 0-output-tokens or
+        # is_error=True from a provider hiccup that wrote a parseable
+        # envelope. This is the same shape §11 of orchestrator-review
+        # catches — retry budget is shared with envelope-parse retries.
+        is_transient = (
+            env_parsed["is_error"] is True
+            or env_parsed["usage"]["output"] == 0
         )
+        if is_transient:
+            last_error = (
+                f"transient failure (is_error={env_parsed['is_error']}, "
+                f"output_tokens={env_parsed['usage']['output']})"
+            )
+            delay = retry_delay_seconds * (2 ** (attempts - 1))
+            print(f"[droid] retry {attempts}/{max_retries + 1} after {delay}s "
+                  f"({last_error})", file=sys.stderr)
+            time.sleep(delay)
+            continue
+
+        # Success path — exit the retry loop with the record intact.
+        break
+
+    assert env_parsed is not None and result is not None  # noqa: S101 — analysed loop
 
     finished_at = _utcnow_iso()
     return RunRecord(

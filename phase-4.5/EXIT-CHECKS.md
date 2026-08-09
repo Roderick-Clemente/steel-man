@@ -104,7 +104,8 @@ print("\\nFAMILY GUARD REFUSES UNKNOWN MODEL ✓")
 
 ## Phase 4.5 = COMPLETE — when?
 
-This phase's deliverables build green (52/52 tests, dry-run end-to-end).
+This phase's deliverables build green (63/63 tests at chunk-10
+close, dry-run end-to-end).
 The operator may declare Phase 4.5 complete when:
 
 1. The checks above all pass on the operator's machine.

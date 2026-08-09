@@ -298,11 +298,11 @@ Concretely, before writing code:
    a check are §1 silent-green shapes.
 4. **Fix ergonomic friction inline.** If the chunk surfaces friction in
    an existing primitive (missing flag, wrong default, brittle
-   hard-code), FIX THE PRIMITIVE in the SAME chunk — under the
-   ``OPERATING-RULES §14 (shim / wrapper present) `` plus inline. Don't
-   work around bad ergonomics in user code; the workaround becomes the
-   new owner of that debt. Record the fix in the chunk's `PLAN.md` rule-
-   application table.
+   hard-code), FIX THE PRIMITIVE in the SAME chunk — under the same
+   guard rail as the chunk's main body (per §14: shim/wrapper present).
+   Don't work around bad ergonomics in user code; the workaround
+   becomes the new owner of that debt. Record the fix in the chunk's
+   `PLAN.md` rule-application table.
 5. **Run the adversarial review at the end of the build.** A build
    without a structural review against the PRD §5 acceptance criteria
    (§5.2 … §5.8 + §11) is a "I read it and it looks right" hand-wave.

@@ -270,6 +270,13 @@ class RunState:
     plan_findings: list[Finding] = field(default_factory=list)
     plan_round: int = 0
 
+    # Panel-finding F-7: store each reviewer's verdict, bound to the
+    # plan_sha256 it was issued against. ``reconcile_human_gate``
+    # consults this list before accepting the plan — the §5.3
+    # converge rule: at least one APPROVE bound to current
+    # plan_sha256 + zero open blocker|high findings.
+    plan_reviewer_verdicts: list[dict] = field(default_factory=list)
+
     # Chunks (filled after reconcile accepts)
     chunks: list[ChunkState] = field(default_factory=list)
     current_chunk_index: int = 0
@@ -414,28 +421,37 @@ def check_family_separation(
     def fam(a: RoleAssignment) -> str:
         return a.to_distinct_families_for_guard()
 
-    # planner != plan_reviewer (and reviewer-1 != reviewer-2 if both set)
-    planner = by_role.get(Role.PLANNER)
-    reviewer = by_role.get(Role.PLAN_REVIEWER)
-    if planner and reviewer and fam(planner) and fam(reviewer):
-        if fam(planner) == fam(reviewer):
-            out.violations.append(
-                f"§17.2: planner family '{fam(planner)}' == plan_reviewer family "
-                f"'{fam(reviewer)}' — same family is not independence"
-            )
+    # planner vs EACH plan_reviewer (not just by_role[PLAN_REVIEWER], which
+    # overwrites when 2 reviewers are configured — panel-finding F-1).
+    # `by_role` still captures the singleton seats (td/ex/validator) but
+    # for multi-seat roles (PLAN_REVIEWER, VALIDATOR) we compare against
+    # every assignment with that role.
+    planner = next((a for a in assignments if a.role is Role.PLANNER), None)
 
-    pr2 = by_role.get(Role.PLAN_REVIEWER + "_2ND")  # not in Role enum — use list instead
-    # We use plan_reviewer_2 for the optional 2nd reviewer. Encode a synthetic role check:
-    # the caller passes 2nd reviewer via the RoleAssignment.role=PLAN_REVIEWER + a label.
-    seen_reviewer_families: set[str] = set()
-    for a in assignments:
-        if a.role == Role.PLAN_REVIEWER and fam(a):
-            if fam(a) in seen_reviewer_families:
+    # planner vs each plan_reviewer — guard against silent overwriting.
+    if planner and fam(planner):
+        for reviewer in (a for a in assignments if a.role is Role.PLAN_REVIEWER):
+            if not fam(reviewer):
+                continue
+            if fam(planner) == fam(reviewer):
                 out.violations.append(
-                    f"§17.2: two plan reviewers share family '{fam(a)}' — "
-                    f"two reviewers in the same family is not a panel"
+                    f"§17.2: planner family '{fam(planner)}' == plan_reviewer "
+                    f"family '{fam(reviewer)}' "
+                    f"(reviewer model: {reviewer.pinned_model_id!r}) "
+                    f"— same family is not independence"
                 )
-            seen_reviewer_families.add(fam(a))
+
+    # two reviewers must be different families from each other
+    seen_reviewer_families: set[str] = set()
+    for a in (x for x in assignments if x.role is Role.PLAN_REVIEWER):
+        if not fam(a):
+            continue
+        if fam(a) in seen_reviewer_families:
+            out.violations.append(
+                f"§17.2: two plan reviewers share family '{fam(a)}' — "
+                f"two reviewers in the same family is not a panel"
+            )
+        seen_reviewer_families.add(fam(a))
 
     # test_designer != executor (unless §17.6 override)
     td = by_role.get(Role.TEST_DESIGNER)

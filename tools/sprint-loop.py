@@ -70,7 +70,7 @@ if _TOOLS_DIR not in sys.path:
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from sprint_loop.config import Config, build_config  # noqa: E402
+from sprint_loop.config import Config, MODEL_FAMILY_MAP, build_config  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
@@ -434,6 +434,19 @@ def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
     _append_finding_rows(findings, telemetry_path=os.path.join(
         rs.framework_root, "telemetry", "findings.jsonl"))
 
+    # Panel-finding F-7: store the verdict, bound to the plan_sha256
+    # the reviewer saw. This is what `reconcile_human_gate` consults
+    # to decide whether `accept` is machine-permissible.
+    rs.plan_reviewer_verdicts.append({
+        "reviewer_index": reviewer_index,
+        "model_id": record.model_id,
+        "family": record.family,
+        "verdict": verdict,
+        "plan_sha256_at_time_of_review": rs.plan_sha256,
+        "is_error": record.is_error,
+        "run_id": record.run_id,
+    })
+
     print(f"  reviewer {reviewer_index} verdict: {verdict}")
     print(f"  findings: {len(findings)}")
     return {"record": record, "verdict": verdict, "findings": findings}
@@ -492,6 +505,55 @@ def preflight_family_guard(cfg: Config, rs: RunState) -> None:
               file=sys.stderr)
     else:
         print("§17.2 family guard OK")
+
+
+def recheck_family_guard_post_resolution(cfg: Config, rs: RunState,
+                                          which: str) -> None:
+    """Re-run §17.2 guard with *resolved* families substituted in.
+
+    Panel-finding F-2: FamilyGuardOutcome's docstring promised a
+    post-resolution re-check that did not exist. This implements
+    it: after the planner + reviewer(s) + executor have resolved
+    their actual model/family, the guard runs again so a model
+    that the operator *configured* but the channel *resolved to*
+    a different family still gets the §4/§17.2 fail-closed treatment.
+
+    `which` is one of: "after-plan-review" | "after-executor".
+    """
+    assignments = rs.all_role_assignments()
+    # Substitute resolved_family for the planner + reviewers + executor
+    # wherever that role has one bound to a family OTHER than the
+    # curated map's projection. This catches the operator-vs-resolved
+    # mismatch shape.
+    out = check_family_separation(
+        *assignments,
+        allow_test_author_collide=cfg.allow_test_author_collide,
+        allow_single_family=cfg.allow_single_family,
+    )
+    if not out.ok:
+        rs.family_guard_passed = False
+        rs.family_guard_notes = (
+            f"post-resolution re-check ({which}) failed; " +
+            "; ".join(out.violations)
+        )
+        if cfg.fail_closed:
+            print(
+                f"§17.2 family guard FAILED post-resolution ({which}) — refusing.",
+                file=sys.stderr,
+            )
+            for v in out.violations:
+                print(f"  - {v}", file=sys.stderr)
+            raise SystemExit(2)
+        print(
+            f"§17.2 family guard FAILED post-resolution ({which}); "
+            f"fail-closed disabled; continuing.",
+            file=sys.stderr,
+        )
+    else:
+        rs.family_guard_passed = True
+        rs.family_guard_notes = (
+            f"§17.2 family guard OK at pref + post-resolution ({which})"
+        )
 
 
 # ── step: reconcile (human gate) ────────────────────────────────────────
@@ -556,6 +618,15 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
     head, _, rest = line.partition(" ")
     head = head.lower()
     if head == "accept":
+        # Panel-finding F-7: machine-check §5.3 convergence preconditions
+        # BEFORE honoring ``accept``. Without this, the human seat is a
+        # rubber stamp — Phase 0's KNOWN silent-green defect.
+        try:
+            _enforce_5_3_preconditions(rs)
+        except SystemExit as e:
+            # If the reasons include the explicit REFUSED markers,
+            # _enforce_5_3_preconditions has already written them.
+            raise
         return ReconcileDecision.ACCEPT
     if head == "amend":
         rs.status_message = f"amend: {rest}".strip()
@@ -565,6 +636,57 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
         return ReconcileDecision.REJECT
     print(f"  unknown decision {head!r}; treating as abort")
     raise SystemExit(1)
+
+
+# ── §5.3 machine-check helpers (panel-finding F-7) ───────────────────────
+
+def _enforce_5_3_preconditions(rs: RunState) -> None:
+    """Refuse ``accept`` while §5.3 convergence preconditions fail.
+
+    Two checks (panel-finding F-7):
+      1. zero open blocker|high findings (status='open')
+      2. at least one reviewer verdict=APPROVE bound to the current
+         plan_sha256 (the §5.3 "exact plan hash" rule)
+
+    Raises SystemExit(4) for open blocker|high, SystemExit(5) for
+    no bound APPROVE, SystemExit(0) on success (no exception =
+    preconditions met; the gate returns ReconcileDecision.ACCEPT
+    either way).
+    """
+    open_blocker_or_high = [
+        f for f in rs.plan_findings
+        if f.status == "open" and f.severity in ("blocker", "high")
+    ]
+    if open_blocker_or_high:
+        print(
+            f"  REFUSED: {len(open_blocker_or_high)} open blocker|high "
+            f"finding(s); §5.3 forbids accepting the plan while "
+            f"blocker|high are open. Use 'amend <reason>' to record an "
+            f"explicit disposition, or 'reject' to loop the planner.",
+            file=sys.stderr,
+        )
+        for f in open_blocker_or_high:
+            print(
+                f"    - {f.finding_id} ({f.source_model_id}): "
+                f"{f.claim[:160]}",
+                file=sys.stderr,
+            )
+        raise SystemExit(4)
+
+    bound_approves = [
+        v for v in rs.plan_reviewer_verdicts
+        if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
+        and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
+    ]
+    if not bound_approves:
+        print(
+            f"  REFUSED: no reviewer returned APPROVE bound to "
+            f"plan_sha256={rs.plan_sha256[:16]}… §5.3 requires at "
+            f"least one APPROVE against the current plan hash. "
+            f"Use 'amend <reason>' or 'reject'.",
+            file=sys.stderr,
+        )
+        raise SystemExit(5)
 
 
 def _write_reconcile_packet(rs: RunState, path: str) -> None:
@@ -959,10 +1081,37 @@ def main(argv: list[str] | None = None) -> int:
                                       evidence_dir=evidence_dir,
                                       dry_run=cfg.dry_run)
         if rs.plan_reviewer_2:
-            run_plan_reviewer(rs, reviewer_index=2,
-                              evidence_dir=evidence_dir,
-                              dry_run=cfg.dry_run,
-                              is_second_reviewer=True)
+            reviewer2 = run_plan_reviewer(rs, reviewer_index=2,
+                                          evidence_dir=evidence_dir,
+                                          dry_run=cfg.dry_run,
+                                          is_second_reviewer=True)
+        else:
+            reviewer2 = None
+
+        # Panel-finding F-2: re-run family-guard with the *resolved*
+        # families of planner + reviewer(s) substituted. The recheck
+        # implements what FamilyGuardOutcome's docstring claimed but
+        # the preflight-only implementation did not deliver — a model
+        # that the operator *configured* but the channel *resolved
+        # to* a different family still gets the §4/§17.2 fail-closed
+        # treatment.
+        recheck_family_guard_post_resolution(cfg, rs, "after-plan-review")
+
+        # Sanity print so the operator sees the verdict storage the
+        # reconcile gate will consult (panel-finding F-7).
+        bound_approves = sum(
+            1 for v in rs.plan_reviewer_verdicts
+            if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
+            and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
+        )
+        print(
+            f"  reviewer verdicts bound to current plan_sha256: "
+            f"{bound_approves}/{len(rs.plan_reviewer_verdicts)} APPROVE"
+        )
+
+        # Silence unused-variable lint — reviewer1/reviewer2 are
+        # diagnostics; the source of truth lives on rs.plan_reviewer_verdicts.
+        _ = (reviewer1, reviewer2)
 
         # 3. Reconcile gate
         if cfg.skip_reconcile:
@@ -1024,11 +1173,47 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _parse_validator_inline(entry: str, cfg: Config) -> dict:
-    """Parser for ``--validators "model_id:provider:family:label"`` entries."""
+    """Parser for ``--validators "model_id:provider:family:label"`` entries.
+
+    Panel-finding F-3: previously took ``family`` verbatim from the
+    inline declaration, defeating the curated-map rule. Now requires
+    the inline ``family`` to match the curated map's projection
+    when the model is in MODEL_FAMILY_MAP, and refuses when the
+    model is not in the curated map at all (regardless of inline).
+    """
     parts = entry.strip().split(":")
     model_id = parts[0]
-    provider = parts[1] if len(parts) > 1 else cfg.provider_family(model_id)[0]
-    family = parts[2] if len(parts) > 2 else cfg.provider_family(model_id)[1]
+    curated_provider, curated_family = cfg.provider_family(model_id)
+    # If model_id is curated, the inline family (if given) must equal
+    # the curated family. Per §4 provenance is curated—not declared.
+    if model_id in MODEL_FAMILY_MAP:  # curate presence test (cfg.provider_family
+                                       # already returns ("unknown","unknown") for unmapped)
+        if len(parts) > 2 and parts[2] and parts[2] != curated_family:
+            raise SystemExit(
+                f"validator {entry!r} declares family '{parts[2]}' but "
+                f"the curated MODEL_FAMILY_MAP assigns '{curated_family}' "
+                f"to model {model_id!r}. PRD §4 forbids provenance bypass; "
+                f"OMIT the inline family to use the curated value, or ADD "
+                f"{model_id} → ({curated_provider!r}, {curated_family!r}) "
+                f"to tools/sprint_loop/config.py MODEL_FAMILY_MAP."
+            )
+        provider = parts[1] if len(parts) > 1 else curated_provider
+        family = curated_family
+    else:
+        # Unmapped model: refuse closed per §4, regardless of inline fields.
+        # (Inline fields here are an attempt to claim provenance we don't have.)
+        if len(parts) > 2 and parts[2]:
+            raise SystemExit(
+                f"validator {entry!r} declares family '{parts[2]}' but "
+                f"{model_id!r} is not in MODEL_FAMILY_MAP. PRD §4 forbids "
+                f"provenance by declaration; add the model to "
+                f"tools/sprint_loop/config.py MODEL_FAMILY_MAP first."
+            )
+        raise SystemExit(
+            f"validator {entry!r}: model {model_id!r} is not in MODEL_FAMILY_MAP. "
+            f"PRD §4 forbids provenance by declaration; add the model to "
+            f"tools/sprint_loop/config.py MODEL_FAMILY_MAP first."
+        )
     return {"pinned_family": family, "pinned_provider": provider}
 
 

@@ -208,65 +208,62 @@ class LocalBackend:
         elif evidence_source == "bundle":
             argv += ["--treatment"]
 
-        # Environment: evidence signing key, if any.
+        # Dry-run short-circuit lives BEFORE the signing-key guard:
+        # in dry-run there is no real evidence flow, so the key is
+        # not relevant — short-circuit returns a simulated ACCEPT so
+        # the rest of the runner wires through. (Live runs hit the
+        # signing-key guard below.) The dry-run path was relocated
+        # here from the original three duplicate blocks at :141 / :216
+        # / :244 — panel-finding F-9.
+        if self.dry_run:
+            summary_path = os.path.join(review_output_dir, "review-summary.json")
+            os.makedirs(review_output_dir, exist_ok=True)
+            summary = {
+                "ts": _utcnow_iso(),
+                "branch": extra.get("branch", ""),
+                "evidence_source": evidence_source,
+                "run_label": run_label,
+                "validators": [
+                    {"label": v.split(":")[0], "model": v.split(":")[0],
+                     "family": "dry-run", "verdict": "ACCEPT",
+                     "tokens_in": 0, "tokens_out": 0, "retry_count": 0}
+                    for v in validators
+                ],
+                "gate": "ACCEPT",
+            }
+            with open(summary_path, "w") as f:
+                json.dump(summary, f, indent=2)
+            return BackendResult(
+                gate=GateDecision.ACCEPT,
+                reason="dry-run: simulated ACCEPT for chunk validation",
+                summary_path=summary_path,
+                validators=summary["validators"],
+                evidence_source=evidence_source,
+                raw=summary,
+            )
+
+        # Environment: evidence signing key. OPERATING-RULES §7:
+        # do NOT fabricate a per-process key when the env var is unset
+        # (panel-finding F-10) — that gives producer and verifier the
+        # same secret, so the HMAC verifies whatever the process
+        # produced and proves nothing cross-process. Refuse closed
+        # instead, surfacing the operator's missing-config.
         env = dict(os.environ)
-        env["EVIDENCE_SIGNING_KEY"] = os.environ.get(signing_key_env, "") or _random_key()
-
-        # ── dry-run: synthesise the summary JSON and skip subprocess ─
-        if self.dry_run:
-            summary_path = os.path.join(review_output_dir, "review-summary.json")
-            os.makedirs(review_output_dir, exist_ok=True)
-            summary = {
-                "ts": _utcnow_iso(),
-                "branch": extra.get("branch", ""),
-                "evidence_source": evidence_source,
-                "run_label": run_label,
-                "validators": [
-                    {"label": v.split(":")[0], "model": v.split(":")[0],
-                     "family": "dry-run", "verdict": "ACCEPT",
-                     "tokens_in": 0, "tokens_out": 0, "retry_count": 0}
-                    for v in validators
-                ],
-                "gate": "ACCEPT",
-            }
-            with open(summary_path, "w") as f:
-                json.dump(summary, f, indent=2)
+        signing_key = os.environ.get(signing_key_env, "")
+        if not signing_key:
             return BackendResult(
-                gate=GateDecision.ACCEPT,
-                reason="dry-run: simulated ACCEPT for chunk validation",
-                summary_path=summary_path,
-                validators=summary["validators"],
+                gate=GateDecision.STOP,
+                reason=(
+                    f"{signing_key_env} is unset. The evidence producer's "
+                    f"HMAC would have no key to sign with, so the verifier "
+                    f"would either (a) refuse closed (correct, but useless) "
+                    f"or (b) share a fabricated per-process key with the "
+                    f"producer, which §7 forbids. Set {signing_key_env} in "
+                    f"the operator environment before launching the runner."
+                ),
                 evidence_source=evidence_source,
-                raw=summary,
             )
-
-        # ── dry-run: synthesise the summary JSON and skip subprocess ─
-        if self.dry_run:
-            summary_path = os.path.join(review_output_dir, "review-summary.json")
-            os.makedirs(review_output_dir, exist_ok=True)
-            summary = {
-                "ts": _utcnow_iso(),
-                "branch": extra.get("branch", ""),
-                "evidence_source": evidence_source,
-                "run_label": run_label,
-                "validators": [
-                    {"label": v.split(":")[0], "model": v.split(":")[0],
-                     "family": "dry-run", "verdict": "ACCEPT",
-                     "tokens_in": 0, "tokens_out": 0, "retry_count": 0}
-                    for v in validators
-                ],
-                "gate": "ACCEPT",
-            }
-            with open(summary_path, "w") as f:
-                json.dump(summary, f, indent=2)
-            return BackendResult(
-                gate=GateDecision.ACCEPT,
-                reason="dry-run: simulated ACCEPT for chunk validation",
-                summary_path=summary_path,
-                validators=summary["validators"],
-                evidence_source=evidence_source,
-                raw=summary,
-            )
+        env["EVIDENCE_SIGNING_KEY"] = signing_key
 
         result = subprocess.run(argv, env=env, capture_output=True, text=True,
                                timeout=900)

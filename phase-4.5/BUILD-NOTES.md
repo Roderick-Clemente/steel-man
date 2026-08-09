@@ -1,6 +1,7 @@
 # Phase 4.5 — Build notes
 
-What was built, in 7 chunks. Each chunk is a separate commit per
+What was built, in 9 chunks + 1 panel-input chunk. Each chunk
+is a separate commit per
 `AGENTS.md` ("commits are the baton"). Each chunk has a
 script-runnable check that exits 0 against its own deliverable
 (`OPERATING-RULES.md` §11).

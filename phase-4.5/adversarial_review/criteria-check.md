@@ -196,7 +196,8 @@ Each row: PRD criterion + status + where satisfied + notes.
 ### §17 — capacity envelope
 
 - **Status:** PASS
-- **Where satisfied:** Phase 4.5 budget: 7 chunks + 1 review chunk.
+- **Where satisfied:** Phase 4.5 budget: 9 chunks + 1 panel-input
+  chunk (chunk 10) closing the panel's findings.
   Backlog E (Harness / 3.3 / dogfood) is explicitly NOT Phase 4.5.
   Out-of-scope is listed in `phase-4.5/RUN-PROMPT.md` and `BUILD-NOTES.md`.
 - **Notes:** VALID

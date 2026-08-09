@@ -16,8 +16,9 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
 
 - **What:** the runner's full loop has been dry-run-tested against
   a synthetic chunk spec but has NOT been exercised against a real
-  pilot. The 52 pytest tests cover unit + integration paths under the
-  runner; they do not exercise the per-chunk inner loop's calls to
+  pilot. The 63 pytest tests cover unit + integration paths under
+  the runner (chunk-10 close); they do not exercise the per-chunk
+  inner loop's calls to
   `droid exec`, `lock.py`, `verify-green.py`, `local_backend.py`
   end-to-end against a real pilot repo.
 - **Why not (rationale for null):** the runner intentionally falls
@@ -157,6 +158,28 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
 - **Why deferred:** a separate operator session; not Phase 4.5 scope
   per PRD §3 v1 non-goal ("rebuilding Factory Missions, Spec Mode,
   model selection, hooks, Droid Shield, or CI").
+
+### KNR4. `--skip-reconcile` is currently an unconditional auto-accept
+
+- **What:** panel-finding F-6 (high). The current implementation
+  maps `--skip-reconcile` straight to `ReconcileDecision.ACCEPT`
+  with no §5.3 machine-check. The panel recommended deprecating
+  this flag and replacing it with `--accept-on-dual-accept`
+  guarded by preconditions (≥2 reviewers, ACCEPT verdicts,
+  verdicts bound to current `plan_sha256`, zero open
+  blocker|high, cross-family confirmed, `oversight=low`).
+- **Why deferred in chunk 10:** the chunk-10 close fixes the
+  central human-seat defect (F-7: machine-check §5.3 on `accept`
+  from stdin) and the post-resolution family guard (F-2). The
+  `--skip-reconcile` surface is now *safer than before* because
+  the F-7 `_enforce_5_3_preconditions` runs at the gate before
+  --skip-reconcile's auto-accept fires. Waiving that surface
+  still requires an explicit operator flag, but the panel
+  prefers deprecation; record here.
+- **TODO:** introduce `--accept-on-dual-accept` as the safe
+  replacement; map `--skip-reconcile` to a loud warning + run-level
+  `--treat-skip-as-bypass` flag for the operator who really wants
+  the unconditional path.
 
 ## Surface-level ergonomics (recorded, not gating)
 

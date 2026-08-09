@@ -1,3 +1,21 @@
+---
+name: adversarial-sprint
+description: |
+  How to run and review adversarial sprints in projects adopting the
+  adversarial-sprint framework. Teaches the agent the §18 operating
+  rules (compose / chunk / fix friction / review / distill), when to
+  invoke the runner, and how to rehydrate OPERATING-RULES.md on
+  long-running jobs. Reference asset; the runner itself lives in
+  the project repo at tools/sprint-loop.py.
+when-to-invoke: |
+  - User asks for "an adversarial sprint", "review-driven development",
+    or "the adversarial-sprint workflow."
+  - Operator wants a one-command orchestration of a multi-chunk
+    change with cross-family validation gates.
+  - Long-running session that has drifted from the operating rules
+    (call the rehydration step before continuing).
+---
+
 # Adversarial Sprint — Skill
 
 A SKILL asset for agents (Droid, Claude Code, Codex, etc.) that
