@@ -270,3 +270,58 @@ missed exits it criticizes.
 *Rationale:* The v1 roadmap review proposed five priorities and six rules
 without naming constraints. The cross-family panel flagged this as
 recreating the unbounded-backlog pattern.
+
+
+## 18. Compose existing primitives; build in chunks; fix ergonomic friction inline
+
+A new build's first question is **"what existing primitives compose this?"**
+— not "what do I write from scratch." The repo already ships tools whose
+authors faced the same problem. A NEW abstraction that ignores them is
+either reinvention (rule §14 silent-scope-lie), duplicate directory
+(operational debt), or a missed reuse.
+
+Concretely, before writing code:
+
+1. **Compose first.** ``grep -l`` the project for the nearest existing
+   primitive (``tools/``, ``phase-1/scripts/``, ``phase-3.2/evidence/``,
+   the model-discipline conventions). Plan the build as a flow chart of
+   *existing* calls with thin orchestration glue between them.
+2. **Build in chunks.** Each commit lands one verifiable unit: state +
+   tests, then composes the next layer, then composes the runner. The
+   chunk plan is committed BEFORE the chunks fire (`phase-N/PLAN.md` or
+   `templates/SPRINT-PLANNING-TEMPLATE.md`-shaped). A "build it all in one
+   commit" run is a §17 unbounded-foundation-program in miniature.
+3. **Verify at every commit boundary.** Each chunk has a script-runnable
+   check that exits 0 against the chunk's specific deliverable
+   (``pytest tests/``, ``python3 -m py_compile``, ``yaml.safe_load``,
+   ``grep -n``, ``droid`` dry-run). §11 applies per chunk — chunks without
+   a check are §1 silent-green shapes.
+4. **Fix ergonomic friction inline.** If the chunk surfaces friction in
+   an existing primitive (missing flag, wrong default, brittle
+   hard-code), FIX THE PRIMITIVE in the SAME chunk — under the
+   ``OPERATING-RULES §14 (shim / wrapper present) `` plus inline. Don't
+   work around bad ergonomics in user code; the workaround becomes the
+   new owner of that debt. Record the fix in the chunk's `PLAN.md` rule-
+   application table.
+5. **Run the adversarial review at the end of the build.** A build
+   without a structural review against the PRD §5 acceptance criteria
+   (§5.2 … §5.8 + §11) is a "I read it and it looks right" hand-wave.
+   Use the cross-family review harness the project already ships
+   (``tools/orchestrate-review.py``, silence-green guarding per §7) —
+   record findings + dispositions in ``findings.jsonl``.
+6. **Distill into a reusable asset.** After the build lands, scan the
+   prompts/methodology used and ask: *would a future agent on a different
+   task need to be told this?* If yes, distill the principle into either
+   a new rule in this file (rules that ALL agents see on entry), a new
+   Skill (skills agents invoke explicitly), or a new section in the
+   PRD/PLANS. The principle is reusable when its omission causes the
+   same defect elsewhere.
+
+*Rationale:* "Use what exists" + "build small + verify" + "fix the friction
+now" + "review against the spec" + "distill the lesson" were each
+earnestly given in writing across multiple RUN-PROMPTs but never made
+default. The result: every new build re-litigated the same scaffolding
+questions, occasionally re-implemented something the project already
+shipped, and the principles didn't propagate. A standing rule reads on
+every agent entry — a prompt does not.
+

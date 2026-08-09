@@ -33,4 +33,30 @@ if [ "$#" -lt 1 ]; then
     exit 2
 fi
 
+# PRD §3.2 GO-NO-GO: droid exec --mission is a closed path. The Phase 0
+# experiment showed Mission-native mode is a no-op that reports success
+# (silent-green defect equivalent). Refuse it at the wrapper so neither a
+# tired operator nor an automated runner can route through it silently.
+# Escape the GO-NO-GO with DROID_ALLOW_MISSION=1 only for explicit re-probing
+# — that override is logged by the caller and reviewed, not used casually.
+for arg in "$@"; do
+    if [ "$arg" = "--mission" ]; then
+        if [ "${DROID_ALLOW_MISSION:-0}" = "1" ]; then
+            echo "run-with-model.sh: WARNING --mission is being passed with DROID_ALLOW_MISSION=1" >&2
+            echo "  (the GO-NO-GO closed this path; this is a re-probe, not casual use)" >&2
+            break
+        fi
+        cat >&2 <<'EOF'
+run-with-model.sh: refusing to run. --mission was passed.
+
+Per PRD §3.2 GO-NO-GO, droid exec --mission is a closed path: Mission mode
+is a no-op that reports success (silent-green defect). The framework is
+command-orchestrated (tools/orchestrate-review.py + tools/sprint-loop.py).
+If you are re-probing Mission-native and have an explicit path in
+phase-N/KNOWN-ISSUES.md, set DROID_ALLOW_MISSION=1 and document the run.
+EOF
+        exit 3
+    fi
+done
+
 exec "$@"
