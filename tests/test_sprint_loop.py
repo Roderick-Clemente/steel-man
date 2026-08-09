@@ -396,6 +396,151 @@ def test_role_assignments_materialise_from_config():
     assert by_role_count[Role.VALIDATOR] == 2
 
 
+# ── droid wrapper + backends (Chunk 2) ───────────────────────────────────
+
+def test_invoke_options_default_skip_run_with_model_disallowed_in_production():
+    """The wrapper is mandatory per OPERATING-RULES §14; the only way to
+    skip it is the test-only ``skip_run_with_model`` flag. Verify the
+    field exists and default is False."""
+    from sprint_loop.droid import InvokeOptions
+    opts = InvokeOptions(model_id="grok-4.5", prompt_file="/tmp/x.md")
+    assert opts.skip_run_with_model is False
+    assert opts.model_id == "grok-4.5"
+
+
+def test_droid_dry_run_writes_synthetic_envelope(tmp_path):
+    from sprint_loop.droid import InvokeOptions, invoke_droid
+    from sprint_loop.state import Role
+    envelope_path = tmp_path / "envelope.json"
+    stderr_path = tmp_path / "stderr.log"
+    options = InvokeOptions(
+        model_id="grok-4.5",
+        auto_level="high",
+        enabled_tools="Read,Glob,Grep,LS",
+        prompt_file=str(tmp_path / "prompt.md"),
+        cwd=str(tmp_path),
+    )
+    (tmp_path / "prompt.md").write_text("hello prompt")
+    record = invoke_droid(
+        Role.PLAN_REVIEWER,
+        options=options,
+        envelope_path=str(envelope_path),
+        stderr_path=str(stderr_path),
+        max_retries=0,
+        dry_run=True,
+    )
+    assert record.is_error is False
+    assert "dry-run" in record.note
+    assert record.role == "reviewer"
+    assert os.path.isfile(envelope_path)
+    parsed = json.loads(open(envelope_path).read())
+    assert parsed["is_error"] is False
+    assert "No droid exec fired" in parsed["result"]
+
+
+def test_backends_local_dry_run_returns_accept(tmp_path):
+    from sprint_loop.backends import LocalBackend, BackendResult
+    from sprint_loop.state import GateDecision
+    backend = LocalBackend(dry_run=True)
+    chunk = {
+        "test_file": "test/test_x.py",
+        "lock_file": "phase-1/locks/test/test_x.py.lock.json",
+        "review_output_dir": str(tmp_path / "reviews"),
+    }
+    res = backend.validate(
+        chunk=chunk,
+        evidence_bundle=str(tmp_path / "bundle.json"),
+        framework_root="/unused",
+        pilot_root="/unused",
+        pilot_python="/usr/bin/python3",
+        signing_key_env="EVIDENCE_SIGNING_KEY",
+        validators=["grok-4.5", "gemini-3.1-pro-preview"],
+        run_label="r-test",
+        prompt_template_path="/unused/prompt.md",
+        run_id="r-test",
+    )
+    assert res.gate == GateDecision.ACCEPT
+    assert res.gate.value == "ACCEPT"
+    assert res.evidence_source == "bundle"
+    # The dry-run summary file is written so a downstream consumer
+    # (and the test reader) can audit what happened.
+    assert os.path.isfile(res.summary_path)
+    summary = json.loads(open(res.summary_path).read())
+    assert summary["gate"] == "ACCEPT"
+
+
+def test_backends_local_refuses_missing_orchestrator(tmp_path, monkeypatch):
+    from sprint_loop.backends import LocalBackend
+    backend = LocalBackend(dry_run=False)
+    # Force a framework_root that doesn't contain orchestrate-review.py
+    res = backend.validate(
+        chunk={"test_file": "test/x.py", "lock_file": "phase-1/locks/x.lock.json"},
+        evidence_bundle=str(tmp_path / "bundle.json"),
+        framework_root=str(tmp_path),
+        pilot_root=str(tmp_path),
+        pilot_python="/usr/bin/python3",
+        signing_key_env="EVIDENCE_SIGNING_KEY",
+        validators=["grok-4.5"],
+        run_label="r-test",
+        prompt_template_path="/dev/null",
+    )
+    assert res.gate.value == "STOP"
+    assert "orchestrate-review.py missing" in res.reason
+
+
+def test_backends_local_refuses_missing_chunk_keys(tmp_path):
+    from sprint_loop.backends import LocalBackend
+    backend = LocalBackend(dry_run=False)
+    res = backend.validate(
+        chunk={},
+        evidence_bundle=str(tmp_path / "bundle.json"),
+        framework_root=str(tmp_path),
+        pilot_root=str(tmp_path),
+        pilot_python="/usr/bin/python3",
+        signing_key_env="EVIDENCE_SIGNING_KEY",
+        validators=["grok-4.5"],
+        run_label="r-test",
+        prompt_template_path="/dev/null",
+    )
+    assert res.gate.value == "STOP"
+    assert "missing test_file or lock_file" in res.reason
+
+
+def test_backends_ci_stub_raises_with_actionable_message():
+    from sprint_loop.backends import CIBackend
+    backend = CIBackend()
+    with pytest.raises(NotImplementedError) as exc:
+        backend.validate(
+            chunk={},
+            evidence_bundle="/tmp/bundle.json",
+            framework_root="/tmp/fw",
+            pilot_root="/tmp/pilot",
+            pilot_python="/usr/bin/python3",
+            signing_key_env="EVIDENCE_SIGNING_KEY",
+            validators=["grok-4.5"],
+            run_label="r-test",
+            prompt_template_path="/tmp/prompt.md",
+        )
+    assert "ValidationBackend=ci is currently a stub" in str(exc.value)
+    assert "--validation-backend=local" in str(exc.value)
+
+
+def test_backends_build_factory_rejects_unknown():
+    from sprint_loop.backends import build_backend
+    with pytest.raises(ValueError):
+        build_backend("totally-fake")
+    # Known names succeed
+    assert build_backend("local").name == "local"
+    assert build_backend("ci").name == "ci"
+
+
+def test_backends_name_constants_are_stable():
+    # Used by Config + CLI flag; do not rename without bumping schema.
+    from sprint_loop.backends import LocalBackend, CIBackend
+    assert LocalBackend.name == "local"
+    assert CIBackend.name == "ci"
+
+
 # ── run-with-model.sh refinements (Chunk 1 inline primitive fix) ─────────
 
 def test_run_with_model_refuses_mission_by_default():
