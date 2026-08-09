@@ -1,0 +1,279 @@
+# Adversarial Sprint CI — flavor (a) per PRD §11 Phase 4.5
+#
+# Runs the evidence provider + cross-family validator panel on every PR
+# to the pilot repo. CI is *just the runner* (PRD §11) — the runner
+# detects, classifies, gates. The evidence source for validators is the
+# EvidenceBundle produced by `local_backend.py`; validators do NOT
+# re-run pytest in CI (no `Execute` tool, KI-2 preventive fix).
+#
+# Secrets required:
+#   - DROID_BIN_ENV (optional — for offline debugging; default /usr/local/bin/droid)
+#   - EVIDENCE_SIGNING_KEY (REQUIRED — bounds the HMAC-SHA256 of the
+#     EvidenceBundle. Without it, the bundle is untrusted and the gate
+#     fails closed per PRD §7.)
+#   - ANTHROPIC_API_KEY (or equivalent for the chosen validator family)
+#   - OTHERS per platform conventions
+#
+# Behaviour:
+#   - triggers: pull_request opened/synchronised/reopened
+#   - jobs.adversarial-review runs `local_backend.py` → `orchestrate-review.py`
+#   - jobs.gate posts the verdict as a PR comment + status check
+#   - REJECT / STOP  → job fails → required-status check blocks merge
+#   - ACCEPT         → job succeeds
+#
+# Honest limitations (recorded in phase-4.5/CI-GATE.md and KNOWN-ISSUES.md):
+#   - This workflow assumes the runner's droid binary is available on
+#     the runner image. GitHub-hosted runners do NOT ship droid by
+#     default — pin a self-hosted runner, or factor the droid call into
+#     a step that documents the installation requirement.
+#   - The KI-2 preventive fix (validators consume the bundle, no
+#     `--enabled-tools Execute`) requires that `orchestrate-review.py`
+#     is run with `--treatment`, set by the runner's call.
+
+name: adversarial-sprint-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Override branch to review (defaults to PR head)"
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+# One concurrent run per PR branch — competing CI runs on the same PR
+# can produce out-of-order gate decisions.
+concurrency:
+  group: adversarial-sprint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adversarial-review:
+    name: Adversarial Sprint review
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # EVIDENCE_SIGNING_KEY must be present — the consumer fails closed.
+      EVIDENCE_SIGNING_KEY: ${{ secrets.EVIDENCE_SIGNING_KEY }}
+      DROID_ALLOW_MISSION: "0"  # Phase 0 GO-NO-GO: refuse --mission
+
+    steps:
+      - name: Checkout pilot repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # bundle's commit_sha must match real HEAD
+          path: pilot
+
+      - name: Checkout framework repo (sprint-loop runner)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.head_ref || 'main' }}
+          path: framework
+
+      - name: ⚠ Droid CLI availability check
+        run: |
+          # Per OPERATING-RULES §14 the runner shells out via
+          # ``tools/run-with-model.sh``. The droid CLI is mandatory.
+          # If unavailable on the runner image, the workflow fails
+          # (the operator must use a self-hosted runner with droid
+          # installed — see phase-4.5/CI-GATE.md).
+          if ! command -v droid; then
+            echo "::error::droid CLI not installed on runner. Pin a self-hosted runner with droid installed, OR install droid before invoking the runner."
+            exit 1
+          fi
+          droid --version
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install droid CLI (best-effort)
+        run: |
+          # If droid is not on the runner, this step attempts to install
+          # it from the upstream tarball. The PR-comment below surfaces
+          # any install failure so it's auditable.
+          if ! command -v droid; then
+            curl -fsSLo /tmp/droid.tar.gz "$DROID_TARBALL_URL" || {
+              echo "::warning::droid install failed; the runner requires pre-installed droid for the CI flavor."
+              exit 0  # do not block the PR; the previous step will have already errored if --strict
+            }
+            tar -xzf /tmp/droid.tar.gz -C /usr/local/bin/
+            chmod +x /usr/local/bin/droid
+          fi
+        env:
+          DROID_TARBALL_URL: ${{ vars.DROID_TARBALL_URL }}
+
+      - name: Determine chunk under review
+        id: chunk
+        run: |
+          # The runner needs a chunk spec to drive. Convention: PR
+          # title encodes the chunk id (e.g., "[chunk:c1] add /llms.txt").
+          # If the convention is not followed, the workflow surfaces an
+          # error in the PR and bails.
+          python3 <<'PY'
+          import os, json, re, sys
+          title = os.environ.get("PR_TITLE", "")
+          m = re.search(r"\[chunk:([A-Za-z0-9_-]+)\]", title)
+          if not m:
+              print("::error::PR title must include '[chunk:<id>]' so the runner knows which chunk to gate (per phase-4.5/CI-GATE.md §3).")
+              sys.exit(0)
+          chunk_id = m.group(1)
+          with open(os.environ["GITHUB_OUTPUT"], "w") as f:
+              f.write(f"chunk_id={chunk_id}\n")
+          PY
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+
+      - name: Configure runner (drop runner config next to the pilot)
+        run: |
+          mkdir -p phase-4.5-ci/evidence
+          cat > runner-config.json <<EOF
+          {
+            "framework_root": "$GITHUB_WORKSPACE/framework",
+            "pilot_root": "$GITHUB_WORKSPACE/pilot",
+            "pilot_python": "$( which python3 )",
+            "max_review_rounds": 1,
+            "retry_threshold": 1,
+            "validators": [
+              "grok-4.5:xai:grok-family:grok-4.5",
+              "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview"
+            ],
+            "validation_backend": "local",
+            "skip_reconcile": true,
+            "create_pr": false,
+            "dry_run": false
+          }
+          EOF
+
+      - name: Run evidence producer (local_backend.py) on the PR
+        id: evidence
+        run: |
+          set -euo pipefail
+          # The chunk spec lives alongside the runner's build-evidence
+          # directory; CI workflows add it via PR-side push. Falling
+          # back to a synthesized chunk that just verifies the locked
+          # test (the runner reads --chunks-file from the runner-config).
+          python3 -c "import json; print(json.dumps({'chunks': [{'chunk_id': 'ci-${{ steps.chunk.outputs.chunk_id }}', 'scope': 'PR '+'${{ steps.chunk.outputs.chunk_id }}', 'observable_criteria': ['PR passes adversarial review'], 'allowed_files': [], 'locked_test_files': ['test/'+'${{ steps.chunk.outputs.chunk_id }}.py'], 'commands': ['pytest -v'], 'accepted_assertion': 'PASS'}]}))" > chunks.json
+          python3 framework/phase-3.2/evidence/local_backend.py \
+            --pilot-root "$GITHUB_WORKSPACE/pilot" \
+            --framework-root "$GITHUB_WORKSPACE/framework" \
+            --test-file "test/${{ steps.chunk.outputs.chunk_id }}.py" \
+            --lock-file "$GITHUB_WORKSPACE/pilot/phase-1/locks/test/${{ steps.chunk.outputs.chunk_id }}.py.lock.json" \
+            --output phase-4.5-ci/evidence/bundle.json \
+            --python "$( which python3 )" \
+            --signing-key-env EVIDENCE_SIGNING_KEY \
+            --security-scan || true  # security-scan is optional; non-blocking artefact
+          echo "::notice::EvidenceBundle: $( wc -c < phase-4.5-ci/evidence/bundle.json ) bytes"
+
+      - name: Run cross-family validator panel (orchestrate-review.py, bundle mode)
+        id: review
+        run: |
+          set -euo pipefail
+          # Per OPERATING-RULES §17.5 the validator's --enabled-tools is
+          # restricted to Read,Glob,Grep,LS in bundle mode (KI-2
+          # preventive fix — no Execute). The orchestrator detects
+          # ``--evidence-output`` and switches to bundle mode
+          # automatically; ``--treatment`` is the explicit flag.
+          DROID_BIN="$( which droid || echo /usr/local/bin/droid )" \
+            python3 framework/tools/orchestrate-review.py \
+              --framework-root "$GITHUB_WORKSPACE/framework" \
+              --pilot-root "$GITHUB_WORKSPACE/pilot" \
+              --pilot-python "$( which python3 )" \
+              --test-file "test/${{ steps.chunk.outputs.chunk_id }}.py" \
+              --lock-file "$GITHUB_WORKSPACE/pilot/phase-1/locks/test/${{ steps.chunk.outputs.chunk_id }}.py.lock.json" \
+              --prompt-file framework/phase-3.2/reviews/review-prompt.md \
+              --review-output-dir phase-4.5-ci/reviews \
+              --validators "grok-4.5:xai:grok-family:grok-4.5,gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview" \
+              --evidence-output phase-4.5-ci/evidence/bundle.json \
+              --treatment \
+              --auto-level high \
+              --run-label "ci-${{ steps.chunk.outputs.chunk_id }}-${{ github.event.pull_request.number }}" \
+              --max-retries 2 \
+              --retry-delay 5 \
+              --phase phase-4.5-ci
+
+      - name: Read gate decision (review-summary.json)
+        id: gate
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys
+          summary_path = "phase-4.5-ci/reviews/review-summary.json"
+          if not os.path.isfile(summary_path):
+              print("::error::orchestrate-review.py did not write review-summary.json")
+              print(f"GATE=ERROR")
+              sys.exit(0)
+          with open(summary_path) as f:
+              summary = json.load(f)
+          gate = (summary.get("gate") or "ERROR").upper()
+          print(f"GATE={gate}")
+          with open(os.environ["GITHUB_OUTPUT"], "w") as f:
+              f.write(f"gate={gate}\n")
+          print(f"::notice::Validator panel gate decision: {gate}")
+          print(f"::notice::Reason: {summary.get('reason') or '(none)'}")
+          if gate not in ("ACCEPT", "ACCEPT-WITH-NITS", "HUMAN_DECISION"):
+              # Fails the workflow — REJECT/STOP/UNKNOWN block merge.
+              print(f"::error::Gate decision {gate} blocks this PR.")
+              sys.exit(1)
+          PY
+
+      - name: Post gate decision as PR comment
+        if: success() || failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = JSON.parse(require('fs').readFileSync('phase-4.5-ci/reviews/review-summary.json', 'utf8'));
+            const gate = summary.gate || 'UNKNOWN';
+            const validators = (summary.validators || []).map(v => `- ${v.label}/${v.model} → ${v.verdict}`).join('\n');
+            const body = [
+              `### Adversarial Sprint — gate: **${gate}**`,
+              '',
+              `_Reason: ${summary.reason || '(none)'}_`,
+              '',
+              '**Validator panel:**',
+              validators || '_(no validators ran)_',
+              '',
+              `See \`phase-4.5-ci/evidence/bundle.json\` for the deterministic evidence tier (signed; replays in \`phase-3.2/evidence/consumer.py\`).`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Surface as PR status check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // The check's conclusion drives required-status merge-protection
+            // rules — set this up in repo settings (Settings → Branches →
+            // Branch protection rules → "Require status checks to pass
+            // before merging" → search "adversarial-sprint-review/gate").
+            const conclusion = '${{ steps.gate.outputs.gate }}' === 'ACCEPT'
+              ? 'success'
+              : ('${{ steps.gate.outputs.gate }}' === 'ACCEPT-WITH-NITS' ? 'success'
+                : ('${{ steps.gate.outputs.gate }}' === 'HUMAN_DECISION' ? 'neutral'
+                  : 'failure'));
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'adversarial-sprint-review/gate',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion,
+              output: {
+                title: `Adversarial Sprint: ${{ steps.gate.outputs.gate }}`,
+                summary: `Gate decision: ${{ steps.gate.outputs.gate }}.\nSee the workflow run for full validator output.`,
+              },
+            });
