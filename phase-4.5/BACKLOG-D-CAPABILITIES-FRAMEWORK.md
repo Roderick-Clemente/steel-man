@@ -113,12 +113,18 @@ Two reasons anchored in OPERATING-RULES:
 | Phase | Deliverable                                         |
 |-------|-----------------------------------------------------|
 | 4.5 (now) | Foundation: skill distribution shape + convention doc + install paths |
-| 6     | Capability registry: `skills/capabilities/MANIFEST.yaml` + dispatcher in runner |
-| 7     | Pre-built capabilities: priority-ranker, feature-clarifier, silent-green-sniffer |
+| **Future — Backlog D, post-Phase-5** | Capability registry: `skills/capabilities/MANIFEST.yaml` + dispatcher in runner |
+| **Future — Backlog D, post-Phase-5** | Pre-built capabilities: priority-ranker, feature-clarifier, silent-green-sniffer |
 
 The runner-as-router shape with hook points is the unifying
-abstraction across both phases — but each phase ships a verifiable
-deliverable, not a half-built version of both.
+abstraction across both — but each ship is a verifiable deliverable,
+not a half-built version of both.
+
+**Renumbered from "Phase 6 / Phase 7" per pass-r2 finding G-11:**
+the PRD defines Phase 6 as "no new feature work" and Phase 7 as
+outside the measured 0–6 arc. Backlog D is unimplemented design
+captured here so it survives compaction; the actual phase numbering
+lands when the PRD moves its gates.
 
 ## See also
 

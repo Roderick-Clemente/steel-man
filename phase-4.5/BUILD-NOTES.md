@@ -1,10 +1,29 @@
 # Phase 4.5 — Build notes
 
-What was built, in 9 chunks + 1 panel-input chunk. Each chunk
-is a separate commit per
+What was built, in 12 chunks (chunks 1-9 + chunk 10 panel-input +
+chunk 11 skill distribution + chunk 12a blockers + chunk 12b
+distribution shape). Each chunk is a separate commit per
 `AGENTS.md` ("commits are the baton"). Each chunk has a
 script-runnable check that exits 0 against its own deliverable
 (`OPERATING-RULES.md` §11).
+
+## §15 framing (pd-pass-r2 G-9)
+
+The PRD §15 distinguishes two operating modes — Act 1 ("vibe code
+as usual") and Act 2 (runner-driven). The runner's deliverable is
+not "an optional overlay the agent may follow" — it's the **§11
+structural guarantee** for Act 2. The transition between modes is
+the demo's delta. Without that reading, Act 1 and Act 2 collapse
+to the same shape and the project's structural guarantees become
+aspirational rather than enforceable. Concede ergonomics via clean
+banner messages and per-pilot overlay (chunk 12b), not via
+"the agent can ignore the runner."
+
+See `phase-4.5/RUN-PROMPT.md` §15 framing for the truth-table
+showing what each mode enforces. The `--dry-run` column is honest
+about what it doesn't do — operators who run `--dry-run` and treat
+the output as a green-light are running on a §7 silent-green
+shape.
 
 ## Inventory
 
@@ -53,6 +72,9 @@ script-runnable check that exits 0 against its own deliverable
      reviewers → reconcile (stdin pause) → chunking →
      per-chunk inner loop → per-chunk commit on the sprint branch.
    - `examples/sprint-loop-config.json` + `examples/sprint-loop-chunks-example.json`
+     *(moved to `templates/overlay/*.template.json` in chunk 12b —
+     per-pilot overlay with `bin/run-sprint` one-command firing;
+     see chunk 12b below)*
    - Tests: ✅ — adds 2 integration tests (dry-run end-to-end;
      family-guard refuse on unknown model).
 
@@ -86,6 +108,7 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
   --config examples/sprint-loop-config.json \
   --chunks-file examples/sprint-loop-chunks-example.json \
   --dry-run --non-interactive
+  # (chunk 12b: updated to call via .adversarial-sprint/bin/run-sprint)
 
 # Real run (interactive; pauses at reconcile for accept/reject/amend)
 export EVIDENCE_SIGNING_KEY="$( python3 -c 'import secrets; print(secrets.token_hex(32))' )"
@@ -94,6 +117,64 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
   --config /path/to/your/cfg.json \
   --chunks-file /path/to/your/chunks.json
 ```
+
+9. **Adversarial review pass + skill digest** (`0889296`)
+   - `phase-4.5/adversarial_review/{README,criteria-check,findings.jsonl.schema}.md`
+   - `skills/adversarial-sprint/SKILL.md` (digest + index + rehydration)
+   - Per §11 (exit criteria are checked): reviews every PRD §11 / OPERATING-RULES surface.
+   - Tests: ✅ — adds 4 skill-shape tests.
+
+10. **Pass-r1 panel input + chunk-10 fix cluster** (`548a29a`)
+    - `phase-4.5/adversarial_review/{panel-prompt,panel-findings-r1}.md`
+    - 11 findings (F-1…F-11); 10 fixed in-pass, F-6 → KNR4.
+    - High-impact bug fixes: F-1 (family-guard silent overwrite),
+      F-2 (post-resolution re-check), F-7 (§5.3 machine-check on
+      `accept`), F-8 (droid.py unbounded recursion → bounded loop).
+    - Tests: ✅ — adds 7 regression tests; 63 passed.
+
+11. **Skill distribution shape + §19 OPERATING-RULES** (`f971887`)
+    - `tools/conventions/skill-distribution.md` — four install paths,
+      one canonical body, zero drift.
+    - `skills/{adversarial-sprint,sprint-invocation}/SKILL.md` —
+      meta + invocation (chunk-12b splits these cleanly).
+    - `.claude/skills/.../SKILL.md` symlinks, `.cursor/rules/...mdc`
+      generated wrappers (committed).
+    - `tools/OPERATING-RULES.md` §19 added; AGENTS.md cross-ref added.
+    - Tests: ✅ — adds 6 install-shape tests; 69 passed.
+
+11+. **Pass-r2 panel calls pipeline** (consultation only; no code changes)
+    - Pass-r2 surface: 13 findings (G-1…G-13), two blocker-class.
+
+12a. **Pass-r2 blockers + lifecycle (chunk-12a)** (`e820dd7`)
+     - **G-10 (blocker):** `git add -f` pins the per-chunk evidence
+       dir into git history so live chunk commits don't crash.
+     - **G-7 (blocker):** `--unattended` flag + decoupled
+       `--non-interactive` from `--dry-run`. §5.3 preconditions
+       run in all three modes now.
+     - **G-8:** `--skip-reconcile` runs `_enforce_5_3_preconditions`
+       inside its branch. KNR4 → RESOLVED.
+     - **G-4:** `.gitignore` exception `!.factory/skills/`.
+     - **G-5/G-6:** `install-skill.sh` no-recursion, sprint-invocation
+       support, generator↔committed-pin test.
+     - **G-11/G-12/G-13:** lifecycle (BACKLOG-D renumber, doc drifts,
+       track panel-prompt-r2.md).
+     - Tests: ✅ — adds 6 regression tests; 75 passed.
+
+12b. **Distribution shape + per-pilot overlay (chunk-12b)** (this file)
+     - **Move 1+3 collapsed:** `templates/overlay/` (formerly
+       `examples/`); per-pilot `.adversarial-sprint/bin/run-sprint`
+       one-command firing; `evidence_output_dir` Config option
+       so the framework's `phase-4.5/build-evidence` stays clean.
+     - **Move 2:** meta-skill split — strips the duplicated
+       "How to invoke" block; meta-skill now Universal Rules only.
+     - **Move 4:** §15 Act 1/Act 2 framing in `RUN-PROMPT.md` + this
+       file; pd-`g-9` truth-table inline in RUN-PROMPT.
+     - Smoke: meta-skill contains no `tools/sprint-loop.py`
+       invocation block; assertion: `tools/sprint-loop.py --help`
+       emits `--evidence-output-dir` and `--unattended`.
+     - Tests: ✅ — pending verification at chunk-12c.
+
+
 
 ## What's NOT done (clean nulls per OPERATING-RULES §12)
 

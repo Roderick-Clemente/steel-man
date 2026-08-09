@@ -247,6 +247,12 @@ def build_config(argv: list[str] | None = None,
                              "planner is run, the planner writes plan.md and chunking must "
                              "be driven by a subsequent --chunks-file pass.")
 
+    parser.add_argument("--evidence-output-dir", default="",
+                        help="Per-run evidence tree root. Defaults to "
+                             "<framework-root>/phase-4.5/build-evidence/<run-id>/. "
+                             "Set this for per-pilot overlays so the framework repo's "
+                             "phase-4.5/build-evidence dir stays clean.")
+
     parser.add_argument("--pilot-spec-file", default="",
                         help="Path to the pilot spec the planner reads (free-form markdown).")
     parser.add_argument("--review-prompt-template", default="",
@@ -304,6 +310,7 @@ def build_config(argv: list[str] | None = None,
         "chunks_file": args.chunks_file,
         "pilot_spec_file": args.pilot_spec_file,
         "review_prompt_template": args.review_prompt_template,
+        "evidence_output_dir": args.evidence_output_dir,
         "planner_model": args.planner_model,
         "plan_reviewer_model": args.plan_reviewer_model,
         "plan_reviewer_2_model": args.plan_reviewer_2_model,

@@ -130,25 +130,23 @@ The skill's job is to teach the agent WHEN, not to BE the runner.
 
 ## How to invoke
 
-The runner is a CLI artifact that lives in the project (not in
-the skill). Path convention:
+The runner is a CLI artifact that lives in the framework repo, not
+in this skill. Path convention (per the chunk-12b per-pilot
+overlay):
 
 ```
-<PILOT_REPO>/tools/sprint-loop.py
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive   # first time (wiring test)
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint                                  # real run, operator in seat
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --unattended                    # unattended mode
 ```
 
-Default invocation:
-
-```
-PYTHONPATH=tools <PILOT_REPO>/.venv/bin/python \
-    <PILOT_REPO>/tools/sprint-loop.py \
-    --config <PILOT_REPO>/examples/sprint-loop-config.json \
-    --chunks-file <PILOT_REPO>/examples/sprint-loop-chunks-example.json
-```
-
-`-f non-interactive` or `--dry-run --non-interactive` opt out of
-the reconcile gate. See `phase-4.5/RUN-PROMPT.md` in the same repo
-for the full CLI surface.
+The overlay is the per-pilot install surface (one path). For operators
+who want the runner's CLI flags directly, the runner is at
+`<FRAMEWORK_REPO>/tools/sprint-loop.py`. See
+`tools/sprint-loop.py --help` and `tools/sprint_loop/config.py` for the
+full surface. The skill is the *Universal Rules* layer; the overlay is
+the per-pilot config + entrypoint — they are different distribution
+shapes and live at different locations, by design.
 
 ## What this skill is NOT
 

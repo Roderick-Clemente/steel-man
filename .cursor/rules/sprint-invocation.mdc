@@ -1,5 +1,19 @@
 ---
-description: Sprint invocation skill — read skills/sprint-invocation/SKILL.md for the canonical body; body below is generated from that canonical.
+description: |
+  How to invoke the adversarial-sprint runner from inside a session.
+  Triggered when the operator asks for an adversarial sprint, a
+  review-driven build, or a multi-chunk change with cross-family gates.
+  Single-file, low-context-load — operators running sprints at high
+  cadence don't need to re-read the meta-skill each time. For durable
+  principles (digest + index + rehydration), see
+  skills/adversarial-sprint/SKILL.md.
+when-to-invoke: |
+  - Operator says "run a sprint," "run an adversarial pass,"
+    "fire the runner," or "do this cross-family."
+  - Operator hands you a chunks file and expects the runner to
+    drive the per-chunk inner loop.
+  - Operator asks for a one-batch rebuild of a feature surface
+    with reviewer gates between chunks.
 alwaysApply: false
 globs: []
 ---

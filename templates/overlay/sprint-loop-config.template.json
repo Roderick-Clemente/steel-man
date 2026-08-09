@@ -1,8 +1,10 @@
 {
-  "framework_root": "/Users/factory/work/adversarial-sprint-dev",
-  "pilot_root": "/Users/factory/work/quantum-bank--llms-txt-pilot",
-  "pilot_python": "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python",
+  "_comment": "Per-pilot sprint-loop config. Path the framework (where the runner lives) and the pilot (what the runner drives) by editing the two paths below. EVIDENCE_SIGNING_KEY must be set in the operator environment before launching the runner — refusal is the §7 fail-closed behavior in live mode. See tools/sprint-loop.py --help for the full key list.",
+  "framework_root": "/REPLACE-WITH-FRAMEWORK-CHECKOUT-PATH",
+  "pilot_root": "/REPLACE-WITH-PILOT-REPO-PATH",
+  "pilot_python": "/REPLACE-WITH-PILOT-VENV-PYTHON",
   "pilot_spec_file": "",
+  "evidence_output_dir": "",
   "max_review_rounds": 2,
   "retry_threshold": 1,
   "max_auto_retries": 2,

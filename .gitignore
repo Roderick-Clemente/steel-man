@@ -7,7 +7,17 @@ node_modules/
 # Probe and run evidence that should survive is committed under phase-0/evidence/
 # instead — see phase-0/evidence/README.md. PRD §9 permits a configured artifact
 # path, so nothing here needs to be un-ignored.
-.factory/
+.factory/*
+!.factory/*.md
+!.factory/skills/**
+
+# Skill install paths committed for chunk-11's distribution convention
+# (panel-finding G-4 — without an exception these would be gitignored,
+# and `test_install_paths_commit_paths_exist` would fail in any clone that
+# didn't run the installer). The symlink target `../../../skills/.../SKILL.md`
+# lives in this repo's tracked `skills/` dir; the install path itself
+# is a thin pointer.
+!.factory/skills/**
 
 # Async steering channel for agent runs. Live control input, not part of the record.
 STEER.md

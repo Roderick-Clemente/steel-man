@@ -59,3 +59,7 @@ rehydration step in the skill is the loop-closing rule: re-read
 `tools/OPERATING-RULES.md` whenever conversation crosses ~150k
 tokens, before a new chunk, on §13 disambiguation, or when an
 operator explicitly re-points the agent.
+
+## Skill asset: sprint-invocation
+
+See `skills/sprint-invocation/SKILL.md` for the project's sprint-invocation skill.

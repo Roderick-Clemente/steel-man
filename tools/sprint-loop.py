@@ -597,13 +597,48 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
     print("    (empty / EOF = abort)")
     print("═" * 64)
 
-    if dry_run:
-        print("  [dry-run] auto-decision: accept")
+    if dry_run and "--no-dry-auto-decide" not in sys.argv:
+        print("  [dry-run] auto-decision: accept (non-committal — "
+              "dry-run produces a simulated ACCEPT. Live mode honors "
+              "--non-interactive / --unattended separately.)")
         return ReconcileDecision.ACCEPT
-    if "--non-interactive" in sys.argv or os.environ.get("SPRINT_LOOP_NON_INTERACTIVE") == "1":
-        # For CI / unattended runs the operator must opt-in to bounded
-        # unattended mode; default is human-required per §6.
-        print("  [non-interactive] auto-decision: accept")
+
+    # --non-interactive / --unattended: tolerate CI / unattended
+    # callers. Decoupled from dry_run per panel-finding G-7.
+    # In live mode, the §5.3 preconditions (chunk-10 F-7 fix) STILL
+    # run — refusing accept on open blocker|high or no bound APPROVE.
+    # The difference between --non-interactive and --unattended is
+    # what happens on refusal:
+    #   --non-interactive: SystemExit(4/5); no checkpoint.
+    #   --unattended: SystemExit + write_checkpoint, so an operator
+    #                  can resume via --resume-from.
+    env_ni = ("--non-interactive" in sys.argv) or (
+        os.environ.get("SPRINT_LOOP_NON_INTERACTIVE") == "1")
+    env_unattended = ("--unattended" in sys.argv) or (
+        os.environ.get("SPRINT_LOOP_UNATTENDED") == "1")
+    if env_ni or env_unattended:
+        try:
+            _enforce_5_3_preconditions(rs)
+        except SystemExit as e:
+            if env_unattended:
+                cp_path = os.path.join(evidence_dir, "checkpoint.json")
+                write_checkpoint(rs, cp_path)
+                print(
+                    f"  [unattended] refused (exit {e.code}); "
+                    f"checkpoint at {cp_path}; resume with --resume-from",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"  [non-interactive] refused (exit {e.code}); "
+                    f"no checkpoint",
+                    file=sys.stderr,
+                )
+            raise
+        print(
+            f"  [{'unattended' if env_unattended else 'non-interactive'}] "
+            f"§5.3 preconditions met; auto-decision: accept"
+        )
         return ReconcileDecision.ACCEPT
 
     try:
@@ -907,7 +942,7 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         rs.commit_count += 1
         rs.output_branch = rs.output_branch or f"factory/sprint-{rs.run_id}-dry-run"
         print(f"  [dry-run] would commit chunk {chunk.chunk_id} on "
-              f"{rs.output_branch}; eviction of audit files: "
+              f"{rs.output_branch}; audit files committed: "
               f"{os.path.relpath(evidence_output_dir, _REPO_ROOT)}")
         return
 
@@ -925,7 +960,16 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         os.path.relpath(evidence_output_dir, _REPO_ROOT),
     ]
     for p in stage_paths:
-        _git("add", p, cwd=_REPO_ROOT)
+        # Force-add because .gitignore excludes the evidence dir by
+        # design — the per-chunk evidence tree is *transient runtime
+        # audit trail* on first run, but the runner *needs* the audit
+        # trail to be replayable from git history per OPERATING-RULES
+        # §1 ("commits are the baton"). Without `-f`, the live
+        # path crashes with "fatal: pathspec ... did not match any
+        # files" the moment the first chunk tries to commit (this
+        # was panel-finding G-10). Pinning this with a live-path
+        # test in tests/test_sprint_loop.py::test_commit_chunk_force_adds_evidence.
+        _git("add", "-f", p, cwd=_REPO_ROOT)
 
     body = (
         f"Phase 4.5 chunk '{chunk.chunk_id}' accepted\n\n"
@@ -965,6 +1009,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--non-interactive", action="store_true",
                         help="Bypass the human reconcile gate. Only valid "
                              "with --dry-run or SPRINT_LOOP_NON_INTERACTIVE=1.")
+    parser.add_argument("--unattended", action="store_true",
+                        help="Run unattended-live: §5.3 preconditions enforced; "
+                             "on refusal, write a checkpoint and raise "
+                             "(SystemExit 4/5). Decoupled from --dry-run per "
+                             "pd-pass-r2 G-7. Resumes via --resume-from.")
     # Others come from build_config; we pass full argv to it.
     ns, _unknown = parser.parse_known_args(argv)
     raw_argv = sys.argv[1:] if argv is None else argv
@@ -973,7 +1022,7 @@ def main(argv: list[str] | None = None) -> int:
     # are conceptually owned by the orchestrator's flow control, not
     # the Config dataclass.)
     cfg_argv = [a for a in raw_argv
-                if a not in ("--dry-run", "--non-interactive")
+                if a not in ("--dry-run", "--non-interactive", "--unattended")
                 and not a.startswith("--resume-from=")]
     cfg = build_config(cfg_argv)
     # CLI-flag overrides
@@ -1115,6 +1164,27 @@ def main(argv: list[str] | None = None) -> int:
 
         # 3. Reconcile gate
         if cfg.skip_reconcile:
+            # --skip-reconcile: still runs §5.3 preconditions; the
+            # unsafe case was bypassing them entirely (panel-finding
+            # G-8 + the chunk-10 F-6 KNR4 deferral). Pin test:
+            # test_skip_reconcile_still_enforces_preconditions.
+            print(
+                f"  --skip-reconcile: skipping stdin pause; "
+                f"running §5.3 preconditions check"
+            )
+            try:
+                _enforce_5_3_preconditions(rs)
+            except SystemExit as e:
+                # refuse + checkpoint so an operator replaying from
+                # `--resume-from` can pick up where the skip left off.
+                cp_path = os.path.join(evidence_dir, "checkpoint.json")
+                write_checkpoint(rs, cp_path)
+                print(
+                    f"  --skip-reconcile refused (exit {e.code}); "
+                    f"checkpoint at {cp_path}",
+                    file=sys.stderr,
+                )
+                raise
             decision = ReconcileDecision.ACCEPT
         else:
             decision = reconcile_human_gate(rs, evidence_dir=evidence_dir,

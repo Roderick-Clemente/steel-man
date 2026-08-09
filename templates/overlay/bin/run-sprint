@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# run-sprint — per-pilot one-command firing of the adversarial-sprint runner.
+#
+# This is the per-pilot overlay wrapper. To use:
+#   1. Copy templates/overlay/*.template.json into <PILOT_REPO>/.adversarial-sprint/
+#      and edit the placeholders to the pilot's actual paths.
+#   2. Symlink or copy this file into <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+#      and make it executable (`chmod +x bin/run-sprint`).
+#   3. Run from the pilot repo:  ./bin/run-sprint                 # full live run
+#                                  ./bin/run-sprint --dry-run     # first time
+#
+# The wrapper reads the per-pilot config to find the FRAMEWORK repo (where
+# tools/sprint-loop.py lives) and the pilot's evidence output dir. Per
+# the §15 Act 1 / Act 2 framing, this is Act 2: the runner-driven sprint.
+# For Act 1 (vibe code as usual), don't invoke this — let the operator
+# and agent work conversationally.
+#
+# Per the §11 structural guarantee, this script wires the runner through
+# the §7 fail-closed hooks — including §5.3 preconditions on stdin
+# `accept`, family-guard preflight, and signing-key refusal in live mode.
+
+set -euo pipefail
+
+# Resolve this script's location. The .adversarial-sprint dir is
+# one directory up; the PILOT_REPO is one further up.
+SCRIPT_DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")"
+OVERLAY_DIR="$(dirname "$SCRIPT_DIR")"
+PILOT_REPO="$(dirname "$OVERLAY_DIR")"
+
+# Find the overlay's config; refuse if missing.
+CONFIG="$OVERLAY_DIR/sprint-loop-config.json"
+if [ ! -f "$CONFIG" ]; then
+  echo "FATAL: per-pilot config not found at $CONFIG" >&2
+  echo "       Run \`tools/install-overlay.sh <PILOT_REPO>\` first, or copy" >&2
+  echo "       templates/overlay/*.template.json into $OVERLAY_DIR and edit." >&2
+  exit 2
+fi
+
+# Find chunks-file (default: ./chunks.json in the overlay dir).
+CHUNKS_FILE="${1:-}"
+if [ -z "$CHUNKS_FILE" ]; then
+  if [ -f "$OVERLAY_DIR/chunks.json" ]; then
+    CHUNKS_FILE="$OVERLAY_DIR/chunks.json"
+  elif [ -f "$OVERLAY_DIR/chunks.example.json" ]; then
+    CHUNKS_FILE="$OVERLAY_DIR/chunks.example.json"
+  else
+    # Last resort: legacy path under examples/
+    if [ -f "$OVERLAY_DIR/chunks-example.json" ]; then
+      CHUNKS_FILE="$OVERLAY_DIR/chunks-example.json"
+    fi
+  fi
+fi
+
+if [ ! -f "$CHUNKS_FILE" ]; then
+  echo "FATAL: chunks file not found in $OVERLAY_DIR (looked for chunks.json, chunks.example.json, chunks-example.json)" >&2
+  exit 2
+fi
+
+# Find the framework checkout from the pilot's config.
+FRAMEWORK_ROOT="$(python3 -c "import json,sys; print(json.load(open('$CONFIG'))['framework_root'])")"
+
+if [ ! -d "$FRAMEWORK_ROOT/tools" ]; then
+  echo "FATAL: framework_root in $CONFIG is $FRAMEWORK_ROOT, but no tools/ subdir found." >&2
+  echo "       Did you edit the placeholders in the template?" >&2
+  exit 2
+fi
+
+RUNNER="$FRAMEWORK_ROOT/tools/sprint-loop.py"
+if [ ! -f "$RUNNER" ]; then
+  echo "FATAL: runner not found at $RUNNER" >&2
+  exit 2
+fi
+
+# arguments after the chunks-file are passed through to sprint-loop.py.
+shift || true
+if [ "$CHUNKS_FILE" = "${1:-}" ]; then shift; fi
+
+echo "[run-sprint] pilot:        $PILOT_REPO"
+echo "[run-sprint] framework:    $FRAMEWORK_ROOT"
+echo "[run-sprint] overlay:      $OVERLAY_DIR"
+echo "[run-sprint] config:       $CONFIG"
+echo "[run-sprint] chunks-file:  $CHUNKS_FILE"
+if [ "$EVIDENCE_SIGNING_KEY" = "" ]; then
+  echo "[run-sprint] WARN: EVIDENCE_SIGNING_KEY is unset; live mode will refuse per §7 (chunk-10 F-10)." >&2
+fi
+
+# Stdin reserved for the human reconciliation gate per §6 / §15 Act 2.
+# When stdin is closed (CI / unattended), pass --non-interactive or --unattended.
+exec python3 "$RUNNER" \
+  --config "$CONFIG" \
+  --chunks-file "$CHUNKS_FILE" \
+  --pilot-root "$PILOT_REPO" \
+  "$@"

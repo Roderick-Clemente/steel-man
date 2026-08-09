@@ -5,6 +5,72 @@ You are the **operator** running the Phase 4.5 sprint-loop against the
 prompt is the inbound handler for any future operator session that
 launches a sprint on this branch.
 
+## §15 framing — Act 1 vs Act 2 (pd-pass-r2 G-9)
+
+The PRD §15 names two modes of operating. They are different
+deliverables, not different framings of the same work:
+
+- **Act 1 (vibe code as usual)** — the operator + agent in a
+  conversational loop. The runner is *not* invoked. Universal
+  rules followed via the agent's skill layer. The agent's behavior
+  is governed by good faith: §1 / §7 / §17 are aspirational,
+  enforced by the agent's prompt-discipline, not by code.
+- **Act 2 (runner-driven)** — `bin/run-sprint` is invoked. The
+  runner *is* the §11 acceptance gate. Universal rules followed
+  by code: §7 fail-closed via signing-key refusal, family-guard
+  preflight (chunk 1 + chunk 10 F-1/F-2), §5.3 preconditions on
+  `accept` (chunk 10 F-7), `--unattended` checkpoint-on-refusal
+  (chunk 12a G-7). The agent's behavior is governed by codes.
+
+**The transition between Act 1 and Act 2 is the demo's delta.**
+§11 structural guarantees are visible only in Act 2. If you treat
+the runner as "an optional overlay" you collapse the modes and
+lose the difference. Per OPERATING-RULES §1 / §15: the runner
+is a structural guarantee, not optional.
+
+### Truth-table — what each mode does (pd-pass-r2 G-9)
+
+| Operator action                  | Act 1 (no runner)         | Act 2 (live mode)         | Act 2 (`--dry-run`)        |
+|----------------------------------|---------------------------|---------------------------|---------------------------|
+| Agents follow universal rules    | by prompt discipline      | enforced by code          | enforced by code          |
+| Family guard                     | not enforced              | enforced (SystemExit 2)   | enforced (SystemExit 2)   |
+| EVIDENCE_SIGNING_KEY unset       | n/a                       | refuses closed (Stop)     | simulated ACCEPT (dry-run reality) |
+| §5.3 `accept` while blocker|high | agent's choice            | refuses (SystemExit 4)     | simulated ACCEPT (no real model)     |
+| Git commit                      | agent's repo              | runner `git add -f` audit-trail + per-chunk commit | simulated; no commit       |
+| Push to remote                  | agent's call              | never (invariant #8)      | never                     |
+| Cross-family review              | agent's prompt condition  | structural via LocalBackend→`tools/orchestrate-review.py` | simulated ACCEPT         |
+
+The `--dry-run` column is honest about what it doesn't do: it produces
+a *simulated* ACCEPT, not a demonstrated one. Operators who run
+`--dry-run` and treat the output as a green-light are running on a
+§7 silent-green shape. Concede ergonomics via clean banner messages,
+not via "treat the simulator as the verdict."
+
+## How to invoke — per-pilot overlay
+
+The canonical one-command entrypoint is the per-pilot overlay, not
+the runner's CLI directly. The overlay is the closed set of
+artifacts the operator edits; the runner's CLI flags are for
+debugging.
+
+```
+# First time (wiring test):
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive
+
+# Real run (operator in the seat at the reconcile gate):
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+
+# Real run, unattended (--unattended writes checkpoint on refusal):
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --unattended
+```
+
+The overlay lives at `<PILOT_REPO>/.adversarial-sprint/` and is
+deployed by copying `templates/overlay/*` from the framework repo.
+See `templates/overlay/README.md` for the install steps.
+
+For runner-level CLI flags (debug, advanced), invoke directly:
+`tools/sprint-loop.py --help`.
+
 ## Scope of THIS run
 
 1. The full PRD §11 / Phase 4.5 deliverable: ``sprint-loop.py``

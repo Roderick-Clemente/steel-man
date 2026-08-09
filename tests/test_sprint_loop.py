@@ -1427,3 +1427,182 @@ def test_agents_md_cross_references_skill_canonical():
     )
 
 
+
+
+# ── chunk-12a panel-finding regression cluster (pass-r2 G-*) ───────────
+
+
+def test_commit_chunk_force_adds_evidence_g10():
+    """G-10 regression: commit_chunk_change must use git add -f on
+    the gitignored evidence dir."""
+    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    src_path = os.path.join(repo, "tools", "sprint-loop.py")
+    body = open(src_path).read()
+    assert '"add", "-f"' in body, (
+        "G-10 regression: commit_chunk_change doesn't force-add the "
+        "gitignored evidence dir; first live chunk crashes again."
+    )
+
+
+def test_install_skill_sh_cursor_mdc_body_matches_canonical_g6():
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    import pathlib
+    canonical = pathlib.Path(f"{repo}/skills/adversarial-sprint/SKILL.md").read_text()
+    parts = canonical.split("---", 2)
+    body_canonical = parts[-1].lstrip("\n")
+    actual = pathlib.Path(f"{repo}/.cursor/rules/adversarial-sprint.mdc").read_text()
+    parts_actual = actual.split("---", 2)
+    body_committed = parts_actual[-1].lstrip("\n")
+    assert body_canonical == body_committed, (
+        f"G-6: committed .mdc body drifted from canonical body"
+    )
+
+
+def test_unattended_writes_checkpoint_on_refusal_g7():
+    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    src_path = os.path.join(repo, "tools", "sprint-loop.py")
+    body = open(src_path).read()
+    assert "--unattended" in body, (
+        "G-7 regression: --unattended flag not wired into reconcile gate"
+    )
+    idx = body.find("--unattended")
+    window = body[idx:idx + 1500]
+    assert "write_checkpoint" in window, (
+        "G-7: --unattended refusal path doesn't write a checkpoint"
+    )
+
+
+def test_skip_reconcile_still_enforces_5_3_g8():
+    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    src_path = os.path.join(repo, "tools", "sprint-loop.py")
+    body = open(src_path).read()
+    idx_first = body.find("cfg.skip_reconcile")
+    assert idx_first != -1
+    idx = body.find("cfg.skip_reconcile", idx_first + 1)
+    assert idx != -1, "G-8: --skip-reconcile gating branch not found"
+    window = body[idx:idx + 1500]
+    assert "_enforce_5_3_preconditions" in window, (
+        "G-8 regression: --skip-reconcile branch doesn't run §5.3"
+    )
+
+
+def test_factory_skills_unignored_in_gitignore_g4():
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    gitignore = open(f"{repo}/.gitignore").read()
+    assert "!.factory/skills/" in gitignore, (
+        "G-4 regression: .gitignore doesn't have !.factory/skills/ "
+        "exception; .factory install paths are still machine-local-only."
+    )
+
+
+def test_install_skill_sh_runs_without_bound_recursion_g5():
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    script = open(f"{repo}/tools/install-skill.sh").read()
+    assert '"$0" "$@" factory claude cursor codex' not in script, (
+        "G-5 regression: install-skill.sh has the unbounded recursion shape"
+    )
+    assert "sprint-invocation" in script, (
+        "G-5: install-skill.sh has no sprint-invocation support"
+    )
+    assert "SKILLS=(" in script or "for skill in" in script, (
+        "G-5: install-skill.sh should iterate skills explicitly"
+    )
+
+
+# ── chunk-12b regression cluster (pd-pass-r2 G-1, G-2, G-3) ───────────
+
+
+def test_meta_skill_no_invocation_block_g2():
+    """Pd-pass-r2 G-2: meta-skill had a duplicated invocation block;
+    chunk-12b strips it. The meta-skill now contains the Universal
+    Rules digest + index only, no runner-CLI surface.
+    """
+    import pathlib
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    meta = pathlib.Path(f"{repo}/skills/adversarial-sprint/SKILL.md").read_text()
+    # The CLI invocation block was the canonical duplication shape.
+    # The post-chunk-12b shape references the overlay (per-pilot
+    # overlay template) instead of the runner's <PILOT_REPO> path.
+    assert "<PILOT_REPO>/bin/run-sprint" in meta or ".adversarial-sprint/bin/run-sprint" in meta, (
+        "G-2: meta-skill should reference the per-pilot overlay entrypoint"
+    )
+    # And it should NOT contain the old runner-CLI invocation that
+    # referenced both <PILOT_REPO>/tools/sprint-loop.py AND
+    # <PILOT_REPO>/examples/...
+    assert "<PILOT_REPO>/tools/sprint-loop.py" not in meta, (
+        "G-2: meta-skill still teaches the framework runner path; the "
+        "meta-skill should reference the per-pilot overlay only"
+    )
+
+
+def test_runner_help_exposes_unattended():
+    """Pd-pass-r2 G-7: --unattended is in --help (operator-visible).
+    """
+    out = subprocess.run(
+        [sys.executable,
+         os.path.join(_TOOLS, "sprint-loop.py"),
+         "--help"],
+        env={"PYTHONPATH": "tools", "PATH": os.environ["PATH"]},
+        capture_output=True, text=True,
+    )
+    assert "--unattended" in out.stdout, (
+        "G-7: --unattended not exposed in --help"
+    )
+
+
+def test_run_sprint_overlay_template_exists_g3():
+    """Pd-pass-r2 G-3: per-pilot overlay template at
+    `templates/overlay/` with `bin/run-sprint` exists and is
+    executable. This is the one true path the operator uses, fixing
+    the four-path-shape drift (skills, RUN-PROMPT, examples/, framework CLI)
+    the panel flagged.
+    """
+    import pathlib, stat
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    overlay = pathlib.Path(f"{repo}/templates/overlay")
+    assert overlay.is_dir(), f"G-3: templates/overlay/ missing"
+    bin_path = overlay / "bin" / "run-sprint"
+    assert bin_path.is_file(), f"G-3: bin/run-sprint missing"
+    assert os.access(str(bin_path), os.X_OK), f"G-3: bin/run-sprint not executable"
+    # Config template exists with placeholders the operator edits.
+    config_tmpl = overlay / "sprint-loop-config.template.json"
+    assert config_tmpl.is_file(), f"G-3: sprint-loop-config.template.json missing"
+    body = config_tmpl.read_text()
+    assert "REPLACE-WITH-FRAMEWORK-CHECKOUT-PATH" in body, (
+        "G-3: config template missing framework placeholder"
+    )
+
+
+def test_overlay_replaces_examples():
+    """The old `examples/` files were the cause of G-3's "four path
+    shapes, zero of which are the one a second adopter has."
+    The examples/ dir should no longer contain the per-pilot config
+    samples — they live at templates/overlay/*.template.json now.
+    """
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    examples_dir = f"{repo}/examples"
+    # examples/ may still exist for other artefacts (legacy); the
+    # sprint-loop-config.json samples specifically MUST be gone.
+    for fn in ("sprint-loop-config.json", "sprint-loop-chunks-example.json"):
+        path = os.path.join(examples_dir, fn)
+        assert not os.path.exists(path), (
+            f"G-3: examples/{fn} still exists; should be in templates/overlay/"
+        )
