@@ -22,3 +22,10 @@ telemetry/runs.jsonl
 telemetry/findings.jsonl
 telemetry/dispositions.jsonl
 
+# Sprint-loop runner artefacts (Phase 4.5). The runner writes per-run
+# evidence trees to phase-N/build-evidence/<run-id>/; these are runtime
+# audit trails, not version-controlled sources-of-truth. Same rationale
+# as telemetry rows above — never committed.
+phase-4.5/build-evidence/
+phase-*/build-evidence/
+

@@ -994,3 +994,72 @@ def test_run_with_model_refuses_unset_droid_model_id():
                        env=env, capture_output=True, text=True)
     assert r.returncode == 2, f"expected exit 2 (refusing unset DROID_MODEL_ID); got {r.returncode}"
     assert "DROID_MODEL_ID is unset" in r.stderr
+
+
+# ── skill asset (Chunk 8) — digest + index + rehydration shape ───────────
+
+
+def _read_skill_md() -> str:
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+    ).decode().strip()
+    path = os.path.join(repo, "skills", "adversarial-sprint", "SKILL.md")
+    assert os.path.isfile(path), f"skill asset missing: {path}"
+    return open(path).read()
+
+
+def test_skill_md_carries_digest_inline():
+    body = _read_skill_md()
+    # Per chunk 7/8 design: digest is in the skill body (compaction-durable),
+    # not behind a pointer. Test for the seven distilled principles.
+    assert "skill digest" in body.lower()
+    assert "every droid call is a script invocation" in body.lower()
+    assert "assert on artifacts" in body.lower()
+    assert "prompts describe problems and constraints" in body.lower()
+    assert "git history is reality" in body.lower()
+    assert "refuse unbounded foundation programs" in body.lower()
+    assert "compose existing primitives" in body.lower()
+
+
+def test_skill_md_indexes_full_rules_by_section():
+    body = _read_skill_md()
+    # Per chunk 7/8 design: full text is one file-read away. The skill
+    # must reference tools/OPERATING-RULES.md by index so the agent can
+    # re-derive context.
+    assert "tools/OPERATING-RULES.md" in body
+    assert "| §" in body
+    # The four load-bearing §s cited by the digest (the ones the agent
+    # must keep in scope) are referenced by rule number elsewhere so
+    # the agent can do grep / Read without translation.
+    assert "§7" in body
+    assert "§13" in body
+    assert "§17" in body
+    assert "§18" in body
+
+
+def test_skill_md_documents_rehydration_for_long_jobs():
+    body = _read_skill_md()
+    # Per chunk 9 refinement: rehydrate on long-running jobs. This is
+    # the loop-closing rule the user asked for explicitly — keeping the
+    # three-layer hybrid honest (digest + index + rehydration).
+    assert "rehydrat" in body.lower()
+    body_lower = body.lower()
+    # The trigger should be specific. ~150k tokens / new chunk / disambig.
+    assert "150k" in body_lower or "long-running" in body_lower
+    # The rehydration step is *one file-read*, not multi-file spelunk.
+    assert "one-file read" in body_lower or "one file read" in body_lower
+
+
+def test_skill_md_is_compact_well_under_index_content():
+    body = _read_skill_md()
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+    ).decode().strip()
+    full = open(os.path.join(repo, "tools", "OPERATING-RULES.md")).read()
+    # Per the design discussion: skill MUST stay lighter than the full
+    # text, otherwise there is no point having the index layer.
+    assert len(body) < len(full) * 0.6, (
+        f"skill body {len(body)} bytes is too close to the "
+        f"OPERATING-RULES {len(full)} bytes — kill the index layer."
+    )
+

@@ -60,6 +60,33 @@ the index is the source of truth.
 | 17  | capacity envelope                                   | when sketching a "foundation"      |
 | 18  | compose / chunk / fix friction / review / distill   | when about to start a build        |
 
+## Rehydration step (long-running jobs)
+
+Long-context Droid sessions lose pointers during compaction. The
+digest above is the bait: it carries enough that the agent can
+stay correct without re-reading. But for **long-running jobs** —
+multi-hour sprints, batches of chunks, any conversation past ~150k
+tokens — re-read `tools/OPERATING-RULES.md` periodically to keep
+the rule text in fresh context. This is the §17 durable-knowledge
+loop in practice: digest is for *current-turn* decisions; full
+text is for *current-chunk* decisions; rehydration is for
+*next-chunk-but-I-am-still-in-the-loop* decisions.
+
+**Rehydrate when any of:**
+
+- The conversation has crossed **~150k tokens** (compaction risk
+  rises past that).
+- You are **about to start a new chunk** after ≥1 acceptance.
+- You just **disambiguated a §13 invocation** (the answer you
+  reach needs the §13 rule text in front of you, not just the
+  digest).
+- The operator / human has **explicitly re-pointed** you at the
+  rules — match their trust rather than assume cache is fresh.
+
+The rehydration step is **one-file read** (`Read tools/OPERATING-RULES.md`),
+not a multi-file spelunk. The skill index tells you which § rows
+dominate the *current chunk's* risk surface — start there.
+
 ## When to invoke the runner
 
 The skill's job is to teach the agent WHEN, not to BE the runner.
@@ -103,20 +130,21 @@ for the full CLI surface.
 - Not a phase-by-phase playbook — `phase-N/RUN-PROMPT.md` files
   are. The skill references them by phase.
 
-## Why this shape (digest + index)
+## Why this shape (digest + index + rehydration)
 
 Per chunk 7's design discussion: long-context droid sessions lose
 references during compaction. Carrying the whole rule set inline
 would bloat every prompt; carrying none would mean the agent
-operates without principles. The digest + index hybrid:
+operates without principles. The three-layer hybrid:
 - **Digest survives compaction** (the load-bearing parts are
   always in the prompt).
 - **Index points to deeper text** (full rule text is one
   file-read away, not zero).
-- **Single source of truth** (`tools/OPERATING-RULES.md` is the
-  one place; the digest is regenerated when the source changes).
+- **Rehydration on long jobs** (the agent periodically refreshes
+  the rule text into fresh context — the loop is durable).
 
 This is the answer to "if in active use must hydrate frequently,
-or part of core skill if tight?" The skill light-skills the
-digest (always present, tight) and references the full text for
-anything that needs more (one file-read away, not zero).
+or part of core skill if tight?" Both: the skill **light-skills
+the digest** (always present, tight) **and carries the rehydration
+trigger** (operator / agent re-reads on long jobs), **and references
+the full text** for one-file-read access to anything more.
