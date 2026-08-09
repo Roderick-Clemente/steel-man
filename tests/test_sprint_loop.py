@@ -541,6 +541,123 @@ def test_backends_name_constants_are_stable():
     assert CIBackend.name == "ci"
 
 
+# ── prompt templates + renderer (Chunk 3) ────────────────────────────────
+
+def test_prompt_templates_exist_for_all_five_roles():
+    from sprint_loop.prompts.render import list_role_prompts
+    roles = list_role_prompts()
+    expected = {"planner", "plan-reviewer", "test-designer", "executor", "validator"}
+    assert expected.issubset(set(roles)), \
+        f"missing roles: {expected - set(roles)}; have: {roles}"
+
+
+def test_prompt_templates_never_embed_the_implementation():
+    # PRD §13 — the executor template must describe the problem without
+    # giving the fix. Sanity check: the executor template must not
+    # contain code-like patterns that suggest *the* implementation.
+    from sprint_loop.prompts.render import _PROMPT_DIR
+    executor_template_path = os.path.join(_PROMPT_DIR, "executor.md")
+    text = open(executor_template_path).read()
+    # The template SHOULD mention that the executor must not implement;
+    # it SHOULD NOT contain `os.environ.get(...)` style fixes or any
+    # other one-line silver-bullet patterns. (Mock heuristic — real
+    # anti-patterns are usually implicit.)
+    MUST_NOT_APPEAR = [
+        "os.environ.get",
+        "mimetype=",
+        "Response(body, mimetype=",
+    ]
+    for pat in MUST_NOT_APPEAR:
+        assert pat not in text, (
+            f"executor template must not embed implementation pattern {pat!r} "
+            f"(PRD §13 — don't give the executor the answer)"
+        )
+    # And the test-designer template likewise — it must not contain the
+    # implementation. The pilot's /llms.txt slice has a known
+    # implementation signal we'd catch if it slipped in:
+    assert "Response(body, mimetype=" not in open(os.path.join(_PROMPT_DIR, "test-designer.md")).read()
+
+
+def test_prompt_renderer_substitutes_variables(tmp_path):
+    from sprint_loop.prompts.render import render, render_to_file
+    template = tmp_path / "tmpl.md"
+    template.write_text(
+        "# hello\n"
+        "model={{model_id}}\n"
+        "branch={{branch}}\n"
+        "missing={{not_in_context}}\n"
+    )
+    out = render(str(template), {"model_id": "grok-4.5", "branch": "main"})
+    # Confirmed substitutions
+    assert "model=grok-4.5" in out
+    assert "branch=main" in out
+    # Loud failure on missing key — placeholders preserved verbatim
+    assert "missing={{not_in_context}}" in out
+
+
+def test_prompt_renderer_to_file(tmp_path):
+    from sprint_loop.prompts.render import render_to_file
+    out_path = render_to_file(
+        "planner",
+        {
+            "pilot_spec_path": "/tmp/spec.md",
+            "plan_output_path": "/tmp/plan.md",
+        },
+        str(tmp_path / "planner-rendered.md"),
+    )
+    assert os.path.isfile(out_path)
+    content = open(out_path).read()
+    assert "/tmp/spec.md" in content
+    assert "/tmp/plan.md" in content
+
+
+def test_prompt_renderer_rejects_missing_template(tmp_path):
+    from sprint_loop.prompts.render import render
+    with pytest.raises(FileNotFoundError):
+        render(str(tmp_path / "no-such.md"), {})
+
+
+def test_prompt_templates_render_against_minimal_context(tmp_path):
+    """Each role's template must render cleanly with a minimal context
+    that satisfies every ``{{key}}`` placeholder. This catches the
+    common 'I forgot to template a key' defect — the rendered output
+    must contain NO unresolved placeholders.
+    """
+    from sprint_loop.prompts.render import render_to_file, _PROMPT_DIR
+    import re
+
+    # Minimal context: every key the templates reference. If a role
+    # adds a new `{{key}}` and this test is not updated, the test
+    # fails loudly (which IS the goal).
+    minimal_context = {
+        "pilot_spec_path": "/tmp/spec.md",
+        "plan_doc_path": "/tmp/plan.md",
+        "plan_output_path": "/tmp/plan-out.md",
+        "panel_position": "1",
+        "chunk_spec": "scope: add /llms.txt route; acceptance: GET returns 200 ...",
+        "pilot_root": "/tmp/pilot",
+        "pytest_baseline_path": "/tmp/baseline.txt",
+        "sibling_tests_pattern": "/tmp/repo/tests",
+        "test_file_path": "/tmp/pilot/test/test_x.py",
+        "branch": "factory/phase-4.5",
+        "commit": "abc1234",
+        "evidence_bundle_path": "/tmp/bundle.json",
+        "commands": "pytest test/test_x.py -v",
+    }
+    remaining_unresolved = {}
+    for role in ("planner", "plan-reviewer", "test-designer", "executor", "validator"):
+        out = tmp_path / f"{role}-out.md"
+        render_to_file(role, minimal_context, str(out))
+        text = open(out).read()
+        leftover = re.findall(r"\{\{[A-Za-z_][A-Za-z0-9_-]*\}\}", text)
+        if leftover:
+            remaining_unresolved[role] = leftover
+    assert not remaining_unresolved, (
+        f"unresolved placeholders in templates: {remaining_unresolved}. "
+        f"Update minimal_context or the template."
+    )
+
+
 # ── run-with-model.sh refinements (Chunk 1 inline primitive fix) ─────────
 
 def test_run_with_model_refuses_mission_by_default():
