@@ -1,0 +1,28 @@
+{
+  "chunk_commit_sha": "5193cc9f81bb62b6cd6e683fd9f0141c64a71485",
+  "chunk_id": "5e",
+  "reviewers": [
+    {
+      "envelope_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01",
+      "family": "grok-family",
+      "model_id": "grok-4.5",
+      "provider": "xai",
+      "verdict": "ACCEPT-WITH-NITS"
+    },
+    {
+      "envelope_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee02",
+      "family": "gemini-family",
+      "model_id": "gemini-3.1-pro-preview",
+      "provider": "google",
+      "verdict": "ACCEPT-WITH-NITS"
+    }
+  ],
+  "schema": "chunk-token/v1",
+  "signature": {
+    "algorithm": "HMAC-SHA256",
+    "key_id": "phase5-chunk-token",
+    "value": "59694497af71e33bfd77168bca3c18d6551426af2194cfaa6f9bf7b1f085b6b9"
+  },
+  "signed_at": "2026-08-10T17:08:58Z",
+  "signed_by": "factory/droid@phase5-session"
+}
