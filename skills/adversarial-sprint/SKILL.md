@@ -16,6 +16,8 @@ when-to-invoke: |
     (call the rehydration step before continuing).
 ---
 
+> 🏁 **ADVERSARIAL-SPRINT SKILL ACTIVE** 🏁
+
 # Adversarial Sprint — Skill
 
 A SKILL asset for agents (Droid, Claude Code, Codex, etc.) that
