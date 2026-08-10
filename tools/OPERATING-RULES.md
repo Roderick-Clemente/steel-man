@@ -271,6 +271,23 @@ missed exits it criticizes.
 without naming constraints. The cross-family panel flagged this as
 recreating the unbounded-backlog pattern.
 
+**Layer-3 amendment (Phase 5 close, factory/phase-5-chunkadherence-enforcement):**
+A self-run, same-family, implementer-orchestrated subagent review does
+**not** satisfy §17. Only a ``phase-4.5/tokens/chunk-N.token.json``
+whose HMAC-SHA256 signature verifies under ``EVIDENCE_SIGNING_KEY``
+**and** whose reviewer list is cross-family (≥2 distinct families via
+``tools/sprint_loop/config.py:MODEL_FAMILY_MAP``) **and** disjoint
+from the implementer's family (i.e. implementer is not among its own
+reviewer identities) counts as review for merge purposes.
+``tools/cross_family_review.py`` enforces these three constraints
+refusal-at-parse; ``tools/chunk_sequence_gate.py`` enforces the
+signature path before chunk-N+1 may start. Cite the chunk-14 pass-r5
+episode (``factory/chunk-14-kn-J-fixes``, commit ``623e024``) as the
+repro: an ACCEPT-WITH-NITS from two same-family Task subagents that
+the gate rejected on the family-distinctness constraint alone. See
+``phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
+spec and ``phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
+
 
 ## 18. Compose existing primitives; build in chunks; fix ergonomic friction inline
 
