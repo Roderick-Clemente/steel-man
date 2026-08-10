@@ -510,3 +510,50 @@ in priority order.
   prose. Cross-check test-count claims against pytest's
   reported count.
 
+
+---
+
+## Backlog E — non-Python pilot support (new, post-dogfood)
+
+**Status:** opened by external pilot dogfood (`Roderick-Clemente/evan-os`)
+at pause commit 90f08dd. **P1 in `phase-4.5/EXTERNAL-DOGFOOD-HANDOFF.md`.**
+
+- **What:** the runner's RED→GREEN gate (`phase-1/scripts/{valid-red,verify-green}.py`)
+  hard-codes `python -m pytest`. Any non-Python pilot (Next.js/TS, Go,
+  Rust, etc.) cannot complete a chunk; chunks must lie about their test
+  shape to fit the runner.
+- **Why not yet:** the framework was built around a Python pilot, and
+  the test-runner adapter was deferred to keep Phase 4.5 bounded.
+- **Acceptance (per the external dogfood handoff):**
+  1. `tools/adapters/test_runner.py` maps `pilot_test_runner` config
+     (`pytest|vitest|jest|<extensible>`) to command + normalized
+     returncode / stdout / stderr.
+  2. Threaded through `config.py` → `RunState` → `per_chunk.py` →
+     `valid-red.py` / `verify-green.py`.
+  3. `pilot_test_runner: pytest` keeps the 80/80 build green.
+  4. New unit tests cover vitest/jest command construction + JS
+     pass / fail / invalid-RED classification.
+  5. A JS pilot (e.g. `Roderick-Clemente/evan-os`) can complete one
+     chunk driven by the runner proper (not hand-executed).
+- **Fix recipe (single-chunk target):**
+  - chunk-14 candidate (`factory/chunk-14-pilot-test-runner-adapter`):
+    add `Config.pilot_test_runner: str = "pytest"`. New module
+    `tools/adapters/test_runner.py`. `valid-red.py` and `verify-green.py`
+    accept `--test-runner pytest|vitest|jest`. Migration tests in
+    `tests/test_sprint_loop.py::test_test_runner_adapter_<engine>`.
+- **Renumbered from "P1 in EXTERNAL-DOGFOOD-HANDOFF.md":** the PRD
+  defines Backlog D as the capability-orchestrator (Phase 6 territory);
+  Backlog E is unrelated — it's a runtime-extensibility gap exposed by
+  dogfooding.
+
+### External dogfood log pointer
+
+`phase-4.5/EXTERNAL-DOGFOOD-HANDOFF.md` carries the full triage
+prompt: P1 (this entry) + P2 (KN-J15 fix recipe) + P3 (KN-J7 fix
+recipe) + P4 (resume path — J-9/J-10/J-11). Plus the "what worked"
+list: pre-chunk cross-family PRD review caught 8 convergent spec
+defects in the EOS MVP (cascade divergence / backwards drop-down API /
+un-buildable phase sequencing / missing meeting-status field /
+serverless connection exhaustion / EOS-canon errors). That pre-chunk
+review is the framework's highest-value moment and is worth protecting
+as a first-class step, not an implicit side effect of the planner gate.
