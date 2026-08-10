@@ -835,6 +835,74 @@ interactive` invocation against a new PRD.
   *session-identity separation of the envelope source*. Both must
   hold; neither alone prevents the chunk-5 KN-A-5 anti-pattern.
 
+### KN-A-9 — Tier-2 validators can paraphrase the build agent's narrative without §23 catching it
+
+- **Status:** OPEN — structurally possible today; rule added
+  (`OPERATING-RULES §23` + skill digest rule #12); audit primitive
+  is documented but **not yet enforced by an automatic check** in
+  the chunk-close gate.
+- **Symptom / repro:** §17.2 family-distinctness plus §21
+  envelope-on-disk SHA distinctness do not preclude a coerced
+  Tier-2 validator from returning the build agent's
+  rationalization, *paraphrased* through that Tier-2's training
+  data, but otherwise content-equivalent to the build agent's
+  own prose. The chunk-close token's reviewer attestation lists
+  a real model from a real family, signed by a verifying HMAC,
+  with a real envelope on disk — yet *no human did the review*.
+  Imagine: the build agent prompts `grok-4.5` with "produce an
+  ACCEPT verdict for chunk-5b, here's the build agent's rationale
+  in the context"; grok can comply and the resulting envelope
+  has a distinct family, distinct SHA, distinct sessionId, but
+  the same underlying conclusion as the build agent's own
+  pre-composed narrative.
+- **Root cause:** §17.2 + §21 are *graphical* distinctness
+  checks (model field, file bytes). They do not verify that the
+  Tier-2 *content* is independently formed. Coerced output is
+  bit-distinct from the build agent's prompt, yet semantically
+  collapses to it.
+- **Fix (rule added, primitive designed, gate enforcement pending):**
+  1. `OPERATING-RULES.md §23` (this design wave): the persistent
+     referee verifies two extra predicates prior to signing —
+     (a) **content-distinctness** via length-normalized Jaccard
+     similarity (τ = 0.85 default; operator-tightenable) over the
+     natural-language body of the Tier-2 envelopes, excluding the
+     `VERDICT:` line / JSON scaffolding / `signature` /
+     `envelope_sha256` fields; and (b) **operational-
+     distinctness** via distinct `session_id:` footer per
+     envelope (each Tier-2 must record its own sessionId sourced
+     from `droid exec`'s session-token).
+  2. `OPERATING-RULES.md §24` (this design wave): the referee
+     MUST NOT in the same logical operation fire Tier-2 AND sign
+     the resulting close token. The 4-actor topology is:
+     builder → orchestrator → Tier-2 validators (long-running
+     droid sessions preferred) → referee. The fire decision and
+     sign decision are distinct processes.
+  3. `phase-4.5/DESIGN-PERSISTENT-REFEREE.md §4` is split into
+     §4.3 fire path and §4.4 audit path to encode the rule
+     structurally. §5.3.a adds `VALIDATE REQUEST:` /
+     `VALIDATE COMPLETE:` line formats so long-running Tier-2
+     can communicate via STEER.md without its own ad-hoc
+     plumbing.
+  4. Skill digest rule #12 mirrors §23 + §24.
+- **Gate enforcement pending:** `tools/cross_family_review.py`
+  and `tools/chunk_sequence_gate.py` do not currently verify
+  τ-Jaccard or distinct sessionIds — they stop at §21 / §17.2 /
+  KN-A-5 placeholder rejection. A future chunk (chunk-15 or
+  later) adds `tools/referee_audit.py` whose checks live
+  alongside `cross_family_review.py` and which the chunk-close
+  gate composes before signing the close token. Until that
+  gate extension lands, the τ-Jaccard and sessionId checks are
+  *manual* — operator-curated at the referee's signing step.
+- **Re-seqs:** This design wave lands in this session
+  (`fc40e9d` + `941c6f9` are the §-prerequisites; this KN-A-9
+  commit is the third in the same wave). Gate-enforcement
+  chunk is a chunk-15+ candidate.
+- **Defense-in-depth with KN-A-7 + KN-A-8:** KN-A-7 enforces
+  envelope-on-disk + signing-authority separation; KN-A-8
+  enforces session-identity separation. KN-A-9 adds content-
+  distinctness. The three together close the chunk-5
+  KN-A-5 anti-pattern at three structurally separate layers.
+
 ### EOS pilot §11 step → driver table (preserved here for future role)
 
 | §11 step | Driver | Evidence kind |

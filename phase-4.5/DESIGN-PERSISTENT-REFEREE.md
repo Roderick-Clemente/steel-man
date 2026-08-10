@@ -154,32 +154,103 @@ Identity characteristics:
   are processed before exit; on SIGKILL, the next referee
   instance resumes from the last `REVIEW COMPLETE:` marker.
 
-### 4.3 Reviewer-firing path
+### 4.3 Fire path — orchestrator + long-running Tier-2 validators
+
+Per §24, the referee does NOT fire Tier-2 in the same logical
+operation as signing. Firing is the orchestrator's role (a
+separate session, sometimes folded into the builder's own
+session as a sub-step) or — preferred — Tier-2 itself is
+long-running and reads STEER.md for its own queue.
+
+**Orchestrator (fire-on-demand path):**
+
+1. Reads `STEER.md` for `REVIEW REQUEST:` lines whose envelope
+   paths are *empty* (the build agent posted a not-yet-fired
+   request).
+2. For each such request, fires `droid exec` against the
+   cross-family model set the operator defined (default:
+   `grok-4.x` + `gemini-3.x`) via
+   `bash tools/run-with-model.sh droid exec --model <X> ...`.
+3. Captures the literal stdout bytes to
+   `phase-4.5/build-evidence/<run-id>/envelopes/<reviewer>.raw.txt`.
+   Records `session_id:` from `droid exec`'s session-token
+   output for §23 operational-distinctness.
+4. Posts `REVIEW REQUEST: chunk=X paths=<now-populated>` (the
+   same line, updated with paths) and a separate
+   `VALIDATE COMPLETE: validator=X session_id=Y envelope=<path>`
+   marker.
+
+**Tier-2 validators (long-running path — preferred):**
+
+The `grok-4.5` and `gemini-3.1-pro-preview` validators are
+themselves persistent droid sessions
+(`phase-4.5/prompts/phase-5-grok-validator.md`,
+`phase-4.5/prompts/phase-5-gemini-validator.md`). Each:
+
+1. Reads `STEER.md` for `VALIDATE REQUEST: chunk=X commit=Y`
+   lines whose envelope paths are present (the orchestrator /
+   prior session posted them).
+2. Fires its own `droid exec --model <self>`
+   (`--auto-model grok-4.5` for the grok validator,
+   `--auto-model gemini-3.1-pro-preview` for the gemini
+   validator) against the chunk's commit-sha + envelope path.
+3. Writes raw stdout bytes to the canonical envelope path.
+   Adds a footer line `session_id: <droid-session-id>` so
+   §23 operational-distinctness can read it.
+4. Posts `VALIDATE COMPLETE: validator=X envelope=<path>
+   session_id=<id>`.
+
+The two paths produce the same envelope artifacts. The
+long-running path is preferred because each Tier-2 validator
+writes its own `session_id:` — the referee's audit is
+stronger (§23 operational-distinctness).
+
+### 4.4 Audit path — the referee's per-request signing decision
 
 On each wake, the referee:
 
-1. Reads `STEER.md` for `REVIEW REQUEST:` lines posted after the
-   last `REVIEW COMPLETE:` marker (or, on first run, the entire
-   file).
-2. For each request, fires real `droid exec` against the
-   cross-family model set the operator defined (default:
-   `grok-4.x` + `gemini-3.x`).
-3. Captures the literal output to
-   `phase-4.5/build-evidence/<run-id>/envelopes/<reviewer>.raw.txt`
-   with `droid exec`'s actual stdout / stderr.
-4. Computes `envelope_sha256 = sha256(raw_bytes)`.
-5. Builds `chunk-N.token.json` with the referee's own signing
-   key (separate from `EVIDENCE_SIGNING_KEY`).
-6. Commits the signed token to the
-   `agent/referee-vN/<topic>` branch with the referee's git
-   signing key.
-7. Posts `REVIEW COMPLETE: chunk=X sha=Y verdict=... token=path`
-   to `STEER.md`, marking the request resolved.
+1. Reads `STEER.md` for `REVIEW REQUEST:` lines posted after
+   the last `REVIEW COMPLETE:` marker, *with envelope paths
+   populated* (the orchestrator / long-running Tier-2
+   validators have produced the artifacts).
+2. For each such request:
+   a. **§21 envelope-on-disk check.** Computes
+      `envelope_sha256 = sha256(raw_bytes)` for each
+      envelope. Refuses if path is missing, empty, or
+      shorter than the prompt template's minimum.
+   b. **§17.2 family distinctness.** Refuses if the
+      envelope's model_id resolves to a family that
+      matches the build agent's session family.
+   c. **§23 content-distinctness (τ-Jaccard).** Computes the
+      length-normalised Jaccard similarity score over the
+      natural-language body of each Tier-2 envelope,
+      excluding the `VERDICT:` line, JSON scaffolding, and
+      `signature`/`envelope_sha256` fields. Refuses if
+      similarity ≥ τ (default 0.85). Records the score
+      inside the close token's `audit_evidence`.
+   d. **§23 operational-distinctness (sessionId).** Reads the
+      `session_id:` footer from each envelope. Refuses if
+      two envelopes share a sessionId (the validators were
+      the *same* droid exec and produced two-paraphrase
+      verbatim).
+   e. **Signs** `chunk-N.token.json` with the referee's
+      `EVIDENCE_SIGNING_KEY_REFEREE` (separate from the
+      build agent's `EVIDENCE_SIGNING_KEY` and the
+      orchestrator's key).
+   f. **Commits** the signed token to the
+      `agent/referee-vN/<topic>` branch with the referee's
+      git signing key.
+   g. Posts `REVIEW COMPLETE: chunk=X verdict=… token=path`
+      to `STEER.md`, marking the request resolved.
 
 The build agent's commit history shows the referee's commits
-under a different author identity. Audit reads this directly.
+under a different author identity. Auditors and the chunk-close
+gate (`tools/chunk_sequence_gate.py`,
+`tools/cross_family_review.py`) read the resulting commit; the
+gate refuses if the token's signature, audit_evidence, or
+schema are invalid (§21, §22, §23, §24).
 
-### 4.4 What the referee MUST NOT do
+### 4.5 What the referee MUST NOT do
 
 - Read `EVIDENCE_SIGNING_KEY`. The build agent holds that key for
   a *different* signing path (operator-eye signal, commit message
@@ -234,6 +305,43 @@ REFUSED: chunk=<chunk-id> reason=<short-rejection-token>
 
 `REVIEW COMPLETE:` and `REFUSED:` are stable markers for the
 referee's wake-on-start logic.
+
+### 5.3.a Tier-2 line formats (orchestrator + long-running validators)
+
+When the orchestrator fires Tier-2 (or the long-running
+validators themselves do, per §4.3), the following line
+formats appear in STEER.md:
+
+```
+VALIDATE REQUEST: chunk=<chunk-id> commit=<40-char-hex> envelope_path=<on-disk-target-path>
+```
+
+Example (issued by the orchestrator after a not-yet-fired
+`REVIEW REQUEST:`):
+
+```
+VALIDATE REQUEST: chunk=5b commit=a8ba0064… paths=phase-4.5/build-evidence/r-cross-family-…/envelopes/grok-4.5.raw.txt
+```
+
+Each Tier-2 validator that completes its work appends a
+`VALIDATE COMPLETE:` line *and* writes raw bytes to the
+`envelope_path`. Format:
+
+```
+VALIDATE COMPLETE: chunk=<chunk-id> validator=<model_id> envelope=<envelope_path> session_id=<droid-session-id>
+```
+
+The `session_id:` field is the §23 operational-distinctness
+primitive. Long-running validators MUST post it; orchestrator-
+spawned validators running `bash tools/run-with-model.sh`
+MUST capture the droid session token and append it. Validators
+that do not post a `session_id:` are refused by the referee
+on §23 grounds.
+
+The orchestrator issues `REVIEW REQUEST: chunk=X commit=Y
+paths=<comma-list-of-now-populated-paths>` after all
+`VALIDATE COMPLETE:` markers for the chunk have landed. This
+is the trigger the referee acts on (per §4.4 step 1).
 
 ### 5.4 Conflict semantics
 

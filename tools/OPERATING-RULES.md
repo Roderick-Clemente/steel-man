@@ -505,3 +505,107 @@ design are the implementation.
 *Spacing for future rules:* continue numbering as the operating
 rules accrue.
 
+## 23. Validators are not paraphrases of each other
+
+§17.2 family-distinctness plus §21 envelope-on-disk distinctness
+are necessary but insufficient. A coerced Tier-2 validator (one
+whose prompt context leaks the build agent's narrative, or one
+that is itself a sub-prompted child of the build agent) can
+produce an envelope that is *model-family distinct* and
+*bitwise distinct* from its sibling — yet *content-wise* it is
+the build agent's own rationalization parroted back. §17.2 +
+§21 do not catch this. Signers, auditors, and humans reading
+the close token would accept it.
+
+The persistent referee, before signing any chunk-close token,
+MUST verify two more predicates beyond §17.2 and §21:
+
+1. **Content-distinctness (τ).** Compute a length-normalized
+   Jaccard similarity score over the natural-language content
+   of the Tier-2 envelopes, *excluding*:
+     - lines beginning with `VERDICT:`
+     - the prompt-template JSON scaffolding
+     - any field whose name begins with `signature` or
+       `envelope_sha256` (the bitwise-distinct field is
+       expected to differ across envelopes).
+   Refuse if the score is above τ. Default τ = 0.85. Operator
+   may tighten (e.g., τ = 0.70 for high-stakes changes) or
+   loosen (e.g., τ = 0.95 for trivial changes) per session.
+2. **Operational-distinctness (sessionId).** Each Tier-2 envelope
+   MUST carry its own session-id metadata (recorded in the
+   envelope footer as `session_id:`, sourced from
+   `droid exec`'s session-token output that the per-validator
+   spawn produced, or recorded in the run-evidence manifest).
+   Refuse if two envelopes share a sessionId.
+
+Both predicates run inside the referee's signing path; both
+predicates' results are recorded in the close token's
+`audit_evidence` field so the chunk-close history is
+self-attesting. Refusal (τ over threshold, or sessionId
+collision) posts a `REFUSED: chunk=X reason=paraphrase` line
+to `STEER.md` and is a §22 audit failure visible to the
+operator.
+
+*Rationale:* KN-A-9 entry in `phase-4.5/KNOWN-ISSUES.md` —
+the Tier-2 paraphrase anti-pattern is structurally possible
+today because §17.2 is satisfied on family labels alone;
+without §23, the guarantee is "different MODEL_TRAINER" not
+"different INFERENCE."
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
+## 24. Referee fires or audits — never both at once for the same chunk
+
+The persistent referee MUST NOT, in the same logical operation
+on the same chunk, simultaneously fire Tier-2 (cross-family
+validators) AND sign the resulting chunk-close token. The
+firing bias is non-removable in a single process: the
+referee's context contains both the prompt it just sent to
+Tier-2 and the verdict it is about to sign against Tier-2's
+output. §22 fails on the referee's own session identity if
+just one process does both.
+
+The architecture:
+
+- An **orchestrator** (separate session; cron-driven or
+  in-session as part of the builder's session's close flow)
+  fires Tier-2 validators. The orchestrator reads
+  `REVIEW REQUEST:` from STEER.md, invokes Tier-2 — typically
+  via `bash tools/run-with-model.sh droid exec --model grok-4.5`
+  and `bash tools/run-with-model.sh droid exec --model gemini-3.x`
+  — captures the literal stdout into the canonical
+  envelope paths the orchestrator computes.
+- The Tier-2 validators themselves (grok, gemini — long-running
+  droid sessions, the spawn prompts in
+  `phase-4.5/prompts/phase-5-grok-validator.md` and
+  `phase-4.5/prompts/phase-5-gemini-validator.md`) *receive*
+  `VALIDATE REQUEST:` lines from STEER.md, perform their own
+  invocation within their own session, and write their own
+  raw envelope bytes — providing operational-distinctness
+  (§23) that an orchestrator-as-only-spawner cannot.
+- The **persistent referee** reads STEER.md for `REVIEW REQUEST:`
+  lines whose envelope paths already exist on disk (the
+  orchestrator + validators agreed on the canonical paths).
+  Referee refuses (REFUSED: chunk=X reason=no-envelopes) if
+  paths are absent. Referee refuses if §23 fails. Referee
+  signs the close token only when §21 + §17.2 + §23 +
+  Tier-2-distinct-sessionIds all hold.
+
+The 4-actor topology is therefore: builder → orchestrator →
+Tier-2 → referee. §22 bounds builder ≠ referee. §24 bounds
+referee ≠ orchestrator-for-same-chunk. §23 bounds
+Tier-2 ≠ Tier-2 (within the referee's audit decision, *not*
+inside Tier-2's invocation). All three bits are
+defense-in-depth, none alone closes KN-A-9 / KN-A-8.
+
+*Rationale:* A single process that fires Tier-2 AND signs
+their output collapses back to one trust boundary — we are
+back to chunk-5 KN-A-5 plus this session's REJECT verdict.
+The 4-actor split is the structural answer: the *fire*
+decision is outside the *sign* decision, both outside the
+*build* decision.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
