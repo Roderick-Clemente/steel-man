@@ -13,9 +13,11 @@ fresh Factory Droid sessions in this order:
 2. **Prompt 2 — Phase 5 build chunk.** Fires after Prompt 1's
    smoke test passes. The fresh agent builds the 5 Phase-5
    deliverables on a fresh worktree branched from `main` HEAD
-   `c6a1a7a` (post-merge cleanup; canonical `factory/phase-4.5-
-   loop-runner` was fast-forward-merged into `main` before this
-   prompt ships).
+   `2918bd6` (post-cleanup; the Phase 5 PRD promotion
+   (`40f0fff`+`c6a1a7a`+`fa14360`) was FF-merged to `main`
+   before the origin-merge (`83b75cb`) and the chunk-14
+   executor's design-doc fold (`2918bd6`) both landed
+   no-ff-atop).
 
 Prompts inherit `AGENTS.md` rules: zero commit rights for the
 authoring thread; the fresh agent owns the branch; the cross-family
@@ -28,26 +30,36 @@ The signals mean: the underlying runtime check passed. They are
 NOT decorative — absence is a debugging trail, presence is
 enforcement at the operator-eye layer.
 
-## Pre-launch state (post-merge cleanup)
+## Pre-launch state (post-cleanup)
 
-The branch state at the time this file was committed:
+The branch state at the time this file was last updated:
 
-- **`main`** = `c6a1a7a` (Phase 5 PRD promotion + launch prompts).
-  Fast-forward merged from `factory/phase-4.5-loop-runner`.
-  This is the canonical Phase 5 base.
-- **`factory/phase-4.5-loop-runner`** mirrors `main` (same
-  SHA). Safe to `git branch -d` after the operator confirms
-  the merge.
+- **`main`** = `2918bd6`. The Phase 5 PRD promotion triple
+  (`40f0fff` + `c6a1a7a` + `fa14360`) is followed by the
+  origin-merge commit `83b75cb` (wiki-phase-3.1 PR #1 + Phase
+  3.1 follow-up program), then the chunk-14 executor's
+  `DESIGN-REVIEW-ATTESTATION-GATE.md` fold as commit `2918bd6`.
+  This is the canonical Phase 5 base — the fresh agent branches
+  from `main` HEAD `2918bd6`.
+- **`factory/phase-4.5-loop-runner`** — deleted. FF-merged into
+  `main` before `fa14360`; branch removed in the clean-up. No
+  follow-up branch references it.
+- **`factory/review-attestation-gate-spec`** at `5e8774e` —
+  folded into `main` as commit `2918bd6` (no-ff; the spec-doc
+  was on a branch off `5449c06` and main now includes the
+  Phase 4.5/5 promotion triple + the origin merge, so no-ff
+  was forced). The design-doc is on `main` and Phase 5's
+  build-chunk reads it as the concrete layer-1/2/3 reference.
+  Branch can be safely deleted.
 - **`factory/chunk-14-kn-J-fixes`** at `623e024` — paused.
   Routes through `chunk_sequence_gate` once Phase 5 enforcement
   tool lands in Prompt 2's deliverables. Branch rebases onto
   `main` at that point.
-- **`factory/chunk-e-contract-reader`** at `5449c06` — paused.
-  The fresh-agent's WIP (8 files) is currently on `main`'s
-  working tree as uncommitted; the worktree path is shared with
-  `main` post-merge. Same gate applies.
-- **`factory/review-attestation-gate-spec`** at `5e8774e` —
-  unrelated worktree; does not enter Phase 5 scope. Leave alone.
+- **`factory/chunk-e-contract-reader`** at `9c069e0` — paused.
+  Rebased onto `main` `2918bd6` after operator resume; single
+  commit (10 files, +826/-36), 14 new tests pass + 2 pre-existing
+  failures confirmed on clean main. NOT routed through merge
+  until `chunk_sequence_gate` exists. Same gate applies.
 
 The user-facing cleanup candidates (worktrees, residual branches)
 are documented in this file so the operator can dismiss or
@@ -111,37 +123,63 @@ filesystem mutations.
 ## Prompt 2 — Phase 5 build chunk
 
 **Branch:** `factory/phase-5-chunkadherence-enforcement`,
-fresh worktree branched from `main` HEAD `c6a1a7a`
-(post-Phase-5-merge cleanup; canonical `phase-4.5-loop-runner`
-was fast-forward-merged into `main` before this prompt ships,
-so the fresh agent's base is `main` not `phase-4.5-loop-runner`).
+fresh worktree branched from `main` HEAD `2918bd6`
+(post-cleanup; the Phase 5 PRD promotion triple landed FF on
+`main`, then the origin-merge and the chunk-14 executor's
+design-doc fold landed no-ff atop. So the fresh agent's base
+is `main` at `2918bd6`, *not* an intermediate branch).
 Operator picks the worktree path; the fresh agent runs
 `git worktree add -b factory/phase-5-chunkadherence-enforcement
 <path> main` first, then `cd` into it.
 
-**Clean WIP discipline.** The shared worktree
-(`/Users/factory/work/adversarial-sprint-dev`) currently has 8
-uncommitted files from the Backlog E fresh-agent (chunk-e-contract-
-reader paused branch). They are NOT the Phase-5 fresh-agent's WIP.
-Do not stash, pop, or `git add` those files. Begin Prompt 2 only
-after the fresh worktree is set up; then `cd` into it before
-running any commands. If `tools/adapters/test_runner.py` is
-already on disk in the Phase-5 worktree, that is the only
-acceptable carry (it's Backlog E's deliverable that Phase 5
-preserves).
+**Clean WIP discipline.** `factory/chunk-e-contract-reader`
+is at `9c069e0` on its own worktree, rebased onto clean main
+`2918bd6`, working tree clean. The Phase-5 fresh-agent does NOT
+inherit Backlog-E WIP. After operator resume of the chunk-e
+fresh-agent, the contract-reader files live on
+`factory/chunk-e-contract-reader`, not on `main` and not on
+the Phase-5 fresh-agent's worktree. Phase 5 builds the gate;
+Backlog E routes through the gate as its own chunk. The
+chunk-e fresh-agent's contract-reader adapter is the
+first consumer of the gate, but it commits separately after
+Phase 5 closes.
+
+The shared worktree (`/Users/factory/work/adversarial-sprint-dev`)
+currently has no uncommitted Phase-5 WIP. Stash `stash@{0}`
+(`pre-origin-merge-backlogE-stash`) holds the old
+pre-cleanup chunk-e state for archival; the Phase-5 fresh-agent
+does not touch it. The `9c069e0` chunk-e commit has its own
+worktree; do not revert, do not cherry-pick.
 
 **Read-this-first list:**
 
 - `PRD.md` §11 Phase 5 (chunk-adherence enforcement layer, 5
   deliverables, 4 exit criteria) — the source of truth.
 - `tools/OPERATING-RULES.md` §20 (chunk-close is gated, not
-  declared).
+  declared) + check whether §17 amendment per KN-R1 (Layer 3 of
+  the chunk-14 executor's design doc) is already in place; if
+  not, that is owed §A-1 followup before pass-r5 close.
 - `skills/adversarial-sprint/SKILL.md` digest rules 1-9 + index;
   light-skill the digest before answering.
 - `phase-4.5/RUN-PROMPT.md` §15 truth-table rows
   chunk-close-token, sequence-gate, operator-eye signal.
-- `phase-4.5/KNOWN-ISSUES.md` KN-A-1..A-4 (frame *why* this
-  layer exists; chunk-14 close did not enforce §17.2).
+- `phase-4.5/KNOWN-ISSUES.md` KN-A-1..A-4 + KN-R1 (frame
+  *why* this layer exists; chunk-14 close did not enforce §17.2;
+  KN-R1 records the three-layer fix design with KN-A-1..A-4 as
+  rationale pointers).
+- `phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md` — the concrete
+  shape for deliverables 5a/5b/5c/5d: HMAC-SHA256 + `tree_sha`
+  binding + signature envelope, fail-closed verifier, the
+  `bin/review-branch <base>..<head>` entrypoint as Layer 1, and
+  the OPERATING-RULES §17 amendment as Layer 3. The design
+  doc has already chosen the cryptography (reuses
+  `EVIDENCE_SIGNING_KEY`) and the gate predicate (≥2 distinct
+  families + implementer disjointness + ACCEPT-class verdict);
+  the build-chunk executes that choice, doesn't redo it.
+- `phase-4.5/ROADMAP-REVIEW.md` + `phase-4.5/BACKLOG-D-
+  CAPABILITIES-FRAMEWORK.md` — Phase 5 row was added during the
+  promotion triple; verify the audit row reads "chunk-adherence
+  enforcement layer" not "generalisation."
 
 **Five deliverables (from PRD §11 Phase 5):**
 
@@ -205,6 +243,16 @@ preserves).
   assert HMAC verification by direct hmac.compare_digest call.
 - Skip the cross-family §17.2 step because a single reviewer is
   "already there." Two-family (or more) is required.
+- Do not allow the chunk-e (`factory/chunk-e-contract-reader`
+  at `9c069e0`) or chunk-14 (`factory/chunk-14-kn-J-fixes`
+  at `623e024`) merges to bypass this gate once it exists.
+  The gate is the load-bearing claim; fast-path or
+  `--no-verify` exemptions recreate the chunk-13/14 vacuous-pin
+  pathology for any chunk with passing tests.
+- Do not collapse Act 1 (conversational edits) into Act 2
+  (runner/panel): this is the chunk-14 §15 anti-pattern. Stay
+  runner-driven: every chunk close is a `chunk_sequence_gate`
+  run, not a prose declaration.
 
 **Ownership of this chunk:**
 
@@ -226,9 +274,27 @@ chunk5-token:  phase-4.5/tokens/chunk-5.token.json  (signed)
 install run:   <install-skill.sh output line count, or crash>
 test count:    <pytest --tb=no | tail -1>
 behavioural:   <5 chunks; each ≥1 pin name; total pin count>
+op-rule-17:    <yes — Layer 3 amendment in OPERATING-RULES.md, line N>
+               <or BLOCKED: Layer 3 prose amendment pending>
+design-doc:    <read DESIGN-REVIEW-ATTESTATION-GATE.md before build start? yes/no>
 ```
 
 If any deliverable didn't land, that line carries
 "BLOCKED: <shippable reason>" instead of a number. Long
 post-mortems are for the chunk-close notes,
 **not** in this reply.
+
+The `op-rule-17` line is the close-criterion for the chunk-14
+executor design's Layer 3 (the prose amendment voiding same-
+family self-run subagent reviews). If it is not already
+applied to `tools/OPERATING-RULES.md`, the chunk-5 build owns
+the patch as part of its deliverables; the operator-side follow-
+up is for chunks that close without the amendment in place.
+
+The `design-doc` line is a separate audit because the chunk-14
+executor pattern (build without reading the rationale that
+motivated the build) is exactly the failure the build is meant
+to prevent. Closing both `op-rule-17` and `design-doc` is
+required for cross-family review to attach to a chunk that
+already has the prose amendment in place; build without that
+amendment fails Layer 3 of the gate.
