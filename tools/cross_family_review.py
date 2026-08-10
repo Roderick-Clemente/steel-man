@@ -48,6 +48,38 @@ import sign_chunk_token as sct  # noqa: E402
 
 ACCEPT_CLASS: frozenset[str] = sct.ACCEPT_CLASS
 
+# Placeholder-envelope detector (KN-A-5): build agents tend to type
+# fixture-marker sha256 values like "5555555555555555555555...5501"
+# (all-5 leading run + suffix). Real envelope_sha256 values are
+# produced by hashlib.sha256 over raw model output; the leading 50
+# characters have ~uniform distribution, so a 50-character
+# homogeneous run is effectively impossible (probability ~2^-200).
+# This asymmetry is the gate's leverage against the §17.2
+# implementation-pattern (KN-A-5 / design-doc §10).
+PLACEHOLDER_LEADING_RUN_MIN: int = 50
+
+
+def envelope_is_placeholder(sha: str) -> bool:
+    """True if ``sha`` looks like a fixture-marker, not a real sha256.
+
+    Refuses: any ``sha`` where the first ``PLACEHOLDER_LEADING_RUN_MIN``
+    hex characters are all identical. Also refuses on length-mismatch
+    and non-hex-character inputs — bad SHAs are also placeholders for
+    our purposes (no real `droid exec` envelope hashes to them).
+    """
+    if not isinstance(sha, str):
+        return True
+    if len(sha) != 64:
+        return True
+    if not all(c in "0123456789abcdef" for c in sha):
+        # permissive on lower-case only; real sha256 hex digests are
+        # conventionally lowercase, so an uppercase-but-other-wise-valid
+        # input is a typing error worth refusing rather than silently
+        # normalising.
+        return True
+    head = sha[:PLACEHOLDER_LEADING_RUN_MIN]
+    return len(set(head)) == 1
+
 
 @dataclasses.dataclass(frozen=True)
 class RefusalLog:
@@ -117,6 +149,24 @@ def check_reviewer_panel(
                 reason=f"reviewer[{i}]={model_id!r}: family={family} collides with implementer family={impl_family} — same-family reviews do not satisfy §17.2",
                 reviewer_index=i,
             ))
+        # envelope authenticity check (KN-A-5; design-doc §10):
+        # a real envelope_sha256 is hashlib.sha256 over raw droid output;
+        # a fixture marker has a 50-char homogeneous run. Probability
+        # 2^-200 of a real sha256 satisfying that constraint, so the
+        # refusal rate on real reviews is ~zero.
+        if i < len(reviewer_envelope_sha256s):
+            sha = reviewer_envelope_sha256s[i]
+            if envelope_is_placeholder(sha):
+                refusals.append(RefusalLog(
+                    reason=(
+                        f"reviewer[{i}]={model_id!r}: envelope_sha256 looks like a "
+                        f"fixture marker (KN-A-5 / design-doc §10): first "
+                        f"{PLACEHOLDER_LEADING_RUN_MIN} chars are homogeneous or "
+                        f"sha is non-canonical. Compute the SHA over the real "
+                        f"droid envelope output on disk; do not type a marker."
+                    ),
+                    reviewer_index=i,
+                ))
         # verdict check below
         if i < len(reviewer_verdicts):
             verdict = reviewer_verdicts[i]
