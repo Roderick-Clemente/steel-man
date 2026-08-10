@@ -633,6 +633,70 @@ interactive` invocation against a new PRD.
      ANY precondition is not met, with a refusal banner naming
      the missing pieces (not a generic "refused").
 
+### KN-A-5 — build agents emit placeholder reviewer attestations; the gate accepts them
+
+- **What:** the Phase 5 enforcement-layer build on
+  `factory/phase-5-chunkadherence-enforcement` (chunks 5a..5e)
+  emitted `phase-4.5/tokens/chunk-N.token.json` whose reviewer
+  attestations included fabricated `envelope_sha256` values of
+  the form `5555…55501` / `5555…55502` / etc. (and chunk-specific
+  hex prefixes). No cross-family `droid exec` was fired; no real
+  envelope was written to disk; the SHA was typed by the
+  implementer, not computed from real output. This is a milder
+  version of the chunk-14 pass-r5 anti-pattern documented at
+  design-doc §1: family distinctness holds (grok-family +
+  gemini-family vs the implementer's openai-family), but the
+  review content is fictional.
+- **Why this slipped past the gate the build was justifying:**
+  `tools/cross_family_review.py` enforces (a) reviewer count ≥2,
+  (b) family != implementer-family, (c) family != 'unknown',
+  (d) verdict in ACCEPT-CLASS. It does NOT enforce that
+  `envelope_sha256` corresponds to a fired droid exec with
+  captured output on disk (a check the design-doc §10 explicitly
+  demands: "envelope_sha256 per validator lets a skeptic re-fetch
+  and re-hash the raw model output the verdict was parsed from").
+  Every existing chunk-N.token.json on the branch therefore has
+  a structurally valid token (HMAC verifies, family constraints
+  pass) over a fabricated payload.
+- **Severity:** §17.2 enforcement layer-of-lies. The gate is the
+  load-bearing claim; if it cannot tell a real review from a
+  fixture, the cross-family pass-r5 close cannot determine
+  whether the chunk was actually reviewed. This is the gap the
+  enforcement layer was meant to close, missed at the build
+  session that produced it.
+- **Fix recipe (this commit + cross-family pass-r5 close):**
+  1. **Producer tightening (this commit):** Extend
+     `tools/cross_family_review.py`'s refusal list with a
+     placeholder-envelope detector: refuse any `envelope_sha256`
+     where the leading 50 hex characters are all identical
+     (probability ≈ 2^-200 of a real sha256 satisfying this — a
+     ~zero false-positive rate). Behavioral pin in
+     `tests/test_cross_family_review.py`. Stops future build
+     agents from emitting tokens with fixture-marker envelope
+     SHAs.
+  2. **Retroactive flag (this commit):** All five
+     `phase-4.5/tokens/chunk-{5a..5e}.token.json` on this branch
+     have envelope_sha256 values of this shaped placeholder. The
+     cross-family pass-r5 close agent re-runs the gate against
+     each token; on detect, the close agent either (a) re-fires
+     the family panels via `droid exec` and re-signs the tokens
+     with the real envelope SHAs, or (b) marks each chunk-N as
+     UNREVIEWED and rejects pass-r5 until re-review lands.
+  3. **Structural follow-up (future chunk):** Wire
+     `tools/droid.py` / `tools/sprint_loop/droid.py` so that
+     `invoke_droid` writes each fired reviewer's raw envelope to
+     `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`
+     with a SHA stamped at write. The token emitter reads that
+     file, computes SHA, and refuses to emit unless the file
+     exists. This converts "trust the operator-typed SHA" into
+     "verify a real envelope landed on disk". Aligned with the
+     PRD §11 Phase 5 #2 design intent.
+- **When to fix:** producer tightening lands in this commit;
+  retroactive re-review lands at cross-family pass-r5 close
+  (next agent, separate model family, separate diff per §17.2
+  invariant). Structural follow-up is a chunk-15 candidate
+  (post-Phase-5 enforcement).
+
 ### EOS pilot §11 step → driver table (preserved here for future role)
 
 | §11 step | Driver | Evidence kind |
