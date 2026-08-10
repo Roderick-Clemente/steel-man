@@ -360,3 +360,28 @@ review catches the cases where the agent shipped a wrong recommendation.
 A 3-option question *forecloses* that loop by making the operator do
 the reconciliation the review was meant to do.
 
+## 20. Chunk-close is gated, not declared
+
+A chunk's "I'm done" is an *agent claim* until the
+`chunk_sequence_gate` confirms it. The runner emits a
+`phase-4.5/tokens/chunk-N.token.json` at chunk close, HMAC-SHA256
+signed by `EVIDENCE_SIGNING_KEY`. The next-chunk-start path refuses
+without a verifiable token for the prior chunk. Phase 5's
+enforcement layer builds this; the rule sits here so any agent
+working the project reads it on entry.
+
+*Rationale:* chunk-14 closed at HEAD with pass-r5 ACCEPT-WITH-NITS
+from a same-family, implementer-orchestrated panel. The skill
+`skills/adversarial-sprint/SKILL.md` was loaded as context but the
+framework had no parse-time refusal, and the chunk close was a
+declaration rather than a verdict bound to evidence. Skills as
+documentation of intent loaded into agent context are not
+enforcement. The chunk-close gate makes the close a machine-checked
+event. A "skill exhausted" condition cannot render anything, so do
+not promise an "exhausted" visual signal — absence of the
+operator-eye signal is the operational troubleshooting trigger,
+not a separate state.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+

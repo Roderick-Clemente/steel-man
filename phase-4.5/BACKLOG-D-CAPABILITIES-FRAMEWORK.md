@@ -113,18 +113,26 @@ Two reasons anchored in OPERATING-RULES:
 | Phase | Deliverable                                         |
 |-------|-----------------------------------------------------|
 | 4.5 (now) | Foundation: skill distribution shape + convention doc + install paths |
-| **Future — Backlog D, post-Phase-5** | Capability registry: `skills/capabilities/MANIFEST.yaml` + dispatcher in runner |
-| **Future — Backlog D, post-Phase-5** | Pre-built capabilities: priority-ranker, feature-clarifier, silent-green-sniffer |
+| **Phase 5 (PUSH EVERYTHING ELSE — see PRD)** | Chunk-adherence enforcement layer: `chunk-N.token.json`, `tools/cross_family_review.py`, `tools/chunk_sequence_gate.py`, operator-eye visual signal |
+| **Future — Backlog D, post-Phase 6** | Capability registry: `skills/capabilities/MANIFEST.yaml` + dispatcher in runner |
+| **Future — Backlog D, post-Phase 6** | Pre-built capabilities: priority-ranker, feature-clarifier, silent-green-sniffer |
 
 The runner-as-router shape with hook points is the unifying
 abstraction across both — but each ship is a verifiable deliverable,
 not a half-built version of both.
 
-**Renumbered from "Phase 6 / Phase 7" per pass-r2 finding G-11:**
-the PRD defines Phase 6 as "no new feature work" and Phase 7 as
-outside the measured 0–6 arc. Backlog D is unimplemented design
-captured here so it survives compaction; the actual phase numbering
-lands when the PRD moves its gates.
+**Renumbered from "Phase 6 / Phase 7" per pass-r2 finding G-11
+and again per Phase 5 promotion (2026-08-10):** "Phase 6 / Phase 7"
+in the original column title referred to the PRD's pre-Phase-5
+numbering (Phase 6 = Generalize after evidence; Phase 7 = Hardening
+settling pass). After Phase 5 inserted between Phase 4.5 and the
+generalization phase, those downward-shift to Phase 7 / Phase 8.
+Backlog D is therefore post-Phase 6 — *after* Phase 5's chunk-close
+gate lands. The phase-numbering dance is recorded here so future
+compaction readers don't get confused about which "Phase 7" the
+table meant. Backlog D is unimplemented design captured here so it
+survives compaction; the actual phase numbering lands when the PRD
+moves its gates.
 
 ## See also
 

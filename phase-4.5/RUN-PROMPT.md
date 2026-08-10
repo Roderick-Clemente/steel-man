@@ -39,6 +39,9 @@ is a structural guarantee, not optional.
 | Git commit                      | agent's repo              | runner `git add -f` audit-trail + per-chunk commit | simulated; no commit       |
 | Push to remote                  | agent's call              | never (invariant #8)      | never                     |
 | Cross-family review              | agent's prompt condition  | structural via LocalBackend→`tools/orchestrate-review.py` | simulated ACCEPT         |
+| Chunk-close token (`chunk-N.token.json`, HMAC-SHA256 by `EVIDENCE_SIGNING_KEY`) | not enforced | ✅ runner emits on close; refusal banner if signing-key missing or single-family reviewer attempted (Phase 5 gate) | simulated; no token produced |
+| Next-chunk sequence gate (`tools/chunk_sequence_gate.py`) | not enforced | ✅ refuses chunk-N+1 if chunk-N's token missing / signature invalid | simulated ACCEPT |
+| Operator-eye visual signal at chunk close | n/a | ✅ bound to token verification; ⛔ bound to refusal; absence is a troubleshooting trigger (Phase 5 §5) | n/a (dry-run does not reach close) |
 
 The `--dry-run` column is honest about what it doesn't do: it produces
 a *simulated* ACCEPT, not a demonstrated one. Operators who run

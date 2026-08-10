@@ -574,7 +574,7 @@ one command:
    plan (blind), captures findings.
 3. **Reconcile** — human gate: presents findings, waits for
    accept/reject/amend decision. (This step stays human — reconciliation
-   is the operator seat Phase 7 will later compress.)
+   is the operator seat Phase 8 will later compress.)
 4. **Chunking** — the planner or human cuts the approved plan into chunks.
 5. **Per chunk:** test-designer → executor → evidence production
    (`local_backend.py`) → validators (`orchestrate-review.py`) → gate
@@ -623,13 +623,156 @@ flavor-(a) runs the evidence provider in a pipeline and gates on the
 verdict. The validation backend is pluggable (local now, CI later).
 The method is a product, not a collection of scripts.
 
-### Phase 5 — Generalize after evidence
+### Phase 5 — Chunk-adherence enforcement layer (PUSH EVERYTHING ELSE)
+
+**Why this sits ahead of generalization.** Phase 4.5b's chunk-14 close
+surfaced a structural gap: the §17.2 cross-family invariant lived only in
+prose, and the chunk close was an agent declaration rather than a bound
+verdict. Pass-r5 returned ACCEPT-WITH-NITS, but the reviewer subagents
+were spawned by the chunk-14 implementer, the reviewers were
+same-family, and the chunk close was declared without evidence the
+agents had actually consulted the canonical skill. The mechanism
+worked; the gate did not.
+
+**Surfaced by:** Factory skill adherence audit at the chunk-14 close on
+`factory/chunk-14-kn-J-fixes`. The canonical skill
+(`skills/adversarial-sprint/SKILL.md`) is *documentation of intent*
+loaded into agent context but **not executed as enforcement** —
+specifically:
+
+- No parse-time refusal when a reviewer model is from the same family
+  as the implementer (§17.2 silent violation).
+- The chunk close is a self-declared DONE; closure is a claim, not a
+  verdict bound to the chunk's evidence.
+- Phase boundaries (chunk-N → chunk-N+1, Phase 4.5 → Phase 5, Phase 5 →
+  Phase 6) have no machine check; chunks declare themselves complete and
+  the framework accepts the declaration.
+
+**Required deliverables.**
+
+1. **Chunk-completion token.** Each chunk commit writes
+   `phase-4.5/tokens/chunk-N.token.json` with:
+   - `chunk_commit_sha` (hex 40);
+   - `reviewers` list of `{family, model, verdict, review_envelope_sha}`;
+   - `signed_at`, `signed_by`, `signature_algo="hmac-sha256"`, `signature` (hex 64).
+   Signature is `hmac_sha256(EVIDENCE_SIGNING_KEY, canonical_json(other_fields))`,
+   reusing §7 infrastructure.
+
+2. **`tools/cross_family_review.py` with refusal-at-parse.** Refuses if
+   `--reviewer-models` is empty; any reviewer family equals implementer
+   family (`MODEL_FAMILY_MAP` lookup); reviewer family is `unknown`;
+   any reviewer verdict is not ACCEPT-WITH-NITS-or-better. Outputs
+   `chunk-N.token.json` only on dual ACCEPT-WITH-NITS from two reviewers
+   that satisfy all three.
+
+3. **`tools/chunk_sequence_gate.py`** refuses chunk-N+1 from starting
+   when chunk-N's token.json is missing, unreadable, or signature
+   mismatched. Exit code 6 on refusal. Wired into the chunk-close
+   path of the runner (the runner emits the token; the gate is the
+   audit-trail consumer).
+
+4. **Skill + distribution update.**
+   - `skills/adversarial-sprint/SKILL.md` digest gains rule #9:
+     "every chunk close requires `chunk-N.token.json` with a valid
+     HMAC-SHA256 signature; refuse to declare done without it."
+   - `skills/sprint-invocation/SKILL.md` calls
+     `chunk_sequence_gate --check chunk-N+1` before declaring the next
+     chunk ready.
+   - `tools/install-skill.sh` re-emits `.factory/skills/`,
+     `.claude/skills/`, `.cursor/rules/` against the new rule.
+
+5. **Visual signal — **layered** enforcement (operator-eye + runner).**
+   The visual signature IS enforcement at the operator-eye layer,
+   *not* cosmetic decoration. The runner emits:
+   - 🤺 when the adversarial plan-review render path executed;
+   - 👀 when the validation-gate check executed;
+   - ✅ at chunk close when `chunk-N.token.json`'s HMAC-SHA256 verifies;
+   - ⛔ at chunk close when token.json is missing or signature invalid.
+   The agent CANNOT emit ✅ without a valid token. Operator-eye layer
+   enforcement: the operator's "did this chunk actually close?" question
+   has a runtime answer, not an agent claim.
+   The "exhausted skill" indicator framing is rejected: an exhausted skill
+   cannot render anything, so an absence-of-signal condition would be
+   indistinguishable from "skill never loaded." **The signal is
+   presence = the runtime check passed; absence = the runtime check
+   failed or never ran.** Operator-eye troubleshooting on absence is
+   the operator's path, listed below.
+
+**Operator-eye troubleshooting checklist for absent signal.**
+
+When the runner does NOT emit ✅ at a chunk close, the operator
+runs this check, in order:
+
+1. **Read** `phase-4.5/tokens/chunk-N.token.json`. If absent: `cross_family_review.py`
+   refused (single-family reviewer, missing reviewer, or non-ACCEPT
+   verdict). Find `[chunk-N][refusal_reason]` in
+   `telemetry/<run-id>/cross_family_review.log` per KN-A-2 log
+   surface.
+2. **Verify signature.** If token exists but signature is bad:
+   `EVIDENCE_SIGNING_KEY` mismatch. Check `tools/run-with-model.sh`
+   for the key it signs with (`run-with-model env | grep -i signing`);
+   set the same key at token verify time. KN-H15 input.
+3. **Run** `tools/chunk_sequence_gate.py --chunks-file <p>.json --next-chunk-id N+1`.
+   Exit code 6 means the prior chunk's token still doesn't verify
+   after the fix; roll back to the chunk before the gap.
+4. **Check** `telemetry/runs.jsonl` for the chunk's `run_id`. If the
+   row exists but `verdict != ACCEPT-WITH-NITS-or-better`: the token
+   was refused on verdict (failure mode J-10/16, KN-A-2). Find the
+   `note` field for the refusal reason.
+5. **Diagnose** zero telemetry rows: `commit_chunk_change` was not
+   called — the chunk's inner loop did not reach the close. Inspect
+   `phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
+   last-known step; that step is the failure point. Likely a
+   subagent unpinned its `--model` (KN-A-3 first-class step) or the
+   family guard refused (KN-A-4 live-path preconditions).
+6. **If the agent's prompt never reached close**: the canonical
+   skill (`skills/adversarial-sprint/SKILL.md`) was not loaded into
+   the agent's session context. Refresh `tools/install-skill.sh`
+   and `grep` the receiver prompt for the digest's load-bearing
+   rules. If absent, the operator is the recovery path here — the
+   dispatcher's `--enabled-tools` likely stripped the skill
+   loader. KN-A-3 owns this on chunk-15.
+
+The checklist is operator-side; the runner-side gates are the
+chunk-completion token, `cross_family_review.py`, and
+`chunk_sequence_gate.py`. The two layers reinforce each other: the
+operator can SEE a failure (✅ absent) AND the failure has a
+machine-readable trail (token.json + cross_family_review.log +
+telemetry row + chunk_sequence_gate exit code). The signal's
+absence is not a "skill was exhausted" condition — it is a
+**runtime contract violation with a recoverable path.**
+
+**Exit criteria.**
+
+- `chunk-N.token.json` exists for every chunk-N since chunk-13,
+  signed and verifiable, even for the chunk-13 retro-application
+  (re-tokenize chunk-13 commits where the original chunk-close
+  lacked a token; KN-J-20 low-priority nit lands here).
+- `chunk_sequence_gate` refuses the runner's next-chunk-start when
+  the prior chunk's token is missing.
+- Two independent panel runs on `factory/chunk-5-token-pilot`
+  (grok-4.5 + gemini-3.1-pro-preview; each on a separate diff; each
+  empirically mutation-testing the gate) return ACCEPT-WITH-NITS-or-
+  better. Cross-family §17.2 satisfied.
+- The phase-5 close mirrors chunk-13's structure: parallel
+  branches, fresh-agent, single-branch-sequential landing, with the
+  chunk-close gate now structural rather than documented.
+
+**Re-seqs the rest of the project.** Phase 6 onward (generalization,
+settling pass, human-in-the-loop compression) is **deferred** until
+Phase 5 closes. Backlog D (capability orchestrator) is post-Phase 6.
+Chunk-14's blocked merge is NOT a Phase 5 deliverable; chunk-14
+lands only after Phase 5 enforces it through `chunk_sequence_gate`.
+Backlog E (test-runner contract reader) was authored in parallel
+with chunk-14 and routes through the same gate.
+
+### Phase 6 — Generalize after evidence
 
 Only after the pilot, Phase 4 hardening, and Phase 4.5 loop + CI:
 repo ingest/adapter generation, Harness feedback ingestion, a second
 stack, and the portable Claude/Codex CLI runtime.
 
-### Phase 6 — Hardening (settling pass)
+### Phase 7 — Hardening (settling pass)
 
 A deliberately-low-velocity consolidation phase that parks low-priority
 items noted during active phases so they do not slow the active-phase work.
@@ -637,8 +780,8 @@ The "settling pass" language is deliberate: items are *noted* at the moment
 they arise but held until the framework catches up. The phase promotes,
 re-classifies, or drops them on the framework's own terms.
 
-Distinct from Phase 5: Phase 5 generalises the framework across multiple
-stacks; Phase 6 hardens the framework's own invariants. Things in scope:
+Distinct from Phase 6: Phase 6 generalises the framework across multiple
+stacks; Phase 7 hardens the framework's own invariants. Things in scope:
 - cross-family calibration artifacts (where the two reviewers diverge, why, and what `first_seen_in_panel_position` says);
 - case-sensitivity alignments between red/green checks;
 - regex tightening (any signature broad enough to false-reject);
@@ -647,11 +790,11 @@ stacks; Phase 6 hardens the framework's own invariants. Things in scope:
 - the §17 model-discipline convention at `factory/convention-model-discipline @ 45061f4`: cross-family review then ff-merge to `main`, with wiki `telemetry/` references restored from descriptive placeholders to file links. The schema and wrapper are infrastructure; the data stays gitignored until the migration gate fires.
 - runtime-resilience against `Execute` tool cancellation (rate-limit / connection-reset on long smoke runs): every post-merge smoke test must be checkpointable, meaning each smoke step has a single observable outcome on disk (`git log --oneline -1`, `python3 -m py_compile <file>`, `bash <script> <args>`) and the agent can resume from the last green step without re-running the whole battery. Same idea for cross-family reviews: the prompt should be idempotent enough that re-firing it after a partial response produces the same verdict.
 
-Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-6 work for downstream feature completion. Phase 6 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
+Things explicitly out of scope: new feature work, new behaviour, any change that creates a dependency on Phase-7 work for downstream feature completion. Phase 7 is the canonical home for "*we found this, we noted it, we did not fix it because fixing now would have slowed today's velocity*".
 
-**Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole arc at the end of Phase 6.
+**Exit:** every `wontfix` / `deferred` finding from prior phases is either promoted (fix lands in main) or re-classified (the framework genuinely does not need it, and the re-classification is recorded in the wiki). The §13 efficacy metrics are computed over the whole arc at the end of Phase 7.
 
-### Phase 7 — Human-in-the-loop compression (post-MVP, pain-point-driven)
+### Phase 8 — Human-in-the-loop compression (post-MVP, pain-point-driven)
 
 Deferred until the MVP (Phases 0–4.5) has been run in anger. Phases 0–4.5 are
 the product; 5–7 are what use of the product earns. This phase exists
@@ -671,8 +814,8 @@ The bet: compress the human seat from "read every finding" to "rule only on genu
 
 Explicit guard: consensus is not correctness. A panel that agrees can be wrong together, so the calibration record must include panel-agreed-but-wrong cases caught later, or the knob will tune the human out on the strength of agreement that was never evidence, the same "a run's own account of itself is not evidence" principle applied to the panel instead of the executor.
 
-Distinct from Phases 5 and 6: Phase 5 generalises the loop across stacks;
-Phase 6 hardens the loop's own invariants at no new behaviour; Phase 7 is
+Distinct from Phases 6 and 7: Phase 6 generalises the loop across stacks;
+Phase 7 hardens the loop's own invariants at no new behaviour; Phase 8 is
 new behaviour aimed at the *operator's* cost, and is deliberately kept
 **outside the measured 0–6 arc**. Its own efficacy (operator-minutes per
 landed change, tag-in rate, panel calibration) is a separate measurement,
