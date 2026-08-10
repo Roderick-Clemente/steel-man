@@ -6,12 +6,16 @@ fresh Factory Droid sessions in this order:
 1. **Prompt 1 — Skill-invocation smoke test.** Verifies the
    canonical `skills/adversarial-sprint/SKILL.md` loads into a
    fresh agent's prompt context, including the new digest rule
-   `#9` (chunk-close is gated, not declared) added in commit
-   `40f0fff`. Operator reads the reply's structure to confirm.
+   `#9` (chunk-close is gated, not declared) added in commits
+   `40f0fff` + `c6a1a7a`. Operator reads the reply's structure
+   to confirm.
 
 2. **Prompt 2 — Phase 5 build chunk.** Fires after Prompt 1's
    smoke test passes. The fresh agent builds the 5 Phase-5
-   deliverables on a fresh worktree branched from `40f0fff`.
+   deliverables on a fresh worktree branched from `main` HEAD
+   `c6a1a7a` (post-merge cleanup; canonical `factory/phase-4.5-
+   loop-runner` was fast-forward-merged into `main` before this
+   prompt ships).
 
 Prompts inherit `AGENTS.md` rules: zero commit rights for the
 authoring thread; the fresh agent owns the branch; the cross-family
@@ -23,6 +27,31 @@ plan review / validation gate / token signed / token refused).
 The signals mean: the underlying runtime check passed. They are
 NOT decorative — absence is a debugging trail, presence is
 enforcement at the operator-eye layer.
+
+## Pre-launch state (post-merge cleanup)
+
+The branch state at the time this file was committed:
+
+- **`main`** = `c6a1a7a` (Phase 5 PRD promotion + launch prompts).
+  Fast-forward merged from `factory/phase-4.5-loop-runner`.
+  This is the canonical Phase 5 base.
+- **`factory/phase-4.5-loop-runner`** mirrors `main` (same
+  SHA). Safe to `git branch -d` after the operator confirms
+  the merge.
+- **`factory/chunk-14-kn-J-fixes`** at `623e024` — paused.
+  Routes through `chunk_sequence_gate` once Phase 5 enforcement
+  tool lands in Prompt 2's deliverables. Branch rebases onto
+  `main` at that point.
+- **`factory/chunk-e-contract-reader`** at `5449c06` — paused.
+  The fresh-agent's WIP (8 files) is currently on `main`'s
+  working tree as uncommitted; the worktree path is shared with
+  `main` post-merge. Same gate applies.
+- **`factory/review-attestation-gate-spec`** at `5e8774e` —
+  unrelated worktree; does not enter Phase 5 scope. Leave alone.
+
+The user-facing cleanup candidates (worktrees, residual branches)
+are documented in this file so the operator can dismiss or
+re-target them quickly.
 
 ---
 
@@ -82,10 +111,24 @@ filesystem mutations.
 ## Prompt 2 — Phase 5 build chunk
 
 **Branch:** `factory/phase-5-chunkadherence-enforcement`,
-fresh worktree branched from commit `40f0fff` (Phase 5 PRD
-promotion). Operator picks the worktree path; the fresh agent
-runs `git worktree add -b factory/phase-5-chunkadherence-enforcement
-<path> 40f0fff` first, then `cd` into it.
+fresh worktree branched from `main` HEAD `c6a1a7a`
+(post-Phase-5-merge cleanup; canonical `phase-4.5-loop-runner`
+was fast-forward-merged into `main` before this prompt ships,
+so the fresh agent's base is `main` not `phase-4.5-loop-runner`).
+Operator picks the worktree path; the fresh agent runs
+`git worktree add -b factory/phase-5-chunkadherence-enforcement
+<path> main` first, then `cd` into it.
+
+**Clean WIP discipline.** The shared worktree
+(`/Users/factory/work/adversarial-sprint-dev`) currently has 8
+uncommitted files from the Backlog E fresh-agent (chunk-e-contract-
+reader paused branch). They are NOT the Phase-5 fresh-agent's WIP.
+Do not stash, pop, or `git add` those files. Begin Prompt 2 only
+after the fresh worktree is set up; then `cd` into it before
+running any commands. If `tools/adapters/test_runner.py` is
+already on disk in the Phase-5 worktree, that is the only
+acceptable carry (it's Backlog E's deliverable that Phase 5
+preserves).
 
 **Read-this-first list:**
 
