@@ -70,6 +70,21 @@ agent makes.
    exhaust framing cannot render anything; absence is a runtime
    contract violation with the operator-eye troubleshooting
    checklist (PRD §11 Phase 5 §5).
+10. **Reviewer attestations are evidence, not assertion.** §21 — every
+    chunk-close token's reviewer `envelope_sha256` MUST be computed
+    from a real reviewer envelope on disk (the SHA of a fired
+    `droid exec` output written to
+    `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
+    Build-time fixture markers — homogeneous leading-character hex
+    runs, typed-in placeholders, "5555...55501"-style tokens — fail
+    `tools/cross_family_review.py`'s envelope-authenticity check
+    (KN-A-5 / design-doc §10). The skill does not shorten this
+    distance: the operator-side `chunk-N.token.json` IS the review,
+    and a token without a verifier-traceable envelope is a
+    self-declaration, not a verdict. Tier-3 fix: an off-process
+    signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
+    POSTs envelope paths to; the daemon holds the key and refuses
+    if any envelope is absent on disk.
 
 ## Skill rules — referenced by index (full text in OPERATING-RULES.md)
 
@@ -95,6 +110,8 @@ the index is the source of truth.
 | 17  | capacity envelope                                   | when sketching a "foundation"      |
 | 18  | compose / chunk / fix friction / review / distill   | when about to start a build        |
 | 19  | commit when the recommendation is clear; ask only at true operator-value tradeoffs | when tempted to ask "you choose" between options whose ranking you can state |
+| 20  | chunk-close is gated, not declared                  | chunk-close path / token emission   |
+| 21  | reviewer attestations are evidence, not assertion   | when emitting or verifying tokens   |
 
 ## Rehydration step (long-running jobs)
 

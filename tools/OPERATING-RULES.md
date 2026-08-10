@@ -402,3 +402,46 @@ not a separate state.
 *Spacing for future rules:* continue numbering as the operating
 rules accrue.
 
+## 21. Reviewer attestations are evidence, not assertion
+
+A chunk-close token's reviewer `envelope_sha256` field must be
+**computed from a real reviewer envelope** — the SHA-256 digest
+over the literal output of a fired cross-family `droid exec`,
+written to disk at
+`phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
+
+Build-time fixture markers (`"5"` × 60 + `"01"`-style, all-zero SHA
+prefixes, all-homogeneous leading 50-character runs) — even when
+typed in good faith by the implementer — fail
+`tools/cross_family_review.py`'s homogeneous-leading-character
+refusal (KN-A-5 / design-doc §10). A chunk-close token whose
+reviewer SHA lacks a verifier-traceable backing envelope is a
+**self-declaration masquerading as a verdict**; the chunk-close
+gate MUST refuse it.
+
+Authorship of reviewer envelopes is structurally forbidden at
+chunk close: a signer holding `EVIDENCE_SIGNING_KEY` can produce
+a verifying HMAC over a fabricated payload, so signing authority
+without envelope-source check is no defense at all. Either the
+envelope is on disk *before* the token's HMAC exists, or the
+gate refuses close.
+
+*Rationale:* chunk-14 pass-r5 (commit `623e024`,
+`factory/chunk-14-kn-J-fixes`) reached ACCEPT-WITH-NITS via
+two same-family Task subagents orchestrated by the implementer —
+the implementing agent signed off its own work. The Phase-5
+build on `factory/phase-5-chunkadherence-enforcement` shipped
+all five `chunk-N.token.json` files with typed-in fixture envelope
+SHAs (KN-A-5) — the same anti-pattern in a milder family-distinct
+form. The fix is structural, not stylistic: bind
+`envelope_sha256` to a disk artifact the implementer did not
+create, and refuse the token otherwise. Tier-3 off-process
+signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
+agent POSTs `(chunk_id, chunk_commit_sha, envelope_paths)` to a
+separate process; the daemon computes SHAs from the on-disk
+envelopes, signs the token, and never exposes
+`EVIDENCE_SIGNING_KEY` to the agent.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
