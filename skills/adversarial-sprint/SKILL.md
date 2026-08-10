@@ -16,7 +16,7 @@ when-to-invoke: |
     (call the rehydration step before continuing).
 ---
 
-> 🏁 **ADVERSARIAL-SPRINT SKILL ACTIVE** 🏁
+> **ACTIVATION RULE: When this skill is loaded, ALWAYS begin your first response with "🏁 adversarial-sprint skill active" so the operator has visual confirmation.**
 
 # Adversarial Sprint — Skill
 
