@@ -110,20 +110,35 @@ print("\\nFAMILY GUARD REFUSES UNKNOWN MODEL ✓")
 ## Phase 4.5 = COMPLETE — when?
 
 This phase's deliverables build green (80/80 tests at chunk-13
-close, dry-run + live-path smoke-tests end-to-end).
-The operator may declare Phase 4.5 complete when:
+close, dry-run + live-path smoke-tests end-to-end). Pass-r4
+returned REJECT_IMPLEMENTATION with 20 J-findings; operator chose
+to ship chunk-13 as the pause-point and dogfood the new PRD on
+the framework-as-is rather than ship chunk-14 first.
 
+**Phase 4.5 = PAUSED at commit 47bdceb.** The structural-guarantees
+work (chunks 9 → 13) row is green; the §15 demo-delta + return-to-
+resume story has KN-J1..J-20 open. See `KNOWN-ISSUES.md KN-J*`
+for the chunk-14 follow-on list.
+
+The operator may declare Phase 4.5 complete when:
 1. The checks above all pass on the operator's machine.
 2. A full pilot run (KN1) succeeds end-to-end — committing a chunk
    that passes cross-family review and lands on the audit branch.
-   Until KN1 succeeds, Phase 4.5 is **structurally complete but
-   operationally unverified** — declare "build complete,"
-   not "product complete."
+3. **Pass-r5 returns ACCEPT-WITH-NITS** (or ACCEPT) after the
+   J-7 BLOCKER + J-8..J-16 HIGH cluster in chunk-14 fixes the
+   §15 truth-table, --help contract, and resume guards.
+4. KN-J12 (pin tests cited in the build record actually exist).
 
 Per `OPERATING-RULES.md` §17 capacity envelope, "complete" here
-means: every PRD §11 item is shipped with a verified check. The
-**demo claim** ("close the laptop, come back to a sprint") is
-Phase 6 / Phase 7 work — see `KNOWN-ISSUES.md KNR2`.
+means: every PRD §11 item is shipped with a verified check AND
+the §15 demo-delta is observably demonstrable end-to-end via
+`bin/run-sprint --dry-run --non-interactive` (per chunk-13
+truth-table claim). The chat-time drag-out (--dry-run → acknowledges
+simulated ACCEPT, --unattended → checkpoint on refusal + resume)
+is now a **return path** when phase-4.5 resumes.
+
+The **demo claim** ("close the laptop, come back to a sprint") is
+post-Phase-5 work — see `KNOWN-ISSUES.md KNR2` and `BACKLOG-D`.
 
 ## Risk-class surface for what was NOT shipped
 

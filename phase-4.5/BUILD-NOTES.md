@@ -176,7 +176,38 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
        emits `--evidence-output-dir` and `--unattended`.
      - Tests: ✅ — pending verification at chunk-12c.
 
+13. **Pass-r3 blockers + behavioural pins (chunk-13)** (`f1bae98`)
+    - The pass-r3 panel's 19 H-findings: 4 BLOCKERS (H-1..H-4) +
+      6 HIGH (H-5..H-10) all fixed in-pass. 6 MED + 3 LOW tracked
+      as KNI entries.
+    - Blockers: H-1 sprint-invocation skill (overlay-only);
+      H-2 --non-interactive no longer aliased `dry_run=True`;
+      H-3 bin/run-sprint flag-first argv + EVIDENCE_SIGNING_KEY
+      graceful; H-4 --resume-from space-form flows.
+    - Highs: H-5 load_checkpoint restores dry_run + plan_reviewer_
+      verdicts + plan_round; H-6 meta-skill stripped of framework
+      CLI; H-7 8-doc sweep of `examples/` references; H-8 --help
+      surface expanded; H-9 evidence_output_dir relpath check;
+      H-10 run-level checkpoint staged into chunk commit.
+    - 3 source-grep tests replaced with **behavioural pins**
+      (H-14 fix): test_unattended_writes_checkpoint_on_refusal_g7,
+      test_skip_reconcile_still_enforces_5_3_g8, test_no_dry_run_
+      coercion_h2_h14.
+    - Tests: ✅ 80/80 at chunk-13 close.
 
+14. **Pass-r4 panel call (chunk-14 not shipped)** (`47bdceb`)
+    - Pass-r4 returned REJECT_IMPLEMENTATION with 20 J-findings
+      at chunk-13 close.
+    - 1 BLOCKER (J-7: §15 truth-table was *not* actually expanded
+      despite the KNI entry's claim) + 6 HIGH (J-8 .. J-16).
+    - 9 MED (J-2, J-3, J-4, J-11, J-12, J-13, J-14, J-17, J-18)
+      + 4 LOW (J-5, J-6, J-19, J-20).
+    - **Operator decision (per §19)**: ship chunk-13 as the
+      pause-point and dogfood the new PRD on the framework-as-is,
+      rather than ship chunk-14 first. KN-J1..J-20 marked in
+      `KNOWN-ISSUES.md` so the named return path is preserved.
+    - Tests: 80/80 (unchanged; chunk-13 close state).
+    - Phase 4.5 = PAUSED at this commit.
 
 ## What's NOT done (clean nulls per OPERATING-RULES §12)
 

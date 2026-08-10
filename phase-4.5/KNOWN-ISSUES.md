@@ -313,3 +313,200 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
   Defer to chunk-14 as a content-only fix.
 - `droid.py:361` treats `output_tokens == 0` as transient, retrying a
   legitimately empty completion at full cost. Defer to chunk-15.
+
+---
+
+## KN-J* — pass-r4 panel findings at chew-13 close (47bdceb)
+
+**Status:** Phase 4.5 = PAUSED (chunk 14 deferred until after the new-PRD
+dogfood). Pass-r4 returned REJECT_IMPLEMENTATION with 20 J-findings;
+operator chose to ship chunk-13 as the pause-point and dogfood the new
+PRD on the framework-as-is rather than ship chunk-14 first.
+
+When returning to Phase 4.5, the chunk-14 minimum set per pass-r4 is
+J-7 BLK + J-8/9/10/11/15/16 HIGH. The MEDs and LOWs slot below
+in priority order.
+
+### KN-J7 — BLOCKER — §15 truth-table was NOT expanded; two KNI entries claim it was
+
+- **What:** KN-H11 + KN-H12 (chunk-13) state that the §15 truth-table
+  in RUN-PROMPT.md expanded to five columns covering all four modes.
+  Pass-r4 finds the doc unchanged; the KNI entry is aspirational,
+  not observational.
+- **Why deferred:** operator chose to dogfood-first rather than ship
+  chunk-14. The §15 truth-table as it stands today has three
+  columns (`Act 1 / Act 2 live / Act 2 dry-run`), which does
+  NOT distinguish `--non-interactive` / `--unattended` /
+  `--skip-reconcile` — pass-r4 calls this the "real-behaviour map"
+  not reflecting "actual code paths." Documented gap.
+- **Honest accounting:** KN-H11/12 advisory text in this KNOWN-ISSUES
+  is corrected below.
+- **Fix recipe (chunk-14):** rewrite the truth-table to 5 columns
+  (Act 1 / Act 2 live / Act 2 dry / Act 2 non-interactive / Act 2
+  unattended), each row in the table is a behavioural property
+  (git commits, model spend, family separation, signing-key), and
+  add KN-H11 entry that does NOT claim the table was previously
+  expanded.
+
+### KN-J8 — HIGH — `--help` documents the H-2 alias as the intended contract
+
+- **What:** the synthetic `_format_build_config_help_synthetic`
+  function in main() emits a flag-surface help that documents
+  `--non-interactive` with help text "Bypass the human reconcile
+  gate stdin pause. Maps to gate_auto_decide=True." Pass-r4 calls
+  this "the H-2 bug-as-contract" because the operational claim has
+  been: *previously* `--non-interactive` was an alias for
+  `dry_run=True` (always), and chunk-13's help text asserts the
+  opposite without renaming the flag.
+- **Fix recipe (chunk-14):** make the help text explicit that
+  `--non-interactive` REQUIRES live mode (cfg.dry_run stays
+  False) and prints the refusal banner if §5.3 fails. Same for
+  `--skip-reconcile` and `--unattended`.
+
+### KN-J9 — HIGH — `--dry-run --resume-from<path>` still mutates git history
+
+- **What:** chunk-13 attempted to fix H-5 (load_checkpoint
+  restores dry_run / plan_reviewer_verdicts / plan_round). Pass-r4
+  tested the live path: `--dry-run --resume-from <path>` still
+  runs commit_chunk_change with rs.dry_run defaults to False even
+  though cfg.dry_run is True. The git commit lands and the
+  branch advances; the chunk's audit trail attests `chunk_id`
+  was executed under a simulated envelope.
+- **Fix recipe (chunk-14):** in commit_chunk_change, branch on
+  `cfg.dry_run`, NOT `rs.dry_run`. The distinction is load-
+  bearing; rs.dry_run is only the **post-resume** snapshot,
+  cfg.dry_run is the **mode** the operator asked for.
+
+### KN-J10 — HIGH — `--resume-from` drops every RoleAssignment + family guard
+
+- **What:** load_checkpoint restores RunState, but the family-guard
+  preflight at main() runs BEFORE load_checkpoint
+  (`sprint-loop.py:1108`). Per pass-r4, the resumed run never calls
+  preflight_family_guard again, so a post-resume run with a
+  cross-family validator panel sails through; §17.2 silenced.
+- **Fix recipe (chunk-14):** move preflight_family_guard to be
+  re-run AFTER load_checkpoint. Should require cfg to be
+  sufficient on the resume path (or fail closed).
+
+### KN-J11 — MED — `--resume-from=<path>` now fails at parse (H-4 inverted)
+
+- **What:** chunk-13's cfg_argv stripping removed `--resume-from`
+  and `--resume-from=` but kept `--resume-from <path>` to be
+  parsed by build_config, which doesn't recognize the flag —
+  parser.parse_args (strict) raises SystemExit(2) on unknown flag.
+  Operators who follow the documented `--resume-from <path>`
+  form (chunk-13 BUILD-NOTES.md:128) hit a parse error.
+- **Fix recipe (chunk-14):** in main()'s peer_argv walker
+  (currently strips `--resume-from <path>` correctly), but
+  ALSO emit `--resume-from=<path>` to peer_argv as a form
+  build_config can absorb. Or add `--resume-from` to
+  build_config's parser as a no-op that just keeps it alive.
+
+### KN-J12 — MED — three pin tests cited in the build record do not exist
+
+- **What:** chunk-13 commit body cites three new tests by name:
+  - `test_help_surface_includes_no_dry_auto_decide_h13`
+  - `test_skill_md_has_§15_truthtable_row_h11` (typo in name)
+  - one more referenced in KN-H14. None exist in
+  tests/test_sprint_loop.py as of commit 47bdceb.
+- **Fix recipe (chunk-14):** write the actual tests they should
+  reference and lock them in the canonical test file. Pin the
+  build record (BUILD-NOTES.md, KNOWN-ISSUES.md, panel-findings-
+  r3.md, panel-findings-r4.md) to actual file presence.
+
+### KN-J13 — MED — flag-help synthetic parser has already drifted from build_config
+
+- **What:** `_format_build_config_help_synthetic` in main() is a
+  second source of truth for the flag surface. It defines
+  Config-side flags by hand. Pass-r4 found that
+  `--create-pr`, `--signing-key-env`, `--security-allowlist`,
+  `--security-baseline` were NEW flags added to build_config
+  in chunk-13 but not reflected in the synthetic help.
+- **Fix recipe (chunk-14):** refactor build_config to expose
+  its internal parser; use that for the synthetic. OR document
+  the synthetic as "in-progress" and add a test that compares
+  the two surfaces for drift.
+
+### KN-J14 — MED — `tools/sprint-loop.py` defines `main()` twice
+
+- **What:** an earlier chunk-11 edit left a half-finished main()
+  in the file with `_runner_argparser` and friends, then chunk-12
+  truncated mid-function and the "second" main() (lines ~1066+)
+  contains the actual current implementation. The first is dead
+  but parseable code pays the file size.
+- **Fix recipe (chunk-14):** localize the dead code and either
+  delete it or move it to `tools/conventions/_runner_argparser_spec.md`
+  as a historical artefact.
+
+### KN-J15 — HIGH — dry-run COMPLETED banner reports branch + commit count git refuses
+
+- **What:** the dry-run "would commit" path increments
+  `rs.commit_count` and sets `rs.output_branch` to a synthetic
+  name. The COMPLETED banner prints `branch: factory/sprint-
+  <run-id>-dry-run` and `commits: <N>`, but git status on
+  _REPO_ROOT shows zero new commits. Pass-r4 calls this a lie
+  in the §15 contract.
+- **Fix recipe (chunk-14):** dry-run's banner should report
+  `(simulated)` markers next to mutable surfaces, OR a
+  `--dry-run-quiet` flag silences the banner.
+
+### KN-J16 — HIGH — H-2 behavioural pin is vacuous
+
+- **What:** `test_no_dry_run_coercion_h2_h14` constructs a
+  RunState with `gate_auto_decide=True` + plan_reviewer_verdicts
+  pre-bound to APPROVE + `plan_sha256` matching, calls the
+  gate, and asserts `rs.dry_run is False`. Pass-r4 found the
+  test passes whether or not the gate mutates `rs.dry_run`,
+  because the test inputs are NOT the node where the bug fires.
+  The bug fires when *the orchestrator* (main) sets
+  `cfg.dry_run = ns.non_interactive` — which this test doesn't
+  drive via main().
+- **Fix recipe (chunk-14):** route the test through a small
+  helper `make_runner_argv_to_cfg(argv)` and assert
+  `cfg.dry_run is False` after construction. Behavioral pin
+  matches the actual code path.
+
+### KN-J17 — MED — H-9 fix is dead code on every documented invocation
+
+- **What:** commit_chunk_change's `rel.startswith("..")` check
+  catches the case when `evidence_output_dir` is outside
+  _REPO_ROOT. Pass-r4 found the runner's documented invocation
+  goes through `cfg.evidence_output_dir = ...` from `--evidence-output-dir`
+  CLI flag, but main()'s override only fires AFTER the cfg
+  is already populated from build_config's default. The
+  runner's documented `bin/run-sprint` overlay path passes
+  `--evidence-output-dir` to the runner, but build_config wouldn't
+  see it because cfg_argv stripped it. Result: documented path
+  always falls into the default-relative case.
+- **Fix recipe (chunk-14):** thread `--evidence-output-dir`
+  through cfg_argv BEFORE the cfg_argv walker strips it; or
+  remove the strip entirely.
+
+### KN-J18 — MED — run-level checkpoint commit is one state stale
+
+- **What:** chunk-13 wrote the run-level checkpoint BEFORE
+  commit_chunk_change; commit_chunk_change then force-adds the
+  checkpoint to the chunk's commit. Pass-r4 found the order of
+  operations means the chunk's commit captures the
+  *pre-completion* state, not the post-completion state.
+  Subsequent writes to that checkpoint after commit_chunk_change
+  don't reach any commit.
+- **Fix recipe (chunk-14):** make commit_chunk_change accept
+  a callable that produces the checkpoint, OR write the
+  post-state checkpoint explicitly at run-end. Pin a behavioral
+  test that reads back the audit-branch's latest checkpoint
+  and verifies it matches the *final* RunState.
+
+### KN-J19..J20 — LOW — meta-skill §15 row missing + test-count reconciliation
+
+- **What:** KN-H11 deferred the meta-skill §15 row to chunk-14.
+  Test-count 80/80 is claimed in EXIT-CHECKS.md, BUILD-NOTES.md,
+  KNOWN-ISSUES.md, but PASS-r4 surfaced that the chunk-13
+  BUILD-NOTES inventory entry actually describes the chunk work
+  using past-tense is too compressed to be reconciled. KN-J20
+  bundles these.
+- **Fix recipe (chunk-14):** add a §15 row to the meta-skill
+  digest + bump BUILD-NOTES.md to describe chunk-13 in plain
+  prose. Cross-check test-count claims against pytest's
+  reported count.
+
