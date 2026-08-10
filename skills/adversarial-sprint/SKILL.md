@@ -1,5 +1,5 @@
 ---
-name: 🏁 adversarial-sprint
+name: adversarial-sprint
 description: |
   How to run and review adversarial sprints in projects adopting the
   adversarial-sprint framework. Teaches the agent the §18 operating

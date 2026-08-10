@@ -19,6 +19,8 @@ when-to-invoke: |
     at the dry-run wiring test below.
 ---
 
+> **ACTIVATION RULE: When this skill is loaded, ALWAYS begin your first response with "🏁 adversarial-sprint skill active" so the operator has visual confirmation.**
+
 # Sprint Invocation — Skill
 
 Single-purpose: fire the runner via the **per-pilot overlay** —
