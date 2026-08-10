@@ -682,20 +682,94 @@ interactive` invocation against a new PRD.
      the family panels via `droid exec` and re-signs the tokens
      with the real envelope SHAs, or (b) marks each chunk-N as
      UNREVIEWED and rejects pass-r5 until re-review lands.
-  3. **Structural follow-up (future chunk):** Wire
+  3. **Envelope-on-disk primitive (future chunk):** Wire
      `tools/droid.py` / `tools/sprint_loop/droid.py` so that
      `invoke_droid` writes each fired reviewer's raw envelope to
      `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`
      with a SHA stamped at write. The token emitter reads that
      file, computes SHA, and refuses to emit unless the file
      exists. This converts "trust the operator-typed SHA" into
-     "verify a real envelope landed on disk". Aligned with the
-     PRD §11 Phase 5 #2 design intent.
+     "verify a real envelope landed on disk". Companion piece to
+     (4); both must land for structural defense.
+  4. **Tier-3 off-process signer (design posted; chunk-15
+     candidate):** `phase-4.5/DESIGN-DAEMON-SIGNER.md` (this
+     commit) names the trust-boundary fix. A separate
+     operator-owned signer daemon holds `EVIDENCE_SIGNING_KEY`
+     and refuses to sign tokens whose declared `envelope_sha256`
+     does not match `sha256(<on-disk envelope file>)`. The agent
+     POSTs `envelope_paths` to the daemon; the daemon never
+     exposes the secret to the agent process. See KN-A-7 below.
 - **When to fix:** producer tightening lands in this commit;
   retroactive re-review lands at cross-family pass-r5 close
   (next agent, separate model family, separate diff per §17.2
-  invariant). Structural follow-up is a chunk-15 candidate
-  (post-Phase-5 enforcement).
+  invariant). Envelope-on-disk wired into `invoke_droid` and
+  Tier-3 daemon are chunk-15 candidates (post-Phase-5
+  enforcement, pre-Phase 6 generalization).
+
+### KN-A-6 — chunk-13 retro-tokenize deferred (NOT a Phase-5 close deliverable from the build agent)
+
+- **What:** PRD §11 Phase 5 exit criteria requires
+  `chunk-N.token.json` exists for every chunk since chunk-13,
+  *including* the chunk-13 retro-application. The build agent
+  (this session) emitted tokens for chunks **5a..5e** of this
+  branch only. The historic chunks 1–12 (commits predating the
+  Phase-5 promotion) and chunk 13 (`f1bae98`) lack
+  chunk-completion tokens.
+- **Why not retro-tokenize them here:** every retro-token would
+  suffer the same KN-A-5 issue — the build agent holding
+  `EVIDENCE_SIGNING_KEY` would have to type placeholder
+  envelope_sha256 values. Re-emitting would replace KN-A-5 with
+  KN-A-5-spread. The retro application only has integrity when
+  paired with REAL reviewer envelopes on disk, which require
+  Tier-3 signing daemon + envelope-on-disk primitive
+  (KN-A-5 fix recipes (3)+(4); both deferred to chunk-15).
+- **Severity:** tier-2 (cohort assumption). The Phase-5 close
+  criterion "every chunk-N since chunk-13 has a token" is open
+  until retro-tokenize happens in a follow-on chunk with
+  Tier-3 daemon + real panels. The exit criteria unit test
+  (`test_replay_chunk13_succeeds` in
+  `tests/test_sign_chunk_token.py`) is a fixture pin only; it
+  does not produce a real artifact.
+- **Fix recipe (chunk-15 candidate):**
+  1. Land Tier-3 signing daemon (KN-A-7 / `phase-4.5/DESIGN-DAEMON-SIGNER.md`).
+  2. Land envelope-on-disk in `invoke_droid`.
+  3. Re-fire cross-family panels against each historic chunk
+     (chunk-13 at `f1bae98` first; chunks 1–12 in cohort
+     pass); the close agent computes real envelope SHAs.
+  4. Re-emit `chunk-N.token.json` files for each historic
+     chunk via the Tier-3 daemon. Commit each under
+     `phase-4.5/tokens/chunk-N.token.json` with the chunk-pilot
+     branch tip as `chunk_commit_sha` (current or back-dated).
+  5. Update this KN-A-6 entry with the retro-tokenize close link.
+- **When to fix:** chunk-15. Not a Phase-5 close deliverable
+  from the build agent (this session); not a pass-r5 close
+  responsibility (pass-r5 closes THIS branch, not historical
+  chunks).
+
+### KN-A-7 — chunk-close signer should run off-process
+
+- **Status:** OPEN (spec written; not built). See
+  `phase-4.5/DESIGN-DAEMON-SIGNER.md`.
+- **Symptom / repro:** KN-A-5 (chunk-5 tokens with typed-in
+  fixture envelope_sha256). The implementing agent held
+  `EVIDENCE_SIGNING_KEY` and could produce a verifying HMAC over
+  a fabricated payload. In-process gates cannot catch
+  author==validator without separating the trust domains.
+- **Root cause:** symmetric HMAC + key-holding-agent is the bug.
+  Defense inside the trust boundary is brittle when effort
+  pressure routes around defensive checks (chunk-14 anti-pattern
+  at a different layer).
+- **Fix (designed, not built):** Tier-3 off-process signer
+  daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md` §4); Unix-socket
+  protocol; envelope-on-disk primitive with sha256 verification
+  refusal; agent POSTs envelope paths; signer verifies on-disk
+  SHA matches declared SHA; signer signs token. Reuses
+  `tools/sign_chunk_token.py`'s HMAC primitive without
+  re-implementing it.
+- **Re-seqs:** chunk-15 candidate. Built atop Phase-5
+  enforcement layer (so `chunk_sequence_gate.py`'s HMAC refusal
+  is a useful fail-closed consumer of the daemon's output).
+  Adopted by the per-pilot overlay as the chunk-close primitive.
 
 ### EOS pilot §11 step → driver table (preserved here for future role)
 
