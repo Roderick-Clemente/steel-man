@@ -557,3 +557,26 @@ un-buildable phase sequencing / missing meeting-status field /
 serverless connection exhaustion / EOS-canon errors). That pre-chunk
 review is the framework's highest-value moment and is worth protecting
 as a first-class step, not an implicit side effect of the planner gate.
+
+### KN-R1. Adversarial review is not enforced on framework-repo changes
+
+- **Status:** OPEN (spec written; not built). See
+  `phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`.
+- **Symptom / repro:** chunk-14 (commit `623e024`,
+  `factory/chunk-14-kn-J-fixes`) was validated with two same-family
+  Factory Task subagents authored and orchestrated by the implementer.
+  That review reached ACCEPT-WITH-NITS but would be rejected by a real
+  §17.2 gate on the family-distinctness constraint alone.
+- **Root cause:** (1) `tools/orchestrate-review.py` has no diff/branch
+  review entrypoint (it is pilot-chunk shaped: `--test-file` /
+  `--lock-file` / bundle); (2) Act 1 / Act 2 collapse (implementer never
+  crossed into runner/panel mode); (3) no forcing function ties "done" to
+  a signed cross-family verdict.
+- **Fix (designed, not built):** `bin/review-branch` emitting a
+  tree-bound, HMAC-signed `review-attestation.json` (reusing
+  `EVIDENCE_SIGNING_KEY`) + a fail-closed merge gate (CI status check
+  `adversarial-sprint-review/attestation` + local pre-push hook) that
+  verifies `tree_sha == HEAD^{tree}`, signature, ≥2 distinct families,
+  implementer disjoint from reviewers, and an ACCEPT-class verdict, plus
+  an `OPERATING-RULES §17` amendment. Applies to both the framework repo
+  (self-dogfood) and pilot overlays.
