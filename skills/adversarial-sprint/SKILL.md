@@ -85,6 +85,23 @@ agent makes.
     signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
     POSTs envelope paths to; the daemon holds the key and refuses
     if any envelope is absent on disk.
+11. **Author is not the verifier, even within the same model-family
+    rule.** §22 — family-distinctness (§17.2) is necessary but not
+    sufficient: same-session identity carries the implementer's
+    working memory into the reviewer's context. The chunk-close
+    signing authority is held by a separate process (Tier-3
+    daemon / §21); the reviewer-firing path is held by a separate,
+    persistent cross-family referee (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
+    KN-A-8). A build agent may post `REVIEW REQUEST:` lines to
+    `STEER.md` (machine-local cross-agent queue per §1). The
+    build agent MUST NOT fire `droid exec` against the reviewer
+    model IDs the agent itself selected; MUST NOT hold
+    `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
+    `phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
+    enforces the structural predicate (`envelope-on-disk SHA`);
+    the persistent referee enforces the identity predicate
+    (signing authority / reviewer-firing process). Both must
+    hold. Defense-in-depth with rule #10.
 
 ## Skill rules — referenced by index (full text in OPERATING-RULES.md)
 
@@ -112,6 +129,7 @@ the index is the source of truth.
 | 19  | commit when the recommendation is clear; ask only at true operator-value tradeoffs | when tempted to ask "you choose" between options whose ranking you can state |
 | 20  | chunk-close is gated, not declared                  | chunk-close path / token emission   |
 | 21  | reviewer attestations are evidence, not assertion   | when emitting or verifying tokens   |
+| 22  | author is not the verifier (session identity)       | posting review requests / spawning reviewers |
 
 ## Rehydration step (long-running jobs)
 

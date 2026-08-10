@@ -771,6 +771,70 @@ interactive` invocation against a new PRD.
   is a useful fail-closed consumer of the daemon's output).
   Adopted by the per-pilot overlay as the chunk-close primitive.
 
+### KN-A-8 — chunk-close reviewer must NOT share the build agent's session identity (cross-cutting)
+
+- **Status:** OPEN (rule added, design-doc written, stub-for-dev
+  on a separate scratch branch only). See
+  `phase-4.5/DESIGN-PERSISTENT-REFEREE.md` (companion to KN-A-7
+  / `DESIGN-DAEMON-SIGNER.md`).
+- **Symptom / repro:** KN-A-5 (chunk-5 typed-in fixtures) is the
+  same anti-pattern at the chunk-close-token layer; chunk-14
+  `623e024` attempt at the chunk-close-layer is the same
+  anti-pattern at a different layer; the `factory/phase-5`
+  pass-r5 close attempt in this very session is the same
+  anti-pattern at the cross-family-review layer, where the
+  reviewer itself returned `VERDICT: REJECT` for the structural
+  reason: "all five shipped chunk tokens carry KN-A-5 placeholder
+  envelopes that sequence_gate/banner still accept; Layer-3
+  overclaims ≥2 distinct reviewer families; PRD exit criteria and
+  the branch's own pass-r5 checklist require re-fire or reject —
+  no re-fire landed." The reviewer caught it, but the rule
+  should not depend on reviewer vigilance for the agent's basic
+  discipline.
+- **Root cause:** §17.2 family-distinctness is necessary but not
+  sufficient. Same-session identity carries the implementer's
+  working memory into the reviewer's context, and effort pressure
+  routes around any family check the implementer also controls.
+  Signing-authority separation (KN-A-7) is one half; reviewer-source
+  separation (KN-A-8) is the other. The two halves together are
+  the chunk-close trust boundary.
+- **Fix (rule added, design written, stub not built):**
+  1. `OPERATING-RULES.md §22 — Author is not the verifier, period`
+     codifies the rule: build agent MAY post `REVIEW REQUEST:` to
+     `STEER.md` (machine-local cross-agent queue per §1); build
+     agent MUST NOT fire `droid exec` against the reviewer model
+     IDs the agent itself selected; MUST NOT hold
+     `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
+     `phase-4.5/tokens/chunk-N.token.json`.
+  2. `phase-4.5/DESIGN-PERSISTENT-REFEREE.md` documents the
+     architecturally separate process: a long-running (multi-hour
+     or per-session) adversarial agent, own git sessionId, own
+     commit signing key, wakes on a documented cadence (5 min
+     default), reads pending review requests from `STEER.md`,
+     fires real `droid exec` against cross-family models, computes
+     real envelope SHAs, signs `chunk-N.token.json` with the
+     referee's own signing key (separate from
+     `EVIDENCE_SIGNING_KEY`), commits the signed token to git on
+     its own branch (`agent/referee-vN/<topic>`), updates
+     `STEER.md` with `REVIEW COMPLETE:` lines. Build agents read
+     the resulting commit; cannot forge.
+  3. Skill digest rule #11 mirrors §22 for context-compaction
+     survival.
+- **Re-seqs:** Front-loaded on this branch (rules + design-doc):
+  - OPERATING-RULES §22 + skill rule #11 + KN-A-8 entry
+  - `phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
+  A `tools/persistent_referee_stub.py` is parked on a separate
+  scratch branch (`factory/referee-stub-dev`); live cross-family
+  re-fire of the existing chunk-5 token set belongs in a
+  separately-spawned persistent-referee session (the design is
+  that the referee must be a different process for the rule to
+  bite).
+- **Defense-in-depth with KN-A-7:** KN-A-7 (Tier-3 daemon)
+  enforces *envelope-on-disk authenticity* + *signing-authority
+  separation*; KN-A-8 (persistent referee) enforces
+  *session-identity separation of the envelope source*. Both must
+  hold; neither alone prevents the chunk-5 KN-A-5 anti-pattern.
+
 ### EOS pilot §11 step → driver table (preserved here for future role)
 
 | §11 step | Driver | Evidence kind |

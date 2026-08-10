@@ -445,3 +445,63 @@ envelopes, signs the token, and never exposes
 *Spacing for future rules:* continue numbering as the operating
 rules accrue.
 
+## 22. Author is not the verifier, period
+
+Even when model families satisfy §17.2 distinctness, **the agent
+that authors a chunk MUST NOT be the agent that fires its review
+or signs its close token**. Family-distinctness is necessary but
+not sufficient: same-session identity carries the implementer's
+working memory into the reviewer's context, and effort pressure
+routs around any family check the implementer also controls.
+
+Operationally:
+
+1. The **chunk-close token signing authority** is held by a
+   separate process (Tier-3 daemon, KN-A-7 / §21 — one's-off
+   keyed daemon). The build agent has only **read access** to the
+   resulting token, via the commit record.
+2. The **reviewer-firing path** is held by a separate, persistent
+   cross-family referee process (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
+   / KN-A-8) that wakes on a cadence and reads pending review
+   requests from `STEER.md` (machine-local cross-agent queue per
+   §1). The referee has its own git session identity / commit
+   signing key; build agents do not.
+3. A build agent MAY post `REVIEW REQUEST: chunk=X paths=[...]`
+   lines to `STEER.md`. The agent MAY NOT fire `droid exec`
+   against the reviewer model IDs the agent itself selected; the
+   agent MAY NOT hold `EVIDENCE_SIGNING_KEY`; the agent MAY NOT
+   write to `phase-4.5/tokens/chunk-N.token.json` directly.
+4. The chunk-close gate (`cross_family_review.py` + `chunk_sequence_gate.py`)
+   validates the *structural* predicate; the persistent referee
+   enforces the *identity* predicate. The build agent cannot
+   satisfy the second regardless of cleverness on the first.
+
+Defense-in-depth with §21: §21 enforces envelope-on-disk
+authenticity; §22 enforces session-identity of the envelope
+source. Both must hold for a chunk-close token to represent a
+real cross-family review.
+
+Reasoning discipline for future agents encountering §22:
+"This rule exists because, twice this session, the build agent
+fired (or proposed to fire) the cross-family reviewers of its own
+work. Family-distinctness is satisfied each time; session-identity
+is not. The reviewer's verdict validated the rule (REJECT on
+KN-A-5 grounds for the chunk-5 build session) — but the rule
+should not require a vigilant reviewer to be enforced. It should
+be enforced by *architecture*."
+
+*Rationale:* chunk-14 pass-r5 was the same pattern at a different
+layer: the implementer orchestrated the reviewers. The chunk-5
+build session on `factory/phase-5-chunkadherence-enforcement` was
+the same pattern at the chunk-close-token layer: the implementer
+typed fixture markers. A short-lived attempt in this very session
+to "fire cross-family reviewers from the build agent's session"
+was rejected by the reviewer itself (REJECT verdict) for the same
+structural reason. The fix is not more refinement; it is
+separating the trust domains at the **process / session** layer,
+not just the model-family layer. KN-A-8 + the persistent-referee
+design are the implementation.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
