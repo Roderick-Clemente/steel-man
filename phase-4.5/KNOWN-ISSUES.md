@@ -513,6 +513,148 @@ in priority order.
 
 ---
 
+## KN-A* — EOS pilot self-assessment findings (new, post-pass-r4)
+
+**Source:** `phase-4.5/EXTERNAL-DOGFOOD-SELF-ASSESSMENT.md`. Cited
+verbatim from the EOS pilot agent's hand-drafted
+`DOGFOOD-SELF-ASSESSMENT.md` after a single `--dry-run --non-
+interactive` invocation against a new PRD.
+
+### KN-A-1 — `bin/run-sprint` fired 0 real model calls in the EOS pilot
+
+- **What:** every runner-emitted envelope in the pilot contained
+  `"[dry-run] No droid exec fired. Planned call: droid exec --model ..."`.
+  The cross-family PRD review (grok-4.5 + gemini-3.1-pro-preview)
+  fired 32 findings + both REJECT_PLAN + 6 reconciled fixes — but
+  all of that was operator-driven (ad-hoc `run-with-model.sh`
+  invocations), NOT runner-driven.
+- **Why:** the framework prescribes a wiring-test dry-run before
+  spending real model credits; the operator chose "dry-run first,
+  pause before live" per AskUser. Live mode was blocked by the
+  conjunction of: (a) `EVIDENCE_SIGNING_KEY` unset → §7 fail-closed;
+  (b) D-1 (verify-green.py pytest-only, PRD stack was Next.js);
+  (c) D-5 (no Node/npm on host). The operator pivoted to
+  hand-building a Python sample app rather than unblocking the
+  runner, so the runner's builder path was never given a real
+  test.
+- **Honest self-criticism (from the EOS pilot agent):** "I could
+  have set a throwaway signing key to at least exercise the real
+  planner/reviewer calls before the verifier blocked. I didn't
+  circle back to that once the goal became 'get an app.'"
+- **Honest operator takeaway:** Phase 4.5 closeout cannot
+  advertise "runner as builder" until a live run is recorded in
+  the build-evidence chain with branches + commits + signed
+  envelopes.
+- **When to fix:** before chunk-15 close (telemetry/audit join
+  + live-path preconditions checklist together admit "live run
+  possible"). Otherwise chunk-15's "first-class runner step"
+  claim is also aspirational.
+
+### KN-A-2 — telemetry/banner run_id mismatch (audit trail cannot join banner)
+
+- **What:** the dry-run COMPLETED banner printed
+  `run_id=r-phase45-...`, while the telemetry row index wrote
+  `run_id=r-dry-run-...`. They are distinct strings, so an
+  operator cannot join the banner's "DONE" attestation to the
+  telemetry's per-row records. Pass-r4 EOS reproduces this from
+  a clean pilot repo.
+- **Severity:** §11 audit-trail class violation, not a UI nit.
+  This is silently-green-shaped: the operator trusting the
+  banner cannot verify the trail.
+- **Fix recipe (chunk-14):**
+  1. Move `run_id` to a single module-level symbol imported
+     across `tools/sprint_loop/__init__.py` (or
+     `tools/sprint_loop/runner_id.py`).
+  2. `commit_chunk_change(...)` writes the same `run_id` symbol
+     to the COMPLETED banner args AND to the telemetry row
+     `run_id` field.
+  3. Add behavioral pin in `tests/test_sprint_loop.py`
+     asserting both surfaces emit the SAME `run_id` string for
+     a given chunk.
+  4. Rollback §11 DoD wording in `phase-4.5/RUN-PROMPT.md` and
+     `phase-4.5/EXIT-CHECKS.md`: replace "checkpoint.json
+     committed" with "checkpoint.json AND telemetry row index
+     share a run_id."
+
+### KN-A-3 — post-chunk adversarial code review was a GAP (never ran)
+
+- **What:** of the 9 §11 steps, step 8 — cross-family review of
+  code mutations — was marked GAP by the EOS self-assessment.
+  Author == validator. The runner does NOT currently fire a
+  post-chunk review on the diff the chunk produced.
+- **Severity:** §11 chain is broken without it: every other step
+  can produce output the runner vouches for, but the actual
+  mutation never gets an independent reader.
+- **Fix recipe (chunk-15 — promoted from "Phase 4.7 idea" to
+  first-class deliverable):**
+  1. New step, AFTER `commit_chunk_change(...)`: read the chunk's
+     diff, format as a "REVIEW-CODE" prompt that lists the patch
+     hunks + the spec the chunk claimed alignment with.
+  2. Fire two cross-family `droid exec` reviewers per the chunk-15
+     cross-family invariant (grok-family + gemini-family). Each
+     emits REJECT_PLAN/CONDITIONAL/APPROVE bound to the diff sha
+     + spec sha pair.
+  3. REJECT_PLAN-bound to diff sha → block the chunk commit
+     (SysExit 7).
+  4. CONDITIONAL → write a candidate-fix note to the chunk's
+     evidence sub-dir; do not block the commit unless
+     `cfg.post_chunk_review_strict`.
+  5. Dual APPROVE → chunk closes; continue.
+- This nullifies the previously-proposed Phase 4.7 scope. Phase
+  4.7 is relabeled "telemetry/reporting polish" — not a runner
+  step.
+
+### KN-A-4 — live mode is structurally unreachable from a clean checkout
+
+- **What:** live mode requires the conjunction of FOUR unrelated
+  preconditions to all hold simultaneously:
+  1. `EVIDENCE_SIGNING_KEY` env var set;
+  2. a contract reader wired in (`tools/adapters/test_runner.py`,
+     Backlog E);
+  3. the pilot's toolchain present on the runner host
+     (`pilot.cls.detect-toolchain`);
+  4. the wiring-test dry-run transition WAS recorded (i.e. the
+     operator executed `--dry-run --non-interactive` to GREEN
+     before flipping to live).
+  Failure of any one blocks live entirely. Each was true in
+  isolation during past pilots but not in conjunction.
+- **Why not:** PRD §11 says live mode = "kick off, close the
+  laptop." PRD §7 says signing key is fail-closed. No
+  precondition-checklist exists to actually predict this.
+- **Fix recipe (chunk-14 + chunk-15):**
+  1. New Config field `cfg.live_path_preconditions: dict` (4
+     boolean slots).
+  2. New RUN-PROMPT Step 0 (BEFORE the wiring-test dry-run is
+     even attempted): operator-visible `live_path_preconditions_
+     check` surface prints green/red for each of (signing-key,
+     contract-reader, toolchain, prior-dry-run). The printout is
+     itself a behavioral pin target.
+  3. `--dry-run --non-interactive` now exits with code 1 if
+     ANY precondition is not met, with a refusal banner naming
+     the missing pieces (not a generic "refused").
+
+### EOS pilot §11 step → driver table (preserved here for future role)
+
+| §11 step | Driver | Evidence kind |
+|---|---|---|
+| 1. Pre-chunk PRD review | HAND (ad-hoc) | operator-routed |
+| 2. chunks.json | HAND | operator-authored (1285 lines) |
+| 3. Plan for chunk 1 | GAP — stub | `[dry-run]` envelope |
+| 4. Plan-review (§5.3) | GAP — stub | both envelopes "No droid exec fired" |
+| 5. Reconcile gate | RUNNER | auto-accepted (--non-interactive) |
+| 6. Chunk-1 inner loop | GAP — executor fabricated | commit_sha `000…0`, tests_passed:1 |
+| 7. Chunk commit | HAND | 34b86e3, 1285 lines, plain message |
+| 8. Cross-family review of code | GAP — author == validator | never ran |
+| 9. Telemetry | partial — rows present, run-id not joined | banner ≠ telemetry |
+
+**Verdict (from the EOS pilot agent):** "The pilot validated the
+framework's review philosophy and its dry-run plumbing. It did not
+validate the runner as a builder or as an act-2 structural
+guarantee. The runner's contribution to the actual deliverable: 0
+lines produced, 0 lines reviewed."
+
+---
+
 ## Backlog E — non-Python pilot support (new, post-dogfood)
 
 **Status:** opened by external pilot dogfood (`Roderick-Clemente/evan-os`)

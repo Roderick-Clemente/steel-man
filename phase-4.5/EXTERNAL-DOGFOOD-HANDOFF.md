@@ -84,3 +84,42 @@ A short triage note (accept / defer per finding) + PRs on author-branches
 (`factory/` | `codex/` | `claude/`) per `AGENTS.md`, with the P1 adapter
 test-covered. Keep convention/spec changes off the feature branches.
 Do not land on `main` without cross-family review (invariant #1).
+
+## Self-assessment follow-on
+
+The EOS pilot agent hand-drafted a 4-section self-assessment
+(`DOGFOOD-SELF-ASSESSMENT.md` in the pilot repo). It is mirrored
+here as `phase-4.5/EXTERNAL-DOGFOOD-SELF-ASSESSMENT.md`.
+
+Headline verdict (operator must read this before scoping chunk-14):
+
+> The runner fired 0 real model calls in the pilot. Of the 9 §11
+> steps: 2 HAND (PRD review, chunks.json), 1 RUNNER (auto-accept),
+> 1 partial (telemetry rows present but unjoined), **5 GAP**
+> (plan, plan-review, inner loop, chunk commit, post-chunk
+> adversarial review). The runner's contribution to the actual
+> deliverable: 0 lines produced, 0 lines reviewed.
+
+The framework-affecting findings are now wired into
+`phase-4.5/KNOWN-ISSUES.md` KN-A-1..KN-A-4:
+
+- KN-A-1 — runner fires 0 real model calls; closeout cannot
+  advertise "runner as builder" until a live run is recorded.
+- KN-A-2 — telemetry/banner `run_id` mismatch; the audit trail
+  cannot join the banner. **Chunk-14 owns.**
+- KN-A-3 — post-chunk adversarial code review never ran (author
+  == validator). **Chunk-15 owns** (promoted from previous
+  "Phase 4.7" idea to first-class runner step).
+- KN-A-4 — live mode = 4-precondition conjunction (signing key,
+  contract reader, toolchain, prior dry-run). **Chunk-14 +
+  chunk-15 own.**
+
+**Implication for chunk-14 scope expansion:** the minimum set
+originally J-7 BLK + J-8/9/10/11/15/16 HIGH now includes
+KN-A-2 (telemetry join) and KN-A-4 (live-path preconditions
+checklist) as first-class items.
+
+**Implication for chunk-15 scope expansion:** pre-chunk cross-
+family PRD review is now paired with **post-chunk adversarial
+code review** (the EOS GAP step 8). The chunk-15 fresh-agent
+prompt has been rescoped accordingly.
