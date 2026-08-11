@@ -194,6 +194,25 @@ def _retry_delay(args_paced_max_attempts: int, attempt: int) -> int:
     return min(2 ** attempt, 30)
 
 
+def _resolved_provider_and_family(
+    model_id: str,
+    provider_lock: str | None = None,
+) -> tuple[str, str]:
+    """Return the observed provider plus the curated family label.
+
+    ``provider_lock`` is the raw lock string surfaced by the Factory
+    envelope. ``family`` always comes from the curated model map so the
+    guard compares like with like.
+    """
+    provider = provider_lock or _provider_for(model_id)
+    family = _family_for(model_id)
+    if not provider:
+        provider = "unknown"
+    if not family:
+        family = "unknown"
+    return provider, family
+
+
 def invoke_droid(
     role: Role | str,
     *,
@@ -255,6 +274,7 @@ def invoke_droid(
     if dry_run:
         os.makedirs(os.path.dirname(os.path.abspath(envelope_path)) or ".", exist_ok=True)
         envelope_path_abs = os.path.abspath(envelope_path)
+        provider, family = _resolved_provider_and_family(options.model_id)
         fake_envelope = {
             "session_id": "dry-run-no-session",
             "is_error": False,
@@ -272,8 +292,8 @@ def invoke_droid(
             ),
             "model_id": options.model_id,
             "modelId": options.model_id,
-            "apiProviderLock": _provider_for(options.model_id),
-            "providerLock": _provider_for(options.model_id),
+            "apiProviderLock": provider,
+            "providerLock": provider,
         }
         with open(envelope_path_abs, "w") as f:
             json.dump(fake_envelope, f, indent=2)
@@ -284,10 +304,10 @@ def invoke_droid(
             run_id=f"r-dry-run-{int(time.time()*1000)}",
             role=role_str,
             model_id=options.model_id,
-            provider=_provider_for(options.model_id),
-            family=_family_for(options.model_id),
-            provider_lock=_provider_for(options.model_id),
-            api_provider_lock=_provider_for(options.model_id),
+            provider=provider,
+            family=family,
+            provider_lock=provider,
+            api_provider_lock=provider,
             num_turns=0,
             duration_ms=0,
             is_error=False,
@@ -390,14 +410,18 @@ def invoke_droid(
     assert env_parsed is not None and result is not None  # noqa: S101 — analysed loop
 
     finished_at = _utcnow_iso()
+    provider, family = _resolved_provider_and_family(
+        env_parsed.get("model_id") or options.model_id,
+        env_parsed.get("family"),
+    )
     return RunRecord(
         run_id=f"r-{role_str}-{int(time.time()*1000)}",
         role=role_str,
         model_id=env_parsed.get("model_id") or options.model_id,
-        provider=env_parsed.get("family") or _provider_for(options.model_id),
-        family=env_parsed.get("family") or _family_for(options.model_id),
-        provider_lock=_provider_for(options.model_id),
-        api_provider_lock=_provider_for(options.model_id),
+        provider=provider,
+        family=family,
+        provider_lock=provider,
+        api_provider_lock=provider,
         num_turns=env_parsed["num_turns"],
         input_tokens=env_parsed["usage"]["input"],
         output_tokens=env_parsed["usage"]["output"],

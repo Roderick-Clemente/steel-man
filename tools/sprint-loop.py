@@ -256,6 +256,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str,
                           dry_run=dry_run)
     # Resolved attribution
     rs.planner.resolved_model_id = record.model_id
+    rs.planner.resolved_provider = record.provider
     rs.planner.resolved_family = record.family
     rs.planner.num_turns = record.num_turns
     rs.planner.input_tokens = record.input_tokens
@@ -409,6 +410,7 @@ def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
                           retry_delay_seconds=rs.retry_delay_seconds,
                           dry_run=dry_run)
     reviewer.resolved_model_id = record.model_id
+    reviewer.resolved_provider = record.provider
     reviewer.resolved_family = record.family
     reviewer.num_turns = record.num_turns
     reviewer.input_tokens = record.input_tokens
