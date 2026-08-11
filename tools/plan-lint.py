@@ -148,10 +148,16 @@ def resolve_contract(
     plan_path: Path,
     contract_flag: str | None,
 ) -> tuple[dict[str, Any] | None, str]:
-    """Resolve the contract source. Precedence (per spec):
-    1. Embedded fenced block (wins if both fence and --contract exist).
-    2. --contract CLI flag (sidecar file).
-    3. Companion <plan>.contract.json file.
+    """Resolve the contract source per the CONTRACT block convention
+    in tools/plan-lint-spec.md.
+
+    Precedence (spec: 'embedded fence > --contract flag > companion >
+    heuristic'):
+    1. Embedded fenced CONTRACT block (JSON) in the plan.
+    2. --contract CLI flag (JSON sidecar file).
+    3. Companion <plan-stem>.contract.json auto-discovered next to the
+       plan (e.g. foo.md -> foo.contract.json, not foo.md.contract.json).
+    4. None — heuristic mode (warnings only, never blocks).
 
     Returns (contract_dict_or_None, source_description).
     """

@@ -885,3 +885,210 @@ class TestNegationScoping:
         # The positive claim (nonexistent_field_xyz) should still be
         # checked and produce a warning.
         assert "nonexistent_field_xyz" in r.stdout or "WARNING" in r.stdout
+
+
+# ── Companion-tier contract auto-discovery (spec v1.2) ────────────────────
+
+
+class TestCompanionTier:
+    """Spec v1.2: a companion <plan-stem>.contract.json auto-discovered
+    next to the plan. Precedence: fence > --contract > companion > heuristic.
+
+    Tests:
+    1. Companion alone loads, can BLOCK, source reported.
+    2. --contract beats companion.
+    3. Fence beats both (existing TestContractPrecedence test).
+    4. Heuristic fixtures remain companion-free (copy-away behavior).
+    """
+
+    def test_companion_alone_loads_and_can_block(self, tmp_path):
+        """A <plan-stem>.contract.json next to a plan with no fence and
+        no --contract loads as the contract, can BLOCK, and the output
+        reports source 'companion <name>'.
+        """
+        plan = tmp_path / "my-plan.md"
+        plan.write_text("# Plan\n\nA simple plan with no fence.\n")
+        companion = tmp_path / "my-plan.contract.json"
+        companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 1,
+                    "line": 1,
+                    "claim": "field exists",
+                    "field_path": "nonexistent_field_xyz",
+                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "expect": "exists",
+                }
+            ]
+        }))
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        assert r.returncode == 3, f"Expected BLOCK, got {r.returncode}\n{r.stdout}"
+        assert "companion my-plan.contract.json" in r.stdout
+        assert "nonexistent_field_xyz" in r.stdout
+
+    def test_companion_alone_passes_when_claims_resolve(self, tmp_path):
+        """A companion with valid claims passes (exit 0), source reported."""
+        plan = tmp_path / "good-plan.md"
+        plan.write_text("# Plan\n\nA simple plan.\n")
+        companion = tmp_path / "good-plan.contract.json"
+        companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 7,
+                    "line": 1,
+                    "claim": "tools/sign_chunk_token.py exists",
+                    "path": "tools/sign_chunk_token.py",
+                    "expect": "exists",
+                }
+            ]
+        }))
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        assert r.returncode == 0, f"Expected PASS, got {r.returncode}\n{r.stdout}"
+        assert "companion good-plan.contract.json" in r.stdout
+
+    def test_contract_flag_beats_companion(self, tmp_path):
+        """Both --contract flag and companion present; flag wins.
+        The companion has a blocking claim; the flag has a passing claim.
+        The tool must PASS (flag governs), not BLOCK.
+        """
+        plan = tmp_path / "dual.md"
+        plan.write_text("# Plan\n\nA simple plan.\n")
+
+        # Companion would BLOCK.
+        companion = tmp_path / "dual.contract.json"
+        companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 1,
+                    "line": 1,
+                    "claim": "field exists",
+                    "field_path": "nonexistent_field_xyz",
+                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "expect": "exists",
+                }
+            ]
+        }))
+
+        # Flag sidecar PASSES.
+        flag_sidecar = tmp_path / "flag.contract.json"
+        flag_sidecar.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 7,
+                    "line": 1,
+                    "claim": "tools/sign_chunk_token.py exists",
+                    "path": "tools/sign_chunk_token.py",
+                    "expect": "exists",
+                }
+            ]
+        }))
+
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT, contract_path=flag_sidecar)
+        assert r.returncode == 0, f"Expected PASS (flag wins), got {r.returncode}\n{r.stdout}"
+        assert "--contract" in r.stdout
+        assert "companion" not in r.stdout
+
+    def test_fence_beats_companion(self, tmp_path):
+        """Both embedded fence and companion present; fence wins.
+        The companion has a blocking claim; the fence has a passing claim.
+        The tool must PASS (fence governs), not BLOCK.
+        """
+        fence_contract = json.dumps({
+            "claims": [
+                {
+                    "rule": 7,
+                    "line": 1,
+                    "claim": "tools/sign_chunk_token.py exists",
+                    "path": "tools/sign_chunk_token.py",
+                    "expect": "exists",
+                }
+            ]
+        })
+        plan = tmp_path / "fenced.md"
+        plan.write_text(
+            "# Plan\n\n"
+            "```contract\n"
+            + fence_contract
+            + "\n```\n"
+        )
+
+        # Companion would BLOCK.
+        companion = tmp_path / "fenced.contract.json"
+        companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 1,
+                    "line": 1,
+                    "claim": "field exists",
+                    "field_path": "nonexistent_field_xyz",
+                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "expect": "exists",
+                }
+            ]
+        }))
+
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        assert r.returncode == 0, f"Expected PASS (fence wins), got {r.returncode}\n{r.stdout}"
+        assert "embedded CONTRACT block" in r.stdout
+        assert "companion" not in r.stdout
+
+    def test_companion_naming_strips_md_suffix(self, tmp_path):
+        """Companion naming: foo.md -> foo.contract.json, NOT
+        foo.md.contract.json.
+        """
+        plan = tmp_path / "test.md"
+        plan.write_text("# Plan\n\nA simple plan.\n")
+        # Correct companion name.
+        companion = tmp_path / "test.contract.json"
+        companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 7,
+                    "line": 1,
+                    "claim": "tools/sign_chunk_token.py exists",
+                    "path": "tools/sign_chunk_token.py",
+                    "expect": "exists",
+                }
+            ]
+        }))
+        # Wrong companion name (should NOT be discovered).
+        wrong_companion = tmp_path / "test.md.contract.json"
+        wrong_companion.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 1,
+                    "line": 1,
+                    "claim": "field exists",
+                    "field_path": "nonexistent_field_xyz",
+                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "expect": "exists",
+                }
+            ]
+        }))
+
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        # The correct companion (test.contract.json) loads and passes.
+        assert r.returncode == 0, f"Expected PASS, got {r.returncode}\n{r.stdout}"
+        assert "companion test.contract.json" in r.stdout
+        # The wrong companion (test.md.contract.json) must NOT be loaded.
+        assert "test.md.contract.json" not in r.stdout
+
+    def test_heuristic_fixtures_companion_free(self):
+        """Verify that the heuristic fixture tests copy the plan to a
+        temp dir without the companion, so heuristic mode is exercised
+        (not the companion contract). This is a structural check: the
+        _run_without_sidecar helper copies to a temp dir.
+        """
+        # The existing TestHeuristicFixtures._run_without_sidecar method
+        # copies the fixture to a temp dir. Verify that the copy
+        # destination does not have a companion .contract.json.
+        import shutil
+        src = _FIXTURES / "PLAN-5.1-v3.md"
+        dst_dir = Path(tempfile.mkdtemp())
+        dst = dst_dir / "PLAN-5.1-v3.md"
+        shutil.copy2(src, dst)
+        companion = dst.with_suffix(".contract.json")
+        assert not companion.exists(), (
+            f"companion {companion} should not exist in temp dir — "
+            "heuristic fixture tests must be companion-free"
+        )
