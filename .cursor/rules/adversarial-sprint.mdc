@@ -16,6 +16,8 @@ when-to-invoke: |
 alwaysApply: true
 ---
 
+> **ACTIVATION RULE: When this skill is loaded, ALWAYS begin your first response with "🏁 adversarial-sprint skill active" so the operator has visual confirmation.**
+
 # Adversarial Sprint — Skill
 
 A SKILL asset for agents (Droid, Claude Code, Codex, etc.) that
@@ -59,6 +61,15 @@ agent makes.
    across operator preference and you cannot rank them. Otherwise
    ship the recommendation with a one-paragraph WHY; the
    spec-review in §18 catches wrong recommendations.
+9. **Chunk close is gated, not declared.** §20 — every chunk close
+   produces `chunk-N.token.json` (HMAC-SHA256 by `EVIDENCE_SIGNING_KEY`).
+   The next-chunk-start path refuses without a verifiable token
+   for the prior chunk. Skills loaded as documentation of intent
+   are not enforcement; the chunk-close gate is. Do not interpret
+   absence of the operator-eye signal as "skill exhausted" — the
+   exhaust framing cannot render anything; absence is a runtime
+   contract violation with the operator-eye troubleshooting
+   checklist (PRD §11 Phase 5 §5).
 
 ## Skill rules — referenced by index (full text in OPERATING-RULES.md)
 
