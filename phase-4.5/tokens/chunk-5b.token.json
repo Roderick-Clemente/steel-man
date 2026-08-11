@@ -3,26 +3,26 @@
   "chunk_id": "5b",
   "reviewers": [
     {
-      "envelope_sha256": "5555555555555555555555555555555555555555555555555555555555555501",
+      "envelope_sha256": "69cf6b15e14b5c6e0249b9600423e69c127da8befe583736eaa73dee3a99da81",
       "family": "grok-family",
       "model_id": "grok-4.5",
-      "provider": "xai",
+      "provider": "",
       "verdict": "ACCEPT-WITH-NITS"
     },
     {
-      "envelope_sha256": "5555555555555555555555555555555555555555555555555555555555555502",
+      "envelope_sha256": "6a76a7ca27cbc0e57b3c08478809f566af1b9d5f6ab04f05e77b1a985649bf94",
       "family": "gemini-family",
       "model_id": "gemini-3.1-pro-preview",
-      "provider": "google",
-      "verdict": "ACCEPT-WITH-NITS"
+      "provider": "",
+      "verdict": "ACCEPT"
     }
   ],
   "schema": "chunk-token/v1",
   "signature": {
     "algorithm": "HMAC-SHA256",
     "key_id": "phase5-chunk-token",
-    "value": "8cbc718b52d3a0e700b7526793780f023d236497874fe591aaa067f453c5f7e7"
+    "value": "7f84a0daff89b53faadfc04e814ef92b3bf90c4542006ccf6e3c1137d212a48f"
   },
-  "signed_at": "2026-08-10T17:08:06Z",
-  "signed_by": "factory/droid@phase5-session"
+  "signed_at": "2026-08-10T23:03:47Z",
+  "signed_by": "persistent-referee"
 }
