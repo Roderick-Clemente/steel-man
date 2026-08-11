@@ -298,3 +298,65 @@ to prevent. Closing both `op-rule-17` and `design-doc` is
 required for cross-family review to attach to a chunk that
 already has the prose amendment in place; build without that
 amendment fails Layer 3 of the gate.
+
+## Post-launch state (Phase 5 build close)
+
+The Phase-5 fresh-agent build closed on
+`factory/phase-5-chunkadherence-enforcement`. The branch was cut
+off `main` HEAD `f2f14085c9119fe638a146a8b43817404ddb9a49` (the
+`40f0fff`+`c6a1a7a`+`fa14360` promotion triple landed in `main`
+ahead of the chunk-14 design-doc fold and the origin-merge; the
+canonical Phase-5 base is therefore `main` HEAD `f2f1408`, *not*
+the `2918bd6` reference cited at the top of this file). Per-pilot
+operators who trigger a fresh Phase-5 build should branch from
+this updated `main` HEAD.
+
+**Build terminal points (audit trail):**
+
+`factory/phase-5-chunkadherence-enforcement` branch tip
+(`dda84d1` at the time this section was added). Cross-family
+review at pass-r5 closes this branch; the next Agent's main
+absorb is the merge that follows.
+
+Chunk-5 commit sequence (code-commit then token-commit; each
+token cross-family ACCEPT-WITH-NITS signed by EVIDENCE_SIGNING_KEY
+via `tools/sign_chunk_token.py sign`, then independently
+re-verified at chunk close via
+`tools/sprint_loop/chunk_close_banner.py`):
+
+| chunk | code-commit | token-commit |
+|-------|-------------|--------------|
+| 5a    | `364f15d`   | `f89275f`    |
+| 5b    | `a8ba006`   | `663ee4c`    |
+| 5c    | `e5178cc`   | `76eb3ab`    |
+| 5d    | `386f2ac`   | `59442ab`    |
+| 5e    | `5193cc9`   | `dda84d1`    |
+
+Each `chunk-N.token.json` lives at
+`phase-4.5/tokens/chunk-N.token.json`. The token binds to the
+code-commit SHA via the `chunk_commit_sha` field; HMAC-SHA256
+under `EVIDENCE_SIGNING_KEY` produces the operator-eye `✅`
+signal at chunk close. Refusal produces `⛔` + the PRD §11
+Phase 5 §5 troubleshooting checklist on stderr (§20 is
+structural, not decorative).
+
+**Build deliverables landed (vs. PRD §11 Phase 5):**
+
+1. `tools/sign_chunk_token.py` — chunk-completion token shape + signer.
+2. `tools/cross_family_review.py` — refusal-at-parse dual-ACCEPT gate.
+3. `tools/chunk_sequence_gate.py` — next-chunk-start refusal on prior-token missing / HMAC-mismatched.
+4. Skill + distribution update: rule #9 propagated through `tools/install-skill.sh` re-emit to `.cursor/rules/adversarial-sprint.mdc` and `.claude/skills/`, test pin `tests/test_install_skill_phase5.py`.
+5. `tools/sprint_loop/chunk_close_banner.py` — operator-eye visual signal binding (✅ / ⛔ / checklist pointer).
+
+Plus: OPERATING-RULES §17 Layer-3 amendment (in
+`tools/OPERATING-RULES.md`, line ~272) closes the §17.2
+rationalization hole documented at KN-R1 and `phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md` §8.
+
+**Next-agent (cross-family review):**
+
+Pass-r5 close on this branch is owned by an operator outside
+this thread (a separate model family from this build session —
+§17.2 distinct-families). Empirical mutation-testing of the
+gate (chunk_sequence_gate refusal at every refusal mode in the
+truth-table) is required for ACCEPT-WITH-NITS-or-better per
+PRD §11 Phase 5 exit criteria.

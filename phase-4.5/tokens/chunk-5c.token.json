@@ -1,0 +1,28 @@
+{
+  "chunk_commit_sha": "e5178ccc7f5dc34af613e4d72f4492324f74e8f5",
+  "chunk_id": "5c",
+  "reviewers": [
+    {
+      "envelope_sha256": "095e16299c8927f47e3623c0cffc34a2e3df105663346a40bd1f379c0f97b07b",
+      "family": "grok-family",
+      "model_id": "grok-4.5",
+      "provider": "",
+      "verdict": "ACCEPT-WITH-NITS"
+    },
+    {
+      "envelope_sha256": "03fbe6303651f3ce467e57c7a95ed0b54ea58b2a17d06e101f657bcd5a7d78de",
+      "family": "gemini-family",
+      "model_id": "gemini-3.1-pro-preview",
+      "provider": "",
+      "verdict": "ACCEPT"
+    }
+  ],
+  "schema": "chunk-token/v1",
+  "signature": {
+    "algorithm": "HMAC-SHA256",
+    "key_id": "phase5-chunk-token",
+    "value": "63b2e1f96574816afa91f4bcce3a1b50dd4dd224b333bbef17334569827b464b"
+  },
+  "signed_at": "2026-08-10T23:03:47Z",
+  "signed_by": "persistent-referee"
+}

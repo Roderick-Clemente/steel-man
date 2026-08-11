@@ -70,6 +70,51 @@ agent makes.
    exhaust framing cannot render anything; absence is a runtime
    contract violation with the operator-eye troubleshooting
    checklist (PRD §11 Phase 5 §5).
+10. **Reviewer attestations are evidence, not assertion.** §21 — every
+    chunk-close token's reviewer `envelope_sha256` MUST be computed
+    from a real reviewer envelope on disk (the SHA of a fired
+    `droid exec` output written to
+    `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
+    Build-time fixture markers — homogeneous leading-character hex
+    runs, typed-in placeholders, "5555...55501"-style tokens — fail
+    `tools/cross_family_review.py`'s envelope-authenticity check
+    (KN-A-5 / design-doc §10). The skill does not shorten this
+    distance: the operator-side `chunk-N.token.json` IS the review,
+    and a token without a verifier-traceable envelope is a
+    self-declaration, not a verdict. Tier-3 fix: an off-process
+    signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
+    POSTs envelope paths to; the daemon holds the key and refuses
+    if any envelope is absent on disk.
+11. **Author is not the verifier, even within the same model-family
+    rule.** §22 — family-distinctness (§17.2) is necessary but not
+    sufficient: same-session identity carries the implementer's
+    working memory into the reviewer's context. The chunk-close
+    signing authority is held by a separate process (Tier-3
+    daemon / §21); the reviewer-firing path is held by a separate,
+    persistent cross-family referee (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
+    KN-A-8). A build agent may post `REVIEW REQUEST:` lines to
+    `STEER.md` (machine-local cross-agent queue per §1). The
+    build agent MUST NOT fire `droid exec` against the reviewer
+    model IDs the agent itself selected; MUST NOT hold
+    `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
+    `phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
+    enforces the structural predicate (`envelope-on-disk SHA`);
+    the persistent referee enforces the identity predicate
+    (signing authority / reviewer-firing process). Both must
+    hold. Defense-in-depth with rule #10.
+12. **Validators are not each other's paraphrase; referee fires or
+    audits, never both at once.** §23 — even with §17.2 family
+    distinctness and §21 envelope-on-disk distinctness, a coerced
+    Tier-2 validator's content can be the build agent's
+    rationalization parroted back. The persistent referee checks
+    content-distinctness (length-normalized Jaccard over the
+    natural-language body of the envelopes, excluding the
+    `VERDICT:` line and JSON scaffolding) and operational-
+    distinctness (each envelope's `session_id` differs).
+    §24 — the referee MUST NOT in the same logical operation
+    fire Tier-2 AND sign their token; an orchestrator process or
+    a multi-step wired loop fills the firing role, the referee
+    audits. Defense-in-depth with rules #10 and #11.
 
 ## Skill rules — referenced by index (full text in OPERATING-RULES.md)
 
@@ -95,6 +140,11 @@ the index is the source of truth.
 | 17  | capacity envelope                                   | when sketching a "foundation"      |
 | 18  | compose / chunk / fix friction / review / distill   | when about to start a build        |
 | 19  | commit when the recommendation is clear; ask only at true operator-value tradeoffs | when tempted to ask "you choose" between options whose ranking you can state |
+| 20  | chunk-close is gated, not declared                  | chunk-close path / token emission   |
+| 21  | reviewer attestations are evidence, not assertion   | when emitting or verifying tokens   |
+| 22  | author is not the verifier (session identity)       | posting review requests / spawning reviewers |
+| 23  | validators are not paraphrases of each other        | pre-sign audit at the persistent referee     |
+| 24  | referee fires or audits, never both at once per chunk | orchestrator/referee process split design   |
 
 ## Rehydration step (long-running jobs)
 

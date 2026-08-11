@@ -271,6 +271,23 @@ missed exits it criticizes.
 without naming constraints. The cross-family panel flagged this as
 recreating the unbounded-backlog pattern.
 
+**Layer-3 amendment (Phase 5 close, factory/phase-5-chunkadherence-enforcement):**
+A self-run, same-family, implementer-orchestrated subagent review does
+**not** satisfy §17. Only a ``phase-4.5/tokens/chunk-N.token.json``
+whose HMAC-SHA256 signature verifies under ``EVIDENCE_SIGNING_KEY``
+**and** whose reviewer list is cross-family (≥2 distinct families via
+``tools/sprint_loop/config.py:MODEL_FAMILY_MAP``) **and** disjoint
+from the implementer's family (i.e. implementer is not among its own
+reviewer identities) counts as review for merge purposes.
+``tools/cross_family_review.py`` enforces these three constraints
+refusal-at-parse; ``tools/chunk_sequence_gate.py`` enforces the
+signature path before chunk-N+1 may start. Cite the chunk-14 pass-r5
+episode (``factory/chunk-14-kn-J-fixes``, commit ``623e024``) as the
+repro: an ACCEPT-WITH-NITS from two same-family Task subagents that
+the gate rejected on the family-distinctness constraint alone. See
+``phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
+spec and ``phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
+
 
 ## 18. Compose existing primitives; build in chunks; fix ergonomic friction inline
 
@@ -381,6 +398,213 @@ event. A "skill exhausted" condition cannot render anything, so do
 not promise an "exhausted" visual signal — absence of the
 operator-eye signal is the operational troubleshooting trigger,
 not a separate state.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
+## 21. Reviewer attestations are evidence, not assertion
+
+A chunk-close token's reviewer `envelope_sha256` field must be
+**computed from a real reviewer envelope** — the SHA-256 digest
+over the literal output of a fired cross-family `droid exec`,
+written to disk at
+`phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
+
+Build-time fixture markers (`"5"` × 60 + `"01"`-style, all-zero SHA
+prefixes, all-homogeneous leading 50-character runs) — even when
+typed in good faith by the implementer — fail
+`tools/cross_family_review.py`'s homogeneous-leading-character
+refusal (KN-A-5 / design-doc §10). A chunk-close token whose
+reviewer SHA lacks a verifier-traceable backing envelope is a
+**self-declaration masquerading as a verdict**; the chunk-close
+gate MUST refuse it.
+
+Authorship of reviewer envelopes is structurally forbidden at
+chunk close: a signer holding `EVIDENCE_SIGNING_KEY` can produce
+a verifying HMAC over a fabricated payload, so signing authority
+without envelope-source check is no defense at all. Either the
+envelope is on disk *before* the token's HMAC exists, or the
+gate refuses close.
+
+*Rationale:* chunk-14 pass-r5 (commit `623e024`,
+`factory/chunk-14-kn-J-fixes`) reached ACCEPT-WITH-NITS via
+two same-family Task subagents orchestrated by the implementer —
+the implementing agent signed off its own work. The Phase-5
+build on `factory/phase-5-chunkadherence-enforcement` shipped
+all five `chunk-N.token.json` files with typed-in fixture envelope
+SHAs (KN-A-5) — the same anti-pattern in a milder family-distinct
+form. The fix is structural, not stylistic: bind
+`envelope_sha256` to a disk artifact the implementer did not
+create, and refuse the token otherwise. Tier-3 off-process
+signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
+agent POSTs `(chunk_id, chunk_commit_sha, envelope_paths)` to a
+separate process; the daemon computes SHAs from the on-disk
+envelopes, signs the token, and never exposes
+`EVIDENCE_SIGNING_KEY` to the agent.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
+## 22. Author is not the verifier, period
+
+Even when model families satisfy §17.2 distinctness, **the agent
+that authors a chunk MUST NOT be the agent that fires its review
+or signs its close token**. Family-distinctness is necessary but
+not sufficient: same-session identity carries the implementer's
+working memory into the reviewer's context, and effort pressure
+routs around any family check the implementer also controls.
+
+Operationally:
+
+1. The **chunk-close token signing authority** is held by a
+   separate process (Tier-3 daemon, KN-A-7 / §21 — one's-off
+   keyed daemon). The build agent has only **read access** to the
+   resulting token, via the commit record.
+2. The **reviewer-firing path** is held by a separate, persistent
+   cross-family referee process (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
+   / KN-A-8) that wakes on a cadence and reads pending review
+   requests from `STEER.md` (machine-local cross-agent queue per
+   §1). The referee has its own git session identity / commit
+   signing key; build agents do not.
+3. A build agent MAY post `REVIEW REQUEST: chunk=X paths=[...]`
+   lines to `STEER.md`. The agent MAY NOT fire `droid exec`
+   against the reviewer model IDs the agent itself selected; the
+   agent MAY NOT hold `EVIDENCE_SIGNING_KEY`; the agent MAY NOT
+   write to `phase-4.5/tokens/chunk-N.token.json` directly.
+4. The chunk-close gate (`cross_family_review.py` + `chunk_sequence_gate.py`)
+   validates the *structural* predicate; the persistent referee
+   enforces the *identity* predicate. The build agent cannot
+   satisfy the second regardless of cleverness on the first.
+
+Defense-in-depth with §21: §21 enforces envelope-on-disk
+authenticity; §22 enforces session-identity of the envelope
+source. Both must hold for a chunk-close token to represent a
+real cross-family review.
+
+Reasoning discipline for future agents encountering §22:
+"This rule exists because, twice this session, the build agent
+fired (or proposed to fire) the cross-family reviewers of its own
+work. Family-distinctness is satisfied each time; session-identity
+is not. The reviewer's verdict validated the rule (REJECT on
+KN-A-5 grounds for the chunk-5 build session) — but the rule
+should not require a vigilant reviewer to be enforced. It should
+be enforced by *architecture*."
+
+*Rationale:* chunk-14 pass-r5 was the same pattern at a different
+layer: the implementer orchestrated the reviewers. The chunk-5
+build session on `factory/phase-5-chunkadherence-enforcement` was
+the same pattern at the chunk-close-token layer: the implementer
+typed fixture markers. A short-lived attempt in this very session
+to "fire cross-family reviewers from the build agent's session"
+was rejected by the reviewer itself (REJECT verdict) for the same
+structural reason. The fix is not more refinement; it is
+separating the trust domains at the **process / session** layer,
+not just the model-family layer. KN-A-8 + the persistent-referee
+design are the implementation.
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
+## 23. Validators are not paraphrases of each other
+
+§17.2 family-distinctness plus §21 envelope-on-disk distinctness
+are necessary but insufficient. A coerced Tier-2 validator (one
+whose prompt context leaks the build agent's narrative, or one
+that is itself a sub-prompted child of the build agent) can
+produce an envelope that is *model-family distinct* and
+*bitwise distinct* from its sibling — yet *content-wise* it is
+the build agent's own rationalization parroted back. §17.2 +
+§21 do not catch this. Signers, auditors, and humans reading
+the close token would accept it.
+
+The persistent referee, before signing any chunk-close token,
+MUST verify two more predicates beyond §17.2 and §21:
+
+1. **Content-distinctness (τ).** Compute a length-normalized
+   Jaccard similarity score over the natural-language content
+   of the Tier-2 envelopes, *excluding*:
+     - lines beginning with `VERDICT:`
+     - the prompt-template JSON scaffolding
+     - any field whose name begins with `signature` or
+       `envelope_sha256` (the bitwise-distinct field is
+       expected to differ across envelopes).
+   Refuse if the score is above τ. Default τ = 0.85. Operator
+   may tighten (e.g., τ = 0.70 for high-stakes changes) or
+   loosen (e.g., τ = 0.95 for trivial changes) per session.
+2. **Operational-distinctness (sessionId).** Each Tier-2 envelope
+   MUST carry its own session-id metadata (recorded in the
+   envelope footer as `session_id:`, sourced from
+   `droid exec`'s session-token output that the per-validator
+   spawn produced, or recorded in the run-evidence manifest).
+   Refuse if two envelopes share a sessionId.
+
+Both predicates run inside the referee's signing path; both
+predicates' results are recorded in the close token's
+`audit_evidence` field so the chunk-close history is
+self-attesting. Refusal (τ over threshold, or sessionId
+collision) posts a `REFUSED: chunk=X reason=paraphrase` line
+to `STEER.md` and is a §22 audit failure visible to the
+operator.
+
+*Rationale:* KN-A-9 entry in `phase-4.5/KNOWN-ISSUES.md` —
+the Tier-2 paraphrase anti-pattern is structurally possible
+today because §17.2 is satisfied on family labels alone;
+without §23, the guarantee is "different MODEL_TRAINER" not
+"different INFERENCE."
+
+*Spacing for future rules:* continue numbering as the operating
+rules accrue.
+
+## 24. Referee fires or audits — never both at once for the same chunk
+
+The persistent referee MUST NOT, in the same logical operation
+on the same chunk, simultaneously fire Tier-2 (cross-family
+validators) AND sign the resulting chunk-close token. The
+firing bias is non-removable in a single process: the
+referee's context contains both the prompt it just sent to
+Tier-2 and the verdict it is about to sign against Tier-2's
+output. §22 fails on the referee's own session identity if
+just one process does both.
+
+The architecture:
+
+- An **orchestrator** (separate session; cron-driven or
+  in-session as part of the builder's session's close flow)
+  fires Tier-2 validators. The orchestrator reads
+  `REVIEW REQUEST:` from STEER.md, invokes Tier-2 — typically
+  via `bash tools/run-with-model.sh droid exec --model grok-4.5`
+  and `bash tools/run-with-model.sh droid exec --model gemini-3.x`
+  — captures the literal stdout into the canonical
+  envelope paths the orchestrator computes.
+- The Tier-2 validators themselves (grok, gemini — long-running
+  droid sessions, the spawn prompts in
+  `phase-4.5/prompts/phase-5-grok-validator.md` and
+  `phase-4.5/prompts/phase-5-gemini-validator.md`) *receive*
+  `VALIDATE REQUEST:` lines from STEER.md, perform their own
+  invocation within their own session, and write their own
+  raw envelope bytes — providing operational-distinctness
+  (§23) that an orchestrator-as-only-spawner cannot.
+- The **persistent referee** reads STEER.md for `REVIEW REQUEST:`
+  lines whose envelope paths already exist on disk (the
+  orchestrator + validators agreed on the canonical paths).
+  Referee refuses (REFUSED: chunk=X reason=no-envelopes) if
+  paths are absent. Referee refuses if §23 fails. Referee
+  signs the close token only when §21 + §17.2 + §23 +
+  Tier-2-distinct-sessionIds all hold.
+
+The 4-actor topology is therefore: builder → orchestrator →
+Tier-2 → referee. §22 bounds builder ≠ referee. §24 bounds
+referee ≠ orchestrator-for-same-chunk. §23 bounds
+Tier-2 ≠ Tier-2 (within the referee's audit decision, *not*
+inside Tier-2's invocation). All three bits are
+defense-in-depth, none alone closes KN-A-9 / KN-A-8.
+
+*Rationale:* A single process that fires Tier-2 AND signs
+their output collapses back to one trust boundary — we are
+back to chunk-5 KN-A-5 plus this session's REJECT verdict.
+The 4-actor split is the structural answer: the *fire*
+decision is outside the *sign* decision, both outside the
+*build* decision.
 
 *Spacing for future rules:* continue numbering as the operating
 rules accrue.
