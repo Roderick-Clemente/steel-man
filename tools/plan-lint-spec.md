@@ -8,6 +8,13 @@ not implementation.
 
 ## Errata
 
+- v1.2 (2026-08-11): companion-tier auto-discovery
+  (`<plan-stem>.contract.json`) documented and precedence codified
+  (fence > `--contract` > companion > heuristic). Present in the
+  implementation since v1 but absent from this spec; surfaced by
+  operator pre-flight, confirmed by Tier-2 review. YAML contract
+  bodies deferred: JSON only.
+
 - v1.1 (2026-08-11): heuristic mode no longer blocks. v1.0 mandated rule 6
   block on undeclared "gate predicate prose" without defining a
   discriminator; the builder implemented the under-specification
@@ -64,10 +71,15 @@ mechanically detectable against on-disk reality.
 ## CONTRACT block convention
 
 Plans MAY declare their machine-checkable claims (field paths, flags,
-exit codes, file paths, model ids, function signatures) either as a
-fenced structured block (JSON or YAML) in the plan or as a `--contract`
-JSON sidecar; the fenced block wins if both exist. Declared claims are
-verified strictly, and an unresolvable declared claim BLOCKs.
+exit codes, file paths, model ids, function signatures) as any of:
+1. a fenced CONTRACT block (JSON) embedded in the plan;
+2. a `--contract <path>` JSON sidecar passed on the CLI;
+3. a companion `<plan-stem>.contract.json` auto-discovered next to the
+   plan (`foo.md` -> `foo.contract.json`, not `foo.md.contract.json`).
+Precedence: embedded fence > `--contract` flag > companion > heuristic.
+Declared claims are verified strictly, and an unresolvable declared
+claim BLOCKs. Contract bodies are JSON only; YAML is deferred (the
+v1.0 "JSON or YAML" phrasing was never implemented).
 If no contract exists, ALL rules run heuristically as warnings only;
 nothing blocks on an undeclared plan. Heuristic mode MUST still exercise
 rules 1, 3 and 5 against claim-shaped backticked strings (field paths,
@@ -77,7 +89,7 @@ changelog sections are excluded from every heuristic check.
 ## Interface
 
 ```
-tools/plan-lint.py <plan.md> [--repo-root <path>] [--json <out.json>]
+tools/plan-lint.py <plan.md> [--repo-root <path>] [--json <out.json>] [--contract <path>]
 ```
 
 - Exit 0: PASS (warnings allowed, printed).
@@ -100,6 +112,9 @@ tools/plan-lint.py <plan.md> [--repo-root <path>] [--json <out.json>]
   v6 text, so the fix cannot be a string-match against known sentences.
 - Heuristic fixtures: the v3-v6 texts WITHOUT sidecars produce zero
   BLOCKs, and the v6 text warns on the call-signature claim.
+- Companion-tier tests: a companion contract alone loads and can BLOCK
+  (source reported); `--contract` beats companion; the embedded fence
+  beats both.
 - Unit tests per rule class, including the fail-closed paths.
 - Full suite stays green.
 
