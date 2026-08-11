@@ -903,6 +903,82 @@ interactive` invocation against a new PRD.
   distinctness. The three together close the chunk-5
   KN-A-5 anti-pattern at three structurally separate layers.
 
+### KN-A-10 — referee polled wrong STEER.md path; 42+ wakes on empty queue while real queue piled up
+
+- **Status:** OPEN (root-caused; fix designed in
+  `PHASE-5.1-AGENTIC-ORCHESTRATION-TIGHTENING.md`).
+- **Filed:** 2026-08-10.
+- **Severity:** HIGH — silently disconnected the referee from
+  the queue for ~3.5 hours of the first real cross-family
+  re-fire. All 5 chunks' `REVIEW REQUEST:` lines expired
+  unconsumed. Operator stopped validators after observing no
+  progress.
+
+#### Symptom
+
+The persistent referee polled
+`/Users/factory/work/evan-os/.adversarial-sprint/STEER.md`
+(the evan-os pilot root) for 42+ 5-minute wakes. The queue
+was always empty. Meanwhile, the build agent and both
+validators were posting to
+`/Users/factory/work/adversarial-sprint-phase5/.adversarial-sprint/STEER.md`
+(the framework worktree where the 5 chunk commits live). That
+STEER.md accumulated 5 `REVIEW REQUEST:` lines, 10
+`VALIDATE COMPLETE:` lines, and ~60 heartbeats — none of which
+the referee ever saw.
+
+#### Root cause
+
+The spawn prompt says `<repo>/.adversarial-sprint/STEER.md`
+but `<repo>` is ambiguous when multiple worktrees and multiple
+repos exist on the same machine. The referee derived `<repo>`
+from `sprint-loop-config.json`'s `pilot_root` field (evan-os).
+The build agent derived `<repo>` from its own working directory
+(adversarial-sprint-phase5). Both guesses were "correct" from
+their own context; the two diverged silently. No shared config
+declared the canonical paths. No health check detected the
+mismatch.
+
+#### Repro
+
+1. Spawn a referee session with the prompt at
+   `phase-4.5/prompts/phase-5-referee-spawn.md`.
+2. The prompt says "Read `.adversarial-sprint/STEER.md`" —
+   relative path, resolved from the session's working directory
+   or derived from other config.
+3. If the session's CWD or config-derivation lands on a
+   different worktree than the build agent's, the referee polls
+   an empty file forever while the real queue piles up.
+4. The validators' `HEARTBEAT:` lines say `pending=0` — but
+   "pending" counts the validator's own `VALIDATE REQUEST:`
+   queue, not the referee's `REVIEW REQUEST:` queue. No
+   cross-actor liveness signal.
+
+#### Fix (designed in PHASE-5.1-AGENTIC-ORCHESTRATION-TIGHTENING.md)
+
+1. `tools/setup_review_scope.py` creates a
+   `review-scope.json` with absolute paths. All 4 actors read
+   it on spawn. No path derivation from context.
+2. First-wake health check: referee posts `REFEREE READY:
+   steer=<path>` to STEER.md; operator verifies the path
+   matches `review-scope.json`.
+3. Spawn prompts get a step 0: "Read review-scope.json for all
+   paths. Do NOT derive from context."
+4. OPERATING-RULES §25: "all actors discover shared paths from
+   review-scope.json, not from context."
+
+#### Secondary defect (same incident)
+
+The gemini validator posted `VALIDATE COMPLETE` for all 5
+chunks but with empty/missing envelopes (0 bytes for 5b,
+missing for 5a/5c/5d/5e) and `session_id=unknown`. Even if
+the referee had polled the right STEER.md, all 5 chunks would
+have been REFUSED on §21 (envelope < 200 bytes) and §23 (no
+real session_id). The grok validator worked correctly
+(8-10KB envelopes, real session_id). Fix: validator must
+verify envelope ≥ 200 bytes before posting `VALIDATE
+COMPLETE`; `session_id=unknown` is never acceptable.
+
 ### EOS pilot §11 step → driver table (preserved here for future role)
 
 | §11 step | Driver | Evidence kind |
