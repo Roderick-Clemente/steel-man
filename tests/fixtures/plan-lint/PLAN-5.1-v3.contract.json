@@ -1,0 +1,20 @@
+{
+  "claims": [
+    {
+      "rule": 1,
+      "line": 42,
+      "claim": "Token JSON has verdict in ACCEPT-CLASS",
+      "field_path": "verdict",
+      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "expect": "exists"
+    },
+    {
+      "rule": 1,
+      "line": 50,
+      "claim": "Token's chunk_commit_sha matches the expected commit",
+      "field_path": "chunk_commit_sha",
+      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "expect": "exists"
+    }
+  ]
+}

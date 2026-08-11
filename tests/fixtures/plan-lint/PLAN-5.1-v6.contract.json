@@ -1,0 +1,30 @@
+{
+  "claims": [
+    {
+      "rule": 5,
+      "line": 50,
+      "claim": "close_chunk(chunk_id, commit_sha) signature",
+      "artifact": "tools/sprint_loop/per_chunk.py",
+      "field_path": "close_chunk",
+      "expect": "arity:2",
+      "params": ["chunk_id", "commit_sha"]
+    },
+    {
+      "rule": 5,
+      "line": 130,
+      "claim": "chunk_sequence_gate --structural-only --implementer-family <family> calls check_reviewer_panel(implementer_model_id=...)",
+      "artifact": "tools/cross_family_review.py",
+      "field_path": "check_reviewer_panel",
+      "expect": "param:implementer_model_id",
+      "params": ["implementer_model_id", "reviewer_model_ids", "reviewer_verdicts", "reviewer_envelope_sha256s"]
+    },
+    {
+      "rule": 3,
+      "line": 130,
+      "claim": "--implementer-family passes a family label where check_reviewer_panel expects a model id",
+      "artifact": "tools/sprint_loop/config.py",
+      "field_path": "MODEL_FAMILY_MAP",
+      "expect": "type_confusion:family_label_as_model_id"
+    }
+  ]
+}

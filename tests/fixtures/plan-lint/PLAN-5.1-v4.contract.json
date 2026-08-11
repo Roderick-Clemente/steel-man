@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "rule": 4,
+      "line": 50,
+      "claim": "len(reviewers) >= 2 required by gate",
+      "artifact": "tools/cross_family_review.py",
+      "field_path": "check_reviewer_panel",
+      "expect": "min_reviewers_2"
+    },
+    {
+      "rule": 4,
+      "line": 100,
+      "claim": "stub emits 1 reviewer",
+      "artifact": "tools/persistent_referee_stub.py",
+      "field_path": "build_signed_token",
+      "expect": "emits_1_reviewer"
+    },
+    {
+      "rule": 1,
+      "line": 48,
+      "claim": "Token JSON has reviewers array with len(reviewers) >= 2",
+      "field_path": "reviewers",
+      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "expect": "exists"
+    }
+  ]
+}

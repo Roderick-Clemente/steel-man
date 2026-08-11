@@ -1,0 +1,34 @@
+{
+  "claims": [
+    {
+      "rule": 4,
+      "line": 30,
+      "claim": "Token filename pattern chunk-{chunk_id}.token.json",
+      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "field_path": "filename",
+      "expect": "pattern:chunk-{chunk_id}.token.json"
+    },
+    {
+      "rule": 4,
+      "line": 120,
+      "claim": "Stub output path: token_dir / f\"{req['chunk']}.token.json\"",
+      "artifact": "tools/persistent_referee_stub.py",
+      "field_path": "build_signed_token.output_path",
+      "expect": "pattern:{chunk_id}.token.json"
+    },
+    {
+      "rule": 7,
+      "line": 30,
+      "claim": "Token file at {token_dir}/chunk-{N}.token.json",
+      "path": "phase-4.5/tokens/chunk-{N}.token.json",
+      "expect": "exists_or_to_be_created"
+    },
+    {
+      "rule": 7,
+      "line": 120,
+      "claim": "Stub writes to {token_dir}/{chunk}.token.json",
+      "path": "phase-4.5/tokens/{chunk}.token.json",
+      "expect": "exists_or_to_be_created"
+    }
+  ]
+}
