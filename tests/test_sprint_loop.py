@@ -473,6 +473,137 @@ def test_droid_dry_run_writes_synthetic_envelope(tmp_path):
     assert "No droid exec fired" in parsed["result"]
 
 
+def _fake_live_envelope(model_id: str, provider_lock: str) -> dict[str, object]:
+    return {
+        "session_id": "sess-test",
+        "is_error": False,
+        "num_turns": 1,
+        "duration_ms": 17,
+        "usage": {
+            "input": 11,
+            "output": 7,
+            "cache_read": 0,
+            "thinking": 0,
+        },
+        "model_id": model_id,
+        "family": provider_lock,
+    }
+
+
+def _invoke_live_record(monkeypatch, tmp_path, *, model_id: str,
+                        provider_lock: str, role: Role = Role.EXECUTOR):
+    from sprint_loop import droid as droid_mod
+
+    monkeypatch.setattr(
+        droid_mod.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
+    )
+    monkeypatch.setattr(
+        droid_mod,
+        "parse_envelope",
+        lambda *args, **kwargs: _fake_live_envelope(model_id, provider_lock),
+    )
+
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("prompt")
+    options = droid_mod.InvokeOptions(
+        model_id=model_id,
+        auto_level="high",
+        enabled_tools="",
+        prompt_file=str(prompt_path),
+        cwd=str(tmp_path),
+    )
+    return droid_mod.invoke_droid(
+        role,
+        options=options,
+        envelope_path=str(tmp_path / "envelope.json"),
+        stderr_path=str(tmp_path / "stderr.log"),
+        max_retries=0,
+        dry_run=False,
+    )
+
+
+def _post_resolution_guard_state() -> RunState:
+    rs = _make_run_state()
+    rs.planner = _mk(Role.PLANNER, "claude-opus-5", "claude-family")
+    rs.plan_reviewer = _mk(Role.PLAN_REVIEWER, "grok-4.5", "grok-family")
+    rs.test_designer = _mk(Role.TEST_DESIGNER, "gpt-5.4-mini", "openai-family")
+    rs.executor = _mk(Role.EXECUTOR, "claude-opus-5", "claude-family")
+    rs.validators = [
+        _mk(Role.VALIDATOR, "grok-4.5", "grok-family"),
+        _mk(Role.VALIDATOR, "gemini-3.1-pro-preview", "gemini-family"),
+    ]
+    return rs
+
+
+def test_droid_live_record_preserves_curated_family_label(tmp_path, monkeypatch):
+    record = _invoke_live_record(
+        monkeypatch,
+        tmp_path,
+        model_id="claude-opus-5",
+        provider_lock="anthropic",
+        role=Role.PLAN_REVIEWER,
+    )
+    row = record.to_telemetry_row(phase="phase-4.5", branch="factory/family-vocab")
+    assert record.provider == "anthropic"
+    assert record.family == "claude-family"
+    assert record.provider_lock == "anthropic"
+    assert record.api_provider_lock == "anthropic"
+    assert row["provider"] == "anthropic"
+    assert row["family"] == "claude-family"
+    assert row["provider"] != row["family"]
+
+
+def test_post_resolution_recheck_refuses_same_family_collision_from_live_record(tmp_path, monkeypatch):
+    mod = _load_sprint_loop_module()
+    cfg = Config(fail_closed=True)
+    rs = _post_resolution_guard_state()
+    record = _invoke_live_record(
+        monkeypatch,
+        tmp_path,
+        model_id="gpt-5.4-mini",
+        provider_lock="openai",
+        role=Role.EXECUTOR,
+    )
+    rs.executor.resolved_model_id = record.model_id
+    rs.executor.resolved_provider = record.provider
+    rs.executor.resolved_family = record.family
+
+    with pytest.raises(SystemExit) as exc:
+        mod.recheck_family_guard_post_resolution(cfg, rs, "after-executor")
+    assert exc.value.code == 2
+
+
+def test_post_resolution_recheck_refuses_unknown_family_from_live_record(tmp_path, monkeypatch):
+    mod = _load_sprint_loop_module()
+    cfg = Config(fail_closed=True)
+    rs = _post_resolution_guard_state()
+    record = _invoke_live_record(
+        monkeypatch,
+        tmp_path,
+        model_id="some-future-model-that-doesnt-exist-yet",
+        provider_lock="anthropic",
+        role=Role.EXECUTOR,
+    )
+    rs.executor.resolved_model_id = record.model_id
+    rs.executor.resolved_provider = record.provider
+    rs.executor.resolved_family = record.family
+    row = record.to_telemetry_row(phase="phase-4.5", branch="factory/family-vocab")
+
+    assert record.provider == "anthropic"
+    assert record.provider_lock == "anthropic"
+    assert record.api_provider_lock == "anthropic"
+    assert record.family == "unknown"
+    assert row["providerLock"] == "anthropic"
+    assert row["apiProviderLock"] == "anthropic"
+    assert row["family"] == "unknown"
+
+    with pytest.raises(SystemExit) as exc:
+        mod.recheck_family_guard_post_resolution(cfg, rs, "after-executor")
+    assert exc.value.code == 2
+
+
 def test_backends_local_dry_run_returns_accept(tmp_path):
     from sprint_loop.backends import LocalBackend, BackendResult
     from sprint_loop.state import GateDecision
