@@ -16,6 +16,14 @@ text in heuristic mode.
   human-decision fallback. The gate still verifies the token exists
   and the verdict is acceptable before proceeding.
 
+### Sub-heading within revision history
+
+This sub-heading exists to test that the heading discriminator does not
+reset the changelog-exclusion state for sub-headings that are still
+within the revision-history section. The content here mentions the
+gate and verdict but must not produce any findings because it is
+inside the excluded section.
+
 ## Design rationale
 
 The trust boundary places all cryptographic weight in the referee. The

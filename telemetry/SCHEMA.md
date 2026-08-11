@@ -116,3 +116,24 @@ Changes:
 3. **`schema_version` front-matter** bumped from `"v1"` to `"v2"`. The
    aggregator continues to read v1 rows for back-compat; v2 rows carry the new
    fields.
+
+
+## plan_lint_runs.jsonl — one row per `plan-lint.py` invocation
+
+Tool-specific telemetry for the deterministic pre-review tier
+(`tools/plan-lint.py`). This file is separate from `runs.jsonl` because
+plan-lint is a tool, not an agent run — it has no `model_id`, `role`,
+`family`, or token counts. Shoehorning tool rows into `runs.jsonl` would
+pollute the semantics of every downstream consumer (aggregate.py, the
+calibration study). The file is git-ignored (see `.gitignore`).
+
+| key                | type     | required | note |
+|---                 |---       |---       |---   |
+| `schema_version`   | string   | yes      | `"v2"` |
+| `ts`               | ISO-8601 | yes      | time the row was appended |
+| `tool`             | string   | yes      | `"plan-lint"` |
+| `plan_path`        | string   | yes      | path to the plan markdown file |
+| `plan_content_sha`  | string   | yes      | SHA-256 of the plan file content |
+| `verdict`          | string   | yes      | `PASS` / `BLOCK` / `ERROR` |
+| `finding_count`    | int      | yes      | number of findings (warnings + blocks) |
+| `duration_ms`      | int      | yes      | wall clock duration in milliseconds |

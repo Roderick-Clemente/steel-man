@@ -148,17 +148,19 @@ def resolve_contract(
     plan_path: Path,
     contract_flag: str | None,
 ) -> tuple[dict[str, Any] | None, str]:
-    """Resolve the contract source: --contract flag > embedded block >
-    companion <plan>.contract.json file.
+    """Resolve the contract source. Precedence (per spec):
+    1. Embedded fenced block (wins if both fence and --contract exist).
+    2. --contract CLI flag (sidecar file).
+    3. Companion <plan>.contract.json file.
 
     Returns (contract_dict_or_None, source_description).
     """
-    if contract_flag:
-        return load_contract_file(contract_flag), f"--contract {contract_flag}"
-
     embedded = extract_contract_from_plan(plan_text)
     if embedded is not None:
         return embedded, "embedded CONTRACT block"
+
+    if contract_flag:
+        return load_contract_file(contract_flag), f"--contract {contract_flag}"
 
     companion = plan_path.with_suffix(".contract.json")
     if companion.exists():
@@ -818,7 +820,8 @@ def _identify_excluded_sections(lines: list[str]) -> set[int]:
 
     A section starts at a heading like '## Revision history' or
     '## Changelog' (case-insensitive) and ends at the next heading of
-    the same or higher level (## or #).
+    the same or higher level (## or #), OR at any ### sub-heading
+    (which starts a new subsection outside the changelog).
     """
     excluded: set[int] = set()
     in_excluded_section = False
@@ -827,10 +830,15 @@ def _identify_excluded_sections(lines: list[str]) -> set[int]:
         stripped = line.strip()
         if stripped.startswith("#"):
             heading_text = stripped.lstrip("#").strip().lower()
+            heading_level = len(stripped) - len(stripped.lstrip("#"))
             if any(kw in heading_text for kw in excluded_keywords):
                 in_excluded_section = True
-            elif stripped.startswith("## ") or stripped.startswith("# "):
-                # Next same-or-higher-level heading ends the excluded section.
+            elif heading_level <= 2:
+                # ## or # heading ends the excluded section.
+                in_excluded_section = False
+            elif heading_level >= 3 and in_excluded_section:
+                # ### or deeper sub-heading: resets exclusion (starts a
+                # new subsection outside the changelog/revision-history).
                 in_excluded_section = False
         if in_excluded_section:
             excluded.add(i)
@@ -887,6 +895,37 @@ def _is_file_path(val: str) -> bool:
     Examples: 'tools/cross_family_review.py', 'phase-4.5/tokens/chunk-5a.token.json'.
     """
     return bool(re.match(r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry)/[\w/.-]+$", val)) and "." in val.split("/")[-1]
+
+
+def _is_value_negated(line: str, val: str) -> bool:
+    """Check if a specific backticked value is negated in the line.
+
+    Scopes the negation to the specific value by checking the text
+    within ~30 chars before the backtick. This avoids suppressing
+    every backticked value on the line when only one is negated.
+
+    Examples (negated):
+      "Token has no top-level `verdict`" → True for 'verdict'
+      "does not carry `verdict`" → True for 'verdict'
+
+    Examples (not negated):
+      "Token has `verdict` and `schema`" → False for both
+      "no top-level `verdict` but does have `schema`" → True for 'verdict', False for 'schema'
+    """
+    # Find the position of this specific backticked value in the line.
+    escaped = re.escape(val)
+    for m in re.finditer(r"\x60" + escaped + r"\x60", line):
+        # Check the 30 chars before the backtick.
+        start = max(0, m.start() - 30)
+        prefix = line[start:m.start()].lower()
+        negation_keywords = (
+            "no top-level", "no root", "not found",
+            "does not carry", "does not have",
+            "not a root", "absent", "no ",
+        )
+        if any(neg in prefix for neg in negation_keywords):
+            return True
+    return False
 
 
 def _is_to_be_created(line: str, path: str) -> bool:
@@ -952,14 +991,10 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
             # Rule 1: field-path references against JSON artifacts.
             # Look for a backticked field path near a backticked .json path.
             if _is_field_path(val):
-                # Skip if the line explicitly says the field does NOT exist
-                # (e.g., "Token has no top-level `verdict`" or "no root `verdict`").
-                lower_line = line.lower()
-                if any(neg in lower_line for neg in (
-                    "no top-level", "no root", "not found",
-                    "does not carry", "does not have",
-                    "not a root", "absent",
-                )):
+                # Skip if THIS SPECIFIC backticked value is negated
+                # (e.g., "no top-level `verdict`" or "does not carry `verdict`").
+                # Scope: check the text within ~30 chars before the backtick.
+                if _is_value_negated(line, val):
                     continue
                 # Find a JSON artifact path in the same line or nearby.
                 for other_val in backticked:
@@ -1319,14 +1354,14 @@ def append_telemetry(
 ) -> None:
     """Append one telemetry row per invocation.
 
-    Follows telemetry/SCHEMA.md conventions and §17.3 gitignore discipline.
-    Writes to telemetry/runs.jsonl (already git-ignored per .gitignore)
-    with tool="plan-lint" so rows are attributable without a new file
-    that would need its own gitignore entry.
+    Writes to telemetry/plan_lint_runs.jsonl (a tool-specific file, not
+    the agent-run runs.jsonl consumed by aggregate.py). The schema is
+    documented in telemetry/SCHEMA.md under "plan_lint_runs.jsonl".
+    §17.3 gitignore discipline: the file is git-ignored (see .gitignore).
     """
     data_dir = os.environ.get("TELEMETRY_DATA_DIR", "telemetry")
-    runs_path = Path(data_dir) / "runs.jsonl"
-    runs_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path = Path(data_dir) / "plan_lint_runs.jsonl"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     content_sha = hashlib.sha256(plan_text.encode()).hexdigest()
     row = {
@@ -1339,7 +1374,7 @@ def append_telemetry(
         "finding_count": finding_count,
         "duration_ms": duration_ms,
     }
-    with runs_path.open("a", encoding="utf-8") as f:
+    with out_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
 
 

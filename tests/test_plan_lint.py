@@ -29,6 +29,11 @@ _REPO_ROOT = _FIXTURES / "repo"
 
 _PLAN_LINT = _TOOLS / "plan-lint.py"
 
+# A bare plan with no embedded CONTRACT block, used by tests that supply
+# claims via --contract sidecar. (The green-plan.md fixture has an embedded
+# contract, which takes precedence per spec — "fenced block wins.")
+_BARE_PLAN = _FIXTURES / "bare-plan.md"
+
 
 def _run_plan_lint(
     plan_path: Path,
@@ -111,6 +116,11 @@ class TestFailClosed:
         """A contract claim referencing a non-existent artifact must
         fail-closed (exit 2), never pass.
         """
+        # Use a plan without an embedded contract so the --contract
+        # sidecar is the contract source (fenced block wins per spec,
+        # so a plan with an embedded block would ignore the sidecar).
+        plan = tmp_path / "no-embed.md"
+        plan.write_text("# Plan\n\nA simple plan.\n")
         contract = tmp_path / "bad.contract.json"
         contract.write_text(json.dumps({
             "claims": [
@@ -125,7 +135,7 @@ class TestFailClosed:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            plan,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -151,7 +161,7 @@ class TestFailClosed:
                 ]
             }))
             r = _run_plan_lint(
-                _FIXTURES / "green-plan.md",
+                _BARE_PLAN,
                 repo_root=_REPO_ROOT,
                 contract_path=contract,
             )
@@ -214,7 +224,7 @@ class TestRule1FieldPath:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -240,7 +250,7 @@ class TestRule2CliFlags:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -262,7 +272,7 @@ class TestRule2CliFlags:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -289,7 +299,7 @@ class TestRule3ModelIds:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -311,7 +321,7 @@ class TestRule3ModelIds:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -368,7 +378,7 @@ class TestRule4InternalConsistency:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -408,7 +418,7 @@ class TestRule5CallSignature:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -430,7 +440,7 @@ class TestRule5CallSignature:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -458,7 +468,7 @@ class TestRule6RequiredAnchors:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -480,7 +490,7 @@ class TestRule6RequiredAnchors:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -506,7 +516,7 @@ class TestRule7FilePaths:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -527,7 +537,7 @@ class TestRule7FilePaths:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -547,7 +557,7 @@ class TestRule7FilePaths:
             ]
         }))
         r = _run_plan_lint(
-            _FIXTURES / "green-plan.md",
+            _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
@@ -736,3 +746,142 @@ class TestNegativeFixture:
         assert "BLOCK" not in r.stdout
         # The output should be a clean PASS with no findings.
         assert "0 finding" in r.stdout.lower() or "PASS" in r.stdout
+
+
+# ── (d) Contract precedence: fenced block wins over --contract ──────────
+
+
+class TestContractPrecedence:
+    """Spec: 'the fenced block wins if both exist.' The --contract CLI
+    flag must NOT override an embedded fenced block.
+    """
+
+    def test_fenced_block_wins_over_contract_flag(self, tmp_path):
+        """A plan with an embedded CONTRACT block that passes, plus a
+        --contract sidecar that would BLOCK. The fenced block must govern;
+        the tool must PASS, not BLOCK.
+        """
+        # The green plan has an embedded contract that passes.
+        # Create a sidecar that would block (references a nonexistent field).
+        sidecar = tmp_path / "sidecar.contract.json"
+        sidecar.write_text(json.dumps({
+            "claims": [
+                {
+                    "rule": 1,
+                    "line": 1,
+                    "claim": "field exists",
+                    "field_path": "nonexistent_field_xyz",
+                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "expect": "exists",
+                }
+            ]
+        }))
+        r = _run_plan_lint(
+            _FIXTURES / "green-plan.md",
+            repo_root=_REPO_ROOT,
+            contract_path=sidecar,
+        )
+        # Fenced block wins → PASS (the sidecar's blocking claim is ignored).
+        assert r.returncode == 0, f"Expected PASS (fenced wins), got {r.returncode}\n{r.stdout}"
+        assert "embedded CONTRACT block" in r.stdout
+
+
+# ── (e) Telemetry shape: plan_lint_runs.jsonl, not runs.jsonl ──────────────
+
+
+class TestTelemetryShape:
+    """plan-lint rows go to telemetry/plan_lint_runs.jsonl, not
+    telemetry/runs.jsonl (which is for agent-run rows per SCHEMA.md).
+    """
+
+    def test_lint_writes_plan_lint_runs_not_runs(self, tmp_path):
+        """A lint invocation writes zero bytes to runs.jsonl and one
+        well-formed row to plan_lint_runs.jsonl.
+        """
+        import tempfile, shutil
+        telemetry_dir = tmp_path / "telemetry"
+        telemetry_dir.mkdir()
+        runs_jsonl = telemetry_dir / "runs.jsonl"
+        plan_lint_jsonl = telemetry_dir / "plan_lint_runs.jsonl"
+
+        env = dict(os.environ)
+        env["TELEMETRY_DATA_DIR"] = str(telemetry_dir)
+
+        cmd = [sys.executable, str(_PLAN_LINT), str(_FIXTURES / "green-plan.md"),
+               "--repo-root", str(_REPO_ROOT)]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
+
+        # runs.jsonl must have zero bytes.
+        assert not runs_jsonl.exists() or runs_jsonl.stat().st_size == 0, (
+            f"runs.jsonl must be empty, got {runs_jsonl.stat().st_size} bytes"
+        )
+        # plan_lint_runs.jsonl must have one well-formed row.
+        assert plan_lint_jsonl.exists(), "plan_lint_runs.jsonl not created"
+        lines = plan_lint_jsonl.read_text().strip().splitlines()
+        assert len(lines) == 1, f"Expected 1 row, got {len(lines)}"
+        row = json.loads(lines[0])
+        assert row["tool"] == "plan-lint"
+        assert "plan_path" in row
+        assert "plan_content_sha" in row
+        assert "verdict" in row
+        assert "finding_count" in row
+        assert "duration_ms" in row
+        assert "schema_version" in row
+        assert "ts" in row
+
+
+# ── (a) Heading discriminator: ### sub-heading resets exclusion ──────────
+
+
+class TestHeadingDiscriminator:
+    """A ### sub-heading after a revision-history section must reset
+    the changelog-exclusion state so exclusion does not bleed into
+    the rest of the document.
+    """
+
+    def test_subheading_after_changelog_resets(self, tmp_path):
+        """A ### sub-heading after a ## Changelog section must end
+        the exclusion. Content after the ### heading is scanned normally.
+        """
+        plan = tmp_path / "subhead.md"
+        plan.write_text(
+            "# Plan\n\n"
+            "## Changelog\n\n"
+            "- The `verdict` field was checked.\n\n"
+            "### Body\n\n"
+            "The `nonexistent_field` is at "
+            "`phase-4.5/tokens/chunk-5a.token.json`.\n"
+        )
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        assert r.returncode == 0
+        # The line after ### Body should be scanned — the field path
+        # 'nonexistent_field' doesn't exist, so it should warn.
+        assert "WARNING" in r.stdout or "nonexistent" in r.stdout.lower()
+
+
+# ── (b) Negation skip scoped to specific value, not whole line ────────────
+
+
+class TestNegationScoping:
+    """The negation skip ('no top-level', 'absent', etc.) must be scoped
+    to the specific negated backticked value, not suppress every
+    backticked value on the line. A positive claim sharing a line with
+    a negated one must still be checked.
+    """
+
+    def test_positive_claim_checked_alongside_negated(self, tmp_path):
+        """A line with a negated field path AND a positive field path:
+        the negated one is skipped, the positive one is checked.
+        """
+        plan = tmp_path / "negscope.md"
+        plan.write_text(
+            "# Plan\n\n"
+            "Token has no top-level `verdict` but does have "
+            "`nonexistent_field_xyz` at "
+            "`phase-4.5/tokens/chunk-5a.token.json`.\n"
+        )
+        r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
+        assert r.returncode == 0
+        # The positive claim (nonexistent_field_xyz) should still be
+        # checked and produce a warning.
+        assert "nonexistent_field_xyz" in r.stdout or "WARNING" in r.stdout

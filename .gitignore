@@ -31,6 +31,7 @@ STEER.md
 telemetry/runs.jsonl
 telemetry/findings.jsonl
 telemetry/dispositions.jsonl
+telemetry/plan_lint_runs.jsonl
 
 # Sprint-loop runner artefacts (Phase 4.5). The runner writes per-run
 # evidence trees to phase-N/build-evidence/<run-id>/; these are runtime
