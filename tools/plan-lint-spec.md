@@ -6,6 +6,15 @@ approval of the spec. Authored operator-side (Fable 5 advisor session,
 operator-directed). Per §13 this spec describes behavior and acceptance,
 not implementation.
 
+## Errata
+
+- v1.1 (2026-08-11): heuristic mode no longer blocks. v1.0 mandated rule 6
+  block on undeclared "gate predicate prose" without defining a
+  discriminator; the builder implemented the under-specification
+  literally. First live advisory run (v6 plan, no contract): 40 rule-6
+  false positives, zero rule-1/3/5 findings. Spec author's error.
+  Heuristic-mode recall requirements and negative fixtures added.
+
 ## Purpose
 
 A deterministic pre-review tier for build plans. Catches machine-checkable
@@ -44,20 +53,26 @@ mechanically detectable against on-disk reality.
    name/pattern across the plan.
 5. **Call-signature claims** match the named function's actual signature
    (arity, parameter names) as found in the repo.
-6. **Required anchors:** any section describing a gate predicate must name
-   a resolvable schema/artifact plus field path. Vague gate prose is a
-   finding, not a pass.
+6. **Required anchors:** gate predicates declared in the contract must
+   name a resolvable schema/artifact plus field path; an unresolvable
+   declared predicate BLOCKs. In heuristic mode, suspected gate-predicate
+   prose warns at most and never matches revision-history / changelog
+   sections.
 7. **File paths** referenced by the plan exist in the repo (or are
    explicitly marked as to-be-created).
 
 ## CONTRACT block convention
 
-Plans MAY carry a fenced structured block (JSON or YAML) declaring their
-machine-checkable claims (field paths, flags, exit codes, file paths,
-model ids, function signatures). Declared claims are verified strictly.
-Claim-shaped strings in prose that are not declared produce warnings.
-If no CONTRACT block exists, all rules run heuristically as warnings,
-except rule 6, which always blocks on an unresolvable gate predicate.
+Plans MAY declare their machine-checkable claims (field paths, flags,
+exit codes, file paths, model ids, function signatures) either as a
+fenced structured block (JSON or YAML) in the plan or as a `--contract`
+JSON sidecar; the fenced block wins if both exist. Declared claims are
+verified strictly, and an unresolvable declared claim BLOCKs.
+If no contract exists, ALL rules run heuristically as warnings only;
+nothing blocks on an undeclared plan. Heuristic mode MUST still exercise
+rules 1, 3 and 5 against claim-shaped backticked strings (field paths,
+flags, model ids, call expressions). Lines inside revision-history /
+changelog sections are excluded from every heuristic check.
 
 ## Interface
 
@@ -79,6 +94,12 @@ tools/plan-lint.py <plan.md> [--repo-root <path>] [--json <out.json>]
   its known class. Fixtures are extracted from git history on the phase-5
   branch and committed under `tests/fixtures/plan-lint/`.
 - PASSes (or warns only) on a minimal well-formed plan fixture.
+- Negative fixture: narrative prose about gates and blockers (e.g. a
+  revision history quoting past REJECT verdicts) produces zero findings.
+  The fixture must be newly authored innocent prose, not a copy of the
+  v6 text, so the fix cannot be a string-match against known sentences.
+- Heuristic fixtures: the v3-v6 texts WITHOUT sidecars produce zero
+  BLOCKs, and the v6 text warns on the call-signature claim.
 - Unit tests per rule class, including the fail-closed paths.
 - Full suite stays green.
 
