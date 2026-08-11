@@ -91,8 +91,9 @@ class Finding:
         }
 
     def format_text(self) -> str:
+        tag = "BLOCK" if self.severity == "BLOCK" else "WARNING"
         return (
-            f"[BLOCK] rule={self.rule} ({self.rule_name}) line={self.line}\n"
+            f"[{tag}] rule={self.rule} ({self.rule_name}) line={self.line}\n"
             f"  claim: {self.claim}\n"
             f"  artifact: {self.artifact}\n"
             f"  reason: {self.reason}"
@@ -811,36 +812,308 @@ def check_file_paths(
 # ── heuristic mode ───────────────────────────────────────────────────────
 
 
+def _identify_excluded_sections(lines: list[str]) -> set[int]:
+    """Identify line numbers that fall inside revision-history or
+    changelog sections. These are excluded from every heuristic check.
+
+    A section starts at a heading like '## Revision history' or
+    '## Changelog' (case-insensitive) and ends at the next heading of
+    the same or higher level (## or #).
+    """
+    excluded: set[int] = set()
+    in_excluded_section = False
+    excluded_keywords = ("revision history", "changelog", "change log")
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            heading_text = stripped.lstrip("#").strip().lower()
+            if any(kw in heading_text for kw in excluded_keywords):
+                in_excluded_section = True
+            elif stripped.startswith("## ") or stripped.startswith("# "):
+                # Next same-or-higher-level heading ends the excluded section.
+                in_excluded_section = False
+        if in_excluded_section:
+            excluded.add(i)
+    return excluded
+
+
+def _extract_backticked(line: str) -> list[str]:
+    """Extract all backtick-delimited strings from a line."""
+    return re.findall(r"\x60([^\x60]+)\x60", line)
+
+
+def _is_field_path(val: str) -> bool:
+    """Heuristic: does this backticked string look like a JSON field path?
+
+    Examples: 'reviewers[*].verdict', 'chunk_commit_sha', 'schema',
+    'reviewers[0].verdict'. Not: 'tools/foo.py' (file path), 'grok-4.5'
+    (model id), 'check_reviewer_panel()' (call expression).
+    """
+    # Must contain word chars, dots, brackets, wildcards — but NOT slashes
+    # (file paths) or parens (call expressions).
+    if "/" in val or "(" in val or ")" in val:
+        return False
+    if "." not in val and "[" not in val:
+        # A bare word like 'verdict' or 'schema' is a field path if it's
+        # a known JSON key. We accept any bare word that looks like a
+        # JSON key (snake_case or camelCase, no spaces).
+        return bool(re.match(r"^[a-z][a-zA-Z0-9_]*$", val))
+    # Dotted path or bracket-indexed path
+    return bool(re.match(r"^[a-z][a-zA-Z0-9_]*(?:\.(?:\w+|\[\d+\]|\[\*\]))+$", val))
+
+
+def _is_call_expression(val: str) -> bool:
+    """Heuristic: does this backticked string look like a function call?
+
+    Examples: 'check_reviewer_panel()', 'close_chunk(chunk_id, commit_sha)',
+    'cross_family_review.check_reviewer_panel()'.
+    """
+    return bool(re.match(r"^[\w.]+\([\w, =*.'\"]*\)$", val))
+
+
+def _is_model_id_or_family(val: str) -> bool:
+    """Heuristic: does this backticked string look like a model id or
+    family label?
+
+    Model ids: 'grok-4.5', 'gemini-3.1-pro-preview', 'gpt-5.4-mini'.
+    Family labels: 'grok-family', 'gemini-family', 'openai-family'.
+    """
+    return bool(re.match(r"^[a-z][a-z0-9]*(?:-[a-z0-9.]+)+$", val))
+
+
+def _is_file_path(val: str) -> bool:
+    """Heuristic: does this backticked string look like a file path?
+
+    Examples: 'tools/cross_family_review.py', 'phase-4.5/tokens/chunk-5a.token.json'.
+    """
+    return bool(re.match(r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry)/[\w/.-]+$", val)) and "." in val.split("/")[-1]
+
+
+def _is_to_be_created(line: str, path: str) -> bool:
+    """Check if the plan marks a path as to-be-created.
+
+    Markers: 'New script', 'New helper', 'New function', 'New file',
+    'to-be-created', 'to be created', '(new)', '| New |'.
+    Also: test files (tests/test_*.py) referenced in test bullet lists or
+    verify-check command lines are to-be-created by definition (the plan
+    describes tests that will be written).
+    """
+    lower = line.lower()
+    markers = (
+        "new script", "new helper", "new function", "new file",
+        "to-be-created", "to be created", "(new)", "| new |",
+        "new module", "new tool",
+    )
+    if any(m in lower for m in markers):
+        return True
+    # Test files in test sections or verify-check commands are to-be-created.
+    if path.startswith("tests/"):
+        # Verify-check command lines reference test files that will be written.
+        if "verify check" in lower or "pytest" in lower or "py_compile" in lower:
+            return True
+        # Test bullet-list lines (start with '- `tests/test_') describe
+        # tests to be written.
+        if re.match(r"^\s*-\s+`tests/", line):
+            return True
+    # Paths in py_compile commands are to-be-created scripts.
+    if "py_compile" in lower and path.startswith("tools/"):
+        return True
+    return False
+
+
 def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
     """Run rules heuristically when no CONTRACT block is present.
 
-    Per spec: all rules run as warnings (severity=WARNING), except
-    rule 6 which always blocks. Returns findings.
+    Per spec v1.1: heuristic mode NEVER blocks — all findings are
+    warnings (severity=WARNING). Revision-history / changelog sections
+    are excluded from every heuristic check. Rules 1, 3, 5 run against
+    claim-shaped backticked strings in the plan body.
     """
     findings: list[Finding] = []
     lines = plan_text.splitlines()
+    excluded = _identify_excluded_sections(lines)
 
-    # Rule 6 heuristic: look for gate-predicate prose without artifact refs.
-    for i, line in enumerate(lines, 1):
-        lower = line.lower()
-        if any(kw in lower for kw in ("gate", "predicate", "verifies", "checks")):
-            # Check if this line names a resolvable artifact + field path.
-            if not re.search(r"[\w/]+\.(json|py)", line):
-                findings.append(Finding(
-                    rule=6, line=i,
-                    claim=line.strip(),
-                    artifact="(none)",
-                    reason="gate predicate prose does not name a resolvable artifact",
-                ))
+    # Load MODEL_FAMILY_MAP for rule 3 (best-effort; skip if unavailable).
+    model_ids: set[str] = set()
+    families: set[str] = set()
+    try:
+        family_map = load_model_family_map(repo_root)
+        model_ids = set(family_map.keys())
+        families = set(v[1] for v in family_map.values())
+    except FailClosed:
+        pass
 
-    # Other rules in heuristic mode produce warnings only.
-    # We scan for claim-shaped strings but do not block.
     for i, line in enumerate(lines, 1):
-        # Rule 7 heuristic: referenced file paths
-        for match in re.finditer(r"(?:tools|phase-\d)/[\w/.]+\.py", line):
+        if i in excluded:
+            continue
+
+        backticked = _extract_backticked(line)
+        for val in backticked:
+            # Rule 1: field-path references against JSON artifacts.
+            # Look for a backticked field path near a backticked .json path.
+            if _is_field_path(val):
+                # Skip if the line explicitly says the field does NOT exist
+                # (e.g., "Token has no top-level `verdict`" or "no root `verdict`").
+                lower_line = line.lower()
+                if any(neg in lower_line for neg in (
+                    "no top-level", "no root", "not found",
+                    "does not carry", "does not have",
+                    "not a root", "absent",
+                )):
+                    continue
+                # Find a JSON artifact path in the same line or nearby.
+                for other_val in backticked:
+                    if other_val.endswith(".json") and _is_file_path(other_val):
+                        artifact = other_val
+                        try:
+                            data = load_json_artifact(repo_root, artifact)
+                            if not _field_path_exists(data, val):
+                                findings.append(Finding(
+                                    rule=1, line=i,
+                                    claim=line.strip(),
+                                    artifact=artifact,
+                                    reason=f"field path '{val}' not found in {artifact} (heuristic)",
+                                    severity="WARNING",
+                                ))
+                        except FailClosed:
+                            pass
+                        break
+
+            # Rule 3: model id / family label type confusion.
+            if _is_model_id_or_family(val):
+                if val in families and val not in model_ids:
+                    # This is a family label — check if the line uses it as
+                    # a model id (e.g., "implementer model" or "model_id=").
+                    lower_line = line.lower()
+                    if any(kw in lower_line for kw in (
+                        "model id", "model_id", "implementer model",
+                        "--model", "reviewer model",
+                    )):
+                        findings.append(Finding(
+                            rule=3, line=i,
+                            claim=line.strip(),
+                            artifact="tools/sprint_loop/config.py",
+                            reason=f"'{val}' is a family label used as a model id — type confusion (heuristic)",
+                            severity="WARNING",
+                        ))
+
+            # Rule 5: call-signature claims against actual function signatures.
+            if _is_call_expression(val):
+                # Parse the call expression: function name + args.
+                call_match = re.match(r"^([\w.]+)\(([\w, =*.'\"]*)\)$", val)
+                if call_match:
+                    func_full = call_match.group(1)
+                    call_args_str = call_match.group(2).strip()
+                    func_name = func_full.split(".")[-1] if "." in func_full else func_full
+                    # Determine the artifact path.
+                    artifact = ""
+                    if "." in func_full:
+                        module_name = func_full.split(".")[0]
+                        artifact = f"tools/{module_name}.py"
+                    if not artifact:
+                        # Look for a backticked .py path in the same line.
+                        for other_val in backticked:
+                            if other_val.endswith(".py") and _is_file_path(other_val):
+                                artifact = other_val
+                                break
+                    if not artifact:
+                        # Look at nearby lines (±2) for a backticked .py path.
+                        for delta in (-1, 1, -2, 2):
+                            nearby_idx = i - 1 + delta
+                            if 0 <= nearby_idx < len(lines):
+                                nearby_backticked = _extract_backticked(lines[nearby_idx])
+                                for other_val in nearby_backticked:
+                                    if other_val.endswith(".py") and _is_file_path(other_val):
+                                        artifact = other_val
+                                        break
+                                if artifact:
+                                    break
+                    if not artifact:
+                        # Try common locations based on function name.
+                        for candidate in (
+                            f"tools/{func_name}.py",
+                            f"tools/sprint_loop/{func_name}.py",
+                        ):
+                            if (repo_root / candidate).exists():
+                                artifact = candidate
+                                break
+                    # Also try mapping common module names to file paths.
+                    if not artifact:
+                        for candidate in (
+                            "tools/cross_family_review.py",
+                            "tools/sign_chunk_token.py",
+                            "tools/chunk_sequence_gate.py",
+                            "tools/persistent_referee_stub.py",
+                            "tools/sprint_loop/per_chunk.py",
+                            "tools/sprint_loop/chunk_close_banner.py",
+                        ):
+                            source_file = repo_root / candidate
+                            if source_file.exists():
+                                try:
+                                    src = load_python_source(repo_root, candidate)
+                                    sig_check = _extract_function_signature(src, func_name)
+                                    if sig_check is not None:
+                                        artifact = candidate
+                                        break
+                                except FailClosed:
+                                    pass
+
+                    if artifact and (repo_root / artifact).exists():
+                        try:
+                            source = load_python_source(repo_root, artifact)
+                            sig = _extract_function_signature(source, func_name)
+                            if sig is not None:
+                                actual_params = sig["params"]
+                                # Parse the claimed args from the call expression.
+                                claimed_args = [
+                                    a.strip().split("=")[0].strip()
+                                    for a in call_args_str.split(",")
+                                    if a.strip()
+                                ] if call_args_str else []
+                                # Check for param name mismatches.
+                                for claimed_arg in claimed_args:
+                                    if claimed_arg and claimed_arg not in actual_params:
+                                        # Is the actual param similar? (e.g., implementer_family vs implementer_model_id)
+                                        similar = [
+                                            p for p in actual_params
+                                            if claimed_arg.split("_")[0] in p
+                                            or p.split("_")[0] in claimed_arg
+                                        ]
+                                        if similar:
+                                            findings.append(Finding(
+                                                rule=5, line=i,
+                                                claim=line.strip(),
+                                                artifact=artifact,
+                                                reason=(
+                                                    f"call '{val}' uses param '{claimed_arg}' "
+                                                    f"but actual signature has '{similar[0]}' "
+                                                    f"(heuristic)"
+                                                ),
+                                                severity="WARNING",
+                                            ))
+                                        else:
+                                            findings.append(Finding(
+                                                rule=5, line=i,
+                                                claim=line.strip(),
+                                                artifact=artifact,
+                                                reason=(
+                                                    f"call '{val}' uses param '{claimed_arg}' "
+                                                    f"not in actual signature: {actual_params} "
+                                                    f"(heuristic)"
+                                                ),
+                                                severity="WARNING",
+                                            ))
+                        except FailClosed:
+                            pass
+
+        # Rule 7: file paths referenced in the plan body.
+        for match in re.finditer(r"(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry)/[\w/.]+\.\w+", line):
             path = match.group(0)
             full = repo_root / path
             if not full.exists():
+                # Check if the line marks the path as to-be-created.
+                if _is_to_be_created(line, path):
+                    continue
                 findings.append(Finding(
                     rule=7, line=i,
                     claim=line.strip(),
@@ -848,6 +1121,120 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
                     reason=f"file path '{path}' not found (heuristic warning)",
                     severity="WARNING",
                 ))
+
+    # Cross-reference heuristic (rule 5): detect CLI-flag-to-function-param
+    # type confusion. When the plan mentions a flag like --implementer-family
+    # and a function that has a parameter like implementer_model_id, warn.
+    findings.extend(
+        _heuristic_flag_param_confusion(lines, repo_root, excluded)
+    )
+
+    return findings
+
+
+def _heuristic_flag_param_confusion(
+    lines: list[str],
+    repo_root: Path,
+    excluded: set[int],
+) -> list[Finding]:
+    """Detect CLI-flag-to-function-param type confusion heuristically.
+
+    Scans for backticked `--<prefix>-family` flags near backticked call
+    expressions. When a function's actual signature has a parameter
+    like `<prefix>_model_id` but the plan passes a family label via
+    `--<prefix>-family`, warn about the type confusion.
+    """
+    findings: list[Finding] = []
+    # Collect all backticked --flag references and call expressions with
+    # their line numbers (excluding revision-history/changelog sections).
+    flag_lines: list[tuple[int, str, str]] = []  # (line_num, flag_name, line_text)
+    call_lines: list[tuple[int, str, str]] = []  # (line_num, call_expr, line_text)
+
+    for i, line in enumerate(lines, 1):
+        if i in excluded:
+            continue
+        backticked = _extract_backticked(line)
+        for val in backticked:
+            if re.match(r"^--[\w-]+$", val):
+                flag_lines.append((i, val, line))
+            if _is_call_expression(val):
+                call_lines.append((i, val, line))
+
+    # For each --<prefix>-family flag, look for a nearby call expression
+    # whose function has a <prefix>_model_id parameter.
+    for flag_line_num, flag_name, flag_line in flag_lines:
+        # Extract the prefix from --<prefix>-family
+        m = re.match(r"^--([\w]+)-family$", flag_name)
+        if not m:
+            continue
+        prefix = m.group(1)
+
+        # Look for call expressions within ±5 lines.
+        for call_line_num, call_expr, call_line in call_lines:
+            if abs(call_line_num - flag_line_num) > 5:
+                continue
+            call_match = re.match(r"^([\w.]+)\(", call_expr)
+            if not call_match:
+                continue
+            func_full = call_match.group(1)
+            func_name = func_full.split(".")[-1] if "." in func_full else func_full
+
+            # Resolve the artifact.
+            artifact = ""
+            if "." in func_full:
+                module_name = func_full.split(".")[0]
+                artifact = f"tools/{module_name}.py"
+            if not artifact or not (repo_root / artifact).exists():
+                # Search common locations for the function.
+                for candidate in (
+                    f"tools/{func_name}.py",
+                    f"tools/sprint_loop/{func_name}.py",
+                    "tools/cross_family_review.py",
+                    "tools/sign_chunk_token.py",
+                    "tools/chunk_sequence_gate.py",
+                    "tools/persistent_referee_stub.py",
+                    "tools/sprint_loop/per_chunk.py",
+                    "tools/sprint_loop/chunk_close_banner.py",
+                ):
+                    source_file = repo_root / candidate
+                    if source_file.exists():
+                        try:
+                            src = load_python_source(repo_root, candidate)
+                            if _extract_function_signature(src, func_name) is not None:
+                                artifact = candidate
+                                break
+                        except FailClosed:
+                            pass
+
+            if not artifact or not (repo_root / artifact).exists():
+                continue
+
+            try:
+                source = load_python_source(repo_root, artifact)
+                sig = _extract_function_signature(source, func_name)
+                if sig is None:
+                    continue
+                actual_params = sig["params"]
+                # Check if the function has a <prefix>_model_id parameter.
+                expected_param = f"{prefix}_model_id"
+                if expected_param in actual_params:
+                    # The plan passes --<prefix>-family but the function
+                    # expects <prefix>_model_id — type confusion.
+                    findings.append(Finding(
+                        rule=5, line=flag_line_num,
+                        claim=flag_line.strip(),
+                        artifact=artifact,
+                        reason=(
+                            f"flag '{flag_name}' passes a family label but "
+                            f"function '{func_name}' expects parameter "
+                            f"'{expected_param}' (a model id) — type confusion "
+                            f"(heuristic)"
+                        ),
+                        severity="WARNING",
+                    ))
+                    break  # One warning per flag is enough.
+            except FailClosed:
+                pass
 
     return findings
 
@@ -868,12 +1255,8 @@ def run_lint(
     contract, source = resolve_contract(plan_text, plan_path, contract_path)
 
     if contract is None:
-        # Heuristic mode
+        # Heuristic mode (spec v1.1): NEVER blocks — warnings only.
         findings = run_heuristic(plan_text, repo_root)
-        # In heuristic mode, only rule 6 blocks; others are warnings.
-        blocks = [f for f in findings if f.severity == "BLOCK"]
-        if blocks:
-            return EXIT_BLOCK, findings, source
         return EXIT_PASS, findings, source
 
     # Contract mode: verify each declared claim strictly.
@@ -1007,8 +1390,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # Verdict line
     if exit_code == EXIT_PASS:
-        if findings:
-            print(f"PASS with {len(findings)} warning(s) — source: {source}")
+        warnings = [f for f in findings if f.severity == "WARNING"]
+        if warnings:
+            print(f"PASS with {len(warnings)} warning(s) — source: {source}")
         else:
             print(f"PASS — source: {source}")
     elif exit_code == EXIT_BLOCK:
