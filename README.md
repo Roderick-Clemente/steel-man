@@ -2,8 +2,11 @@
 
 *Multi-model adversarial planning, execution, and validation for agentic coding — built as a Factory plugin.*
 
-**Status:** Pre-build. Phase 0 feasibility spike is the current gate.
-**Pilot repo:** `~/Work/QuantumBank`
+**Status:** Phase 0 (feasibility) GO · Phase 0.5 (validation ladder) closed · Phase 1
+(test-evidence slice) shipped **with known enforcement gaps** — see
+[`phase-1/KNOWN-ISSUES.md`](./phase-1/KNOWN-ISSUES.md) · Phases 2–5 in progress.
+Phase gates to date are self-declared; only Phase 1 has been independently probed.
+**Pilot repo:** [`Roderick-Clemente/quantum-bank`](https://github.com/Roderick-Clemente/quantum-bank), pinned at `2b70eae1`
 **Full spec:** [`PRD.md`](./PRD.md)
 
 ---
@@ -16,7 +19,7 @@ Four things make it work, and all four are enforced rather than suggested:
 
 1. **Family separation.** The plan reviewer isn't the planner's family. The validator isn't the executor's family. Two passes from one model family are one opinion twice.
 2. **Fresh review context.** The validator sees the approved spec, the diff, read-only repo state, and test evidence. It never sees the executor's reasoning or self-assessment.
-3. **Independent test authorship.** The executor cannot write or modify the tests that judge it. Locked by content hash, enforced by a hook.
+3. **Independent test authorship.** The executor is prevented from writing or modifying the tests that judge it — locked by content hash, enforced by a PreToolUse hook. Enforcement is real but not yet complete: see [`phase-1/KNOWN-ISSUES.md`](./phase-1/KNOWN-ISSUES.md) for the gaps found by probing the deployed guard, and the harness that reproduces them.
 4. **Valid RED before GREEN.** Behavior-changing work can't start until the intended assertion has run and failed *for the expected reason*. A syntax error is not a RED.
 
 ## What it isn't
