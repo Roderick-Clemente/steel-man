@@ -817,7 +817,8 @@ def load_chunks(rs: RunState, chunks_file: str) -> list[ChunkState]:
 
 def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
                             evidence_output_dir: str,
-                            dry_run: bool) -> ChunkState:
+                            dry_run: bool,
+                            cfg: Config) -> ChunkState:
     """Run a chunk's inner loop. On REJECT, retry up to retry_threshold
     by feeding rejection feedback back to the executor.
 
@@ -830,7 +831,7 @@ def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
         chunk.status = ChunkStatus.TEST_DESIGNING if chunk.retry_count == 0 else ChunkStatus.RETRYING
         attempts_left -= 1
 
-        run_chunk_inner(rs, chunk, evidence_output_dir, dry_run)
+        run_chunk_inner(rs, chunk, evidence_output_dir, dry_run, cfg)
 
         # Re-evaluate the gate decision.
         if chunk.gate_decision in (GateDecision.ACCEPT, GateDecision.ACCEPT_WITH_NITS):
@@ -864,7 +865,8 @@ def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
 
 
 def run_chunk_inner(rs: RunState, chunk: ChunkState,
-                     evidence_output_dir: str, dry_run: bool) -> None:
+                     evidence_output_dir: str, dry_run: bool,
+                     cfg: Config) -> None:
     """The per-chunk inner loop:
     test-designer → lock → valid-red → executor → verify-green →
     evidence → validation → gate decision.
@@ -918,6 +920,7 @@ def run_chunk_inner(rs: RunState, chunk: ChunkState,
         envelope_path=os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-envelope.json"),
         dry_run=dry_run,
     )
+    recheck_family_guard_post_resolution(cfg, rs, "after-executor")
 
     # 5. verify-green
     chunk.status = ChunkStatus.VERIFYING_GREEN
@@ -1455,7 +1458,7 @@ def main(argv: list[str] | None = None) -> int:
         status_banner(f"STEP 4 · Chunk {i + 1}/{len(rs.chunks)}: {chunk.chunk_id}")
         chunk_evidence_dir = os.path.join(evidence_dir, chunk.chunk_id)
         os.makedirs(chunk_evidence_dir, exist_ok=True)
-        chunk = run_chunk_with_retries(rs, chunk, chunk_evidence_dir, cfg.dry_run)
+        chunk = run_chunk_with_retries(rs, chunk, chunk_evidence_dir, cfg.dry_run, cfg)
         if chunk.status != ChunkStatus.ACCEPTED:
             print(f"  chunk {chunk.chunk_id} did NOT accept; pausing")
             rs.status = RunStatus.AWAITING_HUMAN_DECISION
