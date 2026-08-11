@@ -8,7 +8,7 @@ For the design principles behind these features, see [invariant #1](../method/in
 
 | Capability | What it does | Key code |
 |---|---|---|
-| **Locked behavioral tests** | Hash-locks a test file so the executor cannot modify it. The verifier re-checks the hash before accepting GREEN, refusing if the test was tampered with. | `phase-1/scripts/lock.py`, `phase-1/scripts/verify-green.py` |
+| **Locked behavioral tests** | Hash-locks a test file to prevent the executor modifying it. The verifier re-checks the hash before accepting GREEN, refusing if the test was tampered with. Known enforcement gaps are tracked in `phase-1/KNOWN-ISSUES.md`. | `phase-1/scripts/lock.py`, `phase-1/scripts/verify-green.py` |
 | **Multi-model role separation** | Each role (planner, executor, validator, test-designer) runs on a different model family. Separation-bearing seats pin `--model` before the run so the provider cannot swap models. | `tools/run-with-model.sh`, `tools/adapters/factory.py` |
 | **Cross-family review panel** | Validators from at least two distinct model families review the same diff. Any REJECT blocks the chunk. A single-family panel is refused by default. | `tools/orchestrate-review.py` |
 | **Evidence provider** | A neutral producer runs the deterministic tier (pytest, locked-hash check, security scan) once and emits a compact signed bundle. Validators read the bundle instead of re-running pytest in-session. | [Evidence provider](evidence-provider.md) |

@@ -18,11 +18,18 @@ Registration (in the pilot repo's .factory/settings.json):
         "preToolUse": [
           {
             "command": "<path-to-this-file>",
-            "matcher": "Edit|Create|ApplyPatch|MultiEdit|Execute"
+            "matcher": ".*"
           }
         ]
       }
     }
+
+The matcher MUST be broad. It was previously an enumeration
+(`Edit|Create|ApplyPatch|MultiEdit|Execute`), which meant a tool the list did
+not name — `Write`, `NotebookEdit`, anything added by a future CLI release —
+never reached this hook at all, so no amount of logic inside it could help.
+Enumerating writers is the losing half of the problem; the hook now decides,
+and it only needs to be given the chance. (KNOWN-ISSUES F5.)
 
 The hook exits 0 on allow, 2 on deny. The contract string `SPEC_OR_TEST_BLOCKED`
 is delivered to stderr so the agent run can continue with the message
@@ -42,11 +49,26 @@ DEFAULT_LOCKS_DIR = os.path.join(
 )
 LOCKS_DIR = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_DIR", DEFAULT_LOCKS_DIR)
 
+# F1 fix. A missing or empty locks directory used to mean "no policy to enforce,
+# allow" — which made `rm -rf <locks-dir>` a one-command disable switch for the
+# whole guard. Absence of state is now treated as inability to enforce, i.e.
+# deny. A genuine unlocked phase must say so explicitly.
+LOCKS_REQUIRED = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_REQUIRED", "1") != "0"
 
-# Tools whose `tool_input.file_path` is treated as a file-write request.
-# MultiEdit is included because it's a multi-target variant of Edit that
-# otherwise bypasses the PreToolUse matcher pattern. (Gemini round-2: major.)
-EDITOR_TOOLS = ("Edit", "Create", "ApplyPatch", "MultiEdit")
+
+# F5 fix. This was an ENUMERATION of writer tools (Edit, Create, ApplyPatch,
+# MultiEdit) — `Write` and `NotebookEdit` sailed straight through, and MultiEdit
+# itself was only added after a reviewer noticed it missing. A deny-list keyed on
+# tool name loses to every tool nobody thought of yet, so it is inverted: these
+# are the tools known to be incapable of writing, and ANYTHING else is treated as
+# a writer and checked.
+READ_ONLY_TOOLS = (
+    "Read", "Glob", "Grep", "LS", "List", "Search", "NotebookRead",
+    "WebFetch", "WebSearch", "TodoWrite",
+)
+
+# Keys an unrecognised tool might carry its target path under.
+PATH_KEYS = ("file_path", "path", "notebook_path", "target_file", "filename", "file")
 
 # Shell operators we split commands on before segment-level inspection.
 # Splitting on `;`, `&`, `|`, and `\n` prevents the cheap bypass-chain
@@ -71,10 +93,20 @@ READ_ONLY_HEADS = (
 )
 
 # Write operators used for the per-segment read-only check.
+#
+# F3 fix. `find` stays a read-only head — `find test -name '*.py'` is legitimate
+# review behaviour — but its destructive predicates now disqualify the read-only
+# short-circuit, along with the other write verbs that are not spelled rm/mv/cp.
+# `find test -name '*.py' -delete` previously classified as read-only and was
+# allowed to remove the locked test.
 WRITE_RE = re.compile(
     r">>?"                              # redirection (write)
     r"|\bsed\s+[^;|&]*\s+-i\b"          # sed -i (in-place)
     r"|\btee\b|\bcp\b|\bmv\b|\brm\b"   # filesystem mutation
+    r"|-delete\b|-execdir\b|-exec\b"    # find's destructive predicates
+    r"|\btruncate\b|\bdd\b|\binstall\b" # other write verbs
+    r"|\bpatch\b|\bxargs\b|\bchmod\b"
+    r"|\bln\b|\bmkdir\b|\btouch\b"
 )
 
 
@@ -87,7 +119,9 @@ def load_locked_state() -> dict:
     """
     state = {"tests": [], "manifests": []}
     if not os.path.isdir(LOCKS_DIR):
-        return state
+        # F1: absence is not permission. The caller denies unless the operator
+        # has explicitly declared this phase unlocked.
+        raise FileNotFoundError(f"locks directory missing: {LOCKS_DIR}")
     for root, _, files in os.walk(LOCKS_DIR):
         for name in files:
             if not name.endswith(".lock.json"):
@@ -100,6 +134,14 @@ def load_locked_state() -> dict:
             if file_entry:
                 state["tests"].append(file_entry)
     return state
+
+
+def ancestors_of(path: str):
+    """Yield every ancestor directory of `path`, nearest first, up to the root."""
+    current = os.path.dirname(path.rstrip("/")).rstrip("/")
+    while current and current != os.path.dirname(current):
+        yield current
+        current = os.path.dirname(current).rstrip("/")
 
 
 def normalize_path(path: str, cwd: str) -> str:
@@ -152,24 +194,26 @@ def glob_resolves_to_locked(token: str, cwd: str, protected_abs: set) -> bool:
     abs_token = token if os.path.isabs(token) else os.path.join(cwd, token)
     cleaned = re.sub(r"[*?]", "", abs_token).rstrip("/")
     cleaned = os.path.normpath(cleaned) if cleaned else ""
+    if not cleaned:
+        return False
+    globby = "*" in token or "?" in token
+    cdir = os.path.dirname(cleaned).rstrip("/")
     for p in protected_abs:
-        if not cleaned:
-            continue
         # Cleaned token equals the protected path itself.
         if cleaned == p:
             return True
-        pdir = os.path.dirname(p).rstrip("/")
-        # Cleaned token equals the directory of a protected file
-        # (`rm -rf test/` where test/ contains the lock).
-        if cleaned == pdir:
-            return True
-        # Glob-born structural check: cleaned dirname equals the
-        # protected file's directory AND the original token had glob
-        # chars. (`rm test/*` cleans to `test/.py` -- dirname `test`
-        # matches protected file's `test/` directory, so we deny.)
-        if "*" in token or "?" in token:
-            cdir = os.path.dirname(cleaned).rstrip("/")
-            if cdir == pdir:
+        # F2/F4: EVERY ancestor directory of a protected path is protected, not
+        # just the immediate parent. Guarding only dirname(p) left two holes:
+        # lock manifests live at locks/test/<f>.lock.json, so `rm -rf locks` —
+        # one level up — was allowed and disabled the guard entirely (with F1);
+        # and `rm -rf *` from the repo root cleaned to the root itself, which
+        # matched no immediate parent either.
+        for anc in ancestors_of(p):
+            if cleaned == anc:
+                return True
+            # Glob-born structural check, generalised to any ancestor:
+            # `rm test/*` cleans to `test/.py`, whose dirname is `test`.
+            if globby and cdir == anc:
                 return True
     return False
 
@@ -192,26 +236,44 @@ def main() -> int:
         # Fail closed per reference guard: cannot enforce without a readable
         # manifest. The hook denies author-tool calls and the executor surfaces
         # the block in its transcript.
-        print(f"SPEC_OR_TEST_BLOCKED: lock manifest malformed/unreadable: {e}", file=sys.stderr)
+        if not LOCKS_REQUIRED:
+            return 0
+        print(f"SPEC_OR_TEST_BLOCKED: lock state unreadable ({e}). Refusing to "
+              f"act as if nothing were protected. Set "
+              f"ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 only if this phase is "
+              f"genuinely unlocked.", file=sys.stderr)
         return 2
 
     if not state["tests"] and not state["manifests"]:
-        # No locks loaded means no policy to enforce; allow.
-        return 0
+        # F1: an empty locks dir is the state left behind by deleting the
+        # manifests, and is indistinguishable from "nothing is protected yet".
+        # Treated as inability to enforce, not as permission.
+        if not LOCKS_REQUIRED:
+            return 0
+        print("SPEC_OR_TEST_BLOCKED: locks directory contains no manifests. "
+              "Set ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 if this phase is "
+              "genuinely unlocked.", file=sys.stderr)
+        return 2
 
     locked_abs = {normalize_path(lp, cwd) for lp in state["tests"]}
     locked_manifest_abs = {normalize_path(mp, cwd) for mp in state["manifests"]}
     protected_abs = locked_abs | locked_manifest_abs
 
-    # Editor tools carry the target path directly.
-    if tool_name in EDITOR_TOOLS:
-        file_path = tool_input.get("file_path", "")
-        if file_path and normalize_path(file_path, cwd) in protected_abs:
-            print(
-                f"SPEC_OR_TEST_BLOCKED: {tool_name} is not allowed on locked test or manifest {file_path}",
-                file=sys.stderr,
-            )
-            return 2
+    # F5: anything that is not Execute and not a known read-only tool is treated
+    # as a writer, whatever it calls itself, and every plausible path key on it
+    # is checked. Unknown tool names fail closed rather than sailing through.
+    if tool_name != "Execute" and tool_name not in READ_ONLY_TOOLS:
+        for key in PATH_KEYS:
+            candidate = tool_input.get(key) or ""
+            if not isinstance(candidate, str) or not candidate:
+                continue
+            if normalize_path(candidate, cwd) in protected_abs:
+                print(
+                    f"SPEC_OR_TEST_BLOCKED: {tool_name} is not allowed on locked "
+                    f"test or manifest {candidate}",
+                    file=sys.stderr,
+                )
+                return 2
 
     # Execute commands: read-only short-circuit FIRST. A clear read-only
     # segment (`cat x`, `pytest x`, `head x`) is allowed even if it

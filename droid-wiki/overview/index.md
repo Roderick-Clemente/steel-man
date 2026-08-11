@@ -52,7 +52,7 @@ Four properties carry the method, and all four are meant to be enforced rather t
 
 1. **Family separation.** The plan reviewer is not the planner's family; the validator is not the executor's family. Two passes from one model family are one opinion twice.
 2. **Fresh review context.** The validator sees the approved spec, the diff, read-only repository state, and test evidence. It never sees the executor's reasoning.
-3. **Independent test authorship.** The executor cannot write or modify the tests that judge it. Locked by content hash, enforced by a hook.
+3. **Independent test authorship.** The executor is prevented from writing or modifying the tests that judge it — locked by content hash, enforced by a hook. Enforcement is real but not yet complete; `phase-1/KNOWN-ISSUES.md` records the gaps and how to reproduce them.
 4. **Valid RED before GREEN.** Behavior-changing work cannot start until the intended assertion has run and failed *for the expected reason*. A syntax error is not a RED.
 
 Validation happens **per chunk, not at the end**. A rejected chunk is a cheap retry against a small diff, and the next chunk does not start on top of unvalidated work. The full set of eight runtime invariants is in [Invariants](../method/invariants.md), and the stage-by-stage walkthrough is in [Workflow](../method/workflow.md).

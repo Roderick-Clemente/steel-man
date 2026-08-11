@@ -28,7 +28,10 @@ GREEN verifier that checks both the test hash and the asserted reason.
 
 ## Two-line framing
 
-Executor can't touch the test; we verify it didn't.
+Executor is kept away from the test; we verify it didn't reach it.
+
+Both halves are enforced, and both have known gaps — `KNOWN-ISSUES.md` lists
+them with a re-runnable harness.
 
 ## How the slice runs
 
@@ -47,11 +50,19 @@ Executor can't touch the test; we verify it didn't.
    test hash and that the test passes.
 6. **Record** the run in `phase-1/RUN-LEDGER.md`.
 
-## Exit criteria (verbatim from PRD §11)
+## Exit criteria (verbatim from PRD §11) — with status
 
-- Invalid RED cases are rejected.
-- The same hashed test is observed failing for the intended assertion before
-  any implementation writes.
-- The same hashed test is later observed passing for the same intended
-  assertion after implementation writes.
-- Hash unchanged across the transition; lock manifest preserved.
+Status is recorded per criterion rather than asserted collectively. Two are met,
+one is unmet, one is met by weaker evidence than the criterion asks for.
+
+| # | Criterion | Status | Evidence |
+|---|---|---|---|
+| 1 | Invalid RED cases are rejected. | ❌ **UNMET** | No invalid-RED run has been recorded. `valid-red.py` carries 15 rejection signatures, none exercised in `RUN-LEDGER.md`. |
+| 2 | The same hashed test is observed failing for the intended assertion before any implementation writes. | ⚠️ **SOFT** | RED was observed *inside the test-designer session*, not by an explicit `valid-red.py` run. `RUN-LEDGER.md` says so in its own notes and defers the verifier run to "a future Phase 1.1". The `verifier_exit` column exists with no rows. |
+| 3 | The same hashed test is later observed passing for the same intended assertion after implementation writes. | ✅ MET | `verify-green.py` exit 0, recorded in `RUN-LEDGER.md`. |
+| 4 | Hash unchanged across the transition; lock manifest preserved. | ✅ MET | `e78e46ff…d8b3` identical in the lock manifest and both ledger rows. |
+
+Separately, the *enforcement* the slice depends on has seven recorded gaps —
+`KNOWN-ISSUES.md`, five fixed and two open by design decision.
+
+**Phase 1 is therefore not closed.** Criteria 1 and 2 are the remaining work.
