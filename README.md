@@ -8,6 +8,7 @@
 Phase gates to date are self-declared; only Phase 1 has been independently probed.
 **Pilot repo:** [`Roderick-Clemente/quantum-bank`](https://github.com/Roderick-Clemente/quantum-bank), pinned at `2b70eae1`
 **Full spec:** [`PRD.md`](./PRD.md)
+**License:** [Apache-2.0](./LICENSE) — see [`NOTICE`](./NOTICE)
 
 ---
 

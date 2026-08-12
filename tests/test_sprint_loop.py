@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 import sys
 
 # Make tools/ importable so ``sprint_loop.*`` resolves when pytest runs
@@ -304,11 +305,21 @@ def test_validate_run_id_rejects_unsafe():
 
 # ── config + CLI parser ──────────────────────────────────────────────────
 
+# Derived from this file's own location, never hardcoded. Config validates that
+# framework_root contains tools/sprint_loop/, so an absolute path baked in here
+# passes only for whoever authored it and fails for every other clone. These
+# tests previously required being the `factory` user in one specific directory.
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
+# The pilot is not checked for on-disk existence by Config, so a synthetic path
+# keeps these unit tests independent of any checkout outside this repo.
+PILOT_ROOT = "/nonexistent/quantum-bank--llms-txt-pilot"
+
+
 def _example_config_dict() -> dict:
     return {
-        "framework_root": "/Users/factory/work/adversarial-sprint-dev",
-        "pilot_root": "/Users/factory/work/quantum-bank--llms-txt-pilot",
-        "pilot_python": "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python",
+        "framework_root": REPO_ROOT,
+        "pilot_root": PILOT_ROOT,
+        "pilot_python": f"{PILOT_ROOT}/.venv/bin/python",
         "pilot_spec_file": "",
         "max_review_rounds": 2,
         "retry_threshold": 1,
@@ -320,7 +331,9 @@ def test_build_config_from_json_only(tmp_path):
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(_example_config_dict()))
     cfg = build_config(["--config", str(cfg_path)])
-    assert cfg.framework_root.endswith("adversarial-sprint-dev")
+    # Assert the value round-tripped, NOT that the checkout is named a
+    # particular thing — a clone into any other directory name is legitimate.
+    assert cfg.framework_root == REPO_ROOT
     assert cfg.pilot_root.endswith("quantum-bank--llms-txt-pilot")
     assert cfg.max_review_rounds == 2
     assert cfg.dry_run is False
@@ -349,7 +362,7 @@ def test_build_config_validates_missing_framework_root():
 def test_build_config_validates_missing_pilot(tmp_path):
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps({
-        "framework_root": "/Users/factory/work/adversarial-sprint-dev",
+        "framework_root": REPO_ROOT,
         "pilot_root": "/nonexistent/pilot",
         "validators": ["grok-4.5"],
     }))
@@ -1171,9 +1184,9 @@ def test_sprint_loop_dry_run_refuses_unknown_validator_family(tmp_path):
     """
     cfg_path = tmp_path / "cfg.json"
     cfg_payload = {
-        "framework_root": "/Users/factory/work/adversarial-sprint-dev",
-        "pilot_root": "/Users/factory/work/quantum-bank--llms-txt-pilot",
-        "pilot_python": "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python",
+        "framework_root": REPO_ROOT,
+        "pilot_root": PILOT_ROOT,
+        "pilot_python": f"{PILOT_ROOT}/.venv/bin/python",
         "validators": ["totally-unknown-model:unknown:unknown:label"],
         "planner_model": "claude-opus-5",
     }
@@ -1383,8 +1396,12 @@ def test_local_backend_dry_run_simulates_accept_regardless_of_key(tmp_path):
         res = backend.validate(
             chunk={"test_file": "tests/test_x.py",
                    "lock_file": "phase-1/locks/test_x.py.lock.json"},
-            evidence_bundle="/tmp/unused.json",
-            framework_root=os.environ.get("REPO_TMP", "/tmp"),
+            evidence_bundle=str(tmp_path / "unused.json"),
+            # Must be per-test, not a shared /tmp root: the backend writes
+            # <framework_root>/phase-4.5/build-evidence/... , so a fixed /tmp
+            # collides with whatever user ran the suite first and the second
+            # user gets EACCES on a directory they do not own.
+            framework_root=str(tmp_path),
             pilot_root="/unused",
             pilot_python="/unused",
             signing_key_env="EVIDENCE_SIGNING_KEY",
