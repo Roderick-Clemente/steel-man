@@ -26,7 +26,13 @@ import sign_chunk_token as sct  # noqa: E402
 
 # Pin: chunk-13 retro-application — the fixture commit SHA we
 # retroactively sign during the chunk-13 replay pin below.
-CHUNK_13_FIXTURE_SHA = "f1bae98"  # full: f1bae98 reported by git log
+# Identify the chunk-13 fixture commit by its SUBJECT, not its SHA. A literal
+# SHA is not portable: any history rewrite (e.g. publishing a scrubbed mirror of
+# this repo) renumbers every commit, and `git rev-parse <literal>` then fails on
+# a perfectly valid clone. The subject is unique across all history.
+CHUNK_13_FIXTURE_SUBJECT = (
+    "phase-4.5: chunk 13 — pd-pass-r3 panel fixes (H-1..H-10 + KN-H11..H-19)"
+)
 
 
 # ── canonical-JSON + HMAC helpers ───────────────────────────────────────
@@ -180,14 +186,20 @@ def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-chunk13-replay")
     sha_proc = subprocess.run(
-        ["git", "rev-parse", "f1bae98"],  # chunk-13 commit
+        ["git", "log", "--all", "--format=%H", "--fixed-strings",
+         f"--grep={CHUNK_13_FIXTURE_SUBJECT}"],
         cwd=str(_REPO), capture_output=True, text=True, check=True,
     )
-    sha = sha_proc.stdout.strip()
-    assert len(sha) == 40
-    assert sha.startswith(CHUNK_13_FIXTURE_SHA), (
-        f"chunk-13 fixture SHA moved; expected {CHUNK_13_FIXTURE_SHA}*"
+    matches = [line for line in sha_proc.stdout.split() if line]
+    assert matches, (
+        f"chunk-13 fixture commit not found by subject: "
+        f"{CHUNK_13_FIXTURE_SUBJECT!r}"
     )
+    assert len(matches) == 1, (
+        f"chunk-13 fixture subject is no longer unique ({len(matches)} matches)"
+    )
+    sha = matches[0]
+    assert len(sha) == 40
 
     reviewers = [
         _good_reviewer("grok-family", "ACCEPT-WITH-NITS"),
