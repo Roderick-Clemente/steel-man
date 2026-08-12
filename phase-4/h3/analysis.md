@@ -113,8 +113,12 @@ Both validators independently confirmed:
 
 ## What this says about the cost thesis
 
-**H3 is supported.** A cheap-tier executor (gpt-5.4-mini) successfully
-implemented a bounded chunk from an un-hinted behavioral spec:
+**H3 is consistent with this run. N=1 — this is a single existence proof, not
+support for the hypothesis.** One cheap-tier executor (gpt-5.4-mini) implemented
+one bounded chunk from an un-hinted behavioral spec on one attempt. That
+establishes the outcome is *possible*; it says nothing about how often it
+happens, on which chunk difficulties, or with which models. Treat every
+statement below as a description of this run:
 
 1. **It can implement from spec:** The executor produced a correct, clean
    implementation without being handed the exact fix. It chose its own
@@ -153,8 +157,10 @@ implemented a bounded chunk from an un-hinted behavioral spec:
 
 ## Conclusion
 
-H3 is supported: a cheap-tier executor can implement from a spec without being
-handed the exact fix. The sprint method's cost-saving mechanism (expensive
-planning + cheap execution) is viable. The executor produced correct code at
+**N=1. Directional, not established.** One cheap-tier executor implemented from a
+spec without being handed the exact fix, on one chunk. The cost-saving mechanism
+(expensive planning + cheap execution) is therefore *not ruled out* and is worth
+measuring properly. It is not yet demonstrated: a single success cannot separate
+"cheap executors can do this" from "this chunk was easy." The executor produced correct code at
 low token cost (28k tokens, 58 seconds) with zero external retries, and
 cross-family validators confirmed the implementation meets the spec.

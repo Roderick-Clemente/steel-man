@@ -81,7 +81,12 @@ contaminate the token comparison.
 
 ## Verdict
 
-**Bundle < in-session, quality holds: externalization is a real cost lever.**
+**Directional: bundle < in-session with quality holding, on N=3 per arm.**
+
+**Not a result yet.** Three runs per arm, and run 1 of the treatment arm moved
+the *opposite* way (+16.9%). A mean over three runs with one sign flip does not
+establish an effect; it establishes that the effect is worth measuring at an n
+that could detect it. Do not cite 27.8% as a finding.
 
 The treatment arm (EvidenceBundle) produced a **27.8% mean token reduction**
 at **equal acceptance quality** (100% ACCEPT in both arms). The fairness rule
@@ -89,8 +94,9 @@ holds: the bundle (371 tokens) is 65.3% smaller than the raw pytest output
 (1,069 tokens) it replaces.
 
 Per the SPIKE §3.5 outcome framework:
-- **Bundle < in-session, quality holds → externalization is a real cost lever
-  on the panel.** Promote CI-evidence as a mode.
+- **Bundle < in-session, quality holds → externalization is a candidate cost
+  lever on the panel.** Build CI-evidence as an *opt-in* mode and keep measuring;
+  promoting it to a default is a decision this n cannot license.
 - Sizing: the 27.8% panel reduction decomposes as grok -20.2% and gemini
   -29.1%. The context-heavy validator (gemini, 96k-165k input in Phase 3) has
   more headroom, as the SPIKE predicted. Grok (16k-30k input) has less

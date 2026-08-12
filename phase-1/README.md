@@ -57,12 +57,27 @@ one is unmet, one is met by weaker evidence than the criterion asks for.
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | Invalid RED cases are rejected. | ❌ **UNMET** | No invalid-RED run has been recorded. `valid-red.py` carries 15 rejection signatures, none exercised in `RUN-LEDGER.md`. |
-| 2 | The same hashed test is observed failing for the intended assertion before any implementation writes. | ⚠️ **SOFT** | RED was observed *inside the test-designer session*, not by an explicit `valid-red.py` run. `RUN-LEDGER.md` says so in its own notes and defers the verifier run to "a future Phase 1.1". The `verifier_exit` column exists with no rows. |
+| 1 | Invalid RED cases are rejected. | ✅ **MET** (2026-08-12) | `valid-red.py` run explicitly against all four committed fixtures; every one rejected, `verifier_exit=1`, reasons recorded in `RUN-LEDGER.md`. |
+| 2 | The same hashed test is observed failing for the intended assertion before any implementation writes. | ⛔ **UNVERIFIABLE — artifact lost** | The locked test `test/test_llms_txt_charset.py` **exists in no repository**: not in this repo's history, not in the pilot's, and the test-designer envelope records the filename but not the source. The lock manifest holds a SHA-256 of a file nobody has. "The *same* hashed test" cannot be observed failing again, now or ever. |
 | 3 | The same hashed test is later observed passing for the same intended assertion after implementation writes. | ✅ MET | `verify-green.py` exit 0, recorded in `RUN-LEDGER.md`. |
 | 4 | Hash unchanged across the transition; lock manifest preserved. | ✅ MET | `e78e46ff…d8b3` identical in the lock manifest and both ledger rows. |
 
 Separately, the *enforcement* the slice depends on has seven recorded gaps —
 `KNOWN-ISSUES.md`, five fixed and two open by design decision.
 
-**Phase 1 is therefore not closed.** Criteria 1 and 2 are the remaining work.
+**Phase 1 is therefore not closed, and criterion 2 can no longer be closed as
+written.** The artifact at the centre of this phase's evidence — the locked test
+whose hash is the proof — was never committed. What survives is the hash, the
+accepted assertion, and envelopes describing runs against a file that is gone.
+
+This is the phase's own rule turned on itself: *if it isn't scripted it didn't
+happen*, and an artifact that exists only as a hash is not reproducible evidence.
+It is the same shape as the silent-green findings the project exists to catch —
+the record looks complete, and the substance is absent.
+
+Closing it honestly requires a **Phase 1.1**: author a fresh behavioural test for
+the same doubled-charset defect, **commit the test file this time**, lock it, and
+run the full RED → GREEN cycle with `valid-red.py` and `verify-green.py` exit
+codes recorded. That is a new cycle producing new evidence — it does not
+retroactively satisfy criterion 2, and this table should not be edited to claim
+otherwise.

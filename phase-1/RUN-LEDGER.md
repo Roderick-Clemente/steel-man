@@ -40,6 +40,27 @@ Notes:
   procurable evidence. A future Phase 1.1 should run the script explicitly
   and append its exit code to a `verifier_exit` column.
 
+## Invalid-RED rejection (PRD §11 exit criterion 1) — closed 2026-08-12
+
+`valid-red.py` run explicitly against each committed fixture, exit code recorded.
+Reproduce: copy `phase-1/fixtures/invalid-red/*.py` into `<pilot>/test/` and run
+`valid-red.py` per fixture with the Phase 1 accepted assertion.
+
+| fixture | verifier_exit | recorded reason |
+|---|---|---|
+| `test_syntax_error.py` | 1 | Invalid RED: syntax error |
+| `test_mocked_sut.py` | 1 | Invalid RED: subject under test mocked |
+| `test_green_pass.py` | 1 | Invalid RED: no pytest failure recorded |
+| `test_tautological.py` | 1 | Invalid RED: no pytest failure recorded |
+
+Note on the last row: the tautology was rejected, but **not by the tautology
+signature**. `assert True` passes, so the run is caught by rule 3 ("a pytest
+failure must actually have occurred") before the `assert\s+True` signature is
+ever consulted. The signature only fires when a test fails *and* pytest echoes
+the source. The verdict is right; the mechanism is not the one the fixture was
+written to exercise, and that is worth knowing before anyone cites signature
+coverage as evidence.
+
 ## GREEN verification
 
 | test_file | sha256 | passes | verifier_exit |

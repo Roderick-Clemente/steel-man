@@ -200,6 +200,55 @@ That is a Phase 2 design change.
 
 ---
 
+## Issue F8: The locked test artifact was never committed
+
+- **Status:** OPEN — unrecoverable. Requires a Phase 1.1 to close criterion 2.
+- **Surface:** the phase's evidence chain, not the code.
+- **Filed:** 2026-08-12.
+
+### Symptom
+
+`phase-1/locks/test/test_llms_txt_charset.py.lock.json` records a SHA-256 for
+`test/test_llms_txt_charset.py`. **That file exists in no repository.** Not in
+this repo's history, not in the pilot's history, and
+`phase-1/build-evidence/test-designer-envelope.json` names the file but contains
+no test source.
+
+So the artifact at the centre of Phase 1's evidence — the locked test whose hash
+*is* the proof — is gone. What survives is a hash, an assertion phrase, and
+envelopes describing runs against a file nobody has.
+
+### Why it matters
+
+Exit criterion 2 requires "the **same** hashed test is observed failing … before
+any implementation writes." That can never be satisfied again: the same hashed
+test cannot be produced. The GREEN row in `RUN-LEDGER.md` is likewise
+unreproducible — `verify-green.py` recomputes the hash of a file on disk, and
+there is no file.
+
+This is the project's own rule turned on itself. §9: *not scripted = didn't
+happen.* §7: *assert on reality.* An artifact that exists only as a hash is not
+reproducible evidence, and the record looks complete precisely because the hash
+is present — the same shape as the silent-green class this project exists to catch.
+
+### Repro
+
+```sh
+git log --all --pretty=format: --name-only | sort -u | grep charset   # no test file
+python3 -c "import json;print('def test_' in json.load(open('phase-1/build-evidence/test-designer-envelope.json'))['result'])"
+```
+
+### Fix direction
+
+Phase 1.1: author a fresh behavioural test for the same defect, **commit the test
+file**, lock it, and record `valid-red.py` / `verify-green.py` exit codes. New
+evidence for a new cycle — it does not retroactively close criterion 2.
+
+Process fix, more important than the artifact: locking a file should also commit
+it, or the lock step should refuse. A hash with no referent is not a lock.
+
+---
+
 ## Issue F7: Path resolution keys off the payload's `cwd`
 
 - **Status:** OPEN — low severity, found by inspection, not probed.
