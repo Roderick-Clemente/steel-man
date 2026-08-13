@@ -37,6 +37,22 @@ telemetry/plan_lint_runs.jsonl
 # evidence trees to phase-N/build-evidence/<run-id>/; these are runtime
 # audit trails, not version-controlled sources-of-truth. Same rationale
 # as telemetry rows above — never committed.
-phase-4.5/build-evidence/
-phase-*/build-evidence/
+# CORRECTED 2026-08-13. The blanket rule below claimed evidence is "never
+# committed" while 111 build-evidence files were already tracked (phase-1: 6,
+# phase-2: 10, phase-3: 26, phase-3.1: 42, phase-3.2: 6). Ignore rules do not
+# apply to tracked files, so the repo silently ran two conventions: phases 1-3.2
+# committed their evidence, and from phase-4.5 onward it was dropped — phase-4.5
+# has exactly ONE tracked evidence file.
+#
+# That is worse than a blanket ignore. 111 committed files establish that
+# evidence lives here, so the next author reasonably assumes their envelopes are
+# captured, and they are not. A rule that fails silently and inconsistently is
+# the silent-green shape this project exists to catch.
+#
+# Policy, stated explicitly: evidence a token or a finding ATTESTS TO must be
+# committed — it is the audit trail, and evidence that cannot travel off one
+# machine is not evidence (cf. phase-1 F8, where the locked test existed only as
+# a hash and is now unrecoverable). Only the runner's per-run scratch trees are
+# ignored, and they are matched precisely rather than by directory.
+phase-*/build-evidence/r-*/
 
