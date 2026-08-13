@@ -9,8 +9,8 @@
 ## 1. Problem statement (§13)
 
 The runner, gate, and orchestrator-shell code hardcode phase-dir
-prefixes across **20 inventory rows / 26 line-sites** (§2.2–§2.4,
-grep-verified). Moving those dirs before the constants exist would
+prefixes across **19 inventory rows / 23 line-sites** (§2.2–§2.4,
+grep-verified; see the site-count table below). Moving those dirs before the constants exist would
 produce a big-bang move that no reviewer can audit. This chunk
 introduces a single source of truth for the paths and routes every
 live-path site through it, with the paths still pointing to their
@@ -30,13 +30,28 @@ follow-on** (§2.5), not routed in Chunk 1, because they are
 one-shot scripts that produce committed evidence bytes (immutable)
 and are not on any live runtime path.
 
-**Site count.** §2.2–§2.4 list **20 rows covering 24 distinct
-line-sites** (§2.2: 13 rows / 13 sites; §2.3: 5 rows / 9 sites;
-§2.4: 2 rows / 2 sites). The tables are authoritative — they are the
-grep output. PLAN §5's "~21" was an estimate made before the grep.
-(Two docstring sites formerly counted in §2.3 —
-`chunk_sequence_gate.py:9`, `sign_chunk_token.py:6` — moved to the
-§2.5.2 fence as unroutable, taking §2.3 from 11 sites to 9.)
+**Site count.** §2.2–§2.4 list **19 rows covering 23 distinct
+line-sites**:
+
+| section | rows | line-sites |
+|---------|------|-----------|
+| §2.2 | 13 | 13 |
+| §2.3 | 4 | 8 |
+| §2.4 | 2 (prose, not a table) | 2 |
+| **total** | **19** | **23** |
+
+Counted mechanically from the tables, which are authoritative. Earlier
+drafts asserted 21, then 26, then 24, each disagreeing with the tables
+and sometimes with the same paragraph — three reviews raised findings
+against that arithmetic. The drift came from counting `sign_chunk_token.py`
+(now zero routable sites; both citations are docstrings, §2.5.2) and
+from double-counting `chunk_sequence_gate.py:9`. PLAN §5's "~21" was a
+pre-grep estimate.
+
+Note the **judge test reports 18 hits**, not 23, because several cited
+line numbers fall inside a single multi-line string constant. The test
+counts code objects; the table counts cited lines. Both are correct at
+what they measure, and the test is the one that gates.
 
 ## 2. Surface touched (grounded inventory, grep-verified)
 
@@ -270,9 +285,22 @@ stated decision rather than an oversight.
 - `:155` `python3 phase-5/scripts/envelope-manifest.py "$RUN_DIR"`
 
 Introduce `tools/sprint_loop/paths.sh` — a sourced shell fragment
-exporting **the subset of roots the shell surface needs** (2 of the
-7 Python constants; the other 5 have no shell consumer). **Today's
-values** (the defaults; Chunk 2 flips them):
+exporting **three shell variables**, of which only one corresponds to
+a §2.1 Python constant:
+
+| shell var | §2.1 Python constant? | note |
+|-----------|----------------------|------|
+| `EVIDENCE_ROOT` | **yes** | same name, same value, flips in Chunk 2 |
+| `BUILD_EVIDENCE_REL` | no — shell-specific segment | mirrors the derived Python constant of the same name (§2.1) |
+| `PHASE5_SCRIPTS_ROOT` | no — shell-specific segment | no Python consumer; flips in Chunk 2 |
+
+An earlier draft claimed this exported "2 of the 7 Python constants",
+which is false: `PHASE5_SCRIPTS_ROOT` is not among the seven, and
+`BUILD_EVIDENCE_REL` is a derived constant rather than one of them.
+The shell mirror is deliberately not a 1:1 mirror of §2.1 — it carries
+exactly what `fire-design-review.sh` composes with, no more.
+
+**Today's values** (the defaults; Chunk 2 flips them):
 
 ```sh
 # tools/sprint_loop/paths.sh — sourced by fire-design-review.sh

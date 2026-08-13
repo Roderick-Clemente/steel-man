@@ -229,10 +229,20 @@ with the paths still pointing to their current homes.
   `EVIDENCE_ROOT`, `PLANNING_ROOT`, `TOKENS_ROOT`, `PROMPTS_ROOT`,
   `SCRIPTS_ROOT`, `LOCKS_ROOT`, `EVIDENCE_CODE_ROOT` (for the
   `phase-3.2/evidence/*.py` code that moves to `tools/phase-3.2-evidence/`
-  in Chunk 2), and helper `phase_path(kind, phase, *parts)` — kind ∈
-  {"evidence","planning","tokens","prompts","scripts","locks",
+  in Chunk 2), and helper `phase_path(framework_root, kind, *parts)` —
+  kind ∈ {"evidence","planning","tokens","prompts","scripts","locks",
   "evidence-code"}. Constants take default values matching TODAY's
   layout so behaviour is unchanged.
+
+  **Signature correction (supersedes this plan's earlier
+  `phase_path(kind, phase, *parts)`).** There is no `phase=`
+  parameter: the phase segment is already embedded in each constant
+  (`TOKENS_ROOT` carries `phase-4.5`), so a `phase=` argument would
+  double-count it. `framework_root` is a required leading positional
+  because it lives on the `Config` dataclass, not at module level.
+  CHUNK-1-SPEC §2.1 and the locked judge test
+  (`tests/test_layout_paths.py::test_phase_path_helper_signature_and_composition`,
+  which asserts the signature via `inspect.signature`) both govern.
 - Route every site in the inventory table above through the helper.
   No behavioural drift — the constants resolve to today's paths.
 - `phase-5/scripts/fire-design-review.sh`: introduce

@@ -28,6 +28,8 @@ reproducible if the bytes are identified independently of the path.
 |----------|--------|---------|
 | `phase-4.5/build-evidence/r-chunk1-spec-20260813-2101/spec/kimi-k3.json` | `5da40f618e7948e77f2b0cbba04fe40501bd5b96bfa4faa8346c74b0af8933d1` | REJECT |
 | `phase-4.5/build-evidence/r-chunk1-spec-20260813-2101/spec/minimax-m3.json` | `90cdb1b47943c5ebaefd6609edc3c4dcdeb47c15d09e3fab35bb2a2ecd06f1c2` | ACCEPT-WITH-NITS |
+| `phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json` | `acf05dbd0d9b09cfeaba13cbb1202495e030ddd86156019fe5b5a439177b38f7` | REJECT |
+| `phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json` | `60ddbe11d7bbcff15ea88ab66405278bb89b8252053284ef1b90977809168b2b` | REJECT |
 
 ## Rows
 
@@ -57,3 +59,7 @@ visible rather than tracked only in a session.
 2026-08-13T22:30Z grok-4.5  chunk=chunk-D1-1-spec-v3 envelope=phase-4.5/build-evidence/r-chunk1-spec-v4-20260813-2255/spec/grok-4.5.json session_id=ba3487eb-8942-4520-bfa2-bfa4834d0a7c verdict=REJECT
 2026-08-13T22:41Z grok-4.5  chunk=chunk-D1-1-spec-v4 envelope=phase-4.5/build-evidence/r-chunk1-spec-v5-20260813-2340/spec/grok-4.5.json session_id=d731517c-2981-4889-b706-aa8bb82e80de verdict=REJECT
 ```
+
+2026-08-13T23:04:22Z PLANNER: VALIDATE COMPLETE: validator=grok-4.5 chunk=chunk-D1-1-spec-gate envelope=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json session_id=78f9fc48-8a42-484f-9501-cae201cd251f verdict=REJECT prompt_sha256=8c44a29d9b94e2b6971bc7f688d63fca18c4420f6fb9efd4f67ab0fe5861f654
+2026-08-13T23:04:22Z PLANNER: VALIDATE COMPLETE: validator=gemini-3.1-pro-preview chunk=chunk-D1-1-spec-gate envelope=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json session_id=822cab03-1b24-4f91-85d9-b59af65d373b verdict=REJECT prompt_sha256=8c44a29d9b94e2b6971bc7f688d63fca18c4420f6fb9efd4f67ab0fe5861f654
+2026-08-13T23:04:22Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-1-spec-gate commit=d3c8005 artifact=planning/layout-refactor/CHUNK-1-SPEC.md artifact_sha256=558f9956a4f029ad23b9c516ce8f49e5035da9e5f220e6f21ebbf5f26998beea paths=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json,phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json ttl=2026-08-14T07:04:22Z branch=factory/layout-refactor note=BOTH-REJECT-cross-family-convergence-on-single-blocker-now-fixed-in-53c75d5
