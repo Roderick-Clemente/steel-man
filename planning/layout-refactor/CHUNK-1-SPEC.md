@@ -192,7 +192,24 @@ reason, so the fence and the check now agree.
 | `tools/sprint_loop/chunk_close_banner.py:42,51,99` | banner text mentions `phase-4.5/tokens/` and `phase-4.5/build-evidence/` | `TOKENS_ROOT` / `EVIDENCE_ROOT` in f-strings |
 | `tools/sprint-loop.py:1116,1118` | CLI help mentions `phase-4.5/build-evidence/` | `EVIDENCE_ROOT` in help string |
 | `tools/chunk_sequence_gate.py:119` | argparse help mentions `phase-4.5/tokens/` | `TOKENS_ROOT` via f-string |
-| `tools/sign_chunk_token.py:135` | argparse help mentions `phase-4.5/tokens/` | `TOKENS_ROOT` via f-string |
+
+`tools/sign_chunk_token.py` has **no routable site**: both its
+citations (`:6` module docstring and `:135` a `Returns:` line inside a
+function docstring) are docstrings, moved to the §2.5.2 fence. An
+earlier draft listed `:135` as argparse help; that was a
+misclassification, caught by the locked judge test's AST scan skipping
+it as a docstring.
+
+**The locked judge test is the authoritative site enumeration.** Line
+numbers in the tables above are informational and drift as the file is
+edited; three consecutive reviews raised findings against exact line
+citations for this reason. `tests/test_layout_paths.py` enumerates the
+residual sites **mechanically at run time** over the files named here,
+so the executor's worklist is the test's failure output, not these
+numbers. Running
+`python3 -m pytest tests/test_layout_paths.py::test_no_residual_hardcoded_phase_paths_in_routed_code`
+prints the current, exact list. The tables name the *files* and the
+*intent*; the test names the *sites*.
 | `tools/sprint_loop/config.py:275,277` | `--evidence-output-dir` argparse help in `build_config`'s parser names `<framework-root>/phase-4.5/build-evidence/<run-id>/` (:275) and `phase-4.5/build-evidence dir stays clean` (:277) | `EVIDENCE_ROOT` in help string |
 
 **Why `config.py:275,277` is in scope:** `--evidence-output-dir` is
