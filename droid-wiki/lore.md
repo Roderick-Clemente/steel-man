@@ -105,7 +105,7 @@ The §8 scope-shift rule was added to OPERATING-RULES.md: when scope shifts mid-
 
 Final review: grok-4.5 ACCEPT-WITH-NITS, gemini-3.1-pro-preview ACCEPT. Merged to main.
 
-**Key files created:** `phase-3.2/evidence/`, `tools/orchestrate-review.py`, `tools/OPERATING-RULES.md` §8, `ROADMAP-REVIEW-PROMPT.md`, `telemetry/SCHEMA.md` v2
+**Key files created:** `phase-3.2/evidence/`, `tools/orchestrate-review.py`, `tools/OPERATING-RULES.md` §8, `planning/ROADMAP-REVIEW-PROMPT.md`, `telemetry/SCHEMA.md` v2
 
 ## Longest-standing features
 

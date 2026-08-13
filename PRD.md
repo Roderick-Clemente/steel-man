@@ -505,7 +505,7 @@ H-CI result. Not yet started.
 
 A consolidation phase that arrived ahead of schedule because the
 foundation needed attention before extending. The roadmap review
-(`ROADMAP-REVIEW.md`) audited all prior phases, went through two rounds of
+(`planning/ROADMAP-REVIEW.md`) audited all prior phases, went through two rounds of
 cross-family panel review (v1 REJECT → v2 APPROVE-WITH-NITS → v3 final),
 and proposed new operating rules (§9–§17, to be landed in
 `tools/OPERATING-RULES.md` as a Phase 4 exit item), a re-sequenced

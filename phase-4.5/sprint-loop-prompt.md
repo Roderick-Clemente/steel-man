@@ -11,7 +11,7 @@ runs a complete adversarial sprint.
 The project root is the repository containing `PRD.md` (this file's parent
 directory). The pilot repo is at `/Users/factory/work/quantum-bank--llms-txt-pilot`.
 Read `PRD.md` §11 Phase 4.5 for the full spec. Read `tools/OPERATING-RULES.md`
-for the 17 operating rules. Read `ROADMAP-REVIEW.md` for the project audit.
+for the 17 operating rules. Read `planning/ROADMAP-REVIEW.md` for the project audit.
 
 ## What exists today (do not rebuild)
 

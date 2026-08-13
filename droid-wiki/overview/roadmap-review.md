@@ -175,8 +175,8 @@ for Phase 6 calibration.
 
 ## Artifacts
 
-- `ROADMAP-REVIEW.md` (v3, repo root) — the final review document
-- `REVIEW-PROMPT.md` (repo root) — the cross-family panel review prompt
+- `planning/ROADMAP-REVIEW.md` (v3) — the final review document
+- `planning/REVIEW-PROMPT.md` — the cross-family panel review prompt
 - `phase-3.2/reviews/roadmap-review-cross-family-findings.json` — v1 panel findings
 - `phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` — v2 panel findings
 - `phase-3.2/reviews/roadmap-review-{grok,gemini}-envelope.json` — v1 review envelopes
