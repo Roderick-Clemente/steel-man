@@ -1,6 +1,6 @@
 {
   "file": "tests/test_layout_paths.py",
-  "sha256": "e07ba8f6c6f8aa3171ce9653e6af399c2b85ec34092095cdf951bda4b8d4ccbd",
-  "accepted_at": "2026-08-13T22:58:40.637536+00:00",
-  "accepted_assertion": "chunk-D1-1 judge tests; authored by planner, executor must not modify; re-locked after builder pre-build question on derived-constant exemption"
+  "sha256": "82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753",
+  "accepted_at": "2026-08-13T23:01:55.654672+00:00",
+  "accepted_assertion": "chunk-D1-1 judge tests; authored by planner, executor must not modify; re-locked after gemini blocker on os.path.join segment blindness"
 }

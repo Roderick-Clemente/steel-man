@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import subprocess
 import sys
 
@@ -87,6 +88,20 @@ _FORBIDDEN_SUBSTRINGS = (
     "phase-3.2/evidence",
 )
 
+# A bare phase-dir segment, e.g. "phase-1" or "phase-4.5". These appear as
+# SEPARATE ast.Constant nodes in os.path.join(root, "phase-1", "scripts"),
+# so a substring test against the joined form above cannot see them —
+# "phase-1/scripts" in "phase-1" is False. That blindness would silently
+# pass all seven per_chunk.py sites, which are the bulk of §2.2.
+_BARE_SEGMENT = re.compile(r"^phase-\d+(?:\.\d+)?$")
+
+# Bare segments are only a defect in PATH-CONSTRUCTION context. The same
+# literal is legitimate as a telemetry/HMAC label (per_chunk.py:287,
+# backends.py:197-198, sprint-loop.py:268,422,483, orchestrate-review.py:459),
+# which CHUNK-1-SPEC §2.2 explicitly excludes from the inventory. So the
+# check is scoped to os.path.join arguments and pathlib / operands rather
+# than applied to every bare segment in the file.
+
 
 def _docstring_nodes(tree: ast.AST) -> set[int]:
     """ids of Expr nodes that are docstrings (module/class/function)."""
@@ -142,6 +157,47 @@ def _constant_definition_nodes(tree: ast.AST, is_config_module: bool) -> set[int
     return found
 
 
+def _is_path_join_call(node: ast.AST) -> bool:
+    """Is this a call to os.path.join / os.path.sep.join / posixpath.join?"""
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    return isinstance(func, ast.Attribute) and func.attr == "join"
+
+
+def _bare_segment_constants_in_path_context(tree: ast.AST) -> list[ast.Constant]:
+    """Bare phase-dir segments used to CONSTRUCT a path.
+
+    Covers the two composition idioms in this repo:
+      * ``os.path.join(root, "phase-1", "scripts", ...)``  -> Call args
+      * ``Path(root) / "phase-1" / "scripts"``             -> BinOp(Div)
+
+    Excludes bare segments used as labels, which is why the scan is
+    context-scoped instead of matching every ``phase-N`` literal.
+    """
+    found: list[ast.Constant] = []
+
+    for node in ast.walk(tree):
+        if _is_path_join_call(node):
+            for arg in node.args:
+                if (
+                    isinstance(arg, ast.Constant)
+                    and isinstance(arg.value, str)
+                    and _BARE_SEGMENT.match(arg.value)
+                ):
+                    found.append(arg)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            for side in (node.left, node.right):
+                if (
+                    isinstance(side, ast.Constant)
+                    and isinstance(side.value, str)
+                    and _BARE_SEGMENT.match(side.value)
+                ):
+                    found.append(side)
+
+    return found
+
+
 def _residual_phase_literals(abs_path: str) -> list[str]:
     """Executable-code string literals still naming a phase dir.
 
@@ -155,15 +211,24 @@ def _residual_phase_literals(abs_path: str) -> list[str]:
     skip = _docstring_nodes(tree) | _constant_definition_nodes(tree, is_config_module)
 
     hits: list[str] = []
+
+    # (1) literals that already contain a joined path, e.g. help text and
+    #     "phase-1/scripts/verify-green.py"
     for node in ast.walk(tree):
         if not isinstance(node, ast.Constant) or id(node) in skip:
             continue
         if not isinstance(node.value, str):
             continue
-        value = node.value
-        if any(bad in value for bad in _FORBIDDEN_SUBSTRINGS):
-            hits.append(f"line {node.lineno}: {value!r}")
-    return hits
+        if any(bad in node.value for bad in _FORBIDDEN_SUBSTRINGS):
+            hits.append(f"line {node.lineno}: {node.value!r}")
+
+    # (2) bare segments passed into a path composition
+    for node in _bare_segment_constants_in_path_context(tree):
+        if id(node) in skip:
+            continue
+        hits.append(f"line {node.lineno}: bare segment {node.value!r} in path composition")
+
+    return sorted(set(hits))
 
 
 def test_path_root_constants_have_expected_values_and_exist():

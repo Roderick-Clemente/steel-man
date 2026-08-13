@@ -540,9 +540,41 @@ regress it.
      block excluded by name". A by-name or by-line exemption is the
      same drift-prone class as the line-keyed assertion this test
      replaced, and it would be load-bearing for two assertion groups.
-   - Over what remains, fail on any `str` `Constant` containing
-     `phase-1/`, `phase-3.2/`, `phase-4.5/`, or matching
-     `phase-\d`, in any of the files named in §2.2 **and** §2.3.
+   - Over what remains, apply **two** matchers, because the two
+     composition idioms put the path in the AST differently:
+
+     1. **Joined literals.** Fail on any `str` `Constant` containing
+        one of the six owned prefixes: `phase-4.5/tokens`,
+        `phase-4.5/build-evidence`, `phase-4.5/prompts`,
+        `phase-1/scripts`, `phase-1/locks`, `phase-3.2/evidence`.
+        This catches help text and single-string paths such as
+        `"phase-1/scripts/verify-green.py"`. Deliberately **not** a
+        broad `phase-\d` substring match: `phase-4.5/KNOWN-ISSUES.md`
+        and `phase-4.5/PLAN.md` are documents with no constant to
+        route through, so a broad match would make the test
+        unsatisfiable without widening scope beyond this chunk.
+
+     2. **Bare segments in path-construction context.** Fail on any
+        `str` `Constant` matching `^phase-\d+(\.\d+)?$` that appears
+        as an argument to a `.join(...)` call or as an operand of a
+        pathlib `/` `BinOp`. **This matcher is mandatory and its
+        absence is a silent-green hole:** in
+        `os.path.join(framework_root, "phase-1", "scripts", "lock.py")`
+        the AST holds `"phase-1"` and `"scripts"` as *separate*
+        Constants, and `"phase-1/scripts" in "phase-1"` is `False`, so
+        matcher 1 alone sees nothing. Matcher 1 alone therefore misses
+        **all seven** `per_chunk.py` sites — the bulk of §2.2.
+
+     The bare-segment matcher is scoped to path-construction context
+     rather than applied to every `phase-N` literal, because the same
+     literal is legitimate as a telemetry/HMAC **label**
+     (`per_chunk.py:287`, `backends.py:197-198`,
+     `sprint-loop.py:268,422,483`, `orchestrate-review.py:459`), which
+     §2.2 excludes by design. Verified: the scan reports 7 hits in
+     `per_chunk.py` — its 7 `os.path.join` sites — and does **not**
+     flag the `:287` label.
+
+   Applied to the files named in §2.2 **and** §2.3.
 
    This single rule makes all of the following true simultaneously,
    which no text-level variant can:
