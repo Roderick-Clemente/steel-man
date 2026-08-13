@@ -4,19 +4,29 @@
 **Branch:** `factory/layout-refactor`
 **Chunk ID:** `chunk-D1-1`
 **Predecessor:** none (first chunk of D1)
-**Successor gate:** `tools/chunk_sequence_gate.py --prior-token evidence/phase-4.5/tokens/chunk-D1-1.token.json --next-chunk-id chunk-D1-2`
+**Successor gate:** `tools/chunk_sequence_gate.py --prior-token phase-4.5/tokens/chunk-D1-1.token.json --next-chunk-id chunk-D1-2`
 
 ## 1. Problem statement (§13)
 
-The runner and gate code hardcode phase-dir prefixes in 21 code
-sites (grep-verified inventory below). Moving those dirs before the
-constants exist would produce a big-bang move that no reviewer can
-audit. This chunk introduces a single source of truth for the
-paths and routes every hardcoded site through it, with the paths
-still pointing to their current homes. **No directory moves happen
-in this chunk.** The constants default to today's layout so
-behaviour is unchanged; Chunk 2 flips them to the new taxonomy
-homes.
+The runner and gate code hardcode phase-dir prefixes in 21
+runner/gate code sites (grep-verified inventory below). Moving
+those dirs before the constants exist would produce a big-bang move
+that no reviewer can audit. This chunk introduces a single source
+of truth for the paths and routes every runner/gate site through
+it, with the paths still pointing to their current homes. **No
+directory moves happen in this chunk.** The constants default to
+today's layout so behaviour is unchanged; Chunk 2 flips them to
+the new taxonomy homes.
+
+**Scope qualifier:** "ALL" means all **runner/gate** hardcoded
+sites — the sites the live sprint-loop and gate code construct at
+runtime. Frozen historical generators (`phase-4/gen-findings.py`,
+`phase-4/reconstruct-telemetry.py`, `phase-3/gen-telemetry.py`,
+`phase-3.1/gen-telemetry.py`, `phase-0/evidence/probe-4/*.sh`)
+have internal path strings that git-mv in Chunk 2 and go stale
+post-move; these are **fenced as follow-on** (§2.5), not routed in
+Chunk 1, because they are one-shot scripts that produce committed
+evidence bytes (immutable) and are not on any live runtime path.
 
 ## 2. Surface touched (grounded inventory, grep-verified)
 
@@ -24,24 +34,30 @@ homes.
 
 Add these module-level constants (or a `phase_path` helper +
 dataclass, executor's choice) near the top of `config.py`, after
-`MODEL_FAMILY_MAP`:
+`MODEL_FAMILY_MAP`. **Representation: relative path segments**
+(not `os.path.join(framework_root, ...)`) because `framework_root`
+lives on the `Config` dataclass, not at module level. The helper
+takes an explicit `framework_root` argument at call time.
 
-| Constant | Default value (TODAY's layout) | Flipped in Chunk 2 to |
-|----------|-------------------------------|----------------------|
-| `EVIDENCE_ROOT` | `""` (resolves to `framework_root`) | `"evidence"` |
-| `PLANNING_ROOT` | `""` (resolves to `framework_root`) | `"planning"` |
-| `TOKENS_ROOT` | `os.path.join(framework_root, "phase-4.5", "tokens")` | `os.path.join(EVIDENCE_ROOT, "phase-4.5", "tokens")` |
-| `PROMPTS_ROOT` | `os.path.join(framework_root, "phase-4.5", "prompts")` | `os.path.join(PLANNING_ROOT, "phase-4.5", "prompts")` |
-| `SCRIPTS_ROOT` | `os.path.join(framework_root, "phase-1", "scripts")` | `os.path.join(framework_root, "tools", "phase-1-scripts")` |
-| `LOCKS_ROOT` | `os.path.join(framework_root, "phase-1", "locks")` | `os.path.join(framework_root, "tools", "phase-1-locks")` |
-| `EVIDENCE_CODE_ROOT` | `os.path.join(framework_root, "phase-3.2", "evidence")` | `os.path.join(framework_root, "tools", "phase-3.2-evidence")` |
+| Constant | Default value (relative segments) | Flipped in Chunk 2 to |
+|----------|-----------------------------------|----------------------|
+| `EVIDENCE_ROOT` | `""` (empty — resolves to `framework_root` itself) | `"evidence"` |
+| `PLANNING_ROOT` | `""` (empty — resolves to `framework_root` itself) | `"planning"` |
+| `TOKENS_ROOT` | `os.path.join("phase-4.5", "tokens")` | `os.path.join("evidence", "phase-4.5", "tokens")` |
+| `PROMPTS_ROOT` | `os.path.join("phase-4.5", "prompts")` | `os.path.join("planning", "phase-4.5", "prompts")` |
+| `SCRIPTS_ROOT` | `os.path.join("phase-1", "scripts")` | `os.path.join("tools", "phase-1-scripts")` |
+| `LOCKS_ROOT` | `os.path.join("phase-1", "locks")` | `os.path.join("tools", "phase-1-locks")` |
+| `EVIDENCE_CODE_ROOT` | `os.path.join("phase-3.2", "evidence")` | `os.path.join("tools", "phase-3.2-evidence")` |
 
-The constants must be **resolvable relative to `framework_root`**
-(not absolute paths) so the test suite's `/tmp/fw/` pattern still
-works. The helper `phase_path(kind, phase, *parts)` should compose
-`os.path.join(framework_root, <root>, phase, *parts)` for kinds
-that have a phase dimension, or `os.path.join(<root>, *parts)` for
-kinds that don't.
+The helper `phase_path(framework_root, kind, *parts)` composes
+`os.path.join(framework_root, <constant>, *parts)`. For example:
+`phase_path(cfg.framework_root, "scripts", "lock.py")` returns
+`<framework_root>/phase-1/scripts/lock.py` today, and
+`<framework_root>/tools/phase-1-scripts/lock.py` after Chunk 2's
+flip. The `Config.default_locks_dir()` and `default_evidence_dir()`
+methods call `phase_path(self.framework_root, "locks")` and
+`phase_path(self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id)`
+respectively (segment-preserving).
 
 ### 2.2 Hardcoded sites to route through the constants
 
@@ -87,15 +103,54 @@ from the path:
 - `:155` `python3 phase-5/scripts/envelope-manifest.py "$RUN_DIR"`
 
 Introduce `tools/sprint_loop/paths.sh` — a sourced shell fragment
-that exports the same constants as env vars (computed from the
-repo root). `fire-design-review.sh` sources it and composes:
+that exports the same constants as env vars. **Today's values**
+(the defaults; Chunk 2 flips them):
+
 ```sh
-RUN_DIR="${EVIDENCE_ROOT}/phase-4.5/build-evidence/${RUN_ID}"
-ENVELOPE_MANIFEST="${TOOLS_ROOT}/phase-5-scripts/envelope-manifest.py"
+# tools/sprint_loop/paths.sh — sourced by fire-design-review.sh
+# Today's layout (Chunk 1 defaults). Chunk 2 flips these.
+EVIDENCE_ROOT=""                    # → "evidence" in Chunk 2
+PHASE5_SCRIPTS_ROOT="phase-5/scripts"  # → "tools/phase-5-scripts" in Chunk 2
 ```
-The `paths.sh` values default to today's layout (matching the
-Python constants); Chunk 2 flips both the Python and the shell
-together.
+
+`fire-design-review.sh` sources it and composes:
+```sh
+. "$(dirname "$0")/../sprint_loop/paths.sh"
+# EVIDENCE_ROOT is empty today, so RUN_DIR starts with "phase-4.5/..."
+# After Chunk 2: EVIDENCE_ROOT="evidence", so RUN_DIR starts with "evidence/phase-4.5/..."
+RUN_DIR="${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}phase-4.5/build-evidence/${RUN_ID}"
+ENVELOPE_MANIFEST="${PHASE5_SCRIPTS_ROOT}/envelope-manifest.py"
+```
+
+The `${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}` idiom handles the empty-
+default case (today) and the non-empty case (Chunk 2) without
+producing a leading slash. The `paths.sh` values match the Python
+constants; Chunk 2 flips both together.
+
+### 2.5 Frozen historical generators (fenced — follow-on, NOT routed in Chunk 1)
+
+These scripts have internal `phase-N/...` path strings but are
+**one-shot generators** that produce committed evidence bytes
+(immutable per §21). They are not on any live runtime path —
+`gen-findings.py` and `reconstruct-telemetry.py` were run once to
+produce `telemetry/findings.jsonl` and `telemetry/runs.jsonl`;
+`gen-telemetry.py` (phase-3 and phase-3.1) produce phase-3/3.1
+telemetry rows; `phase-0/evidence/probe-4/*.sh` are probe scripts.
+Chunk 2 git-mvs them to `tools/phase-N-gen/` and
+`tools/phase-1-probes/`; their internal path strings go stale
+post-move. They are **fenced as follow-on** — not routed in Chunk 1,
+not edited in Chunk 2. If a future re-run is needed, the generator
+is updated then (the committed evidence bytes it produced are
+immutable regardless).
+
+| File:lines | Status |
+|-----------|--------|
+| `phase-4/reconstruct-telemetry.py:31-32,172,180` | fenced follow-on |
+| `phase-4/gen-findings.py:153,190,235,271` | fenced follow-on |
+| `phase-3/gen-telemetry.py:101` | fenced follow-on |
+| `phase-3.1/gen-telemetry.py:106` | fenced follow-on |
+| `phase-0/evidence/probe-4/run_probe.sh:5,10` | fenced follow-on |
+| `phase-0/evidence/probe-4/setup_probe.sh:5` | fenced follow-on |
 
 ## 3. What the executor MUST do
 
@@ -201,8 +256,10 @@ After the code lands, the suite is green, and the branch is pushed:
    chunk=chunk-D1-1 commit=<sha> paths=<envelope-paths>` to
    `STEER.md`.
 4. The referee audits §21/§17.2/§23 and signs
-   `evidence/phase-4.5/tokens/chunk-D1-1.token.json`.
+   `phase-4.5/tokens/chunk-D1-1.token.json` (the tokens dir does NOT
+   move to `evidence/phase-4.5/tokens/` until Chunk 2; Chunk 1's
+   close uses today's path).
 5. The next chunk (`chunk-D1-2`) MUST NOT start until
    `tools/chunk_sequence_gate.py --prior-token
-   evidence/phase-4.5/tokens/chunk-D1-1.token.json --next-chunk-id
+   phase-4.5/tokens/chunk-D1-1.token.json --next-chunk-id
    chunk-D1-2` exits 0.
