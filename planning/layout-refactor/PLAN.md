@@ -528,6 +528,15 @@ D1 closes successfully iff **all** hold:
 
 1. Branch `factory/layout-refactor` has commits for PLAN, Chunk 1,
    Chunk 2, Chunk 3, Chunk 4 (5 landed commits minimum).
+
+   **This is a minimum, not an enumeration.** Non-chunk commits are
+   expected and do not fail this criterion: spec revisions driven by
+   review findings, the planner's judge-test authoring commit (see
+   criterion 4), and out-of-band ops commits such as the
+   `.gitignore`/`LEDGER.md` transport fix. Any commit whose subject is
+   not `chunk-D1-N: ...` is a non-chunk commit and is exempt from the
+   per-chunk fences in the chunk specs; each must still be its own
+   commit, outside any chunk's diff.
 2. **No commits landed on `main` during the run**, verified via
    `git merge-base --is-ancestor <branch-point> main && git rev-list
    <branch-point>..main --count` returns 0.
@@ -535,7 +544,17 @@ D1 closes successfully iff **all** hold:
    `evidence/` and `planning/<phase>/` do; `tools/phase-N-*/`
    subdirs exist for the moved code.
 4. `python3 -m pytest -q` reports 198 tests, all green (194
-   pre-existing + 3 new from Chunk 1 + 1 new from Chunk 4).
+   pre-existing + 3 from `tests/test_layout_paths.py` + 1 new from
+   Chunk 4).
+
+   **Attribution correction.** The 3 tests are Chunk 1's *judge*, but
+   they land in a **planner** commit before `chunk-D1-1` opens, not in
+   the Chunk 1 commit — per framework invariant #3 the executor of a
+   chunk must not author the tests that grade it. The total is
+   unchanged at 198. Between the planner's commit and Chunk 1's close
+   the suite is a **valid RED at 3 failed / 194 passed**; that RED is
+   the expected state, not a regression, and Chunk 1's exit is those
+   3 flipping green with no others broken.
 5. `tests/test_repo_layout.py` allowlist updated and passes.
 6. `tools/wiki-link-audit.py` returns green.
 7. `tools/plan-lint.py` accepts `planning/layout-refactor/PLAN.md`.

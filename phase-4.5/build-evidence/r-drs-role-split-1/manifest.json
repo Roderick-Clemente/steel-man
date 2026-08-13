@@ -1,0 +1,69 @@
+[
+  {
+    "envelope": "phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.raw.txt",
+    "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9",
+    "bytes": 127695,
+    "events": 18,
+    "unparseable_lines": 0,
+    "event_census": {
+      "error": 2,
+      "message": 1,
+      "reasoning": 2,
+      "system": 1,
+      "tool_call": 6,
+      "tool_result": 6
+    },
+    "session_ids": [
+      "0ce32250-db1a-4545-a417-effa95d6addf"
+    ],
+    "models": [
+      "gemini-3.1-pro-preview"
+    ],
+    "assistant_text_chars": 0,
+    "verdict": null,
+    "errors": [
+      {
+        "source": "agent_loop",
+        "message": "LLM response contained no usable output",
+        "session_id": "0ce32250-db1a-4545-a417-effa95d6addf"
+      },
+      {
+        "source": "cli",
+        "message": "Exec failed",
+        "session_id": "0ce32250-db1a-4545-a417-effa95d6addf"
+      }
+    ],
+    "admissible_as_attestation": false
+  },
+  {
+    "envelope": "phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt",
+    "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf",
+    "bytes": 26598,
+    "events": 14,
+    "unparseable_lines": 0,
+    "event_census": {
+      "error": 1,
+      "message": 3,
+      "reasoning": 1,
+      "system": 1,
+      "tool_call": 4,
+      "tool_result": 4
+    },
+    "session_ids": [
+      "d2b8a882-d9b8-44ce-8c41-cf1f21ca9575"
+    ],
+    "models": [
+      "grok-4.5"
+    ],
+    "assistant_text_chars": 268,
+    "verdict": null,
+    "errors": [
+      {
+        "source": "cli",
+        "message": "Exec ended early: insufficient permission to proceed. Re-run with --auto medium or --auto high. For destructive commands, use --skip-permissions-unsafe.",
+        "session_id": "d2b8a882-d9b8-44ce-8c41-cf1f21ca9575"
+      }
+    ],
+    "admissible_as_attestation": false
+  }
+]

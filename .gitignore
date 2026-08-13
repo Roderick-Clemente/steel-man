@@ -59,5 +59,21 @@ telemetry/plan_lint_runs.jsonl
 # machine is not evidence (cf. phase-1 F8, where the locked test existed only as
 # a hash and is now unrecoverable). Only the runner's per-run scratch trees are
 # ignored, and they are matched precisely rather than by directory.
-phase-*/build-evidence/r-*/
+#
+# 2026-08-13: the rule below did NOT match precisely — it was a directory-form
+# pattern that swept up every r-* tree, including cross-family REVIEW envelopes
+# that verdicts and tokens attest to. Consequences, verified on a second machine:
+# the successful chunk-D1-1-spec v1 envelopes (r-chunk1-spec-20260813-2101/,
+# kimi-k3.json 14123 bytes with real VERDICT: lines, referee token signed
+# against their sha256) did not exist there at all. The only surviving trace was
+# a commit message. A BURNED.md written in that tree claimed its envelopes were
+# "preserved here"; they were untracked and did not travel. Directory-form
+# excludes also cannot be undone with a `!` negation, so there was no way to
+# re-include an envelope without -f on every single commit.
+#
+# Reviewer run trees are ~24K each (792K total to date). That is a trivial cost
+# against losing the audit trail, so envelopes, manifests, prompts, command logs
+# and raw/stream output are all tracked now. The ignore is removed rather than
+# narrowed: any prefix-based rule reintroduces the same silent-loss risk the
+# moment a reviewer tree and a scratch tree share a prefix, which they do.
 
