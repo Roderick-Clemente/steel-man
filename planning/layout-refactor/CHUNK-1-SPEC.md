@@ -71,6 +71,27 @@ methods call `phase_path(self.framework_root, "locks")` and
 `phase_path(self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id)`
 respectively (segment-preserving).
 
+**Derived constants are permitted and expected.** The seven roots are
+a floor, not a ceiling. `EVIDENCE_ROOT` is `""` today, so an f-string
+of the form `f"{EVIDENCE_ROOT}/phase-4.5/build-evidence"` renders a
+**leading slash** and changes `--help` bytes — a real behavioural
+drift. The executor should therefore introduce a derived segment
+constant, e.g.
+`BUILD_EVIDENCE_REL = os.path.join("phase-4.5", "build-evidence")`,
+reusing the same name §2.4 introduces in `paths.sh` so the Python and
+shell mirrors stay legible against each other. (Note
+`os.path.join("", "phase-4.5", "build-evidence")` does *not* produce a
+leading slash, so `os.path.join` composition is also acceptable; the
+f-string form is the one that needs the derived constant.)
+
+**How the locked judge test exempts these (asked and answered).** In
+`config.py` the residual scan exempts **any module-level ALL-CAPS
+assignment**, not an enumerated list, precisely so derived constants
+the executor needs are not flagged. Outside `config.py` the strict
+seven-name set applies, because there a path literal is a residual
+rather than a definition. So: define derived segment constants at
+module level in `config.py`, in caps, and the scan will skip them.
+
 **Declared-but-unconsumed in Chunk 1:** `PLANNING_ROOT` and
 `PROMPTS_ROOT` have **no call site in §2.2–§2.4**. They are declared
 now so the full root set lands in one reviewable commit; their first
@@ -199,6 +220,20 @@ function docstring) are docstrings, moved to the §2.5.2 fence. An
 earlier draft listed `:135` as argparse help; that was a
 misclassification, caught by the locked judge test's AST scan skipping
 it as a docstring.
+
+**Docstring rewording is AUTHORIZED (and preferred over fencing).**
+The executor may reword the fenced docstring citations at
+`tools/chunk_sequence_gate.py:9` and `tools/sign_chunk_token.py:6`
+(and `:135`) to name the **constant** instead of the path — e.g.
+`<TOKENS_ROOT>/chunk-N.token.json` in place of
+`phase-4.5/tokens/chunk-N.token.json`. This is strictly better than
+leaving them fenced, because a fenced docstring still holds a path
+that goes stale at Chunk 2, whereas naming the constant stays true
+across the flip. Verified zero behaviour change: neither tool passes
+`__doc__` to argparse — both use a literal `description=`
+(`chunk_sequence_gate.py:116`, `sign_chunk_token.py:265`). The locked
+judge test skips docstrings either way, so rewording is permitted but
+not gated.
 
 **The locked judge test is the authoritative site enumeration.** Line
 numbers in the tables above are informational and drift as the file is
@@ -407,7 +442,17 @@ here so the boundary is declared, not discovered at Chunk-2 review.
 5. Run the full suite and confirm 197 tests green (194 + 3 from the
    locked judge file).
 6. Commit with message `chunk-1: path-root constants + route hardcoded sites through them`.
-7. Push to `origin/factory/layout-refactor`.
+7. Push branch `factory/layout-refactor` to the **dev** repo:
+   `git@github.com:Roderick-Clemente/adversarial-sprint-dev.git`.
+
+   **Do not rely on the name `origin`.** It resolves differently across
+   clones — at least one working clone has `origin` pointing at
+   `Roderick-Clemente/adversarial-sprint`, which does not carry this branch.
+   Verify before pushing with
+   `git remote -v` and `git ls-remote --heads <remote> factory/layout-refactor`,
+   and add a named remote if `origin` is not the dev repo. The referee
+   resolves review-request SHAs against the dev repo, so a push
+   elsewhere makes the commit unreachable for review.
 
 ## 4. Verify (§11 exit checks — checked, not assumed)
 

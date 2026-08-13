@@ -100,8 +100,30 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
     return found
 
 
-def _constant_definition_nodes(tree: ast.AST) -> set[int]:
-    """ids of Constant nodes inside module-level Assign to a §2.1 name.
+def _is_constant_target(name: str, is_config_module: bool) -> bool:
+    """Is a module-level assignment target a path-constant definition?
+
+    In ``config.py`` — the designated single source of truth for path
+    roots — any module-level ALL-CAPS assignment is a definition. This
+    deliberately admits *derived* constants the executor must introduce
+    that are not among the seven §2.1 names. The motivating case:
+    ``EVIDENCE_ROOT`` is ``""`` today, so an f-string like
+    ``f"{EVIDENCE_ROOT}/phase-4.5/build-evidence"`` renders a leading
+    slash and changes ``--help`` bytes, which forces a derived
+    ``BUILD_EVIDENCE_REL`` segment constant. Enumerating such names in
+    advance would make this test a guessing game about the executor's
+    factoring.
+
+    Everywhere else the strict seven-name set applies: outside
+    ``config.py`` a path literal is a residual, not a definition.
+    """
+    if is_config_module:
+        return name.isupper() and not name.startswith("_")
+    return name in CONSTANT_NAMES
+
+
+def _constant_definition_nodes(tree: ast.AST, is_config_module: bool) -> set[int]:
+    """ids of Constant nodes inside a module-level path-constant Assign.
 
     This is the mechanical exemption anchor. A by-name or by-line
     exemption would be the same drift-prone class as a line-keyed
@@ -112,7 +134,7 @@ def _constant_definition_nodes(tree: ast.AST) -> set[int]:
         if not isinstance(node, ast.Assign):
             continue
         targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-        if not any(name in CONSTANT_NAMES for name in targets):
+        if not any(_is_constant_target(t, is_config_module) for t in targets):
             continue
         for sub in ast.walk(node.value):
             if isinstance(sub, ast.Constant):
@@ -129,7 +151,8 @@ def _residual_phase_literals(abs_path: str) -> list[str]:
     with open(abs_path, "r", encoding="utf-8") as fh:
         tree = ast.parse(fh.read(), filename=abs_path)
 
-    skip = _docstring_nodes(tree) | _constant_definition_nodes(tree)
+    is_config_module = os.path.basename(abs_path) == "config.py"
+    skip = _docstring_nodes(tree) | _constant_definition_nodes(tree, is_config_module)
 
     hits: list[str] = []
     for node in ast.walk(tree):
