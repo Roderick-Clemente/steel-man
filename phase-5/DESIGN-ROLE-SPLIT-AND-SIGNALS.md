@@ -110,7 +110,7 @@ past to know what just happened.
 **portable operator-signal specification**, implementable by any agent runtime,
 and the role files are its first two consumers.
 
-### The conformance mark
+### The conformance mark and the identity banner
 
 **🐺 — emitted once at session start by any agent running this protocol**, before
 the role marker.
@@ -120,9 +120,53 @@ adversarial-sprint protocol at all, or is it just a model in a terminal?* In a
 mixed-runtime session that distinction is otherwise invisible.
 
 ```
-🐺 adversarial-sprint protocol v1 · runtime: droid · model: grok-4.5
-⚖️ referee ready
+🐺 adversarial-sprint protocol v1 · runtime: droid · model: claude-haiku-4-5
+🔨 builder ready
 ```
+
+**The `model` field is mandatory.** A banner without it is non-conforming. The
+mark alone says only "a conforming agent is here," which the operator already
+knows; the model id is the one field on that line that cannot be guessed.
+
+#### Motivating incident (2026-08-13)
+
+A five-chunk DAO refactor was executed against a live pilot. The operator
+discovered **days later, from commit history**, that the executor seat had been
+filled by `claude-haiku-4-5` — the cheapest model in the lineup — rather than the
+intended tier. Nothing in any log made the seat assignment visible while it ran.
+
+Recorded honestly: this was **not a designed cheap-tier experiment.** It was an
+unnoticed misconfiguration, discovered after the fact. That it produced a useful
+result does not make it a planned one, and the record must not imply otherwise.
+
+#### The model id must come from the invocation, not the model
+
+**An agent must never self-report its own identity into this banner.** Two
+reasons, and the first is this project's whole premise:
+
+1. **Self-report is self-assessment**, which this framework exists to refuse as
+   evidence. Asking a model who it is and believing the answer is the same error
+   as asking it whether its work is good.
+2. **Models are routinely wrong about it** — they name sibling models, older
+   versions, or a family rather than a version.
+
+The authoritative source is the **invocation**: §17.1 already requires every
+`droid exec` to pass `--model <id>` explicitly. The banner echoes that value.
+
+Where the runtime exposes a resolved model in its result envelope, the banner
+**cross-checks** invocation against resolution — the same post-resolution check
+`_resolved_provider_and_family` already performs for families:
+
+```
+🐺 adversarial-sprint protocol v1 · runtime: droid
+   requested: gpt-5.4-mini   resolved: gpt-5.4-mini   ✅
+```
+
+On disagreement, emit 🛑 and halt. A runtime silently serving a different model
+than the one requested is a §4 provenance failure, and Phase 0 already recorded
+this platform doing something other than what was asked while reporting success.
+A mismatch must be loud at second zero, not inferred from commit history days
+later.
 
 ### Legend
 
@@ -130,7 +174,7 @@ Small on purpose. If everything carries a symbol, nothing signals.
 
 | Symbol | Meaning |
 |---|---|
-| 🐺 | **protocol conformance** — emitted once at session start, any runtime |
+| 🐺 | **protocol conformance + identity banner** — once at session start; MUST carry the model id, taken from the invocation |
 | 🔨 | builder speaking |
 | ⚖️ | referee speaking |
 | 🔍 | review round starting (with round number) |
@@ -231,6 +275,12 @@ demonstrably missed five times in a row.
       guidance (assert on the loaded context, not on intent)
 - [ ] All eight legend symbols emitted at startup and at every transition, in a
       live run, captured in a transcript
+- [ ] Startup banner carries a model id on every role, sourced from the
+      invocation; a banner lacking one fails the conformance test
+- [ ] Requested-vs-resolved mismatch emits 🛑 and halts — asserted with a fixture
+      that requests one model and resolves another
+- [ ] An operator reading only the first two lines of a log can name the model in
+      each seat. This is the criterion the 2026-08-13 incident failed.
 - [ ] No emoji in any identifier — asserted by test
 - [ ] Nothing in the runner parses an emoji — asserted by grep test
 - [ ] Convergence readout renders for rounds ≥ 2 with correct classification on
