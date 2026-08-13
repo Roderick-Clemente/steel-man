@@ -2,6 +2,11 @@
 .venv/
 __pycache__/
 node_modules/
+.pytest_cache/
+
+# Machine-local operator brief for the layout refactor run. The run's own
+# committed PLAN.md (§18) is derived from it when the chunks fire.
+CLEANUP-PLAN.md
 
 # Local Factory tool state (sessions, caches, local settings). Not evidence.
 # Probe and run evidence that should survive is committed under phase-0/evidence/

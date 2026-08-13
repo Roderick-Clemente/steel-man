@@ -176,7 +176,7 @@ worktree; do not revert, do not cherry-pick.
   `EVIDENCE_SIGNING_KEY`) and the gate predicate (≥2 distinct
   families + implementer disjointness + ACCEPT-class verdict);
   the build-chunk executes that choice, doesn't redo it.
-- `phase-4.5/ROADMAP-REVIEW.md` + `phase-4.5/BACKLOG-D-
+- `planning/ROADMAP-REVIEW.md` + `phase-4.5/BACKLOG-D-
   CAPABILITIES-FRAMEWORK.md` — Phase 5 row was added during the
   promotion triple; verify the audit row reads "chunk-adherence
   enforcement layer" not "generalisation."
