@@ -8,6 +8,8 @@ This repo is that process, automated. It runs on Factory primitives today — `d
 
 Automating the process did something the manual practice never could: it made it **measurable**. And the first measurement cut against my own design — the deterministic gate outperformed the cross-family model panel I'd built the system around (finding 1 below).
 
+![One agent's "perfect" plan runs the adversarial gauntlet — iron sharpens iron](./.github/assets/adversarial-sprint-hero.jpeg)
+
 ## What the runs found
 
 Four findings from live runs. Each has a repro or a committed artifact behind it; none is a claim about what "should" happen.
