@@ -41,6 +41,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# Layout roots (CHUNK-1-SPEC §2.4). Anchored on REPO_ROOT, NOT on
+# $(dirname "$0")/../sprint_loop — this script lives two levels down, so that
+# form resolves to a path that does not exist and, under set -euo pipefail,
+# hard-fails at source time.
+. "$REPO_ROOT/tools/sprint_loop/paths.sh"
+
 ARTIFACT=""; PROMPT=""; MODELS=""; RUN_ID=""; SHA=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -84,7 +90,10 @@ fi
 ARTIFACT_SHA="$(git rev-parse "${SHA}:${ARTIFACT}")"
 
 RUN_ID="${RUN_ID:-r-artifact-review-$(date +%s)}"
-RUN_DIR="phase-4.5/build-evidence/${RUN_ID}"
+# EVIDENCE_ROOT is empty today, so RUN_DIR renders as before. After Chunk 2's
+# flip (EVIDENCE_ROOT="evidence") it renders under the new evidence root. The
+# :+ idiom avoids a leading slash in the empty case.
+RUN_DIR="${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}${BUILD_EVIDENCE_REL}/${RUN_ID}"
 ENV_DIR="${RUN_DIR}/envelopes"
 [ -e "$RUN_DIR" ] && die "run dir already exists: $RUN_DIR (pick a fresh --run-id)"
 mkdir -p "$ENV_DIR"
@@ -152,6 +161,6 @@ echo
 echo "=== verdict-presence guard (§7: a digest is not a verdict) ==="
 # This is the check that matters. It exits non-zero when any envelope carries no
 # verdict, so a burned round cannot be reported as a completed review.
-python3 phase-5/scripts/envelope-manifest.py "$RUN_DIR" \
+python3 "${PHASE5_SCRIPTS_ROOT}/envelope-manifest.py" "$RUN_DIR" \
     --json "${RUN_DIR}/manifest.json" \
     --markdown "${RUN_DIR}/manifest.md"

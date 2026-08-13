@@ -33,6 +33,31 @@ import subprocess
 import sys
 import uuid
 
+# ── layout-root bootstrap (CHUNK-1-SPEC §2.2) ────────────────────────────
+#
+# This module is invoked as a standalone script (from per_chunk.py and
+# orchestrate-review.py), so ``tools/`` is not on sys.path. Resolve it from
+# this file's own location and import the roots at module level.
+#
+# The import is UNGUARDED and NOT lazy on purpose: a try/except ImportError
+# fallback, or an import inside main(), would let ``--help`` exit 0 while
+# dying at sprint runtime — a §7 silent-green hole.
+#
+# The self-relative root below exists ONLY to locate ``tools/``. It MUST NOT
+# be used to compose the routed paths: those compose against the runtime
+# ``--framework-root`` argument, the only value that is correct when the
+# framework and pilot repos differ. The two are permitted to disagree.
+# The three-dirname depth is Chunk-2-safe (the target dir sits at the same
+# depth) and must not be "corrected".
+_SELF_RELATIVE_FRAMEWORK_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+_TOOLS_DIR = os.path.join(_SELF_RELATIVE_FRAMEWORK_ROOT, "tools")
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import SCRIPTS_ROOT, phase_path  # noqa: E402
+
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -73,7 +98,7 @@ def sign_bundle(bundle: dict, key: bytes, key_id: str) -> dict:
 def run_verify_green(framework_root: str, pilot_root: str, lock_file: str,
                      test_file: str, python: str) -> dict:
     """Run verify-green.py and extract locked_test_sha_observed + pass/fail."""
-    script = os.path.join(framework_root, "phase-1", "scripts", "verify-green.py")
+    script = phase_path(framework_root, "scripts", "verify-green.py")
     cmd = [
         python, script,
         "--pilot-root", pilot_root,
@@ -372,7 +397,7 @@ def main() -> int:
     tool_versions = {
         "python": get_tool_version([args.python], "--version"),
         "pytest": get_tool_version([args.python, "-m", "pytest"], "--version"),
-        "verify_green": "phase-1/scripts/verify-green.py",
+        "verify_green": os.path.join(SCRIPTS_ROOT, "verify-green.py"),
     }
     if args.security_scan:
         tool_versions["bandit"] = get_tool_version([args.python, "-m", "bandit"], "--version")

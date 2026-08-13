@@ -70,6 +70,7 @@ from sprint_loop.state import (  # noqa: E402
     RunState,
     hash_text,
 )
+from sprint_loop.config import phase_path  # noqa: E402
 from sprint_loop.droid import InvokeOptions, invoke_droid  # noqa: E402
 from sprint_loop.backends import LocalBackend, BackendResult  # noqa: E402
 from sprint_loop.prompts.render import render_to_file  # noqa: E402
@@ -105,11 +106,11 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
     """
     cmd = [
         pilot_python,
-        os.path.join(framework_root, "phase-1", "scripts", "lock.py"),
+        phase_path(framework_root, "scripts", "lock.py"),
         chunk.locked_test_files[0],  # primary locked test (PRD §5.4)
         accepted_assertion,
         "--pilot-root", pilot_root,
-        "--locks-dir", os.path.join(framework_root, "phase-1", "locks"),
+        "--locks-dir", phase_path(framework_root, "locks"),
     ]
     if dry_run:
         # Synthesize a manifest that mirrors lock.py's output shape so
@@ -121,8 +122,8 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
             "accepted_at": "1970-01-01T00:00:00+00:00",
             "accepted_assertion": accepted_assertion,
         }
-        lock_path = os.path.join(framework_root, "phase-1", "locks",
-                                 f"{chunk.locked_test_files[0]}.lock.json")
+        lock_path = phase_path(framework_root, "locks",
+                               f"{chunk.locked_test_files[0]}.lock.json")
         chunk.lock_manifest_path = lock_path
         chunk.locked_test_sha = synth_sha
         return manifest
@@ -133,8 +134,8 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
             f"{r.stderr[:500]!r}"
         )
     # Find the lock file (lock.py writes to phase-1/locks/<test_file>.lock.json)
-    lock_path = os.path.join(framework_root, "phase-1", "locks",
-                             f"{chunk.locked_test_files[0]}.lock.json")
+    lock_path = phase_path(framework_root, "locks",
+                           f"{chunk.locked_test_files[0]}.lock.json")
     if not os.path.isfile(lock_path):
         raise RuntimeError(
             f"lock.py reported success but manifest missing at {lock_path}"
@@ -161,7 +162,7 @@ def validate_red(chunk: ChunkState, *, framework_root: str, pilot_root: str,
     """
     cmd = [
         pilot_python,
-        os.path.join(framework_root, "phase-1", "scripts", "valid-red.py"),
+        phase_path(framework_root, "scripts", "valid-red.py"),
         "--pilot-root", pilot_root,
         "--test-file", chunk.locked_test_files[0],
         "--accepted-assertion", chunk.accepted_assertion,
@@ -210,7 +211,7 @@ def verify_green(chunk: ChunkState, *, framework_root: str, pilot_root: str,
     """
     cmd = [
         pilot_python,
-        os.path.join(framework_root, "phase-1", "scripts", "verify-green.py"),
+        phase_path(framework_root, "scripts", "verify-green.py"),
         "--pilot-root", pilot_root,
         "--lock-file", chunk.lock_manifest_path,
         "--test-file", chunk.locked_test_files[0],
@@ -276,7 +277,7 @@ def produce_evidence(chunk: ChunkState, *, framework_root: str,
         return bundle
     cmd = [
         pilot_python,
-        os.path.join(framework_root, "phase-3.2", "evidence", "local_backend.py"),
+        phase_path(framework_root, "evidence-code", "local_backend.py"),
         "--pilot-root", pilot_root,
         "--framework-root", framework_root,
         "--test-file", chunk.locked_test_files[0],

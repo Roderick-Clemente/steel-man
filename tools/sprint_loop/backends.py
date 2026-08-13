@@ -25,6 +25,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from sprint_loop.config import phase_path
 from sprint_loop.state import GateDecision
 
 
@@ -121,8 +122,8 @@ class LocalBackend:
         # generic "orchestrator missing" message.
         test_file = chunk.get("test_file", "")
         lock_file = chunk.get("lock_file", "")
-        review_output_dir = chunk.get("review_output_dir", "") or os.path.join(
-            framework_root, "phase-4.5", "build-evidence",
+        review_output_dir = chunk.get("review_output_dir", "") or phase_path(
+            framework_root, "evidence", "phase-4.5", "build-evidence",
             extra.get("run_id", run_label), "reviews"
         )
         if not test_file or not lock_file:

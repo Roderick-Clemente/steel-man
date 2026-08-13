@@ -46,6 +46,14 @@ import subprocess
 import sys
 import time
 
+# Invoked as ``python3 tools/orchestrate-review.py``, so sys.path[0] is already
+# ``tools/`` and the layout roots (CHUNK-1-SPEC §2.1) import directly.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import phase_path  # noqa: E402
+
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
 
 
@@ -75,7 +83,7 @@ def step1_produce_evidence(args) -> dict:
 
     cmd = [
         args.pilot_python,
-        os.path.join(args.framework_root, "phase-3.2", "evidence", "local_backend.py"),
+        phase_path(args.framework_root, "evidence-code", "local_backend.py"),
         "--pilot-root", args.pilot_root,
         "--framework-root", args.framework_root,
         "--test-file", args.test_file,

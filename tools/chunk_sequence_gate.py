@@ -6,7 +6,7 @@ Per OPERATING-RULES §20 and PRD §11 Phase 5 deliverable #3:
 
   Phase 5 wires enforcement: ``chunk_sequence_gate --check chunk-N+1``
   blocks the runner's chunk-close path when the prior chunk's
-  ``phase-4.5/tokens/chunk-N.token.json`` does not verify. Exit 6 on
+  ``<TOKENS_ROOT>/chunk-N.token.json`` does not verify. Exit 6 on
   refusal (the runner's refusal exit; matches ``sign_chunk_token verify``
   refusal exit so a refused chunk leaves an observable artifact across
   both surfaces).
@@ -36,6 +36,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import sign_chunk_token as sct  # noqa: E402
+from sprint_loop.config import TOKENS_ROOT  # noqa: E402
 
 
 REFUSAL_EXIT = 6  # the runner's refusal exit; mirrored from sign_chunk_token verify
@@ -116,7 +117,7 @@ def build_argparser() -> argparse.ArgumentParser:
         description="Refuses chunk-N+1 from starting when chunk-N's token does not verify (§20 / PRD §11 Phase 5 #3).",
     )
     p.add_argument("--prior-token", required=True,
-                   help="Path to phase-4.5/tokens/chunk-N.token.json (or any token path).")
+                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json (or any token path).")
     p.add_argument("--next-chunk-id", required=True,
                    help="The chunk-id the gate is being checked FOR (informational; helps the refusal log).")
     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")

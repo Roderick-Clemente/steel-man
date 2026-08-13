@@ -70,7 +70,12 @@ if _TOOLS_DIR not in sys.path:
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from sprint_loop.config import Config, MODEL_FAMILY_MAP, build_config  # noqa: E402
+from sprint_loop.config import (  # noqa: E402
+    BUILD_EVIDENCE_REL,
+    Config,
+    MODEL_FAMILY_MAP,
+    build_config,
+)
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
@@ -1113,9 +1118,9 @@ def _runner_argparser() -> argparse.ArgumentParser:
                              "form on the CLI as the runner's expect: --resume-from <path>.")
     parser.add_argument("--evidence-output-dir", default="",
                         help="Override the per-run evidence tree location. By default the "
-                             "runner stages at <framework-root>/phase-4.5/build-evidence/"
+                             f"runner stages at <framework-root>/{BUILD_EVIDENCE_REL}/"
                              "<run-id>/. Set this for per-pilot overlays so the framework "
-                             "repo's phase-4.5/build-evidence dir stays clean. "
+                             f"repo's {BUILD_EVIDENCE_REL} dir stays clean. "
                              "WARNING (pass-r3 H-9): when used as the framework-side audit "
                              "path, the runner cannot force-add the audit tree into the "
                              "framework repo on commit; pilot repos are responsible for "

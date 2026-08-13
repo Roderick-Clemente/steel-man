@@ -34,12 +34,13 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import sign_chunk_token as sct  # noqa: E402
+from sprint_loop.config import BUILD_EVIDENCE_REL, TOKENS_ROOT  # noqa: E402
 
 
 CHECKLIST_POINTER = (
     "Operator-eye troubleshooting checklist for absent signal "
     "(PRD §11 Phase 5 §5):\n"
-    "  1. Read phase-4.5/tokens/chunk-N.token.json. If absent:\n"
+    f"  1. Read {TOKENS_ROOT}/chunk-N.token.json. If absent:\n"
     "     cross_family_review.py refused.\n"
     "  2. Verify signature. If signature bad: EVIDENCE_SIGNING_KEY\n"
     "     mismatch. Check tools/run-with-model.sh for the key it\n"
@@ -48,7 +49,7 @@ CHECKLIST_POINTER = (
     "     --next-chunk-id N+1. Exit 6 means the prior chunk's\n"
     "     token still doesn't verify; roll back.\n"
     "  4. Check telemetry/runs.jsonl for the chunk's run_id.\n"
-    "  5. Inspect phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json\n"
+    f"  5. Inspect {BUILD_EVIDENCE_REL}/<run-id>/<RUN_STATE>.json\n"
     "     for the last-known step prior to the gap.\n"
     "  6. Refresh tools/install-skill.sh — the canonical skill\n"
     "     may not have been loaded into the agent's session context."
@@ -96,7 +97,7 @@ def build_argparser() -> argparse.ArgumentParser:
         description="Operator-eye visual signal at chunk close (PRD §11 Phase 5 #5).",
     )
     p.add_argument("--token-path", default="",
-                   help="Path to phase-4.5/tokens/chunk-N.token.json")
+                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json")
     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")
     p.add_argument("--plan-review-rendered", action="store_true",
                    help="Emit 🤺 for the adversarial-plan-render half of the four-tone signature.")

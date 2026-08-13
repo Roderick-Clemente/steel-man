@@ -61,6 +61,62 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
 }
 
 
+# ── layout roots (CHUNK-1-SPEC §2.1) ─────────────────────────────────────
+#
+# Single source of truth for the phase-directory prefixes the runner, the
+# gates and the orchestrator seat compose paths from. Chunk 1 introduces
+# them pointing at today's homes, so behaviour is byte-identical and no
+# directory moves happen; Chunk 2 flips the values and the tree moves.
+#
+# These are RELATIVE SEGMENTS, never absolute paths. ``framework_root``
+# lives on the ``Config`` dataclass and is supplied per call — baking it in
+# here would make the constants unusable from the standalone scripts and
+# would break the forward invariant Chunk 2 relies on.
+
+EVIDENCE_ROOT = ""
+PLANNING_ROOT = ""
+TOKENS_ROOT = os.path.join("phase-4.5", "tokens")
+PROMPTS_ROOT = os.path.join("phase-4.5", "prompts")
+SCRIPTS_ROOT = os.path.join("phase-1", "scripts")
+LOCKS_ROOT = os.path.join("phase-1", "locks")
+EVIDENCE_CODE_ROOT = os.path.join("phase-3.2", "evidence")
+
+# Derived: the per-run build-evidence tree, relative to framework root.
+# ``EVIDENCE_ROOT`` is empty today, so an f-string would render a leading
+# slash and change ``--help`` bytes; ``os.path.join`` swallows the empty
+# component. Mirrors the same name in ``tools/sprint_loop/paths.sh``.
+BUILD_EVIDENCE_REL = os.path.join(EVIDENCE_ROOT, "phase-4.5", "build-evidence")
+
+PHASE_ROOTS: dict[str, str] = {
+    "evidence": EVIDENCE_ROOT,
+    "planning": PLANNING_ROOT,
+    "tokens": TOKENS_ROOT,
+    "prompts": PROMPTS_ROOT,
+    "scripts": SCRIPTS_ROOT,
+    "locks": LOCKS_ROOT,
+    "evidence-code": EVIDENCE_CODE_ROOT,
+}
+
+
+def phase_path(framework_root: str, kind: str, *parts: str) -> str:
+    """Compose a path under one of the §2.1 layout roots.
+
+    ``kind`` selects the root; ``parts`` are appended verbatim. There is
+    deliberately no ``phase=`` parameter — the phase segment is embedded in
+    the constant, which is the whole point of the indirection. A caller that
+    could pass its own phase segment would reintroduce the hardcoding Chunk 1
+    exists to remove.
+
+    Raises ``ValueError`` on an unknown ``kind`` rather than silently
+    composing against the framework root (§7: fail loudly, never plausibly).
+    """
+    if kind not in PHASE_ROOTS:
+        raise ValueError(
+            f"unknown layout kind {kind!r}; expected one of {sorted(PHASE_ROOTS)}"
+        )
+    return os.path.join(framework_root, PHASE_ROOTS[kind], *parts)
+
+
 @dataclass
 class Config:
     """All configurable knobs of the loop runner.
@@ -154,12 +210,14 @@ class Config:
     def default_locks_dir(self) -> str:
         if self.locked_test_locks_dir:
             return self.locked_test_locks_dir
-        return os.path.join(self.framework_root, "phase-1", "locks")
+        return phase_path(self.framework_root, "locks")
 
     def default_evidence_dir(self, run_id: str) -> str:
         if self.evidence_output_dir:
             return self.evidence_output_dir
-        return os.path.join(self.framework_root, "phase-4.5", "build-evidence", run_id)
+        return phase_path(
+            self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id
+        )
 
     def to_role_assignments(self) -> list[RoleAssignment]:
         """Materialise Config into the ``RoleAssignment`` shapes ``state.RunState`` stores."""
@@ -272,9 +330,9 @@ def build_config(argv: list[str] | None = None,
 
     parser.add_argument("--evidence-output-dir", default="",
                         help="Per-run evidence tree root. Defaults to "
-                             "<framework-root>/phase-4.5/build-evidence/<run-id>/. "
+                             f"<framework-root>/{BUILD_EVIDENCE_REL}/<run-id>/. "
                              "Set this for per-pilot overlays so the framework repo's "
-                             "phase-4.5/build-evidence dir stays clean.")
+                             f"{BUILD_EVIDENCE_REL} dir stays clean.")
 
     parser.add_argument("--pilot-spec-file", default="",
                         help="Path to the pilot spec the planner reads (free-form markdown).")
