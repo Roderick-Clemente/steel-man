@@ -51,6 +51,13 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
     "gemini-3.1-pro-preview": ("google", "gemini-family"),
     "gemini-2.5-pro":      ("google", "gemini-family"),
     "glm-5.2":             ("zhipu", "glm-family"),
+    # Droid Core (Open Models) tier — operator-approved for runs where
+    # frontier budget is exhausted. Same taxonomy shape as the entries
+    # above; distinct families so §17.2 cross-family distinctness holds
+    # when these are used as Tier-2 reviewers against a builder in the
+    # openai-family or claude-family.
+    "kimi-k3":             ("moonshot", "kimi-family"),
+    "minimax-m3":          ("minimax", "minimax-family"),
 }
 
 
