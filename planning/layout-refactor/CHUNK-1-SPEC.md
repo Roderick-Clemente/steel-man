@@ -30,10 +30,13 @@ follow-on** (§2.5), not routed in Chunk 1, because they are
 one-shot scripts that produce committed evidence bytes (immutable)
 and are not on any live runtime path.
 
-**Site count.** §2.2–§2.4 list **20 rows covering 26 distinct
-line-sites** (§2.2: 13 rows / 13 sites; §2.3: 5 rows / 11 sites;
+**Site count.** §2.2–§2.4 list **20 rows covering 24 distinct
+line-sites** (§2.2: 13 rows / 13 sites; §2.3: 5 rows / 9 sites;
 §2.4: 2 rows / 2 sites). The tables are authoritative — they are the
 grep output. PLAN §5's "~21" was an estimate made before the grep.
+(Two docstring sites formerly counted in §2.3 —
+`chunk_sequence_gate.py:9`, `sign_chunk_token.py:6` — moved to the
+§2.5.2 fence as unroutable, taking §2.3 from 11 sites to 9.)
 
 ## 2. Surface touched (grounded inventory, grep-verified)
 
@@ -133,30 +136,63 @@ if tools_dir not in sys.path:
 
 resolving `framework_root` from the script's own location (the file
 sits at `phase-3.2/evidence/`, so `framework_root` is
-`dirname(dirname(dirname(abspath(__file__))))`). **Note this
-computation is itself self-relative and therefore invisible to the
-§2.2 grep — Chunk 2's move of `phase-3.2/evidence/` →
-`tools/phase-3.2-evidence/` changes its depth, so CHUNK-2-SPEC must
-own it alongside §2.5.1's hook.**
+`dirname(dirname(dirname(abspath(__file__))))`).
 
-Acceptable alternative: place the constants in a dependency-free
-module importable from both trees without a path hack. Either way
-the choice must be explicit in the commit, and §4.2 test 3 asserts
-the script still runs.
+**The dirname depth is Chunk-2-safe and MUST NOT be "corrected".**
+`phase-3.2/evidence/local_backend.py` is two directories below the
+repo root; Chunk 2's target `tools/phase-3.2-evidence/local_backend.py`
+is *also* two directories below it. Three `dirname` calls reach the
+root in both layouts. An earlier draft of this spec claimed the depth
+changes and that CHUNK-2-SPEC must fix it — that claim is **false**,
+and acting on it would break the path. Chunk 2 owns only the
+`SCRIPTS_ROOT` value flip, not this computation.
+
+**Which `framework_root` composes the routed paths (binding).** The
+bootstrap's self-relative `framework_root` exists *only* to put
+`tools/` on `sys.path` before argparse runs; it MUST NOT be used to
+compose `SCRIPTS_ROOT`. The routed paths at `:76` and `:375` compose
+against the **runtime `--framework-root` argument**, which is the
+value the caller passed and the only one that can be correct when the
+framework and the pilot repo differ (the CI at `:169,191` already
+distinguishes a pilot's `phase-1/locks/` from the framework's). The
+two values are permitted to differ and the spec does not require them
+to agree; the import path uses the self-relative one, every composed
+filesystem path uses the argument.
+
+Acceptable alternative to the bootstrap: place the constants in a
+dependency-free module importable from both trees without a path
+hack. Either way the choice must be explicit in the commit, and §4.2
+test 3b asserts the script still runs with an unguarded module-level
+import.
 
 ### 2.3 Prose / docstring / argparse help / banner text
 
 These are not `os.path.join` sites but string literals that name
 `phase-4.5/tokens/` or `phase-4.5/build-evidence/` in human-readable
-text. Route them through the constant so the prose cannot drift
-from the path:
+text. **Only interpolatable strings are in scope here.**
+
+**§2.3 covers (a) runtime-formatted strings only:** banner text, CLI
+`--help` strings, and argparse `help=` values. These are ordinary
+expressions and can become f-strings referencing a constant, so they
+must be routed.
+
+**§2.3 explicitly does NOT cover (b) module/function docstrings.**
+Docstrings are static literals evaluated before any constant is in
+scope; they cannot interpolate without `__doc__` rewriting, which is
+not worth the churn. The docstring citations at
+`tools/chunk_sequence_gate.py:9` and `tools/sign_chunk_token.py:6`
+are therefore moved to the §2.5.2 fence, **not** routed. An earlier
+draft of this spec listed them as routable while §2.5.2
+simultaneously declared docstrings unroutable; §2.5.2 is correct and
+governs. §4.2 test 3's AST scan skips docstrings for exactly this
+reason, so the fence and the check now agree.
 
 | File:lines | Current text | Route through |
 |-----------|-------------|--------------|
 | `tools/sprint_loop/chunk_close_banner.py:42,51,99` | banner text mentions `phase-4.5/tokens/` and `phase-4.5/build-evidence/` | `TOKENS_ROOT` / `EVIDENCE_ROOT` in f-strings |
 | `tools/sprint-loop.py:1116,1118` | CLI help mentions `phase-4.5/build-evidence/` | `EVIDENCE_ROOT` in help string |
-| `tools/chunk_sequence_gate.py:9,119` | docstring + argparse help mention `phase-4.5/tokens/` | `TOKENS_ROOT` in prose |
-| `tools/sign_chunk_token.py:6,135` | docstring mentions `phase-4.5/tokens/` | `TOKENS_ROOT` in prose |
+| `tools/chunk_sequence_gate.py:119` | argparse help mentions `phase-4.5/tokens/` | `TOKENS_ROOT` via f-string |
+| `tools/sign_chunk_token.py:135` | argparse help mentions `phase-4.5/tokens/` | `TOKENS_ROOT` via f-string |
 | `tools/sprint_loop/config.py:275,277` | `--evidence-output-dir` argparse help in `build_config`'s parser names `<framework-root>/phase-4.5/build-evidence/<run-id>/` (:275) and `phase-4.5/build-evidence dir stays clean` (:277) | `EVIDENCE_ROOT` in help string |
 
 **Why `config.py:275,277` is in scope:** `--evidence-output-dir` is
@@ -292,11 +328,19 @@ moved locks dir. Recorded here so the break is owned by name before
 does not stop Chunk 2 from opening without it. Therefore
 `chunk-D1-2` MUST NOT open until **both** of these are committed:
 
-1. CHUNK-2-SPEC amended to own `locked-test-guard.py`'s
-   `DEFAULT_LOCKS_DIR` **and** `local_backend.py`'s self-relative
-   `framework_root` computation (§2.2), both of which are invisible
-   to the phase-literal grep and both of which change depth under
-   Chunk 2's moves.
+1. CHUNK-2-SPEC amended to own **both** self-relative
+   `dirname(dirname(abspath(__file__)))/locks` defaults, which are
+   invisible to the phase-literal grep and both of which resolve to a
+   nonexistent `tools/locks` after Chunk 2's moves:
+   - `phase-1/hooks/locked-test-guard.py:46-49` (`DEFAULT_LOCKS_DIR`)
+   - `phase-1/scripts/lock.py:42` (`--locks-dir` default). The runner
+     always passes `--locks-dir` explicitly (`per_chunk.py`), so the
+     sprint path is safe; direct CLI and documented usage are not.
+     Same failure class, and it is the file **this spec's own judge
+     tests are locked with**.
+
+   (`local_backend.py`'s bootstrap is explicitly **excluded** — its
+   dirname depth is unchanged by the move; see §2.2.)
 2. CHUNK-2-SPEC's constant-flip table corrected to the
    relative-segment representation per §2.1's forward invariant.
 
@@ -309,7 +353,9 @@ Roughly 25 docstring and comment citations of moving paths exist in
 `.py` files. Docstrings cannot interpolate constants, so "route
 through the constant" is not the fix; an explicit fence is.
 
-Known sites: `per_chunk.py:18,98,153,206,243`;
+Known sites: `chunk_sequence_gate.py:9` and `sign_chunk_token.py:6`
+(moved here from §2.3 — module docstrings, unroutable);
+`per_chunk.py:18,98,153,206,243`;
 `orchestrate-review.py:21,29-36`; `local_backend.py:6,14-23`;
 `consumer.py:17-23`; `token_accounting.py:18-21`; `lock.py:5,8`;
 `valid-red.py:10`; `verify-green.py:9`; `locked-test-guard.py:7`;
@@ -333,8 +379,16 @@ here so the boundary is declared, not discovered at Chunk-2 review.
    behavioural drift — the resolved paths are identical to today.
 3. Create `tools/sprint_loop/paths.sh` and route
    `fire-design-review.sh`'s two sites through it.
-4. Add `tests/test_layout_paths.py` with three tests (see §4.2).
-5. Run the full suite and confirm 197 tests green (194 + 3 new).
+4. **Do NOT author `tests/test_layout_paths.py`.** It is written and
+   **content-locked by the planner** before this chunk opens, and it
+   is the judge of this chunk's work. Per framework invariant #3 the
+   executor of a chunk must not author or modify the tests that
+   grade it. The executor treats the locked file as read-only: run
+   it, do not edit it. If a locked test appears wrong, that is a
+   `BLOCKED:` line to the planner, not an edit. Lock manifest:
+   `phase-1/locks/`, recorded via `phase-1/scripts/lock.py`.
+5. Run the full suite and confirm 197 tests green (194 + 3 from the
+   locked judge file).
 6. Commit with message `chunk-1: path-root constants + route hardcoded sites through them`.
 7. Push to `origin/factory/layout-refactor`.
 
@@ -349,12 +403,49 @@ because the constants default to today's paths.
 
 ### 4.2 New `tests/test_layout_paths.py` (3 tests)
 
-1. **Constant resolution test:** every constant (`EVIDENCE_ROOT`,
-   `PLANNING_ROOT`, `TOKENS_ROOT`, `PROMPTS_ROOT`, `SCRIPTS_ROOT`,
-   `LOCKS_ROOT`, `EVIDENCE_CODE_ROOT`) resolves to a
-   currently-existing directory when composed with the real
-   `framework_root` (the repo root). Asserts `os.path.isdir()`
-   on each.
+**Rootdir anchoring (applies to all three tests).** Every path in
+this file is resolved from the test file's own location, never from
+the process CWD:
+```python
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+```
+All `subprocess` calls pass `cwd=REPO_ROOT`. The constants are
+relative segments by design and pytest's CWD is the invocation
+directory, not rootdir, so a CWD-relative assertion false-fails when
+the suite is run from anywhere but the repo root. Commit `7179934`
+("portability: make the suite pass from any clone") established
+CWD-independence as a property of this suite; these tests must not
+regress it.
+
+1. **Constant value + resolution test.** Two assertion groups, because
+   `isdir()` alone is vacuous for the empty-string roots:
+
+   a. **Exact segment values** (this is the real check — it fails if a
+      constant is wrong, reordered, or accidentally emptied):
+      ```python
+      assert EVIDENCE_ROOT == ""
+      assert PLANNING_ROOT == ""
+      assert TOKENS_ROOT        == os.path.join("phase-4.5", "tokens")
+      assert PROMPTS_ROOT       == os.path.join("phase-4.5", "prompts")
+      assert SCRIPTS_ROOT       == os.path.join("phase-1", "scripts")
+      assert LOCKS_ROOT         == os.path.join("phase-1", "locks")
+      assert EVIDENCE_CODE_ROOT == os.path.join("phase-3.2", "evidence")
+      ```
+   b. **Existence, for the five non-empty roots only:**
+      `os.path.isdir(os.path.join(REPO_ROOT, <root>))` for
+      `TOKENS_ROOT`, `PROMPTS_ROOT`, `SCRIPTS_ROOT`, `LOCKS_ROOT`,
+      `EVIDENCE_CODE_ROOT` (all five verified present today).
+
+   **Why (a) is mandatory.** `os.path.join(root, "")` returns
+   `root + os.sep`, so `isdir()` on the composed `EVIDENCE_ROOT` and
+   `PLANNING_ROOT` paths is unconditionally true — it asserts only
+   that the repo root exists and would pass if those constants held
+   the wrong value or were silently emptied. An existence-only test
+   also gets *stronger* after Chunk 2's flip, meaning Chunk 1's green
+   would claim more than it earns. A check that cannot distinguish
+   "did not run" from "passed" is the failure class this framework
+   exists to catch (§7), so the value assertions carry the weight and
+   existence is corroboration only.
 
 2. **Helper path test:** matches the §2.1 signature exactly —
    `framework_root` is a required positional and there is no `phase=`
@@ -368,33 +459,49 @@ because the constants default to today's paths.
    form `phase_path(kind=..., phase=...)` would raise `TypeError`
    against the §2.1 signature and MUST NOT be written.
 
-3. **File-wide no-residual-literal test (NOT line-keyed):** for each
-   file in §2.2, assert that **no line anywhere in the file** matches
-   `os.path.join` combined with a `"phase-` literal. Line-keyed
-   assertions are forbidden here: if the executor's edits shift line
-   numbers (import additions, rewraps), a line-keyed test reads the
-   wrong lines and a missed routing site passes silently. Since this
-   is the chunk's only anti-missed-site check (§7), it must be
-   drift-proof. Implement as a file-wide regex scan (or an AST walk
-   over `Call` nodes, executor's choice) over the 5 files named in
-   §2.2. Files whose only remaining `"phase-` literals are the
-   §2.1 constant definitions themselves are exempted by excluding
-   the constant-definition block in `config.py` explicitly by name.
+3. **No-residual-literal test — AST-scoped, not text-scoped.**
+
+   **The scoping rule (single rule, resolves every fence collision).**
+   A residual is only a defect when it sits in **executable code**.
+   Comments and docstrings are documentation, are fenced by §2.3/§2.5.2,
+   and **cannot interpolate a constant**, so a text-level scan of a
+   whole file necessarily collides with its own fences. Therefore:
+
+   - Parse each Python file with `ast`. Comments do not appear in the
+     AST at all, which exempts them mechanically rather than by an
+     enumerated list.
+   - Skip docstrings: any `ast.Expr` whose value is a `Constant` str
+     (module, class, and function level).
+   - Skip the constant definitions themselves: any **module-level
+     `ast.Assign`** whose target `id` is one of the seven §2.1 names.
+     This is the mechanical anchor — **not** "the constant-definition
+     block excluded by name". A by-name or by-line exemption is the
+     same drift-prone class as the line-keyed assertion this test
+     replaced, and it would be load-bearing for two assertion groups.
+   - Over what remains, fail on any `str` `Constant` containing
+     `phase-1/`, `phase-3.2/`, `phase-4.5/`, or matching
+     `phase-\d`, in any of the files named in §2.2 **and** §2.3.
+
+   This single rule makes all of the following true simultaneously,
+   which no text-level variant can:
+   - `config.py:87,88` comments stay fenced (§2.3) and are invisible
+     to the AST.
+   - `chunk_sequence_gate.py:9` and `sign_chunk_token.py:6` module
+     docstrings stay fenced (§2.5.2) and are skipped as docstrings.
+   - `config.py`'s constant definitions are exempt by structure.
+   - A missed **runtime** route in either §2.2 or §2.3 still fails.
+
+   Line-keyed assertions remain forbidden: if the executor's edits
+   shift line numbers, a line-keyed test reads the wrong lines and a
+   missed site passes silently. This is the chunk's only
+   anti-missed-site check (§7), so it must be drift-proof.
 
    **Also in this same test (one test, several assertions — see the
    arithmetic note below):**
 
-   a. **§2.3 prose residuals.** For each file in §2.3
-      (`chunk_close_banner.py`, `sprint-loop.py`,
-      `chunk_sequence_gate.py`, `sign_chunk_token.py`, `config.py`),
-      assert no literal `phase-4.5/tokens` or
-      `phase-4.5/build-evidence` remains outside the §2.1
-      constant-definition block. Without this, a missed prose route
-      is silent-green — §2.3 would have no residual check at all.
-
-   b. **Shell residuals + real source line.** `bash -n` alone cannot
-      catch a wrong source path, a missing source, or a
-      still-hardcoded `python3` line, so assert all of:
+   a. **Shell residuals + real source line.** `bash -n` alone passes
+      on a wrong source path, a missing source, and a still-hardcoded
+      `python3` line, so assert all of (all with `cwd=REPO_ROOT`):
       ```sh
       bash -n phase-5/scripts/fire-design-review.sh
       bash -c '. tools/sprint_loop/paths.sh && test -n "$PHASE5_SCRIPTS_ROOT" \
@@ -404,18 +511,29 @@ because the constants default to today's paths.
       plus **file-content** assertions on
       `phase-5/scripts/fire-design-review.sh`: it contains the exact
       source line `. "$REPO_ROOT/tools/sprint_loop/paths.sh"`, its
-      `RUN_DIR` assignment references `${BUILD_EVIDENCE_REL}`, its
-      envelope-manifest invocation references
-      `${PHASE5_SCRIPTS_ROOT}`, and **no `phase-` literal remains
-      anywhere in the file**. This last assertion is now satisfiable
-      precisely because §2.4 moved `BUILD_EVIDENCE_REL` into
-      `paths.sh`.
+      `RUN_DIR` assignment references `${BUILD_EVIDENCE_REL}`, and its
+      envelope-manifest invocation references `${PHASE5_SCRIPTS_ROOT}`.
 
-   c. **`local_backend.py` still executes.** After the §2.2 import
-      bootstrap, assert
-      `python3 phase-3.2/evidence/local_backend.py --help` exits 0.
-      Routing that file through an import it cannot resolve would
-      otherwise fail only at sprint runtime, not in the suite.
+      **Shell residual scope: non-comment lines only.** Strip lines
+      whose first non-whitespace character is `#` before scanning.
+      `fire-design-review.sh` retains `phase-` literals in its header
+      and usage comments (`:8`, `:34-36`) which §2.4 does **not** put
+      in the edit surface; an "anywhere in the file" assertion is
+      therefore unsatisfiable. Scan only executable lines, and assert
+      specifically that no unscoped `phase-4.5/build-evidence` or
+      `phase-5/scripts` literal remains there.
+
+   b. **`local_backend.py` still executes, with an unguarded import.**
+      Assert `python3 phase-3.2/evidence/local_backend.py --help`
+      exits 0 (`cwd=REPO_ROOT`). **Exit 0 alone is insufficient:** a
+      lazy import inside `main()`, or a `try/except ImportError` with
+      a hardcoded fallback, also exits 0 and fails only at sprint
+      runtime. So additionally assert via AST on
+      `local_backend.py` that the `sprint_loop.config` import is
+      **module-level** (its `ast.Import`/`ast.ImportFrom` node is a
+      direct child of `ast.Module`) and **not** wrapped in an
+      `ast.Try`. The residual scan in the main body catches an
+      `os.path.join` fallback but cannot catch a bare `except`.
 
    **Test-count arithmetic (binding).** These assertions are grouped
    into the **3** tests above, so Chunk 1 adds exactly **3** tests:
