@@ -1,6 +1,6 @@
 {
   "file": "tests/test_layout_paths.py",
-  "sha256": "82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753",
-  "accepted_at": "2026-08-13T23:01:55.654672+00:00",
-  "accepted_assertion": "chunk-D1-1 judge tests; authored by planner, executor must not modify; re-locked after gemini blocker on os.path.join segment blindness"
+  "sha256": "233eee9d0589d024e30dbe5c9fe02028ba358eeb732c0a83927c780748dec4a2",
+  "accepted_at": "2026-08-13T23:33:09.280132+00:00",
+  "accepted_assertion": "chunk-D1-1 judge tests; planner-authored; fix unsatisfiable --help exit-0 assertion (pre-existing PEP-604 under py3.9)"
 }

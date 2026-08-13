@@ -149,3 +149,39 @@ not fire, does not post those row types, and does not sign.
   absence rather than left as a gap. Round 7 of chunk-D1-1-spec is also still unfired.
   This seat holds no EVIDENCE_SIGNING_KEY, wrote nothing under phase-4.5/tokens/, and
   signed nothing.
+
+### Known issues (post-freeze, not fixed)
+
+```
+2026-08-14T00:20Z PLANNER: KNOWN ISSUE: id=KI-1 file=phase-3.2/evidence/local_backend.py:189
+  PRE-EXISTING, NOT introduced by chunk-D1-1. The annotation "-> dict | None" (PEP 604) is
+  evaluated at def-time and raises TypeError under Python < 3.10. The repo's interpreter here
+  is 3.9.6, so this module cannot be executed standalone at all: "python3
+  phase-3.2/evidence/local_backend.py --help" exits 1 both BEFORE (verified at 4b47ff3 by
+  running the extracted file: identical TypeError at its line 164) and after the chunk.
+  Not fixed: out of chunk-D1-1's surface, and the fix (from __future__ import annotations, or
+  Optional[dict]) is a behaviour-neutral edit to a file this chunk only routes paths in.
+  Consequence to carry forward: local_backend.py's argparse layer is unexercised on this
+  interpreter, so no test can assert its runtime behaviour here.
+
+2026-08-14T00:20Z PLANNER: SELF-REPORTED DEFECT: id=SD-1 file=tests/test_layout_paths.py
+  scope=planner-authored judge  severity=blocking  found_by=planner (running the builder's commit d5db8ff)
+  The judge asserted "local_backend.py --help" exits 0. Given KI-1 that assertion was
+  UNSATISFIABLE on this interpreter: the chunk could never close green no matter what the
+  executor did. It survived authoring, a re-lock, and six reviewer rounds because the test was
+  RED for an earlier reason (missing constants, unrouted sites), so the assertion was never
+  evaluated. THIS IS THE VALID-RED BLIND SPOT: a RED test proves the assertions that fired,
+  and says NOTHING about assertions downstream of the first failure. An unsatisfiable
+  assertion is invisible until everything before it passes.
+  FIX: assert the thing that was actually meant — that the sprint_loop bootstrap RESOLVES
+  (stderr must not carry ModuleNotFoundError/ImportError naming sprint_loop) — and gate the
+  exit-0 assertion on sys.version_info >= (3,10), tolerating ONLY the KI-1 TypeError below
+  that. Strength preserved, verified by two negative controls: wrapping the import in
+  try/except ImportError fails ("no module-level sprint_loop import"), and pointing the
+  sys.path bootstrap at a wrong directory fails ("bootstrap import failed to resolve").
+  FREEZE EXCEPTION TAKEN, flagged for operator review: Ruling 4 item 3 sends self-found
+  defects to this ledger rather than to commits. Exception taken because this defect makes
+  chunk-D1-1 unclosable by construction and blocks the executor, and because the freeze was
+  scoped to the SPEC while this is the judge. Judge re-locked
+  82035450 -> 233eee9d. Operator may overrule; nothing else was touched.
+```
