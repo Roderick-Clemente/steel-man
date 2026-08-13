@@ -63,3 +63,63 @@ visible rather than tracked only in a session.
 2026-08-13T23:04:22Z PLANNER: VALIDATE COMPLETE: validator=grok-4.5 chunk=chunk-D1-1-spec-gate envelope=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json session_id=78f9fc48-8a42-484f-9501-cae201cd251f verdict=REJECT prompt_sha256=8c44a29d9b94e2b6971bc7f688d63fca18c4420f6fb9efd4f67ab0fe5861f654
 2026-08-13T23:04:22Z PLANNER: VALIDATE COMPLETE: validator=gemini-3.1-pro-preview chunk=chunk-D1-1-spec-gate envelope=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json session_id=822cab03-1b24-4f91-85d9-b59af65d373b verdict=REJECT prompt_sha256=8c44a29d9b94e2b6971bc7f688d63fca18c4420f6fb9efd4f67ab0fe5861f654
 2026-08-13T23:04:22Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-1-spec-gate commit=d3c8005 artifact=planning/layout-refactor/CHUNK-1-SPEC.md artifact_sha256=558f9956a4f029ad23b9c516ce8f49e5035da9e5f220e6f21ebbf5f26998beea paths=phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json,phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json ttl=2026-08-14T07:04:22Z branch=factory/layout-refactor note=BOTH-REJECT-cross-family-convergence-on-single-blocker-now-fixed-in-53c75d5
+
+### Errata
+
+Corrections per operator Ruling 4 item 5. Prior rows above are
+immutable; these rows supersede specific claims made elsewhere and
+name what they supersede.
+
+```
+2026-08-13T23:30Z PLANNER: ERRATUM: supersedes=planner-escalation-claim topic=misattributed-reviewer-credit
+  CLAIM AS RELAYED (3x, in planner escalations): grok-4.5 credited the §2.2 inventory with
+  "zero false positives, zero missed functional sites".
+  STATUS: FALSE. Verified: that phrase appears in exactly ONE envelope in this repo,
+  r-chunk1-spec-v3-20260813-2140/spec/kimi-k3.json (kimi-k3, NOT grok). No grok envelope
+  contains it. Two independent errors: (1) attribution to the wrong family; (2) the
+  vocabulary was seeded by the firing seat's own PROMPT.md:40 ("Any site the spec still
+  misses? Any false positive?"), so even kimi's phrasing echoes the prompt rather than
+  constituting an independent finding. A prompt that supplies the words it wants back
+  cannot be cited as corroboration.
+  GROK'S ACTUAL WORDS (r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json, session
+  78f9fc48): "Live join/literal sites in §2.2-§2.4 match the repo. Confirmed present:"
+  followed by an explicit site list, and "Fenced §2.5 generators and docstring-only sites
+  are real and correctly excluded." Grok also states sign_chunk_token.py:135 is a docstring
+  Returns: line, not argparse help. That is narrower than the claim it was cited for: it
+  confirms the listed sites are real, not that no site is missing.
+  IMPACT: the claim was load-bearing in escalations arguing inventory risk was retired.
+  It was not. Inventory confidence rests on the mechanical scan and its measured per-file
+  counts, not on reviewer praise.
+
+2026-08-13T23:30Z PLANNER: ERRATUM: supersedes=5906a79 topic=verdicts-recorded-in-artifact
+  Commit 5906a79 recorded gate verdicts and review history inside
+  planning/layout-refactor/CHUNK-1-SPEC.md (site-count paragraph, §2.3 line-number
+  paragraph, §2.4 paths.sh paragraph, §2.5 sign_chunk_token paragraph). Verdicts belong
+  in this ledger per §21, and a seat recording verdicts into the artifact under its own
+  review implicates §22. All such references have been removed from the spec; the
+  normative content they carried (the MUST NOT on local_backend.py dirname depth, the
+  authoritative-enumeration rule, the paths.sh non-1:1 note) is retained as forward-looking
+  requirements with no review provenance.
+
+2026-08-13T23:30Z PLANNER: RETRACTED: rows=3 timestamp=2026-08-13T23:04:22Z reason=Ruling-4-item-4
+  The three PLANNER: rows dated 2026-08-13T23:04:22Z (VALIDATE COMPLETE x2 for grok-4.5 and
+  gemini-3.1-pro-preview, and REVIEW REQUEST for chunk-D1-1-spec-gate) are RETRACTED as
+  improperly seated. CHUNK-1-SPEC is planner-authored, so under Ruling 3 the builder seat
+  fires Tier-2 and posts the resulting VALIDATE COMPLETE and REVIEW REQUEST rows. The
+  planner firing and recording on its own artifact is the fire-XOR-sign collapse that
+  Ruling 2a rejected, and §24 permits a waiver only via an explicit
+  "OPERATOR: WAIVE §24 for chunk=<id>" line, which was not issued.
+  THE ENVELOPES REMAIN VALID EVIDENCE. They are clean, non-error, on identified bytes
+  (commit d3c8005, artifact sha256 558f9956, prompt sha256 8c44a29d), and their sha256s are
+  in the map above. What is retracted is the SEATING of the control rows, not the review.
+  The builder re-posts these rows under BUILDER: when firing round 7.
+```
+
+### Round 7 handoff (pending builder)
+
+Round 7 is the last spec round per Ruling 4 item 3. Bytes to review are
+HEAD of `factory/layout-refactor` after the §4.2 restructure, which is
+strictly later than the `d3c8005` bytes rounds 5-6 saw. The builder
+fires both families, posts `BUILDER: VALIDATE COMPLETE` per envelope and
+one `BUILDER: REVIEW REQUEST`, and the referee audits. The planner does
+not fire, does not post those row types, and does not sign.

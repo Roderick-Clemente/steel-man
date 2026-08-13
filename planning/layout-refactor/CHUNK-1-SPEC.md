@@ -40,13 +40,10 @@ line-sites**:
 | §2.4 | 2 (prose, not a table) | 2 |
 | **total** | **19** | **23** |
 
-Counted mechanically from the tables, which are authoritative. Earlier
-drafts asserted 21, then 26, then 24, each disagreeing with the tables
-and sometimes with the same paragraph — three reviews raised findings
-against that arithmetic. The drift came from counting `sign_chunk_token.py`
-(now zero routable sites; both citations are docstrings, §2.5.2) and
-from double-counting `chunk_sequence_gate.py:9`. PLAN §5's "~21" was a
-pre-grep estimate.
+Counted mechanically from the tables, which are authoritative.
+`sign_chunk_token.py` contributes zero routable sites (both citations
+are docstrings, §2.5.2) and `chunk_sequence_gate.py:9` is a docstring,
+not a second site. PLAN §5's "~21" was a pre-grep estimate.
 
 Note the **judge test reports 18 hits**, not 23, because several cited
 line numbers fall inside a single multi-line string constant. The test
@@ -178,10 +175,9 @@ sits at `phase-3.2/evidence/`, so `framework_root` is
 `phase-3.2/evidence/local_backend.py` is two directories below the
 repo root; Chunk 2's target `tools/phase-3.2-evidence/local_backend.py`
 is *also* two directories below it. Three `dirname` calls reach the
-root in both layouts. An earlier draft of this spec claimed the depth
-changes and that CHUNK-2-SPEC must fix it — that claim is **false**,
-and acting on it would break the path. Chunk 2 owns only the
-`SCRIPTS_ROOT` value flip, not this computation.
+root in both layouts, so the depth does **not** change and CHUNK-2-SPEC
+must **not** "fix" it — doing so would break the path. Chunk 2 owns
+only the `SCRIPTS_ROOT` value flip, not this computation.
 
 **Which `framework_root` composes the routed paths (binding).** The
 bootstrap's self-relative `framework_root` exists *only* to put
@@ -231,10 +227,9 @@ reason, so the fence and the check now agree.
 
 `tools/sign_chunk_token.py` has **no routable site**: both its
 citations (`:6` module docstring and `:135` a `Returns:` line inside a
-function docstring) are docstrings, moved to the §2.5.2 fence. An
-earlier draft listed `:135` as argparse help; that was a
-misclassification, caught by the locked judge test's AST scan skipping
-it as a docstring.
+function docstring) are docstrings, moved to the §2.5.2 fence. Note
+`:135` is a `Returns:` line, **not** argparse help — the locked judge
+test's AST scan skips it as a docstring.
 
 **Docstring rewording is AUTHORIZED (and preferred over fencing).**
 The executor may reword the fenced docstring citations at
@@ -252,8 +247,7 @@ not gated.
 
 **The locked judge test is the authoritative site enumeration.** Line
 numbers in the tables above are informational and drift as the file is
-edited; three consecutive reviews raised findings against exact line
-citations for this reason. `tests/test_layout_paths.py` enumerates the
+edited. `tests/test_layout_paths.py` enumerates the
 residual sites **mechanically at run time** over the files named here,
 so the executor's worklist is the test's failure output, not these
 numbers. Running
@@ -294,11 +288,11 @@ a §2.1 Python constant:
 | `BUILD_EVIDENCE_REL` | no — shell-specific segment | mirrors the derived Python constant of the same name (§2.1) |
 | `PHASE5_SCRIPTS_ROOT` | no — shell-specific segment | no Python consumer; flips in Chunk 2 |
 
-An earlier draft claimed this exported "2 of the 7 Python constants",
-which is false: `PHASE5_SCRIPTS_ROOT` is not among the seven, and
-`BUILD_EVIDENCE_REL` is a derived constant rather than one of them.
-The shell mirror is deliberately not a 1:1 mirror of §2.1 — it carries
-exactly what `fire-design-review.sh` composes with, no more.
+Note this is deliberately **not** a 1:1 mirror of §2.1:
+`PHASE5_SCRIPTS_ROOT` is not among the seven constants and
+`BUILD_EVIDENCE_REL` is derived, so the export set is neither a subset
+nor a superset of §2.1. It carries exactly what
+`fire-design-review.sh` composes with, no more.
 
 **Today's values** (the defaults; Chunk 2 flips them):
 
@@ -491,181 +485,52 @@ here so the boundary is declared, not discovered at Chunk-2 review.
 (line 414) and `default_evidence_dir` (line 419) keep passing
 because the constants default to today's paths.
 
-### 4.2 New `tests/test_layout_paths.py` (3 tests)
+### 4.2 Judge tests — `tests/test_layout_paths.py` (3 tests, LOCKED)
 
-**Rootdir anchoring (applies to all three tests).** Every path in
-this file is resolved from the test file's own location, never from
-the process CWD:
-```python
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-```
-All `subprocess` calls pass `cwd=REPO_ROOT`. The constants are
-relative segments by design and pytest's CWD is the invocation
-directory, not rootdir, so a CWD-relative assertion false-fails when
-the suite is run from anywhere but the repo root. Commit `7179934`
-("portability: make the suite pass from any clone") established
-CWD-independence as a property of this suite; these tests must not
-regress it.
+**This section states intent only. It deliberately does NOT restate the
+predicates.** The executable check is
+`tests/test_layout_paths.py`, authored and content-locked by the
+planner. Where this spec and that file would express the same rule,
+the file is authoritative and the prose copy is deleted rather than
+maintained.
 
-1. **Constant value + resolution test.** Two assertion groups, because
-   `isdir()` alone is vacuous for the empty-string roots:
+**Why (this is the lesson of rounds 3-6).** Four consecutive review
+rounds found defects created by prose and code stating the same
+predicate in two places. Reviewers read the prose, the prose drifted
+from the check, and in one case the prose described a `phase-\d` regex
+the check did not implement while the check had a silent-green hole the
+prose could not reveal. A duplicated predicate is not documentation, it
+is a second implementation with no tests. See the OPERATING-RULES
+amendment drafted at `planning/layout-refactor/RULE-AMENDMENT-predicate-duplication.md`.
 
-   a. **Exact segment values** (this is the real check — it fails if a
-      constant is wrong, reordered, or accidentally emptied):
-      ```python
-      assert EVIDENCE_ROOT == ""
-      assert PLANNING_ROOT == ""
-      assert TOKENS_ROOT        == os.path.join("phase-4.5", "tokens")
-      assert PROMPTS_ROOT       == os.path.join("phase-4.5", "prompts")
-      assert SCRIPTS_ROOT       == os.path.join("phase-1", "scripts")
-      assert LOCKS_ROOT         == os.path.join("phase-1", "locks")
-      assert EVIDENCE_CODE_ROOT == os.path.join("phase-3.2", "evidence")
-      ```
-   b. **Existence, for the five non-empty roots only:**
-      `os.path.isdir(os.path.join(REPO_ROOT, <root>))` for
-      `TOKENS_ROOT`, `PROMPTS_ROOT`, `SCRIPTS_ROOT`, `LOCKS_ROOT`,
-      `EVIDENCE_CODE_ROOT` (all five verified present today).
+**Read the test for the predicates. Read this for the intent.**
 
-   **Why (a) is mandatory.** `os.path.join(root, "")` returns
-   `root + os.sep`, so `isdir()` on the composed `EVIDENCE_ROOT` and
-   `PLANNING_ROOT` paths is unconditionally true — it asserts only
-   that the repo root exists and would pass if those constants held
-   the wrong value or were silently emptied. An existence-only test
-   also gets *stronger* after Chunk 2's flip, meaning Chunk 1's green
-   would claim more than it earns. A check that cannot distinguish
-   "did not run" from "passed" is the failure class this framework
-   exists to catch (§7), so the value assertions carry the weight and
-   existence is corroboration only.
+| # | Test | What it is FOR (intent) |
+|---|------|------------------------|
+| 1 | `test_path_root_constants_have_expected_values_and_exist` | The seven §2.1 roots exist and hold today's layout, so Chunk 1 provably changes no resolved path. Value-asserted, not existence-asserted, because an existence-only check cannot distinguish a correct empty root from a wrongly-emptied one. |
+| 2 | `test_phase_path_helper_signature_and_composition` | The helper's contract is pinned so Chunk 2 cannot quietly change its shape: `framework_root` leading positional, no `phase=`. |
+| 3 | `test_no_residual_hardcoded_phase_paths_in_routed_code` | The routing actually happened everywhere §2.2/§2.3 claims, in both composition idioms, plus the shell wiring is real and `local_backend.py` still runs with an unguarded import. This is the chunk's only anti-missed-site check. |
 
-2. **Helper path test:** matches the §2.1 signature exactly —
-   `framework_root` is a required positional and there is no `phase=`
-   parameter:
-   ```python
-   assert phase_path(framework_root, "tokens", "chunk-5a.token.json") == \
-       os.path.join(framework_root, "phase-4.5", "tokens", "chunk-5a.token.json")
-   ```
-   `phase-4.5/tokens/chunk-5a.token.json` exists on disk today, so
-   the test also confirms the composed path is real. A call of the
-   form `phase_path(kind=..., phase=...)` would raise `TypeError`
-   against the §2.1 signature and MUST NOT be written.
+**Scope of test 3, in intent terms only:** it must see *both* ways this
+repo builds a path — a joined literal, and bare segments passed into a
+composition — and it must not fire on a bare segment used as a
+telemetry or HMAC label, which §2.2 excludes by design. The mechanism
+that achieves this lives in the test.
 
-3. **No-residual-literal test — AST-scoped, not text-scoped.**
+**Locked file identity.** sha256 `82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753`,
+manifest `phase-1/locks/tests/test_layout_paths.py.lock.json`. The
+executor runs it read-only and raises `BLOCKED:` rather than editing it;
+only the planner may re-lock, and only before freeze.
 
-   **The scoping rule (single rule, resolves every fence collision).**
-   A residual is only a defect when it sits in **executable code**.
-   Comments and docstrings are documentation, are fenced by §2.3/§2.5.2,
-   and **cannot interpolate a constant**, so a text-level scan of a
-   whole file necessarily collides with its own fences. Therefore:
+**Current state:** valid RED, 3 failed / 194 passed. The three failures
+name the missing constants, the missing helper, and the unrouted sites.
+The executor's worklist is that failure output.
 
-   - Parse each Python file with `ast`. Comments do not appear in the
-     AST at all, which exempts them mechanically rather than by an
-     enumerated list.
-   - Skip docstrings: any `ast.Expr` whose value is a `Constant` str
-     (module, class, and function level).
-   - Skip the constant definitions themselves: any **module-level
-     `ast.Assign`** whose target `id` is one of the seven §2.1 names.
-     This is the mechanical anchor — **not** "the constant-definition
-     block excluded by name". A by-name or by-line exemption is the
-     same drift-prone class as the line-keyed assertion this test
-     replaced, and it would be load-bearing for two assertion groups.
-   - Over what remains, apply **two** matchers, because the two
-     composition idioms put the path in the AST differently:
-
-     1. **Joined literals.** Fail on any `str` `Constant` containing
-        one of the six owned prefixes: `phase-4.5/tokens`,
-        `phase-4.5/build-evidence`, `phase-4.5/prompts`,
-        `phase-1/scripts`, `phase-1/locks`, `phase-3.2/evidence`.
-        This catches help text and single-string paths such as
-        `"phase-1/scripts/verify-green.py"`. Deliberately **not** a
-        broad `phase-\d` substring match: `phase-4.5/KNOWN-ISSUES.md`
-        and `phase-4.5/PLAN.md` are documents with no constant to
-        route through, so a broad match would make the test
-        unsatisfiable without widening scope beyond this chunk.
-
-     2. **Bare segments in path-construction context.** Fail on any
-        `str` `Constant` matching `^phase-\d+(\.\d+)?$` that appears
-        as an argument to a `.join(...)` call or as an operand of a
-        pathlib `/` `BinOp`. **This matcher is mandatory and its
-        absence is a silent-green hole:** in
-        `os.path.join(framework_root, "phase-1", "scripts", "lock.py")`
-        the AST holds `"phase-1"` and `"scripts"` as *separate*
-        Constants, and `"phase-1/scripts" in "phase-1"` is `False`, so
-        matcher 1 alone sees nothing. Matcher 1 alone therefore misses
-        **all seven** `per_chunk.py` sites — the bulk of §2.2.
-
-     The bare-segment matcher is scoped to path-construction context
-     rather than applied to every `phase-N` literal, because the same
-     literal is legitimate as a telemetry/HMAC **label**
-     (`per_chunk.py:287`, `backends.py:197-198`,
-     `sprint-loop.py:268,422,483`, `orchestrate-review.py:459`), which
-     §2.2 excludes by design. Verified: the scan reports 7 hits in
-     `per_chunk.py` — its 7 `os.path.join` sites — and does **not**
-     flag the `:287` label.
-
-   Applied to the files named in §2.2 **and** §2.3.
-
-   This single rule makes all of the following true simultaneously,
-   which no text-level variant can:
-   - `config.py:87,88` comments stay fenced (§2.3) and are invisible
-     to the AST.
-   - `chunk_sequence_gate.py:9` and `sign_chunk_token.py:6` module
-     docstrings stay fenced (§2.5.2) and are skipped as docstrings.
-   - `config.py`'s constant definitions are exempt by structure.
-   - A missed **runtime** route in either §2.2 or §2.3 still fails.
-
-   Line-keyed assertions remain forbidden: if the executor's edits
-   shift line numbers, a line-keyed test reads the wrong lines and a
-   missed site passes silently. This is the chunk's only
-   anti-missed-site check (§7), so it must be drift-proof.
-
-   **Also in this same test (one test, several assertions — see the
-   arithmetic note below):**
-
-   a. **Shell residuals + real source line.** `bash -n` alone passes
-      on a wrong source path, a missing source, and a still-hardcoded
-      `python3` line, so assert all of (all with `cwd=REPO_ROOT`):
-      ```sh
-      bash -n phase-5/scripts/fire-design-review.sh
-      bash -c '. tools/sprint_loop/paths.sh && test -n "$PHASE5_SCRIPTS_ROOT" \
-        && test -n "$BUILD_EVIDENCE_REL" \
-        && test -f "$PHASE5_SCRIPTS_ROOT/envelope-manifest.py"'
-      ```
-      plus **file-content** assertions on
-      `phase-5/scripts/fire-design-review.sh`: it contains the exact
-      source line `. "$REPO_ROOT/tools/sprint_loop/paths.sh"`, its
-      `RUN_DIR` assignment references `${BUILD_EVIDENCE_REL}`, and its
-      envelope-manifest invocation references `${PHASE5_SCRIPTS_ROOT}`.
-
-      **Shell residual scope: non-comment lines only.** Strip lines
-      whose first non-whitespace character is `#` before scanning.
-      `fire-design-review.sh` retains `phase-` literals in its header
-      and usage comments (`:8`, `:34-36`) which §2.4 does **not** put
-      in the edit surface; an "anywhere in the file" assertion is
-      therefore unsatisfiable. Scan only executable lines, and assert
-      specifically that no unscoped `phase-4.5/build-evidence` or
-      `phase-5/scripts` literal remains there.
-
-   b. **`local_backend.py` still executes, with an unguarded import.**
-      Assert `python3 phase-3.2/evidence/local_backend.py --help`
-      exits 0 (`cwd=REPO_ROOT`). **Exit 0 alone is insufficient:** a
-      lazy import inside `main()`, or a `try/except ImportError` with
-      a hardcoded fallback, also exits 0 and fails only at sprint
-      runtime. So additionally assert via AST on
-      `local_backend.py` that the `sprint_loop.config` import is
-      **module-level** (its `ast.Import`/`ast.ImportFrom` node is a
-      direct child of `ast.Module`) and **not** wrapped in an
-      `ast.Try`. The residual scan in the main body catches an
-      `os.path.join` fallback but cannot catch a bare `except`.
-
-   **Test-count arithmetic (binding).** These assertions are grouped
-   into the **3** tests above, so Chunk 1 adds exactly **3** tests:
-   `194 → 197`. This preserves PLAN §5 (Chunk 1 → 197), PLAN §9.4
-   (final D1 = 198), and CHUNK-2/3-SPEC (expect 197) and
-   CHUNK-4-SPEC §3.4/§4.2 (197 + 1 path-existence test = 198). An
-   earlier draft of this spec specified 4 tests / 198 after Chunk 1,
-   which would have closed D1 at 199 and silently broken the success
-   ladder in four sibling documents. **Do not add a fourth test
-   file-level function to reach 198.**
+**Rootdir anchoring** is a property of the test file (paths derived from
+`__file__`, `cwd=REPO_ROOT` on subprocesses) preserving the
+CWD-independence established by commit `7179934`. Stated here because it
+constrains how the executor may invoke the suite, not as a restatement
+of an assertion.
 
 ### 4.3 No directory moves
 
