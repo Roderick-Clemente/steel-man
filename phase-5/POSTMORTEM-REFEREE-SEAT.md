@@ -8,7 +8,7 @@ committed to `main`.
 
 This is a post-mortem on the *role*, not on the two CLI failures. The CLI
 failures are recorded in
-`phase-4.5/build-evidence/r-drs-role-split-1/MANIFEST.md`. What is worth
+`build-evidence/r-drs-role-split-1/MANIFEST.md`. What is worth
 writing down is why an agent that had §22 in its context digest violated §22
 almost immediately, and cheerfully.
 
