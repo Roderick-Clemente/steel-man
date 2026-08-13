@@ -123,3 +123,5 @@ strictly later than the `d3c8005` bytes rounds 5-6 saw. The builder
 fires both families, posts `BUILDER: VALIDATE COMPLETE` per envelope and
 one `BUILDER: REVIEW REQUEST`, and the referee audits. The planner does
 not fire, does not post those row types, and does not sign.
+
+2026-08-13T23:16:41Z PLANNER: HANDOFF: chunk=chunk-D1-1-spec round=7 commit=3872a8a artifact=planning/layout-refactor/CHUNK-1-SPEC.md artifact_sha256=24741f6bad8a2d68d0a3ac20072440ffca2f87d1a2eaf4bd4f8344c46af9774e locked_judge=tests/test_layout_paths.py judge_sha256=82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753 note=BUILDER-FIRES-round-7-per-Ruling-4-item-4;planner-does-not-fire-record-or-sign;FREEZE-after-this-round
