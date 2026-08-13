@@ -119,8 +119,9 @@ def main(argv: list[str] | None = None) -> int:
     print(line)
     if err:
         print(err, file=sys.stderr)
-        # Signal is included on stdout; stderr carries the checklist.
-        return 6 if "⛔" in line else 0
+        # Exit code is bound to the verification result, not to the emoji.
+        # The emoji is the display of enforcement; the exit code IS enforcement.
+        return 6
     return 0
 
 

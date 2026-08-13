@@ -90,6 +90,23 @@ than including it.
 machine.** The HMAC token and the sequence gate are the enforcement; a symbol in
 a log is not and must never become one. Nothing in the runner may parse them.
 
+**Reconciliation with PRD §11 Phase 5 #5.** The PRD states "the visual signature
+IS enforcement at the operator-eye layer, not cosmetic decoration." This design
+states "emoji are never load-bearing for the machine." These are not
+contradictory; they describe two layers. The PRD's enforcement model has two
+tiers: the **machine layer** (HMAC token verification, `cross_family_review.py`
+refusal, `chunk_sequence_gate.py` exit code 6) and the **operator-eye layer**
+(emoji display of the machine result). The emoji are the *display* of
+enforcement, not the enforcement itself. The runner emits ✅ when the token
+verifies and ⛔ when it does not — but the exit code is bound to the verification
+result, never to the emoji string. No code path parses an emoji character to
+make a decision. The operator-eye layer is enforcement because the display is
+bound to the machine result; the machine layer is enforcement because the token
+and the gate are the actual contract. This is the same "verify-then-emit"
+pattern `chunk_close_banner.py` already uses: the emoji cannot render without a
+verified condition behind it, but the verified condition — not the emoji — is
+what determines the exit code.
+
 **Emoji never appear in identifiers** — not in skill names, model ids, branch
 names, or file names. That is not a style preference: an emoji in the skill name
 broke skill matching in production during its first week.
@@ -314,7 +331,9 @@ motivated it, the heuristic is wrong and should be reworked before shipping.
 
 ## 7. What this does not do
 
-- Does not make emoji enforcing. They stay decorative-but-useful.
+- Does not make emoji machine-enforcing. They are operator-eye enforcement
+  (display bound to a verified result), not machine-enforcing (parsed to make
+  a decision). See §3 reconciliation with PRD §11 Phase 5 #5.
 - Does not block the operator. No lockout, by explicit request.
 - Does not claim the framework caught the DAO scope problem. **It did not.** A
   human did, late, having overridden the rule that existed to prompt them earlier.
