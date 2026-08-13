@@ -125,3 +125,27 @@ one `BUILDER: REVIEW REQUEST`, and the referee audits. The planner does
 not fire, does not post those row types, and does not sign.
 
 2026-08-13T23:16:41Z PLANNER: HANDOFF: chunk=chunk-D1-1-spec round=7 commit=3872a8a artifact=planning/layout-refactor/CHUNK-1-SPEC.md artifact_sha256=24741f6bad8a2d68d0a3ac20072440ffca2f87d1a2eaf4bd4f8344c46af9774e locked_judge=tests/test_layout_paths.py judge_sha256=82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753 note=BUILDER-FIRES-round-7-per-Ruling-4-item-4;planner-does-not-fire-record-or-sign;FREEZE-after-this-round
+
+### chunk-D1-1 build (executor seat)
+
+2026-08-13T23:23Z BUILDER: VALIDATE COMPLETE: chunk=chunk-D1-1 commit=d5db8ff4ee939f199c40c60427a7b54a7b8abdc8 tests=197 baseline=194 judge=tests/test_layout_paths.py judge_sha256=82035450590bdb81ec63a988e22bb02835f1f9e94e7d6d4e3d628be85a9bf753 branch=factory/layout-refactor
+  Validation is the locked judge test plus the full suite: 197 passed, 0 failed, from
+  a valid-RED start of 3 failed / 194 passed. Behaviour-identity verified by diff
+  against a pristine HEAD worktree rather than asserted (§7): --help output of
+  sprint-loop.py (6982 B), chunk_sequence_gate.py (926 B), local_backend.py (1355 B)
+  and config.build_config (6235 B) all byte-identical; CHECKLIST_POINTER renders
+  identically; Config(framework_root="/tmp/fw") still resolves /tmp/fw/phase-1/locks
+  and /tmp/fw/phase-4.5/build-evidence/r-001. Residual scan is zero by the locked
+  test's own AST matcher over all 9 routed files. git status carries no R entries and
+  no directory moved. Judge test run read-only; hash above matches the planner's lock.
+  Fence audit clean: the diff touches no locked test, no pytest.ini/.gitignore, no
+  workflow, no phase-4.5/tokens path, and no build-evidence path. The one file under
+  an evidence/ path is phase-3.2/evidence/local_backend.py, which is producer code.
+
+2026-08-13T23:23Z BUILDER: NOT FIRED: chunk=chunk-D1-1 reason=no-reviewer-envelopes-yet
+  No Tier-2 reviewer has been fired against these build bytes, so this seat posts NO
+  REVIEW REQUEST for chunk-D1-1: a request whose paths= pointed at a nonexistent
+  envelope dir would be the self-declaration §21 forbids. Recorded as an explicit
+  absence rather than left as a gap. Round 7 of chunk-D1-1-spec is also still unfired.
+  This seat holds no EVIDENCE_SIGNING_KEY, wrote nothing under phase-4.5/tokens/, and
+  signed nothing.
