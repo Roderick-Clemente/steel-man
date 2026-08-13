@@ -8,15 +8,15 @@
 
 ## 1. Problem statement (§13)
 
-The runner and gate code hardcode phase-dir prefixes in 21
-runner/gate code sites (grep-verified inventory below). Moving
-those dirs before the constants exist would produce a big-bang move
-that no reviewer can audit. This chunk introduces a single source
-of truth for the paths and routes every runner/gate site through
-it, with the paths still pointing to their current homes. **No
-directory moves happen in this chunk.** The constants default to
-today's layout so behaviour is unchanged; Chunk 2 flips them to
-the new taxonomy homes.
+The runner, gate, and orchestrator-shell code hardcode phase-dir
+prefixes across **20 inventory rows / 26 line-sites** (§2.2–§2.4,
+grep-verified). Moving those dirs before the constants exist would
+produce a big-bang move that no reviewer can audit. This chunk
+introduces a single source of truth for the paths and routes every
+live-path site through it, with the paths still pointing to their
+current homes. **No directory moves happen in this chunk.** The
+constants default to today's layout so behaviour is unchanged;
+Chunk 2 flips them to the new taxonomy homes.
 
 **Scope qualifier:** "ALL" means all **live-path** hardcoded
 sites — the sites the sprint-loop runner, the gates, and the
@@ -32,10 +32,8 @@ and are not on any live runtime path.
 
 **Site count.** §2.2–§2.4 list **20 rows covering 26 distinct
 line-sites** (§2.2: 13 rows / 13 sites; §2.3: 5 rows / 11 sites;
-§2.4: 2 rows / 2 sites). Any prose elsewhere claiming "21" is
-superseded by this count and by the tables themselves, which are
-authoritative. PLAN §5's "~21" was an estimate made before the
-grep; the tables are the grep output.
+§2.4: 2 rows / 2 sites). The tables are authoritative — they are the
+grep output. PLAN §5's "~21" was an estimate made before the grep.
 
 ## 2. Surface touched (grounded inventory, grep-verified)
 
@@ -69,6 +67,14 @@ flip. The `Config.default_locks_dir()` and `default_evidence_dir()`
 methods call `phase_path(self.framework_root, "locks")` and
 `phase_path(self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id)`
 respectively (segment-preserving).
+
+**Declared-but-unconsumed in Chunk 1:** `PLANNING_ROOT` and
+`PROMPTS_ROOT` have **no call site in §2.2–§2.4**. They are declared
+now so the full root set lands in one reviewable commit; their first
+consumers appear in Chunk 2 (when `phase-4.5/prompts/` moves under
+`planning/`). Reviewers should **not** expect call-site rewrites for
+these two, and §4.2 test 1 covers them only via the existing-dir
+assertion. Every other constant has at least one §2.2–§2.4 consumer.
 
 **Forward invariant (binding on Chunk 2).** Chunk 2 flips constant
 **values only**. The relative-segment representation is invariant
@@ -104,6 +110,39 @@ default to today's paths, so the resolved path is identical.
 | `tools/orchestrate-review.py:78` | `os.path.join(args.framework_root, "phase-3.2", "evidence", "local_backend.py")` | `EVIDENCE_CODE_ROOT / "local_backend.py"` (composed with `args.framework_root`) |
 | `phase-3.2/evidence/local_backend.py:76` | `script = os.path.join(framework_root, "phase-1", "scripts", "verify-green.py")` (the FUNCTIONAL subprocess in `run_verify_green()`) | `SCRIPTS_ROOT / "verify-green.py"` |
 | `phase-3.2/evidence/local_backend.py:375` | `"verify_green": "phase-1/scripts/verify-green.py"` (path string in producer's runtime output JSON — code, not an evidence byte) | `str(SCRIPTS_ROOT / "verify-green.py")` or the relative form |
+
+**MANDATORY import bootstrap for `local_backend.py`.**
+`phase-3.2/evidence/local_backend.py` is **not** imported as a
+module — it is invoked as a standalone script,
+`python3 <framework_root>/phase-3.2/evidence/local_backend.py`
+(from `per_chunk.py:279` and `orchestrate-review.py:78`). Verified:
+the file has **no `sys.path` manipulation and no `sprint_loop`
+imports at all** (stdlib only, `:25-34`). So
+`from sprint_loop.config import SCRIPTS_ROOT` **fails with
+ModuleNotFoundError** in that process unless `tools/` is placed on
+`sys.path` first.
+
+The executor MUST add a minimal bootstrap mirroring the existing
+pattern at `tools/orchestrate-review.py:57-59`:
+
+```python
+tools_dir = os.path.join(framework_root, "tools")
+if tools_dir not in sys.path:
+    sys.path.insert(0, tools_dir)
+```
+
+resolving `framework_root` from the script's own location (the file
+sits at `phase-3.2/evidence/`, so `framework_root` is
+`dirname(dirname(dirname(abspath(__file__))))`). **Note this
+computation is itself self-relative and therefore invisible to the
+§2.2 grep — Chunk 2's move of `phase-3.2/evidence/` →
+`tools/phase-3.2-evidence/` changes its depth, so CHUNK-2-SPEC must
+own it alongside §2.5.1's hook.**
+
+Acceptable alternative: place the constants in a dependency-free
+module importable from both trees without a path hack. Either way
+the choice must be explicit in the commit, and §4.2 test 3 asserts
+the script still runs.
 
 ### 2.3 Prose / docstring / argparse help / banner text
 
@@ -150,9 +189,17 @@ values** (the defaults; Chunk 2 flips them):
 ```sh
 # tools/sprint_loop/paths.sh — sourced by fire-design-review.sh
 # Today's layout (Chunk 1 defaults). Chunk 2 flips these.
-EVIDENCE_ROOT=""                    # → "evidence" in Chunk 2
-PHASE5_SCRIPTS_ROOT="phase-5/scripts"  # → "tools/phase-5-scripts" in Chunk 2
+EVIDENCE_ROOT=""                        # → "evidence" in Chunk 2
+BUILD_EVIDENCE_REL="phase-4.5/build-evidence"  # segment; unchanged by Chunk 2
+PHASE5_SCRIPTS_ROOT="phase-5/scripts"   # → "tools/phase-5-scripts" in Chunk 2
 ```
+
+`BUILD_EVIDENCE_REL` exists so the `phase-4.5/build-evidence`
+literal lives in **one** place (`paths.sh`) rather than being
+re-spelled inside `fire-design-review.sh`. Chunk 2 does not change
+its value — the segment is preserved under the new evidence root —
+but centralising it is what makes the §4.2 test 3 residual
+assertion satisfiable.
 
 `fire-design-review.sh` sources it and composes. **The source path
 must be anchored to `REPO_ROOT`, which the script already computes
@@ -167,7 +214,8 @@ at `:41` and `cd`s into at `:42`:**
 
 # EVIDENCE_ROOT is empty today, so RUN_DIR starts with "phase-4.5/..."
 # After Chunk 2: EVIDENCE_ROOT="evidence", so RUN_DIR starts with "evidence/phase-4.5/..."
-RUN_DIR="${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}phase-4.5/build-evidence/${RUN_ID}"
+# No phase-* literal appears in this file — both segments come from paths.sh.
+RUN_DIR="${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}${BUILD_EVIDENCE_REL}/${RUN_ID}"
 ENVELOPE_MANIFEST="${PHASE5_SCRIPTS_ROOT}/envelope-manifest.py"
 ```
 
@@ -240,6 +288,21 @@ surface** and its verify block must assert the hook resolves to the
 moved locks dir. Recorded here so the break is owned by name before
 `chunk-D1-2` opens rather than discovered after the move.
 
+**Gate (not just text).** A `MUST` written only in Chunk 1's spec
+does not stop Chunk 2 from opening without it. Therefore
+`chunk-D1-2` MUST NOT open until **both** of these are committed:
+
+1. CHUNK-2-SPEC amended to own `locked-test-guard.py`'s
+   `DEFAULT_LOCKS_DIR` **and** `local_backend.py`'s self-relative
+   `framework_root` computation (§2.2), both of which are invisible
+   to the phase-literal grep and both of which change depth under
+   Chunk 2's moves.
+2. CHUNK-2-SPEC's constant-flip table corrected to the
+   relative-segment representation per §2.1's forward invariant.
+
+This is a precondition on the Chunk-2 **spec**, checkable by reading
+the committed CHUNK-2-SPEC before `chunk-D1-2`'s start gate fires.
+
 ### 2.5.2 `.py` docstring / comment path citations (fenced follow-on)
 
 Roughly 25 docstring and comment citations of moving paths exist in
@@ -270,8 +333,8 @@ here so the boundary is declared, not discovered at Chunk-2 review.
    behavioural drift — the resolved paths are identical to today.
 3. Create `tools/sprint_loop/paths.sh` and route
    `fire-design-review.sh`'s two sites through it.
-4. Add `tests/test_layout_paths.py` with four tests (see §4.2).
-5. Run the full suite and confirm 198 tests green (194 + 4 new).
+4. Add `tests/test_layout_paths.py` with three tests (see §4.2).
+5. Run the full suite and confirm 197 tests green (194 + 3 new).
 6. Commit with message `chunk-1: path-root constants + route hardcoded sites through them`.
 7. Push to `origin/factory/layout-refactor`.
 
@@ -279,12 +342,12 @@ here so the boundary is declared, not discovered at Chunk-2 review.
 
 ### 4.1 Full suite green
 
-`python3 -m pytest -q` → 198 tests, all green. The existing
+`python3 -m pytest -q` → 197 tests, all green. The existing
 `tests/test_sprint_loop.py` assertions on `default_locks_dir`
 (line 414) and `default_evidence_dir` (line 419) keep passing
 because the constants default to today's paths.
 
-### 4.2 New `tests/test_layout_paths.py` (4 tests)
+### 4.2 New `tests/test_layout_paths.py` (3 tests)
 
 1. **Constant resolution test:** every constant (`EVIDENCE_ROOT`,
    `PLANNING_ROOT`, `TOKENS_ROOT`, `PROMPTS_ROOT`, `SCRIPTS_ROOT`,
@@ -318,17 +381,51 @@ because the constants default to today's paths.
    §2.1 constant definitions themselves are exempted by excluding
    the constant-definition block in `config.py` explicitly by name.
 
-4. **Shell mirror source test:** the §2.4 composition is unexercised
-   by any existing test, and `set -euo pipefail` makes a bad source
-   path fatal at run time rather than at lint time. Assert both:
-   ```sh
-   bash -n phase-5/scripts/fire-design-review.sh
-   bash -c '. tools/sprint_loop/paths.sh && test -n "$PHASE5_SCRIPTS_ROOT" && test -f "$PHASE5_SCRIPTS_ROOT/envelope-manifest.py"'
-   ```
-   plus a grep assertion that the literals `phase-4.5/build-evidence`
-   and `phase-5/scripts/envelope-manifest.py` no longer appear in
-   `fire-design-review.sh` outside the sourced defaults. This makes
-   the test count **198** (194 + 4), which §3 and §4.1 also state.
+   **Also in this same test (one test, several assertions — see the
+   arithmetic note below):**
+
+   a. **§2.3 prose residuals.** For each file in §2.3
+      (`chunk_close_banner.py`, `sprint-loop.py`,
+      `chunk_sequence_gate.py`, `sign_chunk_token.py`, `config.py`),
+      assert no literal `phase-4.5/tokens` or
+      `phase-4.5/build-evidence` remains outside the §2.1
+      constant-definition block. Without this, a missed prose route
+      is silent-green — §2.3 would have no residual check at all.
+
+   b. **Shell residuals + real source line.** `bash -n` alone cannot
+      catch a wrong source path, a missing source, or a
+      still-hardcoded `python3` line, so assert all of:
+      ```sh
+      bash -n phase-5/scripts/fire-design-review.sh
+      bash -c '. tools/sprint_loop/paths.sh && test -n "$PHASE5_SCRIPTS_ROOT" \
+        && test -n "$BUILD_EVIDENCE_REL" \
+        && test -f "$PHASE5_SCRIPTS_ROOT/envelope-manifest.py"'
+      ```
+      plus **file-content** assertions on
+      `phase-5/scripts/fire-design-review.sh`: it contains the exact
+      source line `. "$REPO_ROOT/tools/sprint_loop/paths.sh"`, its
+      `RUN_DIR` assignment references `${BUILD_EVIDENCE_REL}`, its
+      envelope-manifest invocation references
+      `${PHASE5_SCRIPTS_ROOT}`, and **no `phase-` literal remains
+      anywhere in the file**. This last assertion is now satisfiable
+      precisely because §2.4 moved `BUILD_EVIDENCE_REL` into
+      `paths.sh`.
+
+   c. **`local_backend.py` still executes.** After the §2.2 import
+      bootstrap, assert
+      `python3 phase-3.2/evidence/local_backend.py --help` exits 0.
+      Routing that file through an import it cannot resolve would
+      otherwise fail only at sprint runtime, not in the suite.
+
+   **Test-count arithmetic (binding).** These assertions are grouped
+   into the **3** tests above, so Chunk 1 adds exactly **3** tests:
+   `194 → 197`. This preserves PLAN §5 (Chunk 1 → 197), PLAN §9.4
+   (final D1 = 198), and CHUNK-2/3-SPEC (expect 197) and
+   CHUNK-4-SPEC §3.4/§4.2 (197 + 1 path-existence test = 198). An
+   earlier draft of this spec specified 4 tests / 198 after Chunk 1,
+   which would have closed D1 at 199 and silently broken the success
+   ladder in four sibling documents. **Do not add a fourth test
+   file-level function to reach 198.**
 
 ### 4.3 No directory moves
 
@@ -370,6 +467,23 @@ layout allowlist (`tests/test_repo_layout.py`) is unchanged.
   the CI workflow.** Those are Chunk 2's surface.
 - **Do NOT hold `EVIDENCE_SIGNING_KEY` or write to
   `phase-4.5/tokens/`.** The referee signs; the builder does not.
+
+### 6.1 Fence enforcement (§11 — fences must be checked, not just stated)
+
+Prose fences are unenforceable. Each fence above maps to a
+post-commit check the chunk-close referee runs on the chunk commit:
+
+| Fence | Check |
+|-------|-------|
+| no directory moves | `git show --name-status <sha>` has no `R` entries (§4.3) |
+| constants not flipped | §4.2 tests 1–2 assert today's resolved paths |
+| no evidence bytes edited | `git show --name-only <sha>` lists no path under `phase-*/build-evidence/` or `evidence/`; the only `phase-3.2/evidence/` entry permitted is `local_backend.py` (producer code) |
+| allowlist / config untouched | `git show --name-only <sha>` does not list `tests/test_repo_layout.py`, `.gitignore`, `pytest.ini`, `tools/plan-lint.py`, or `.github/workflows/*` |
+| builder did not sign | `git show --name-only <sha>` lists nothing under `phase-4.5/tokens/` |
+
+A single command produces the evidence for all five:
+`git show --name-status <chunk-sha>`. If any row fails, the chunk
+does not close.
 
 ## 7. Rule application
 
