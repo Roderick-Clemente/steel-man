@@ -1,0 +1,40 @@
+chunk-D1-4 exit-check capture
+interpreter : /private/tmp/asprint-venv/bin/python (Python 3.13.3)
+
+========== §3.3.2 valid-red.py classifies the fixture VALID ==========
+exit=0 classified-valid=true
+  ==> PASS  §3.3.2 valid-red.py: VALID, exit 0
+
+========== §3.3.1 lock.py locks the fixture ==========
+LOCKED tests/fixtures/phase-1/valid-red/test_valid_red.py
+sha256: 3769fe1f3e29c21664430b3b7d4be3d530690f85ee8227f169b1cd092191b6c0
+manifest: /var/folders/gz/3n1z6c3n1kv8j96zwf6449j00000gp/T/tmp.CEOnbmSaD1/locks/tests/fixtures/phase-1/valid-red/test_valid_red.py.lock.json
+exit=0 lock-file=written
+  ==> PASS  §3.3.1 lock.py: manifest written, exit 0
+
+========== §3.3.3a verify-green.py refuses on the fixture AS COMMITTED (expected RED) ==========
+GREEN REFUSED: test does not pass after implementation
+  ==> PASS  §3.3.3a verify-green.py correctly refuses GREEN pre-fix
+
+========== §3.3.3b verify-green.py accepts GREEN after the one-line subject.py fix ==========
+GREEN ACCEPTED
+  ==> PASS  §3.3.3b verify-green.py: real RED->GREEN observed, same lock hash
+
+========== §3.3.4 local_backend.py signs a bundle with a TEST key (never the referee's) ==========
+  size: 814 bytes (~203 tokens)
+  green: True
+  locked_sha: 3769fe1f3e29c21664430b3b7d4be3d530690f85ee8227f169b1cd092191b6c0
+  ==> PASS  §3.3.4 local_backend.py: signed bundle written, exit 0, test key only
+
+========== §3.4.1 tools/wiki-link-audit.py ==========
+61 pages · dead=0 anchor=0 absolute=0 escaping=0 skeleton=0
+clean
+  ==> PASS  §3.4.1 wiki-link-audit rc=0
+
+========== §3.4.2 full suite (junit XML count, not -q stdout — F11) ==========
+collected=237 passed=234 failed=0 errors=0 skipped=3
+  ==> PASS  §3.4.2 full suite green
+
+========== RESULT ==========
+failed criteria: 0
+chunk-D1-4 exit-check: ALL PASS
