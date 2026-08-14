@@ -855,5 +855,37 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   not chunk-2a). No code blockers identified. Noted that spec's forward reference
   to a file that does not yet exist is a chunk-3 deliverable, not a chunk-2a
   omission.
-```
+
+2026-08-14T05:30:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-2a-code verdict=SPLIT
+  kimi-k3=REJECT minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=985aab2f51274df88c9634dc18921c64c6ef829e22cd09df32dbb59837e4dc17
+  envelope_sha256_minimax=9221eef14a5cfcaca54aca6a969838702c7c9e2607c9efd6d57113392777b8db
+  build_commit=da14ef5 prompt_sha256=1ba4b9872918da8f36176594e331edc1d8a36d08eb2d52c56909c417212290ac
+  sha256s independently verified on disk; both is_error=False.
+  SPLIT does not close on the two-family rule (Ruling 4).
+
+  AUDIT: kimi-k3's three blockers are all planner-owned (judge coverage gaps, not
+  builder code). Confirmed independently by reading the judge: test_chunk2a_no_stale_
+  phase_prefix_literals uses AST substring scan, test_chunk2a_gen_findings_has_no_cwd_
+  relative_opens only checks Constant/JoinedStr first args, test_chunk2a_lock_py_
+  default_locks_dir_is_locks_root uses ast.unparse() substring check. Each can be
+  defeated by an honest-shaped partial fix that leaves the real defect intact while
+  passing 16/16. kimi-k3 demonstrated all three in a sandbox.
+  minimax-m3's ACCEPT-WITH-NITS found no blockers; its findings are low/nit spec
+  errata (line numbers, PATH-REDIRECTS forward reference, dry-run assertion string).
+  It did not independently probe the judge's structural coverage depth.
+  NOTE on minimax envelope: the planner snapshotted SoR at 21 rows pre-minimax;
+  post-run SoR is 59 rows (d3dadb14...). minimax's findings are all static analysis
+  (grep, AST, git show); no evidence it executed the generators. SoR growth is likely
+  pipeline artifact, not an invalidating mutation. The referee does not void the
+  envelope on this basis absent evidence minimax's verdict content derived from
+  mutated state.
+
+  RESOLUTION: planner amends the judge to close kimi-k3's three blocker findings
+  (behavioral checks: resolve emitted envelope_path values and assert isfile();
+  flag any open() without an anchored root; evaluate lock.py's default and assert
+  realpath equality). Referee re-ratifies the amended judge. No builder code change
+  needed — the REJECT targets the judge, and the builder's code at da14ef5 survives
+  both reviews without a code-level blocker.
 ```
