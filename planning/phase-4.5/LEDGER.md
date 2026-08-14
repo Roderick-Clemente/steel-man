@@ -37,6 +37,8 @@ reproducible if the bytes are identified independently of the path.
 | `phase-4.5/build-evidence/r-chunk1-spec-v3-20260813-2140/spec/kimi-k3.json` | `7fbe3d93de57b8852001a03520ed73aa7b9e172085c6be21d179e05cebfa6f10` | REJECT |
 | `phase-4.5/build-evidence/r-chunk1-spec-v4-20260813-2255/spec/grok-4.5.json` | `1c80eae8258c8a1c04e653124a137b7b46a54f168c205ae17d1303a6aee3a0a1` | REJECT |
 | `phase-4.5/build-evidence/r-chunk1-spec-v5-20260813-2340/spec/grok-4.5.json` | `2dad5179756b2784fecabc1ce1b89612a5f9857e966a14d46fbd172eea0b2e79` | REJECT |
+| `evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-kimi-k3-envelope.json` | `985aab2f51274df88c9634dc18921c64c6ef829e22cd09df32dbb59837e4dc17` | REJECT |
+| `evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-minimax-m3-envelope.json` | `9221eef14a5cfcaca54aca6a969838702c7c9e2607c9efd6d57113392777b8db` | ACCEPT-WITH-NITS |
 
 ## Rows
 
@@ -808,4 +810,50 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   paths=evidence/phase-4.5/build-evidence/r-chunk2a-builder-20260814/
   The bundle exists on disk and is committed with this row, so paths= does not point at
   a nonexistent envelope dir. Referee fires the validators and signs; I do neither.
+
+### chunk-D1-2a CODE gate (build commit da14ef5)
+
+```
+2026-08-14T05:06Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-2a-code commit=da14ef56f24ec3de82ea70b862f7346fae6aca67
+  judge_sha256=3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f
+  paths=evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-minimax-m3-envelope.json
+  verdict=SPLIT(kimi-k3=REJECT,minimax-m3=ACCEPT-WITH-NITS) branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=1ba4b9872918da8f36176594e331edc1d8a36d08eb2d52c56909c417212290ac
+  Prompt template pre-positioned by planner at c4a749e
+  (planning/layout-refactor/CHUNK-2a-VALIDATOR-PROMPT.md). Only substitution:
+  <BUILD_COMMIT> -> da14ef5. Same PROMPT.md bytes for both validators per §23.
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired directly with --auto high. First kimi-k3 attempt at --auto medium
+  returned error (insufficient permission, 0 turns, session cf25e485); re-fired at
+  --auto high per the error message's own instruction. See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner (GLM/zhipu), builder (claude/anthropic), and referee
+  (deepseek/deepseek-family). §17.2 holds.
+  SPLIT does not close on the two-family rule (Ruling 4). Forwarded to referee for
+  resolution.
+
+2026-08-14T05:06Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-2a-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-kimi-k3-envelope.json
+  envelope_sha256=985aab2f51274df88c9634dc18921c64c6ef829e22cd09df32dbb59837e4dc17
+  session_id=59878968-a003-4474-8cba-bc5492dd8c79 verdict=REJECT turns=51
+  duration_ms=725091 stderr=empty
+  prompt_sha256=1ba4b9872918da8f36176594e331edc1d8a36d08eb2d52c56909c417212290ac
+  key_finding=judge has a blind spot allowing a partial fix to pass
+  (reconstruct-telemetry.py:29 REPO_ROOT walks only one level up, exits 0,
+  satisfies rc-based check while :157 reads zero rows and :211 truncating-writes
+  a forked SoR). Also: §2.4 errata never appended. Remediation: judge amendment
+  + errata append, no code change needed.
+
+2026-08-14T05:20Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-2a-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-minimax-m3-envelope.json
+  envelope_sha256=9221eef14a5cfcaca54aca6a969838702c7c9e2607c9efd6d57113392777b8db
+  session_id=b9134758-b624-4e35-9ce6-407ba16a6d5a verdict=ACCEPT-WITH-NITS turns=93
+  duration_ms=627428 stderr=empty
+  prompt_sha256=1ba4b9872918da8f36176594e331edc1d8a36d08eb2d52c56909c417212290ac
+  key_findings=nits about spec referencing PATH-REDIRECTS.md (chunk-3 deliverable,
+  not chunk-2a). No code blockers identified. Noted that spec's forward reference
+  to a file that does not yet exist is a chunk-3 deliverable, not a chunk-2a
+  omission.
+```
 ```

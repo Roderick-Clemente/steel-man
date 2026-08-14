@@ -1,0 +1,477 @@
+diff --git a/.gitignore b/.gitignore
+index e9d73a7..affdb00 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -76,8 +76,13 @@ telemetry/plan_lint_runs.jsonl
+ # against their sha256) did not exist there at all. The only surviving trace was
+ # a commit message. A BURNED.md written in that tree claimed its envelopes were
+ # "preserved here"; they were untracked and did not travel. Directory-form
+-# excludes also cannot be undone with a `!` negation, so there was no way to
+-# re-include an envelope without -f on every single commit.
++# excludes also cannot be undone by a `!` negation on an individual FILE inside
++# the excluded tree: git never descends into an excluded directory, so a
++# `!<dir>/kimi-k3.json` line is inert. Negating the DIRECTORY itself does work.
++# Measured with `git check-ignore -v`, which is the authoritative answer here —
++# `git status --porcelain` collapses untracked directories, so grepping its
++# output for the file reports nothing either way and confirms whichever claim
++# you started with. Per-file rescue therefore needed -f on every single commit.
+ #
+ # Reviewer run trees are ~24K each (792K total to date). That is a trivial cost
+ # against losing the audit trail, so envelopes, manifests, prompts, command logs
+diff --git a/tests/test_sprint_loop.py b/tests/test_sprint_loop.py
+index 8e6d483..14042bb 100644
+--- a/tests/test_sprint_loop.py
++++ b/tests/test_sprint_loop.py
+@@ -1116,8 +1116,11 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
+     cfg_path.write_text(json.dumps(cfg_payload))
+     # Bootstrap a fake framework + pilot so the directory-validation passes.
+     (tmp_path / "fw" / "tools" / "sprint_loop").mkdir(parents=True)
+-    (tmp_path / "fw" / "phase-1" / "scripts").mkdir(parents=True)
+-    (tmp_path / "fw" / "phase-3.2" / "evidence").mkdir(parents=True)
++    # Single-segment literals, matching the chunk-2 §2.4 precedent elsewhere in
++    # this file: the fixture must build the taxonomy roots the runner validates,
++    # and spelling them as one string keeps them greppable when they move again.
++    (tmp_path / "fw" / "tools/phase-1-scripts").mkdir(parents=True)
++    (tmp_path / "fw" / "tools/phase-3.2-evidence").mkdir(parents=True)
+     (tmp_path / "fw" / "tools" / "orchestrate-review.py").write_text("# stub")
+     (tmp_path / "pilot").mkdir()
+     chunks_path = tmp_path / "chunks.json"
+diff --git a/tools/phase-1-hooks/locked-test-guard.py b/tools/phase-1-hooks/locked-test-guard.py
+index 9e8f854..a83791d 100755
+--- a/tools/phase-1-hooks/locked-test-guard.py
++++ b/tools/phase-1-hooks/locked-test-guard.py
+@@ -4,7 +4,7 @@ lock manifests.
+ 
+ This is the Phase 1 implementation of the reference guard's policy #3
+ (independent test authorship) extended to protect the lock manifest itself.
+-It reads the lock manifests written by phase-1/scripts/lock.py and denies
++It reads the lock manifests written by tools/phase-1-scripts/lock.py and denies
+ any tool call that would modify:
+ 
+   - a locked test file, OR
+@@ -43,10 +43,35 @@ import shlex
+ import sys
+ 
+ 
+-# Default: lock manifests live in the sibling `locks/` directory.
+-DEFAULT_LOCKS_DIR = os.path.join(
+-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks"
+-)
++# chunk-D1-2a: this guard is the READER half of the lock store, and it carried
++# the same broken two-hop default as lock.py, the writer — after the chunk-2
++# move, dirname(dirname(__file__)) + "locks" resolves to tools/locks, not
++# tools/phase-1-locks. Writer and reader sharing one wrong directory is not the
++# worst case; the worst case is the two DISAGREEING, which is exactly what
++# fixing only lock.py would produce: the writer records manifests in the real
++# store while this guard walks an empty one and F1's "absence is not
++# permission" deny fires on every call. Both halves resolve through LOCKS_ROOT.
++#
++# The import is caught rather than left to propagate: an unhandled module-level
++# ImportError exits 1, and only exit 2 denies a PreToolUse call — 1 is a
++# non-blocking hook error, so a broken import would fail OPEN, reopening the
++# enforcement hole F1 closed for a missing directory. On failure the default
++# becomes None and load_locked_state() raises OSError, routing into main()'s
++# existing fail-closed deny (which still honours LOCKS_REQUIRED=0).
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++try:
++    from sprint_loop.config import LOCKS_ROOT  # noqa: E402
++except ImportError as exc:
++    _LOCKS_ROOT_IMPORT_ERROR = exc
++    DEFAULT_LOCKS_DIR = None
++else:
++    _LOCKS_ROOT_IMPORT_ERROR = None
++    DEFAULT_LOCKS_DIR = os.path.join(_FRAMEWORK_ROOT, LOCKS_ROOT)
++
+ LOCKS_DIR = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_DIR", DEFAULT_LOCKS_DIR)
+ 
+ # F1 fix. A missing or empty locks directory used to mean "no policy to enforce,
+@@ -118,6 +143,14 @@ def load_locked_state() -> dict:
+     we cannot tell which tests are protected without a readable manifest.
+     """
+     state = {"tests": [], "manifests": []}
++    if LOCKS_DIR is None:
++        # LOCKS_ROOT could not be imported and no override was set: we do not
++        # know where the locks live, which is the same inability-to-enforce
++        # state as a missing directory. OSError so main() denies.
++        raise OSError(
++            f"cannot resolve the locks directory: {_LOCKS_ROOT_IMPORT_ERROR}. "
++            f"Set ADVERSARIAL_SPRINT_LOCKS_DIR to enforce without the import."
++        )
+     if not os.path.isdir(LOCKS_DIR):
+         # F1: absence is not permission. The caller denies unless the operator
+         # has explicitly declared this phase unlocked.
+diff --git a/tools/phase-1-scripts/lock.py b/tools/phase-1-scripts/lock.py
+index db25311..d821714 100755
+--- a/tools/phase-1-scripts/lock.py
++++ b/tools/phase-1-scripts/lock.py
+@@ -2,10 +2,10 @@
+ """Compute and record a SHA-256 lock manifest for an accepted test file.
+ 
+ Usage:
+-    python3 phase-1/scripts/lock.py <test-file> <accepted-assertion>
++    python3 tools/phase-1-scripts/lock.py <test-file> <accepted-assertion>
+         [--pilot-root <path>] [--locks-dir <path>]
+ 
+-The manifest is written to phase-1/locks/<test-file>.lock.json, preserving
++The manifest is written to <LOCKS_ROOT>/<test-file>.lock.json, preserving
+ any directory separators in the test-file path so a single lock directory
+ can hold tests from different pilot-repo subdirectories.
+ """
+@@ -16,6 +16,20 @@ import os
+ import sys
+ from datetime import datetime, timezone
+ 
++# chunk-D1-2a: this script moved from phase-1/scripts/ to tools/phase-1-scripts/,
++# so the old two-hop self-relative default resolved to tools/locks rather than
++# the real lock store. Unlike the four telemetry generators, this one would NOT
++# have failed closed — it creates the directory it writes into, so it would have
++# reported a successful lock while the reader looked elsewhere and framework
++# invariant #3 quietly stopped being enforced. Deriving the default from
++# LOCKS_ROOT is what keeps the writer and the reader from disagreeing.
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import LOCKS_ROOT  # noqa: E402
++
+ 
+ def compute_sha256(path: str) -> str:
+     h = hashlib.sha256()
+@@ -39,7 +53,7 @@ def main() -> int:
+     )
+     parser.add_argument(
+         "--locks-dir",
+-        default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks"),
++        default=os.path.join(_FRAMEWORK_ROOT, LOCKS_ROOT),
+         help="Directory where lock manifests are written.",
+     )
+     args = parser.parse_args()
+diff --git a/tools/phase-3-gen/gen-telemetry.py b/tools/phase-3-gen/gen-telemetry.py
+index 1d200c6..c399451 100644
+--- a/tools/phase-3-gen/gen-telemetry.py
++++ b/tools/phase-3-gen/gen-telemetry.py
+@@ -17,10 +17,27 @@ role). We emit the canonical role name anyway; see KI-4.
+ """
+ import json
+ import os
++import sys
+ from datetime import datetime, timezone
+ 
+-EVID = os.path.join(os.path.dirname(__file__), "build-evidence")
+-OUT = os.path.join(os.path.dirname(__file__), os.pardir, "telemetry", "runs.jsonl")
++# chunk-D1-2a: this script used to live at phase-3/ with its evidence as a
++# sibling directory. It now lives under tools/, so a self-relative
++# "build-evidence" resolves to tools/phase-3-gen/build-evidence and does not
++# exist. Resolve through the layout roots in sprint_loop.config instead of
++# re-hardcoding "evidence/phase-3/..." — a literal prefix is what broke here,
++# and it would break again on the next move.
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
++
++EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3", "build-evidence")
++OUT = os.path.join(_FRAMEWORK_ROOT, "telemetry", "runs.jsonl")
++# Relative form for the telemetry row's envelope_path field. Forward slashes:
++# the field is a portable record, not a local filesystem path.
++_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
+ BRANCH = "factory/phase-3-profile"
+ 
+ # model_id -> (provider, family). providerLock/apiProviderLock == provider here
+@@ -98,7 +115,7 @@ def main():
+             "is_error": bool(env.get("is_error", False)),
+             "decision": decision,
+             "verdict_text_first_240": verdict,
+-            "envelope_path": "phase-3/build-evidence/" + fname,
++            "envelope_path": _ENVELOPE_DIR_REL + "/" + fname,
+         }
+         rows.append(row)
+     with open(OUT, "w") as fh:
+diff --git a/tools/phase-3.1-gen/gen-telemetry.py b/tools/phase-3.1-gen/gen-telemetry.py
+index 904f21a..4b1a1f5 100644
+--- a/tools/phase-3.1-gen/gen-telemetry.py
++++ b/tools/phase-3.1-gen/gen-telemetry.py
+@@ -17,12 +17,26 @@ apiProviderLock, so those are set to the known provider for the pinned model.
+ """
+ import json
+ import os
++import sys
++
++# chunk-D1-2a: see the sibling note in tools/phase-3-gen/gen-telemetry.py. The
++# self-relative roots broke when this script moved under tools/; they resolve
++# through sprint_loop.config now so the next move cannot silently re-break them.
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
+ 
+-EVID = os.path.join(os.path.dirname(__file__), "build-evidence")
+-RUNS = os.path.join(os.path.dirname(__file__), os.pardir, "telemetry", "runs.jsonl")
+ BRANCH = "factory/phase-3.1-degraded"
+ PHASE = "phase-3.1"
+ 
++EVID = phase_path(_FRAMEWORK_ROOT, "evidence", PHASE, "build-evidence")
++RUNS = os.path.join(_FRAMEWORK_ROOT, "telemetry", "runs.jsonl")
++# Portable relative form for the telemetry row's envelope_path field.
++_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), PHASE, "build-evidence"))
++
+ MODEL_META = {
+     "glm-5.2": ("zhipu", "glm-family"),
+     "grok-4.5": ("xai", "grok-family"),
+@@ -103,7 +117,7 @@ def build_rows(ts: str):
+             "is_error": bool(env.get("is_error", False)),
+             "decision": decision,
+             "verdict_text_first_240": verdict,
+-            "envelope_path": "phase-3.1/build-evidence/" + fname,
++            "envelope_path": _ENVELOPE_DIR_REL + "/" + fname,
+         })
+     return out
+ 
+diff --git a/tools/phase-4-gen/gen-findings.py b/tools/phase-4-gen/gen-findings.py
+index faee080..ecf8c3a 100644
+--- a/tools/phase-4-gen/gen-findings.py
++++ b/tools/phase-4-gen/gen-findings.py
+@@ -19,8 +19,34 @@ With 2 reviewers, position is 1 (unique) or 0 (shared).
+ import json
+ import os
+ import re
++import sys
+ from datetime import datetime, timezone
+ 
++# chunk-D1-2a: the reads below were CWD-relative, so this script only worked
++# when invoked from the repo root — and after the chunk-2 move the paths were
++# wrong from every directory. Anchor them to the framework root derived from
++# __file__ and compose through sprint_loop.config's roots.
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import phase_path  # noqa: E402
++
++# chunk-D1-2a: the historical `surface` labels below were also bare `phase-N/...`
++# strings. They are DATA, not paths — nothing opens them — but they named
++# locations that no longer exist, which makes them unresolvable to any future
++# analyst reading findings.jsonl. Re-rooted onto the chunk-2 taxonomy by
++# swapping the leading segment only, leaving each tail byte-identical: a
++# reviewer's recorded surface is their finding, so re-rooting it is a migration
++# while "correcting" the tail would be a rewrite. `phase-1/hooks/lock.py` is
++# preserved as `tools/phase-1-hooks/lock.py` for exactly that reason, even
++# though lock.py in fact lives in tools/phase-1-scripts/ — the imprecision is
++# the reviewer's and stays theirs.
++
++_P32_REVIEWS = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3.2", "reviews")
++_P4_EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-4")
++
+ def ts(date_str):
+     return date_str
+ 
+@@ -65,32 +91,32 @@ p1_grok_r1 = [
+     ("F-P1R1-G07", "spec-deviation", "nit", "test-quality: real Werkzeug behavior"),
+ ]
+ for fid, cat, sev, desc in p1_grok_r1:
+-    findings.append(row(fid, "phase-1", D, "phase-1/hooks/", cat, sev,
++    findings.append(row(fid, "phase-1", D, "tools/phase-1-hooks/", cat, sev,
+         "reviewer", "r-phase1-r1-grok", "grok-4.5", "grok-family", 2, 1, desc))
+ 
+ # Gemini R1: 1 blocking (tooling refusal)
+-findings.append(row("F-P1R1-M01", "phase-1", D, "phase-1/review-prompt",
++findings.append(row("F-P1R1-M01", "phase-1", D, "planning/phase-1/review-prompt",
+     "spec-deviation", "blocking", "reviewer", "r-phase1-r1-gemini",
+     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
+     "Execute tool not in --enabled-tools; refused to render judgment"))
+ 
+ # Round 2 — Grok: 1 blocking (python3 bypass), Gemini: 3 (hook bypasses)
+ # Grok R2: python3 inline-eval bypass (also found by Gemini)
+-findings.append(row("F-P1R2-G01", "phase-1", D, "phase-1/hooks/lock.py",
++findings.append(row("F-P1R2-G01", "phase-1", D, "tools/phase-1-hooks/lock.py",
+     "security", "blocking", "reviewer", "r-phase1-r2-grok", "grok-4.5",
+     "grok-family", 2, 0,  # shared — Gemini also found python3
+     "python3 inline-eval bypass in READ_ONLY_HEADS"))
+ 
+ # Gemini R2: 3 findings (glob short-circuit, python3, MultiEdit missing)
+-findings.append(row("F-P1R2-M01", "phase-1", D, "phase-1/hooks/glob-match",
++findings.append(row("F-P1R2-M01", "phase-1", D, "tools/phase-1-hooks/glob-match",
+     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
+     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
+     "glob short-circuit on basename prefilter"))
+-findings.append(row("F-P1R2-M02", "phase-1", D, "phase-1/hooks/lock.py",
++findings.append(row("F-P1R2-M02", "phase-1", D, "tools/phase-1-hooks/lock.py",
+     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
+     "gemini-3.1-pro-preview", "gemini-family", 2, 0,  # shared with Grok
+     "python3 inline-eval bypass in READ_ONLY_HEADS"))
+-findings.append(row("F-P1R2-M03", "phase-1", D, "phase-1/hooks/multiedit",
++findings.append(row("F-P1R2-M03", "phase-1", D, "tools/phase-1-hooks/multiedit",
+     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
+     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
+     "MultiEdit missing from hook matcher"))
+@@ -103,10 +129,10 @@ p1_grok_r3 = [
+     ("F-P1R3-G04", "correctness", "minor", "regex tightening needed"),
+ ]
+ for fid, cat, sev, desc in p1_grok_r3:
+-    findings.append(row(fid, "phase-1", D, "phase-1/", cat, sev,
++    findings.append(row(fid, "phase-1", D, "planning/phase-1/", cat, sev,
+         "reviewer", "r-phase1-r3-grok", "grok-4.5", "grok-family", 2, 1, desc))
+ 
+-findings.append(row("F-P1R3-M01", "phase-1", D, "phase-1/hooks/",
++findings.append(row("F-P1R3-M01", "phase-1", D, "tools/phase-1-hooks/",
+     "readability", "nit", "reviewer", "r-phase1-r3-gemini",
+     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
+     "structurally sound, only nit on hook"))
+@@ -118,12 +144,12 @@ findings.append(row("F-P1R3-M01", "phase-1", D, "phase-1/hooks/",
+ D2 = "2026-07-20"
+ 
+ # Grok unique findings on plan review
+-findings.append(row("F-P2-G01", "phase-2", D2, "phase-2/plan-v1.md",
++findings.append(row("F-P2-G01", "phase-2", D2, "planning/phase-2/plan-v1.md",
+     "spec-deviation", "minor", "reviewer", "r-phase2-plan-grok",
+     "grok-4.5", "grok-family", 2, 1,
+     "Plan self-corrected 3 wrong file anchors in its own prompt"))
+ 
+-findings.append(row("F-P2-G02", "phase-2", D2, "phase-2/plan-v1.md",
++findings.append(row("F-P2-G02", "phase-2", D2, "planning/phase-2/plan-v1.md",
+     "correctness", "minor", "reviewer", "r-phase2-plan-grok",
+     "grok-4.5", "grok-family", 2, 1,
+     "Hidden scope trap: ALTER TABLE + migration runner needed for address column"))
+@@ -136,7 +162,7 @@ findings.append(row("F-P2-G02", "phase-2", D2, "phase-2/plan-v1.md",
+ # ============================================================
+ D3 = "2026-07-28"
+ 
+-findings.append(row("F-P31-G01", "phase-3.1", D3, "phase-3.1/chunk-1",
++findings.append(row("F-P31-G01", "phase-3.1", D3, "evidence/phase-3.1/chunk-1",
+     "correctness", "major", "reviewer", "r-phase31-c1-validator-grok-r1",
+     "grok-4.5", "grok-family", 2, 1,
+     "Same-family test-author encoded test-independence bias in chunk 1"))
+@@ -150,7 +176,7 @@ findings.append(row("F-P31-G01", "phase-3.1", D3, "phase-3.1/chunk-1",
+ D4 = "2026-08-08"
+ 
+ # Load Grok's structured findings
+-with open("phase-3.2/reviews/roadmap-review-cross-family-findings.json") as f:
++with open(os.path.join(_P32_REVIEWS, "roadmap-review-cross-family-findings.json")) as f:
+     v1_data = json.load(f)
+ 
+ for finding in v1_data.get("findings", []):
+@@ -187,7 +213,7 @@ for fid, surface, cat, sev, desc in gem_v1_findings:
+ # ============================================================
+ 
+ # Load Grok's structured findings
+-with open("phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json") as f:
++with open(os.path.join(_P32_REVIEWS, "roadmap-review-v2-cross-family-findings.json")) as f:
+     v2_data = json.load(f)
+ 
+ for finding in v2_data.get("findings", []):
+@@ -232,7 +258,7 @@ for name, model, family, run_id in [
+     ("gemini", "gemini-3.1-pro-preview", "gemini-family", "r-post-v3-gemini"),
+ ]:
+     try:
+-        with open(f"phase-4/post-v3-review-{name}-envelope.json") as f:
++        with open(os.path.join(_P4_EVID, f"post-v3-review-{name}-envelope.json")) as f:
+             env = json.load(f)
+         result = env.get("result", "")
+         # Extract JSON finding blocks
+@@ -268,7 +294,7 @@ for name, model, family, run_id in [
+     ("gemini", "gemini-3.1-pro-preview", "gemini-family", "r-tex-gemini"),
+ ]:
+     try:
+-        with open(f"phase-4/track-execution-review-{name}-envelope.json") as f:
++        with open(os.path.join(_P4_EVID, f"track-execution-review-{name}-envelope.json")) as f:
+             env = json.load(f)
+         result = env.get("result", "")
+         json_blocks = re.findall(r'\{[^{}]*"finding_id"[^{}]*\}', result, re.DOTALL)
+@@ -295,8 +321,7 @@ for name, model, family, run_id in [
+ # ============================================================
+ # Write findings.jsonl
+ # ============================================================
+-import os
+-out_path = os.path.join("telemetry", "findings.jsonl")
++out_path = os.path.join(_FRAMEWORK_ROOT, "telemetry", "findings.jsonl")
+ with open(out_path, "w") as f:
+     for r in findings:
+         f.write(json.dumps(r) + "\n")
+diff --git a/tools/phase-4-gen/reconstruct-telemetry.py b/tools/phase-4-gen/reconstruct-telemetry.py
+index a4753a8..24f2c2d 100644
+--- a/tools/phase-4-gen/reconstruct-telemetry.py
++++ b/tools/phase-4-gen/reconstruct-telemetry.py
+@@ -19,21 +19,37 @@ Both Phase 2 and Phase 3 rows use schema_version "v2" but set evidence_source
+ to null — they predate the Phase 3.2 evidence provider.
+ 
+ Usage:
+-    python3 phase-4/reconstruct-telemetry.py [--dry-run]
++    python3 tools/phase-4-gen/reconstruct-telemetry.py [--dry-run]
+ """
+ import json
+ import os
+ import sys
+ from datetime import datetime, timezone
+ 
+-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
++# chunk-D1-2a: this script moved from phase-4/ to tools/phase-4-gen/, so a
++# single os.pardir hop reached tools/ rather than the repo root. Every path
++# below hangs off this one value, which is why the partial-fix trap in
++# CHUNK-2a-SPEC §4.7 is a trap: repairing the two EVID roots while leaving this
++# line pointed at tools/ sends RUNS_PATH to tools/telemetry/runs.jsonl, whose
++# absence silently zeroes the merge guard at :157 and truncates the system of
++# record. Two hops up from tools/phase-4-gen is the framework root.
++_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++REPO_ROOT = os.path.dirname(_TOOLS_DIR)
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
++
+ RUNS_PATH = os.path.join(REPO_ROOT, "telemetry", "runs.jsonl")
+-PHASE2_EVID = os.path.join(REPO_ROOT, "phase-2", "build-evidence")
+-PHASE3_EVID = os.path.join(REPO_ROOT, "phase-3", "build-evidence")
++PHASE2_EVID = phase_path(REPO_ROOT, "evidence", "phase-2", "build-evidence")
++PHASE3_EVID = phase_path(REPO_ROOT, "evidence", "phase-3", "build-evidence")
++# Portable relative forms for the rows' envelope_path field.
++_P2_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-2", "build-evidence"))
++_P3_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
+ 
+ # model_id -> (provider, family). providerLock/apiProviderLock == provider
+ # (envelope does not surface the observed lock in the CLI version used; see
+-# phase-3/gen-telemetry.py KI-3 note).
++# tools/phase-3-gen/gen-telemetry.py KI-3 note).
+ MODEL_META = {
+     "claude-opus-5": ("anthropic", "claude-family"),
+     "glm-5.2": ("zhipu", "glm-family"),
+@@ -169,7 +185,7 @@ def main():
+     # 2. Generate Phase 2 rows.
+     phase2_rows = []
+     for run_id, role, model_id, decision, fname, panel in PHASE2_RUNS:
+-        env_rel = f"phase-2/build-evidence/{fname}"
++        env_rel = f"{_P2_ENVELOPE_DIR_REL}/{fname}"
+         row = make_row(run_id, "phase-2", PHASE2_BRANCH, role, model_id,
+                        decision, env_rel, PHASE2_EVID, ts, reviewer_panel=panel)
+         phase2_rows.append(row)
+@@ -177,7 +193,7 @@ def main():
+     # 3. Generate Phase 3 rows.
+     phase3_rows = []
+     for run_id, role, model_id, decision, fname in PHASE3_RUNS:
+-        env_rel = f"phase-3/build-evidence/{fname}"
++        env_rel = f"{_P3_ENVELOPE_DIR_REL}/{fname}"
+         row = make_row(run_id, "phase-3", PHASE3_BRANCH, role, model_id,
+                        decision, env_rel, PHASE3_EVID, ts)
+         phase3_rows.append(row)
+diff --git a/tools/sprint_loop/per_chunk.py b/tools/sprint_loop/per_chunk.py
+index f4af1e1..3d368ba 100644
+--- a/tools/sprint_loop/per_chunk.py
++++ b/tools/sprint_loop/per_chunk.py
+@@ -133,7 +133,7 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+             f"lock.py exited {r.returncode} for chunk '{chunk.chunk_id}': "
+             f"{r.stderr[:500]!r}"
+         )
+-    # Find the lock file (lock.py writes to phase-1/locks/<test_file>.lock.json)
++    # Find the lock file (lock.py writes to <LOCKS_ROOT>/<test_file>.lock.json)
+     lock_path = phase_path(framework_root, "locks",
+                            f"{chunk.locked_test_files[0]}.lock.json")
+     if not os.path.isfile(lock_path):
