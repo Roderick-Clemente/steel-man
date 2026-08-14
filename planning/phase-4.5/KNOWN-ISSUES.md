@@ -1068,3 +1068,32 @@ as a first-class step, not an implicit side effect of the planner gate.
   implementer disjoint from reviewers, and an ACCEPT-class verdict, plus
   an `OPERATING-RULES §17` amendment. Applies to both the framework repo
   (self-dogfood) and pilot overlays.
+
+### KN-R2. Org-level SCA/SAST gate fails with no dependency manifest to scan
+
+- **Status:** OPEN — deferred (operator chose Option B for now).
+- **Filed:** 2026-08-14 (D1 close, PR #2 against `Roderick-Clemente/adversarial-sprint-dev`).
+- **What:** an SCA (dependency) / SAST scan fails on PRs against this
+  repo. It is NOT defined in `.github/workflows/adversarial-sprint-ci.yml`
+  — that workflow's own `--security-scan` flag (CI-GATE.md §"what this
+  workflow does" step 3) is an unrelated internal thing (an
+  optional, non-blocking artefact of `local_backend.py`). The SCA/SAST
+  gate is configured somewhere outside this repo's checked-in config
+  (org-level required check or a GitHub App), not yet located.
+- **Why not fixed now:** an audit of every `.py` file under this repo
+  (`tools/`, `tests/`, scripts) shows zero third-party imports — only
+  stdlib + local modules, plus `pytest` (a dev/test-only dependency, not
+  a runtime one). There is no `requirements.txt` / `pyproject.toml`
+  because there is nothing to declare. Operator picked **Option B**
+  (skip/soften the scan step for this repo) over Option A (add a
+  manifest anyway) — adding a placeholder manifest would misrepresent a
+  dependency-free repo as having a dependency surface. Option C
+  (`fail_on_severity: none`) is a candidate too, but depends on knobs
+  this operator cannot see from this checkout.
+- **Reproduction:** PR #2, `Roderick-Clemente/adversarial-sprint-dev`
+  — SCA/SAST check fails; repo root has no dependency manifest.
+- **When to fix:** once the scan's actual definition is located (likely
+  org-level policy, outside this repo's git tree) — configure it there
+  to skip/soft-fail repos with no manifest. Revisit with a real
+  `requirements.txt` only if/when this repo gains an actual third-party
+  Python dependency (audited at zero as of this filing).
