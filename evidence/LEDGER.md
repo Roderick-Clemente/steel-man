@@ -1746,4 +1746,27 @@ them.
   of separate locked test_layout_paths_chunkN.py files rather than editing the
   locked base file. Valid GREEN on the built tree at 20a3041: all four paths
   resolve to existing files post-chunk-2 flip. Builder released for close gate.
+
+2026-08-14T15:00:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-4-code verdict=CLOSED
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=8a93ec28ec1b43e2976f183bba311d8f22c76b05edc1be82a0369737c13deed4
+  envelope_sha256_minimax=c553cd17c1b0b92887d6ab300e3ab3b641fee9b83ed4af6c8d182e1c3142492e
+  build_commit=20a3041
+  sha256s independently verified on disk. Ruling 4 satisfied: two ACCEPT-class
+  from two distinct families. Second clean close across D1 (with D1-3).
+
+2026-08-14T15:00:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D1-4-code
+  token=evidence/phase-4.5/tokens/chunk-D1-4.token.json
+  build_commit=20a3041 key_id=referee-deepseek-2026-08-14
+  verified=OK sha=20a3041e36fa56b1b7570eeff5d58eb0b95dc86a
+
+2026-08-14T15:00:00Z REFEREE: D1 COMPLETE — all 4 chunk gates closed.
+  chunk-D1-1-code:  d5db8ff  (SPLIT -> operator override)
+  chunk-D1-2-code:  ee90061  (ACCEPT-WITH-NITS x2)
+  chunk-D1-2a-code: da14ef5  (SPLIT -> operator override)
+  chunk-D1-3-code:  0b5343d  (ACCEPT-WITH-NITS x2 — first clean close)
+  chunk-D1-4-code:  20a3041  (ACCEPT-WITH-NITS x2)
+  Tokens: evidence/phase-4.5/tokens/chunk-D1-{1,2,2a,3,4}.token.json
+  All signed under key_id=referee-deepseek-2026-08-14.
 ```
