@@ -745,4 +745,11 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   spec and flags issues before building; the spec gate fires only where the planner
   and builder disagree or the chunk is novel surface.
   Builder released.
+
+2026-08-14T04:40:00Z REFEREE: CORRECTION: the JUDGE RATIFIED row above says valid RED was measured
+  "on Python 3.9.6." The 3.9.6 system interpreter produced 12 failed, 4 passed — the
+  same counts the planner measured on /private/tmp/asprint-venv/bin/python (3.13.3),
+  so RED is confirmed on both. But the label is wrong: the suite interpreter is the
+  3.13.3 venv per CHUNK-2a-SPEC §4.1, and §4.1 exit criteria must reconcile against
+  that interpreter. The builder's build validation will use 3.13.3 and quote the path.
 ```
