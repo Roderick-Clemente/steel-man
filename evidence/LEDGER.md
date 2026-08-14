@@ -1476,3 +1476,113 @@ them.
   build_commit=0b5343d key_id=referee-deepseek-2026-08-14
   verified=OK sha=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
 ```
+
+### Nits — chunk-D1-3 Tier-2 accepts (8f4044f), builder response
+
+```
+2026-08-14T13:40Z BUILDER: NITS ACKNOWLEDGED: chunk=chunk-D1-3 gate=8f4044f
+  kimi-k3 ACCEPT-WITH-NITS (session 734e4735), minimax-m3 ACCEPT-WITH-NITS
+  (session 440f43a2). Distinct sessions, and each reviewer built its own
+  interpreter because the pinned /private/tmp/asprint-venv does not exist on their
+  machines (kimi: /tmp/review-venv 3.12.12; minimax: /tmp/asprint-venv-review).
+  Both reproduced 234 passed / 3 skipped / 0 failed and 14/14 on the chunk-3 judge
+  under their own interpreters. 5 findings, all severity <= low, none blocking.
+
+  I re-measured all five from this seat rather than accepting them. All five stand.
+  Two are mine, three are not:
+
+  N1 MINE, factual. PATH-REDIRECTS.md:20-21 claims "144 lines across 76
+     envelope/capture files". Stale AND structurally undriftable-checkable: it is the
+     one hand-typed number inside an otherwise generated file (gen-path-redirects.py
+     writes it as a literal at :205), so --check cannot catch it.
+     My measurement, tracked files only, spec §4.3 command shape:
+       0b5343d : 146 lines / 78 files
+       HEAD    : 148 lines / 80 files
+     The two reviewers measured 146/78 and 147/79 — they disagree with each other
+     and with the prose because the number GROWS with every evidence commit. That is
+     the finding's real teeth: any live-derived form of this statistic makes
+     §4.2c `--check` drift on every future chunk, converting a green check into a
+     standing false alarm. Fix must therefore PIN the measurement to a commit
+     ("measured at 0b5343d: 146 lines / 78 files"), which is the same argument F1
+     makes about droid-wiki/by-the-numbers.md: a measurement is only true of the
+     tree it was taken on. Deleting it is the acceptable fallback.
+
+  N2 MINE, correctness (cosmetic). The phase-3.2/reviews/ fan-out table lists 11
+     top-level rows (PATH-REDIRECTS.md:128-138) and omits the 5 nested
+     phase-3.2/reviews/orchestrated/* renames. Cause located: ambiguous_files() in
+     gen-path-redirects.py filters `"/" not in rest`, so it only ever emits
+     top-level members of a fanned-out prefix. Ground truth from ee90061:
+     16 renames under phase-3.2/reviews/ = 14 -> evidence/ + 2 -> planning/, and the
+     prefix table's counts (14, 2) are correct — only the file-level table is short.
+     Both reviewers note the omitted paths still resolve via the dominant prefix row,
+     so no functional defect. Correct fix is the generator filter, not a prose note:
+     a table that silently covers only part of a fan-out is the shape that teaches a
+     reader to trust it and then miss a case.
+     (Reviewer counts of the top-level rows differed — kimi 11, minimax 9. 11 is
+     correct; I counted the emitted rows directly.)
+
+  N3 NOT MINE TO FIX, factual — my error, correctable only by appending. FINDINGS
+     -chunk-D1-3.md:18 and the 0b5343d commit message both say "57 mechanical
+     rewrites across 13 files, plus 4 markdown link targets and 2 stale tails".
+     57+4+2=63. Reconstructed by running the committed rewrite-citations.py against a
+     clean worktree at 0b5343d^: total is 61 operations across 13 files.
+     Correct decomposition: 55 bare phase-N re-roots + 4 markdown link targets
+     + 2 tail corrections = 61. I double-counted the 2 tails inside the 57.
+     kimi's reconciliation (55+4+2=61) is the right one; minimax's (56+3=59) is not.
+     Substance unaffected — the rewriter is idempotent, --check reports 0 further
+     rewrites, and every per-file count reproduces. Not editable: FINDINGS is
+     committed evidence at 28c57fd and a commit message is history, so this row IS
+     the correction (§5, §21).
+
+  N4 NOT MINE, planner. tests/test_layout_paths_chunk3.py:235 checks residual
+     accounting with a raw substring test (`f"{rel}:{lineno}" not in redirects`), so a
+     line-number prefix collision (residual at :11 satisfied by a listed row :112)
+     would pass spuriously. Both reviewers verified no collision exists today and I
+     confirm exact bidirectional set equality holds (49 residuals / 49 rows,
+     42 unique file:line). Both rate it not worth a re-lock on its own; fold into the
+     next judge amendment as a delimited match on backtick-wrapped `file:line`.
+
+  N5 NOT MINE, planner ruling wanted. Both reviewers flag that the build commit
+     0b5343d adds 5 A-status files under
+     evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/ (FINDINGS,
+     rewrite-citations.py, gen-path-redirects.py, dead-links.py, verify-chunk3.sh),
+     which fails the literal reading of CHUNK-3-SPEC.md §6 ("the one permitted
+     evidence/ operation is the LEDGER arriving by git mv") and the validator prompt's
+     literal item-7 check. §4.8's substantive assertions all pass: M-under-evidence=0,
+     zero writes under evidence/phase-4.5/tokens/. Confirmed from this seat, and I
+     also correct my own earlier statement to the operator that the bundle landed in
+     28c57fd: it did not. 28c57fd added only verify-chunk3.out and amended two of the
+     five. The bundle itself is in the build commit. Both reviewers say no rework
+     needed; §6 should name builder-bundle ADDITIONS as distinct from editing
+     evidence bytes.
+
+  Also carried, prompt errata both reviewers hit independently:
+  CHUNK-3-VALIDATOR-PROMPT.md:67 tells the reviewer to run
+  `git show --name-status --find-renames 0b5343d -- evidence/LEDGER.md` to see R100.
+  That command prints `A`, not `R100` — the identical pathspec-breaks-rename-detection
+  mechanism as F13, now reproduced a third time in the verification surface itself.
+  Not a build defect. Prompt is under planning/layout-refactor/ and outside this seat.
+
+2026-08-14T13:40Z BUILDER: SEQUENCING: chunk=chunk-D1-3 nit-fixes DEFERRED, not dropped
+  N1 and N2 are mine and both are one-line generator changes, but I am NOT landing
+  them yet, on purpose. Both reviewers attested against the tree at 0b5343d with
+  planning/PATH-REDIRECTS.md as it currently stands. No chunk-D1-3.token.json exists
+  yet. Regenerating the deliverable before the referee signs would make the token pin
+  a tree that neither reviewer examined — a signed attestation tracing to bytes nobody
+  reviewed is exactly what §21 exists to prevent, and it would be self-inflicted.
+  So: referee signs chunk-D1-3 against the reviewed tree first. N1 + N2 then land as
+  a follow-up, and because gen-path-redirects.py is itself committed evidence at
+  0b5343d, the amended generator goes to a NEW run-id directory rather than
+  overwriting those bytes — same discipline used for verify-chunk3-rerun-5d8296d.out.
+
+2026-08-14T13:40Z BUILDER: BLOCKED: chunk=chunk-D1-4 reason=§20 chunk-close gate
+  planning/layout-refactor/CHUNK-4-SPEC.md exists and chunk-D1-3 has two ACCEPTs,
+  but evidence/phase-4.5/tokens/ holds no chunk-D1-3.token.json (present: chunk-5a..5e,
+  chunk-D1-1, chunk-D1-2, chunk-D1-2a). §20's next-chunk-start path refuses without a
+  verifiable token for the prior chunk, so chunk-4 does not start from this seat yet.
+  Waiting on referee: sign chunk-D1-3 with judge_sha256=5c66bcfc... and the two
+  envelope SHAs under
+  evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/.
+  Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, write no token,
+  fire no reviewer, and do not run the chunk sequence gate.
+```
