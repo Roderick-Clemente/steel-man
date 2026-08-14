@@ -1209,4 +1209,16 @@ them.
   round has diminishing returns. The referee recommends the operator close this gate
   with an explicit §8 override, recording the known uncovered surface (lock READER
   behavioral test) as a carried item for the chunk-3 judge.
+
+2026-08-14T06:35:00Z OPERATOR: OVERRIDE §8 for chunk=chunk-D1-2a-code. SPLIT overridden.
+  Gate CLOSED. Builder may proceed.
+
+2026-08-14T06:35:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D1-2a-code
+  token=evidence/phase-4.5/tokens/chunk-D1-2a.token.json
+  build_commit=da14ef5 key_id=referee-deepseek-2026-08-14
+  verified=OK sha=da14ef56f24ec3de82ea70b862f7346fae6aca67
+  envelope_sha256_kimi=ed9a1e70... envelope_sha256_minimax=d4b8f2a9...
+  note=kimi-k3 REJECT per operator override; verdict recorded as REJECT in token
+  per the actual envelope, not rewritten. The override closes the gate; it does
+  not alter the review record.
 ```
