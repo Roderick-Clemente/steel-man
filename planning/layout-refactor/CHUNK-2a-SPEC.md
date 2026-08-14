@@ -11,7 +11,7 @@ evidence/phase-4.5/tokens/chunk-D1-2.token.json --next-chunk-id chunk-D1-2a`
 the referee, which holds `EVIDENCE_SIGNING_KEY`; the builder cannot run it
 and must not be asked to (§22).
 
-**Why this chunk exists.** chunk-D1-2 moved 617 files and closed cleanly, but
+**Why this chunk exists.** chunk-D1-2 moved 618 files (`--name-status`: 618 R100 + 16 M, see §6) and closed cleanly, but
 its reviewers surfaced four live scripts that the moves broke. They cannot be
 absorbed into chunk-D1-2 — §18.2 is one chunk, one commit, and amending it
 would invalidate the diff both reviewers attested to. They also cannot land in
@@ -82,7 +82,7 @@ is the same over-fitting that made these four break.
 **Existing rows in `telemetry/runs.jsonl` are NOT rewritten.** They are
 historical evidence under §5/§21 and their old-prefix `envelope_path` values
 are accurate records of where those bytes lived at the time. The dead-pointer
-delta is carried by `planning/PATH-REDIRECTS.md` per `PLAN.md:497`. Only
+delta is carried by `planning/PATH-REDIRECTS.md` per `PLAN.md:465` and `:639`. Only
 newly-generated rows use resolved paths.
 
 ## §2.2 — Stale test fixture
@@ -158,6 +158,12 @@ These concern `FINDINGS-chunk-D1-2.md`, a committed evidence byte. It is
 immutable under §5/§21, so **record them as appended LEDGER rows naming what
 each supersedes — do not touch the findings file.**
 
+**Closed.** The builder appended all four as `ERRATUM: supersedes=…` rows at
+`planning/phase-4.5/LEDGER.md:904-957`, zero deletions. kimi-k3 filed a
+`medium` saying they were never recorded anywhere durable; that finding **does
+not reproduce** — it grepped `"K2 stands"` and the rows read `K2 STANDS`, a
+case-sensitivity miss. Verified present and append-only.
+
 **Erratum against this instruction's own first draft.** It read "correct them
 by appending errata rows, never by editing the file," which cannot be
 followed: appending to a file *is* editing it, and §5/§21 forbid editing that
@@ -174,15 +180,24 @@ where these belong.
   `/usr/bin/python3` (3.9.6) gives **rc=1** on the pre-existing PEP-604
   `dict | None` at `:189`, which the chunk-2 judge explicitly tolerates.
   3.9.6 is the **system** interpreter, not the suite interpreter — the suite
-  runs on the 3.13.3 venv (197 passed + 3 skipped there; 3.9.6 has no pytest
-  installed at all). So the original row's rc=0 was correct and only
+  runs on the 3.13.3 venv. So the original row's rc=0 was correct and only
   under-specified. Record the interpreter path, not just the code.
+
+  **Scope correction (kimi-k3, low).** The claim "3.9.6 has no pytest
+  installed at all" is true on the builder's machine and was stated
+  absolutely. On kimi's machine `/usr/bin/python3` has pytest 8.4.2 and runs
+  the suite, and the repo's own lock manifests attest "197 passed + 3
+  skipped on Python 3.9.6" — so as written it contradicts a committed
+  artifact. Interpreter availability is machine-scoped; say which machine.
 - **K5 stands.** `backends.py:125-129` gained a comment block inside a set of
   six changes presented as unenumerated. Comment-only, zero behaviour.
 - **K1 does not reproduce.** kimi flagged untracked `phase-4.5/` scratch
   residue contradicting the "zero `phase-*` dirs on disk" row. Accurate at
-  review time, moot now: nothing matches `phase-*` on disk, tracked count 0.
-  Record as time-of-review divergence, not as a defect.
+  review time, moot on the builder's machine at build time: nothing matched
+  `phase-*` on disk there, tracked count 0. Record as time-of-review
+  divergence, not as a defect — and machine-scoped, since kimi-k3 found
+  untracked `phase-4.5/` scratch present on its own checkout. The gate
+  point (`git ls-files` count 0) is unaffected either way.
 - **No change needed:** minimax's lookbehind item (the fix was right; it asks
   only that the comment survive chunk 3's rename) and its §2.4
   `verify-green.py` line-number errata, which corrects a spec, not a build.
@@ -218,37 +233,58 @@ assertions:
    regex while pointing at nothing — so resolution is **also** required, but
    it is enforced at the §4.7 exit-criteria level rather than here.
 
-   **Erratum, filed against the planner.** The first draft of this
-   assertion required the judge to verify that each emitted path resolves.
-   A side-effect-free judge structurally cannot: observing emitted values
-   means running the writers, and running them mutates the SoR the judge is
-   judging. Measured — `reconstruct-telemetry.py --dry-run` prints a
-   summary table containing **zero** `envelope_path` values, so even the one
-   script with a no-write mode does not expose them. The ratified judge
-   therefore implements only the shape half, and `grep -n envelope_path
-   tests/test_layout_paths_chunk2a.py` returns docstrings and one section
-   comment — no assertions.
+   **Erratum superseded — the resolution half IS enforceable, and is now
+   enforced.** A prior erratum here claimed a side-effect-free judge
+   "structurally cannot" observe emitted values, because observing them
+   means running the writers and running them mutates the SoR. That was
+   wrong, and it was the most expensive thing in this spec: it argued a real
+   requirement out of existence, and kimi-k3 then walked straight through
+   the gap it left (blocker 1 — a fix emitting `build-evidence/<file>`,
+   which carries no `phase-N` prefix, resolves to nothing, and was
+   demonstrated 16/16 green against the ratified judge).
 
-   The requirement itself stands and is met: §4.7 requires every emitted
-   `envelope_path` to resolve, the builder ran it, and 18/18
-   script-generated rows resolved. What was wrong was asserting it at the
-   judge level, and then not recording that the judge did not implement it.
-   Per §11 the distinction that matters is between a criterion *met* and a
-   criterion the judge can *enforce*; this one is met by exit check, not by
-   judge. Found by the builder auditing its own F2 as too narrow, after
-   kimi-k3 filed the gap as a REJECT.
+   It is the **write** that must not happen, not the run. The amended judge
+   replaces `builtins.open` so write modes return an in-memory sink, then
+   executes each generator for real from a temp CWD: every byte it would
+   have written is captured and parsed, and every newly-generated
+   `envelope_path` is asserted to resolve. Verified safe against all four
+   subjects — each performs every read before its first write, and none
+   calls `os.makedirs`, `os.replace`, or `shutil`, so no write escapes the
+   intercept.
+
+   Two scoping facts the assertion must respect, both learned by measuring:
+   `reconstruct-telemetry.py` emits 39 rows, of which 21 are **carried
+   through** from the existing SoR — their old-prefix values are accurate
+   §5/§21 records (one points into a different pilot repo entirely) and are
+   out of scope per §2.1. Only the 18 generated rows are this chunk's
+   responsibility, which is exactly the 18/18 the builder reported. The
+   judge separates the two by excluding values already present in the SoR.
 3. `tests/test_sprint_loop.py`'s fixture directories resolve under
    `SCRIPTS_ROOT` / `EVIDENCE_CODE_ROOT` rather than bare `phase-*` segments.
 
 ## §4 — Exit criteria (run and reported, not asserted — §11)
 
-1. Full suite green on the suite interpreter,
-   `/private/tmp/asprint-venv/bin/python` (3.13.3). Pre-2a baseline is
-   **197 passed + 3 skipped**; the 2a judge adds 16, so the target is
-   **213 passed + 3 skipped**. Measured valid RED before any fix is
-   **12 failed, 201 passed, 3 skipped**. Report the counts and the
-   interpreter path explicitly — §2.4 K2 exists because a bare rc was
-   recorded without one.
+1. Full suite green on the suite interpreter. Pre-2a baseline is
+   **197 passed + 3 skipped**. The 2a judge was 16 tests; the ratified
+   amendment (below) takes it to **23**, so the 2a contribution is 23, not
+   16. Measured valid RED before any fix was **12 failed, 201 passed, 3
+   skipped** against the 16-test judge.
+
+   **Gate on the 2a judge in isolation — `pytest -q
+   tests/test_layout_paths_chunk2a.py` must be 23 passed.** The full-suite
+   number at the branch tip also contains the chunk-D1-3 judge (14 tests,
+   10 of them a deliberate valid RED until chunk 3 is built), so a bare
+   full-suite count is not a pass/fail signal for this chunk. Report both,
+   plus the interpreter path — §2.4 K2 exists because a bare rc was recorded
+   without one.
+
+   **Interpreter caveat, and it is a real defect in this pin.** The path
+   `/private/tmp/asprint-venv/bin/python` is under `/tmp` and does not
+   survive across machines or reboots; kimi-k3 found it absent and
+   substituted its own venv. A suite interpreter that cannot be
+   reconstructed from the repo is not a reproducible pin. Filed as a
+   follow-on: the pin needs a repo-local or documented-bootstrap path.
+   Until then, reviewers state the interpreter they built and its version.
 2. All four scripts rc=0 invoked from a non-root CWD, with output shown.
 3. `grep -rn 'phase-[0-9]' ` over the four scripts returns no path-forming
    occurrence; prose and docstring mentions are acceptable and should be

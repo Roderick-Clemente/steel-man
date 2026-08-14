@@ -10,15 +10,29 @@ Branch: `factory/layout-refactor`
 Build commit under review: **<BUILD_COMMIT>**
 Spec: `planning/layout-refactor/CHUNK-2a-SPEC.md`
 2a judge: `tests/test_layout_paths_chunk2a.py`
-  (sha256 `3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f`,
-  locked at `tools/phase-1-locks/tests/test_layout_paths_chunk2a.py.lock.json`)
+  (sha256 `7289ca0967095fb4f9f2d45daf4637da77d556048e5a59664532d665fd89691c`,
+  23 tests, locked at
+  `tools/phase-1-locks/tests/test_layout_paths_chunk2a.py.lock.json`)
+
+**This judge has been amended once already.** The first ratified version
+(`3307020a…`, 16 tests) was defeated by three partial fixes: a dead
+`envelope_path` with no `phase-N` prefix, a CWD-relative `open()` built with
+`os.path.join` segments, and a `--locks-dir` default of
+`os.path.join(_FRAMEWORK_ROOT, "LOCKS_ROOT")` — the quoted constant name. Each
+was green against the old judge and each is now caught behaviourally, verified
+against reproduced mutations. **Those three are closed; do not re-report
+them.** Item 2 asks you for a *new* shape.
 Chunk-1 judge: `tests/test_layout_paths.py` (sha256 `cb00dfac…`, skips post-flip)
 Chunk-2 judge: `tests/test_layout_paths_chunk2.py` (sha256 `48a579f8…`)
 Diff of the build: `build.diff` in this directory.
 
-Suite interpreter: `/private/tmp/asprint-venv/bin/python` (3.13.3). **This is not
-`/usr/bin/python3`**, which is 3.9.6 and has no pytest installed. The distinction
-has already produced one bad evidence row (spec §2.4 K2); do not reproduce it.
+Suite interpreter: `/private/tmp/asprint-venv/bin/python` (3.13.3) on the
+builder's machine. **This pin lives under `/tmp` and may not exist on yours** —
+a previous reviewer found it absent and built its own venv, which is the correct
+response. Build one, and state the path and version you used. Do not assume
+`/usr/bin/python3` matches it: interpreter availability is machine-scoped, and
+recording a bare rc without the interpreter has already produced one bad
+evidence row (spec §2.4 K2).
 
 chunk-D1-2 moved 617 tracked files out of the `phase-N/` silos and broke five
 scripts that resolved paths relative to their own former location. Four fail
@@ -75,18 +89,24 @@ prose claim, and appends errata against the chunk-D1-2 findings.
    `LOCKS_ROOT`, or `phase_path()` from `tools/sprint_loop/config.py`. Flag any
    new literal `evidence/phase-N/...` string in executable code.
 
-6. **Is the suite green, and at the right counts?** Run
-   `/private/tmp/asprint-venv/bin/python -m pytest -q`. Expected
-   **213 passed, 3 skipped** — 197 + 3 was the pre-2a baseline and the 2a judge
-   adds 16. Measured RED before the fix was 12 failed / 201 passed / 3 skipped.
-   Report the counts you observe and the interpreter path you used. If the
-   numbers don't reconcile, say so rather than rounding to "green."
+6. **Is the suite green, and at the right counts?** Gate on the 2a judge in
+   isolation: `pytest -q tests/test_layout_paths_chunk2a.py` must be
+   **23 passed**. The full suite at the branch tip also contains the chunk-D1-3
+   judge — 14 tests, **10 of them a deliberate valid RED** until chunk 3 is
+   built — so expect roughly **10 failed / 224 passed / 3 skipped** overall and
+   treat only the 2a number as this chunk's signal. The 224 is arithmetic
+   (217 + 7 new), not a measurement: measure it and report what you get. If the
+   numbers don't reconcile, say so rather than rounding to "green," and confirm
+   every failure you see belongs to `test_layout_paths_chunk3.py`.
 
-7. **Were the errata appended, not edited?** Spec §2.4 requires corrections to
-   `FINDINGS-chunk-D1-2.md` be appended. Confirm that file's original bytes are
-   unchanged (`git show ee90061:<path>` versus current) and that the corrections
-   are additions. Same for `planning/phase-4.5/LEDGER.md`: rows are immutable,
-   so verify zero deletions.
+7. **Were the errata appended, not edited?** `FINDINGS-chunk-D1-2.md` is
+   immutable under §5/§21, so §2.4's corrections belong in
+   `planning/phase-4.5/LEDGER.md` as `ERRATUM: supersedes=…` rows — they are at
+   `LEDGER.md:904-957`. Confirm zero deletions on both files across the 2a
+   commits (`git log --numstat`), and that the findings file is byte-identical
+   to the commit that created it — **`bc83471`, not `ee90061`**. An earlier
+   version of this item said `git show ee90061:<path>`, which cannot work: the
+   file did not exist at `ee90061`.
 
 8. **Scope escapes.** This chunk moves nothing. Any `R` status line in
    `git show <BUILD_COMMIT> --name-status` is out of scope — the `LEDGER.md`

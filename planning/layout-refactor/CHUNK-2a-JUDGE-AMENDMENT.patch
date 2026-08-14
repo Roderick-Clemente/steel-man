@@ -1,0 +1,387 @@
+diff --git a/tests/test_layout_paths_chunk2a.py b/tests/test_layout_paths_chunk2a.py
+index 19ac994..26152d4 100644
+--- a/tests/test_layout_paths_chunk2a.py
++++ b/tests/test_layout_paths_chunk2a.py
+@@ -26,17 +26,34 @@ Two distinct defect classes are covered, and they need different probes:
+   roots are built from ``__file__``, so they are already CWD-independent —
+   they are simply wrong, resolving one level short of the framework root now
+   that the scripts live under ``tools/``. Probed by resolving them.
+-* **CWD-relative** (``gen-findings.py``): literal paths passed to ``open()``
+-  resolve against the invoking directory. Probed statically via AST, because
+-  the module has no ``if __name__ == "__main__"`` guard and importing it
+-  would execute it.
++* **CWD-relative** (``gen-findings.py``): paths passed to ``open()``
++  resolve against the invoking directory. Probed both statically (every
++  ``open()`` argument must derive from an anchored root) and behaviourally
++  (the script runs from a foreign CWD under the write-intercepting probe).
++
++**Amendment, ratified after the chunk-D1-2a code gate.** kimi-k3 constructed
++three partial fixes that the first-ratified judge certified green, each
++against an assertion that tested a *proxy* for the property instead of the
++property: an AST scan for ``phase-N/`` literals (defeated by dropping the
++prefix entirely and emitting ``build-evidence/<file>``, well-formed and
++resolving to nothing), an AST scan for literal ``open()`` arguments (defeated
++by ``os.path.join("evidence", "phase-3.2", ...)``, a Call node rather than a
++literal, still CWD-relative), and ``"LOCKS_ROOT" in ast.unparse(default)``
++(defeated by ``os.path.join(_FRAMEWORK_ROOT, "LOCKS_ROOT")``, the quoted
++constant name). All three are now asserted behaviourally. The planner had
++recorded an erratum in spec §3 claiming a side-effect-free judge could not
++observe emitted ``envelope_path`` values at all; that erratum is wrong and is
++superseded here. It is the *write* that must not happen, not the run — see
++:data:`_PROBE_SRC`.
+ """
+ 
+ from __future__ import annotations
+ 
+ import ast
+ import importlib.util
++import json
+ import os
++import re
+ import subprocess
+ import sys
+ import tempfile
+@@ -107,6 +124,146 @@ def _string_constants(rel: str) -> list[str]:
+     ]
+ 
+ 
++# ── Write-intercepting probe ─────────────────────────────────────────────
++
++# Executes a subject for real, from a foreign CWD, with ``builtins.open``
++# replaced so that write modes return an in-memory sink: every byte the script
++# would have written is captured instead of reaching disk. This is what makes
++# behavioural assertions about *emitted values* legal in a judge that must not
++# mutate the artifact under review.
++#
++# Verified against all four subjects before this harness was written: each
++# performs every read before its first write, and none calls ``os.makedirs``,
++# ``os.replace``, or anything from ``shutil``, so no write escapes the
++# intercept. If a subject ever gains one, this probe stops being sufficient and
++# the planner must be told — do not weaken the assertions to compensate.
++_PROBE_SRC = r'''
++import builtins, io, json, os, runpy, sys
++
++script, outpath = sys.argv[1], sys.argv[2]
++# The subjects that inspect argv must see their own, not the harness's.
++sys.argv = [script]
++
++_real_open = builtins.open
++reads, writes = [], {}
++
++
++class _Sink(io.StringIO):
++    """Collects what would have been written, keyed by path."""
++
++    def __init__(self, path):
++        io.StringIO.__init__(self)
++        self._path = path
++
++    def close(self):
++        writes[self._path] = self.getvalue()
++        io.StringIO.close(self)
++
++    def __exit__(self, *exc):
++        self.close()
++        return False
++
++
++def _probe_open(file, mode="r", *args, **kwargs):
++    path = os.fspath(file)
++    if any(ch in mode for ch in "wax+"):
++        return _Sink(path)
++    reads.append(path)
++    return _real_open(file, mode, *args, **kwargs)
++
++
++builtins.open = _probe_open
++error = None
++try:
++    runpy.run_path(script, run_name="__main__")
++except BaseException as exc:  # noqa: BLE001 — reported to the judge, not raised
++    error = "%s: %s" % (type(exc).__name__, exc)
++finally:
++    builtins.open = _real_open
++
++with _real_open(outpath, "w") as fh:
++    json.dump({"error": error, "reads": reads, "writes": writes}, fh)
++'''
++
++
++def _probe(rel: str) -> dict:
++    """Run a subject with writes captured. Returns error/reads/writes."""
++    script = os.path.join(REPO_ROOT, rel)
++    assert os.path.isfile(script), f"missing subject: {script}"
++    with tempfile.TemporaryDirectory() as tmp:
++        harness = os.path.join(tmp, "_probe.py")
++        out = os.path.join(tmp, "_probe.json")
++        with open(harness, "w", encoding="utf-8") as fh:
++            fh.write(_PROBE_SRC)
++        proc = subprocess.run(
++            [sys.executable, harness, script, out],
++            cwd=tmp,
++            capture_output=True,
++            text=True,
++        )
++        assert proc.returncode == 0 and os.path.isfile(out), (
++            f"probe harness failed for {rel} (rc={proc.returncode})\n"
++            f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
++        )
++        with open(out, encoding="utf-8") as fh:
++            return json.load(fh)
++
++
++def _emitted_rows(result: dict) -> list[dict]:
++    """Every JSONL row the subject would have written."""
++    rows = []
++    for _, content in sorted(result["writes"].items()):
++        for line in content.splitlines():
++            line = line.strip()
++            if line:
++                rows.append(json.loads(line))
++    return rows
++
++
++def _sor_envelope_paths() -> set[str]:
++    """``envelope_path`` values already recorded in the SoR.
++
++    Used to separate rows a subject *generated* from rows it *carried through*
++    from the existing file. Absent SoR (fresh clone, gitignored per
++    ``.gitignore:44``) yields an empty set, which is correct: with nothing to
++    read, every emitted row is generated.
++    """
++    path = os.path.join(REPO_ROOT, _SOR_REL)
++    if not os.path.isfile(path):
++        return set()
++    values = set()
++    with open(path, encoding="utf-8") as fh:
++        for line in fh:
++            line = line.strip()
++            if not line:
++                continue
++            row = json.loads(line)
++            if "envelope_path" in row:
++                values.add(row["envelope_path"])
++    return values
++
++
++def _anchored_names(rel: str) -> set[str]:
++    """Module-level names whose value derives from the framework root.
++
++    Computed rather than hardcoded, so renaming a root constant does not
++    silently widen what counts as anchored. A small fixpoint covers the
++    ``_FRAMEWORK_ROOT`` -> ``_P32_REVIEWS`` -> derived chains in these scripts.
++    """
++    anchored = {"_FRAMEWORK_ROOT", "REPO_ROOT"}
++    body = _tree(rel).body
++    for _ in range(4):
++        for node in body:
++            if not isinstance(node, ast.Assign):
++                continue
++            src = ast.unparse(node.value)
++            if "phase_path" in src or any(name in src for name in anchored):
++                for target in node.targets:
++                    if isinstance(target, ast.Name):
++                        anchored.add(target.id)
++    return anchored
++
++
+ # ── §2.1 — read roots resolve to real directories ────────────────────────
+ 
+ 
+@@ -215,6 +372,70 @@ def _looks_like_stale_phase_path(value: str) -> bool:
+     return bool(tail) and all(ch.isdigit() or ch == "." for ch in tail)
+ 
+ 
++@pytest.mark.parametrize("rel", sorted(_SOR_WRITERS))
++def test_chunk2a_emitted_envelope_paths_resolve(rel):
++    """§3 assertion 2 — every emitted ``envelope_path`` resolves on disk.
++
++    Closes kimi-k3 blocker 1. Shape is not the property. A fix that removes
++    the dead ``phase-N/`` prefix without adding the real root emits
++    ``build-evidence/<file>``: it matches no stale-prefix pattern, satisfies
++    :func:`test_chunk2a_no_stale_phase_prefix_literals`, and points at
++    nothing. That mutation was demonstrated 16/16 green against the
++    first-ratified judge, which is why this assertion exists.
++
++    A well-formed pointer to a file that is not there is worse than the
++    ``FileNotFoundError`` this chunk repaired: the row lands in the telemetry
++    record and reads as evidence.
++    """
++    result = _probe(rel)
++    assert result["error"] is None, (
++        f"{rel} raised under the probe: {result['error']}"
++    )
++
++    emitted = [row["envelope_path"] for row in _emitted_rows(result) if "envelope_path" in row]
++    assert emitted, (
++        f"{rel} emitted no envelope_path values under the probe (writes seen: "
++        f"{sorted(result['writes'])}). Either the probe missed the write or "
++        "this script no longer emits telemetry rows; both make this assertion "
++        "vacuous, so raise BLOCKED: to the planner rather than editing it."
++    )
++
++    # Two of these scripts merge rather than truncate: they read the existing
++    # SoR and re-emit its rows alongside their own. Carried rows are OUT OF
++    # SCOPE and must stay that way — per spec §2.1 their old-prefix values are
++    # accurate records of where those bytes lived at the time, protected by
++    # §5/§21, and the dead-pointer delta is carried by PATH-REDIRECTS. One of
++    # them legitimately points into a different pilot repo entirely. Only
++    # newly-generated values are this chunk's responsibility.
++    generated = [v for v in emitted if v not in _sor_envelope_paths()]
++    assert generated, (
++        f"{rel} generated no new envelope_path values (all {len(emitted)} "
++        "emitted values already exist in the SoR), so this assertion would "
++        "pass vacuously"
++    )
++
++    dead = sorted({v for v in generated if not os.path.isfile(os.path.join(REPO_ROOT, v))})
++    assert not dead, (
++        f"{rel}: {len(dead)} distinct newly-generated envelope_path value(s) "
++        f"of {len(generated)} do not resolve under {REPO_ROOT}: {dead[:5]}"
++    )
++
++
++@pytest.mark.parametrize("rel", sorted(_SOR_WRITERS))
++def test_chunk2a_probe_writes_land_only_on_the_sor(rel):
++    """§4.7 — behavioural confirmation that no forked telemetry file is written.
++
++    :func:`test_chunk2a_runs_path_is_the_real_sor` checks the destination
++    constant; this checks where the write actually goes, which is the claim
++    that matters. A subject that resolved its constant correctly and then
++    wrote somewhere else would pass the former and fail this.
++    """
++    want = os.path.realpath(os.path.join(REPO_ROOT, _SOR_REL))
++    result = _probe(rel)
++    stray = sorted(p for p in result["writes"] if os.path.realpath(p) != want)
++    assert not stray, f"{rel} wrote outside the SoR: {stray} (expected only {want})"
++
++
+ # ── §2.1 — gen-findings.py CWD independence ──────────────────────────────
+ 
+ 
+@@ -226,6 +447,7 @@ def test_chunk2a_gen_findings_has_no_cwd_relative_opens():
+     literals inside functions, resolved against the invoking directory. A
+     relative literal is the defect regardless of what the string says.
+     """
++    anchored = _anchored_names(_UNGUARDED)
+     offenders = []
+     for node in ast.walk(_tree(_UNGUARDED)):
+         if not isinstance(node, ast.Call):
+@@ -237,21 +459,38 @@ def test_chunk2a_gen_findings_has_no_cwd_relative_opens():
+         if not is_open or not node.args:
+             continue
+         first = node.args[0]
+-        # A bare literal, or an f-string whose leading piece is a literal,
+-        # both resolve against the CWD.
+-        literal = None
+         if isinstance(first, ast.Constant) and isinstance(first.value, str):
+-            literal = first.value
+-        elif isinstance(first, ast.JoinedStr) and first.values:
+-            lead = first.values[0]
+-            if isinstance(lead, ast.Constant) and isinstance(lead.value, str):
+-                literal = lead.value
+-        if literal is not None and not os.path.isabs(literal):
+-            offenders.append((getattr(node, "lineno", "?"), literal))
++            if os.path.isabs(first.value):
++                continue
++        elif {n.id for n in ast.walk(first) if isinstance(n, ast.Name)} & anchored:
++            continue
++        offenders.append((getattr(node, "lineno", "?"), ast.unparse(first)))
+ 
+     assert not offenders, (
+-        f"{_UNGUARDED}: CWD-relative open() paths at {offenders} — anchor them to "
+-        "the framework root via the sprint_loop.config roots"
++        f"{_UNGUARDED}: unanchored open() paths at {offenders} — every argument "
++        f"must derive from one of {sorted(anchored)} or be absolute"
++    )
++
++
++def test_chunk2a_gen_findings_runs_from_a_foreign_cwd():
++    """§2.1 / §4.2 — the behavioural half of CWD independence.
++
++    Closes kimi-k3 blocker 2. The static check above is a syntactic proxy, and
++    the mutation that defeated its predecessor —
++    ``open(os.path.join("evidence", "phase-3.2", ...))`` — was chosen because
++    it is the *most natural* shape a well-meaning fix takes. This runs the
++    script for real from a temp directory under the write-intercepting probe,
++    so the property is measured rather than inferred.
++    """
++    result = _probe(_UNGUARDED)
++    assert result["error"] is None, (
++        f"{_UNGUARDED} failed from a foreign CWD: {result['error']}"
++    )
++    assert result["reads"], f"{_UNGUARDED} opened nothing; the probe saw no reads"
++    relative = sorted({p for p in result["reads"] if not os.path.isabs(p)})
++    assert not relative, (
++        f"{_UNGUARDED} read CWD-relative path(s) {relative}; they resolved only "
++        "because the probe's temp directory happened to contain them"
+     )
+ 
+ 
+@@ -277,9 +516,22 @@ def test_chunk2a_reconstruct_telemetry_dry_run_from_foreign_cwd():
+         f"rc={proc.returncode} from a foreign CWD\n"
+         f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+     )
+-    # A dry run that reports zero existing rows means the merge guard read
+-    # the wrong file — the silent half of finding 6.5.
+-    assert "0 existing rows" not in proc.stdout, (
++    # A dry run that reports zero existing rows means the merge guard read the
++    # wrong file — the silent half of finding 6.5. The assertion this replaces
++    # tested ``"0 existing rows" not in stdout`` against a script that prints
++    # "Existing rows: N (run_ids: [...])": the words never appear in that
++    # order, so it could not fail. Parse the integer instead.
++    if not os.path.isfile(os.path.join(REPO_ROOT, _SOR_REL)):
++        pytest.skip(
++            f"no {_SOR_REL} in this tree, so a zero row count is legitimate; "
++            "the SoR is gitignored and absent on a fresh clone (spec §4.7)"
++        )
++    match = re.search(r"Existing rows:\s*(\d+)", proc.stdout)
++    assert match is not None, (
++        "dry run printed no 'Existing rows:' line; this assertion can no "
++        f"longer see the merge guard\nstdout:\n{proc.stdout}"
++    )
++    assert int(match.group(1)) > 0, (
+         "dry run read zero existing rows; the merge guard is pointed at the "
+         f"wrong path\nstdout:\n{proc.stdout}"
+     )
+@@ -326,12 +578,35 @@ def test_chunk2a_lock_py_default_locks_dir_is_locks_root():
+                 default = kw.value
+     assert default is not None, f"{rel}: no default found for --locks-dir"
+ 
+-    # The default must be derived from LOCKS_ROOT, not from a __file__ walk.
++    # Evaluate the default rather than grepping its source. Closes kimi-k3
++    # blocker 3: the assertion this replaces was
++    # ``"LOCKS_ROOT" in ast.unparse(default)``, which a one-keystroke typo
++    # shape — ``os.path.join(_FRAMEWORK_ROOT, "LOCKS_ROOT")``, the quoted
++    # constant name — satisfies while resolving to a directory that does not
++    # exist. That is the fail-open wrong-directory write §2.5 exists to kill,
++    # certified green.
++    #
++    # ``eval`` is bounded, not arbitrary: the expression is the ``default=``
++    # keyword of the ``--locks-dir`` ``add_argument`` call, evaluated in the
++    # module's own namespace after a side-effect-free import (``lock.py`` has a
++    # ``__main__`` guard, so importing it writes nothing).
+     src = ast.unparse(default)
+-    assert "LOCKS_ROOT" in src, (
+-        f"{rel}: --locks-dir default is {src!r}; derive it from "
+-        "sprint_loop.config.LOCKS_ROOT so the writer and the guard cannot "
+-        "disagree about where locks live"
++    module = _load(rel)
++    try:
++        value = eval(src, dict(vars(module)))  # noqa: S307 — see above
++    except Exception as exc:  # pragma: no cover - a default that cannot be built
++        pytest.fail(f"{rel}: --locks-dir default {src!r} did not evaluate: {exc}")
++    assert isinstance(value, str) and value, (
++        f"{rel}: --locks-dir default {src!r} evaluated to {value!r}"
++    )
++    assert os.path.realpath(value) == expected, (
++        f"{rel}: --locks-dir default {src!r} resolves to "
++        f"{os.path.realpath(value)}, but locks live at {expected}. A lock "
++        "writer and the guard that reads locks must not disagree."
++    )
++    assert os.path.isdir(os.path.realpath(value)), (
++        f"{rel}: --locks-dir default resolves to {os.path.realpath(value)}, "
++        "which is not a directory — lock.py would create it and report success"
+     )
+ 
+ 
