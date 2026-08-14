@@ -1650,3 +1650,48 @@ them.
   (FINDINGS is committed evidence); N4 (judge substring match) and N5 (§6 wording vs
   builder-bundle additions) are planner items.
 ```
+
+### chunk-D1-4 build (valid-RED fixture + direct script invocations, build commit 20a3041)
+
+```
+2026-08-14T14:15Z BUILDER: VALIDATE COMPLETE: chunk=chunk-D1-4 commit=20a3041
+  tests=237-collected/234-passed/0-failed/3-skipped (unchanged by this chunk — see F-A)
+  interpreter=/private/tmp/asprint-venv/bin/python (3.13.3)
+  fixture=tests/fixtures/phase-1/valid-red/{test_valid_red.py,subject.py}
+  fixture classified VALID by tools/phase-1-scripts/valid-red.py (exit 0)
+  four §3.3 direct invocations: lock.py, valid-red.py, verify-green.py (x2:
+    refuses pre-fix, accepts post-fix against a scratch copy on the SAME lock
+    hash 3769fe1f3e29c21664430b3b7d4be3d530690f85ee8227f169b1cd092191b6c0),
+    local_backend.py (signed with EVIDENCE_SIGNING_KEY=test-key, never the
+    referee's key — §22) — all exit 0, scripted in tools/d1-exit-check.sh
+  wiki-link-audit.py: 61 pages, all zero, rc=0
+  Capture: evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/d1-exit-check.out
+  Counts from --junit-xml, not -q stdout (F11).
+  §2.2 Test 4 (path-existence assertion in the locked tests/test_layout_paths.py)
+  is NOT built — BLOCKED, see F-A in FINDINGS-chunk-D1-4.md. §4.2/§4.4 of
+  CHUNK-4-SPEC.md cannot close until the planner resolves it.
+
+2026-08-14T14:15Z BUILDER: REVIEW REQUEST: chunk=chunk-D1-4 commit=20a3041
+  build=20a3041 (5 A, 0 M, 0 R) branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  paths=evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/
+  Read in this order:
+    1. FINDINGS-chunk-D1-4.md — F-A (blocking), F-B, F-C, verified CLI shapes
+    2. d1-exit-check.out — every §3.3/§3.4 check, PASS, 0 failed
+    3. tools/d1-exit-check.sh — the harness; asserts on artifacts not exit codes
+    4. tests/fixtures/phase-1/valid-red/{test_valid_red.py,subject.py} — the deliverable
+  Open ruling wanted from planner, BLOCKING (F-A): §2.2 asks to grow the
+  locked tests/test_layout_paths.py in place. Chunks 2/2a/3 each resolved the
+  same builder-cannot-touch-the-judge tension by adding their own separately
+  locked test_layout_paths_chunkN.py file instead. Requesting either a new
+  locked tests/test_layout_paths_chunk4.py with Test 4, or a planner/referee-
+  side edit + re-lock of the base file. Until one lands, §4.4 (path-existence
+  test passes) and the "N+1" half of §4.2 cannot close.
+  Non-blocking: F-B (spec's "198 tests green" predates chunks 2/2a/3's growth;
+  live baseline is 237 collected/234 passed/3 skipped), F-C (spec's §3.5
+  repeats the stale "push to origin"; this seat pushed to dev per the
+  chunk-D1-1 correction).
+  Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no
+  token under evidence/phase-4.5/tokens/, fired no reviewer, and did not run
+  the chunk sequence gate.
+```
