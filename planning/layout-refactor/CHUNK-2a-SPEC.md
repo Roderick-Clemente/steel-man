@@ -116,6 +116,42 @@ justification. **Do not add the `evidence/*/build-evidence/r-*/` keep-pattern**
 chunk-D1-1-spec envelopes that a signed referee token attested to, and adding
 the variant reinstates that exact shape.
 
+## §2.5 — Fifth script: `lock.py`'s default `--locks-dir`
+
+Found while preparing the referee's ratification step, and it is the same
+defect class as the four:
+
+`tools/phase-1-scripts/lock.py:42` defaults `--locks-dir` to
+`os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks")`.
+Pre-move that resolved `phase-1/scripts/lock.py` → `phase-1/locks` correctly.
+Post-move it resolves to **`tools/locks`**, which does not exist. The real
+locks are at `tools/phase-1-locks/tests/`. `LOCKS_ROOT` already holds the right
+value in `config.py`; the script simply does not use it.
+
+This one is worse than the other four, because it does not fail closed. The
+other four raise `FileNotFoundError`. `lock.py` would write a lock manifest to
+a fresh wrong directory and report success — and the judge-immutability
+enforcement that reads locks from the real location would then be silently
+unenforced while every log line says the test is locked. Invariant 3 would be
+off, with no signal. That is the exact silent-success shape §7 exists to
+forbid.
+
+It escaped the chunk-2 residual scan because `tools/phase-1-scripts/lock.py`
+is not in the chunk-2 judge's `ROUTED_PY_FILES`. **Add it**, along with
+`tools/phase-1-hooks/locked-test-guard.py`, in the 2a judge's own routed set —
+a lock writer and a lock reader that disagree about where locks live is the
+worst pair in the repo to leave unrouted.
+
+Also stale, and harmless, but fix while here: `tools/sprint_loop/per_chunk.py:136`
+comments that "lock.py writes to `phase-1/locks/<test_file>.lock.json`." It is
+a comment, so the AST-based residual scan cannot see it.
+
+**Referee workaround, so ratification is not blocked behind this fix:** pass
+`--locks-dir tools/phase-1-locks` explicitly. With
+`test_file = tests/test_layout_paths_chunk2a.py` that composes to
+`tools/phase-1-locks/tests/test_layout_paths_chunk2a.py.lock.json`, matching
+the two existing manifests exactly. No code change needed to lock the 2a judge.
+
 ## §2.4 — Errata pass (append-only)
 
 These target `FINDINGS-chunk-D1-2.md`, a committed evidence byte. **Correct
@@ -177,9 +213,11 @@ assertions:
 
 1. Full suite green on the suite interpreter,
    `/private/tmp/asprint-venv/bin/python` (3.13.3). Pre-2a baseline is
-   **197 passed + 3 skipped**; the 2a judge adds 13, so the target is
-   **210 passed + 3 skipped**. Report the counts and the interpreter path
-   explicitly — §2.4 K2 exists because a bare rc was recorded without one.
+   **197 passed + 3 skipped**; the 2a judge adds 16, so the target is
+   **213 passed + 3 skipped**. Measured valid RED before any fix is
+   **12 failed, 201 passed, 3 skipped**. Report the counts and the
+   interpreter path explicitly — §2.4 K2 exists because a bare rc was
+   recorded without one.
 2. All four scripts rc=0 invoked from a non-root CWD, with output shown.
 3. `grep -rn 'phase-[0-9]' ` over the four scripts returns no path-forming
    occurrence; prose and docstring mentions are acceptable and should be

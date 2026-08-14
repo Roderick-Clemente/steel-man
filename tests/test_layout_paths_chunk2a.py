@@ -285,6 +285,86 @@ def test_chunk2a_reconstruct_telemetry_dry_run_from_foreign_cwd():
     )
 
 
+# ── §2.5 — lock.py's default locks dir ───────────────────────────────────
+
+
+def test_chunk2a_lock_py_default_locks_dir_is_locks_root():
+    """§2.5 — the lock writer defaults to where locks actually live.
+
+    Unlike the other four subjects this one does not fail closed. Pre-fix the
+    default resolves to ``tools/locks``, a directory that does not exist;
+    ``lock.py`` would create it, write a manifest there, and report success
+    while the guard that reads locks from ``LOCKS_ROOT`` sees nothing. Judge
+    immutability — invariant 3 — would be silently off with every log line
+    claiming otherwise.
+
+    Parsed rather than executed: running ``lock.py`` writes a manifest, and a
+    judge must not.
+    """
+    config = _cfg()
+    locks_root = _require(config, "LOCKS_ROOT")
+    expected = os.path.realpath(os.path.join(REPO_ROOT, locks_root))
+    assert os.path.isdir(expected), f"LOCKS_ROOT is not a directory: {expected}"
+
+    rel = "tools/phase-1-scripts/lock.py"
+    default = None
+    for node in ast.walk(_tree(rel)):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "add_argument"):
+            continue
+        names = [
+            a.value
+            for a in node.args
+            if isinstance(a, ast.Constant) and isinstance(a.value, str)
+        ]
+        if "--locks-dir" not in names:
+            continue
+        for kw in node.keywords:
+            if kw.arg == "default":
+                default = kw.value
+    assert default is not None, f"{rel}: no default found for --locks-dir"
+
+    # The default must be derived from LOCKS_ROOT, not from a __file__ walk.
+    src = ast.unparse(default)
+    assert "LOCKS_ROOT" in src, (
+        f"{rel}: --locks-dir default is {src!r}; derive it from "
+        "sprint_loop.config.LOCKS_ROOT so the writer and the guard cannot "
+        "disagree about where locks live"
+    )
+
+
+@pytest.mark.parametrize(
+    "rel",
+    [
+        "tools/phase-1-scripts/lock.py",
+        "tools/phase-1-hooks/locked-test-guard.py",
+    ],
+)
+def test_chunk2a_lock_tooling_has_no_stale_phase_literals(rel):
+    """§2.5 — route the lock writer and the lock reader.
+
+    Neither is in the chunk-2 judge's ``ROUTED_PY_FILES``, which is how the
+    ``lock.py`` default survived the chunk-2 residual scan. A lock writer and
+    a lock reader that disagree about the lock location is the worst
+    unrouted pair in the repo.
+    """
+    assert os.path.isfile(os.path.join(REPO_ROOT, rel)), f"missing: {rel}"
+    doc_strings = set()
+    for node in ast.walk(_tree(rel)):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef)):
+            doc = ast.get_docstring(node, clean=False)
+            if doc:
+                doc_strings.add(doc)
+    hits = [
+        s
+        for s in _string_constants(rel)
+        if s not in doc_strings and _looks_like_stale_phase_path(s)
+    ]
+    assert not hits, f"{rel}: stale phase-prefixed path literals: {hits}"
+
+
 # ── §2.2 — stale test fixture ────────────────────────────────────────────
 
 
