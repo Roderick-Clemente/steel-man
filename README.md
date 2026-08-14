@@ -57,7 +57,7 @@ templates/                 canonical GROK → CHUNK → EXECUTE method + the per
 skills/                    agent-facing skill assets (digest + index + rehydration)
 planning/                  per-phase plans, prompts and run records + the roadmap review
 evidence/                  the build record: probes, envelopes, findings, signed chunk tokens
-tests/                     237 tests over the gates, runner, plan lint, and repo layout
+tests/                     239 tests over the gates, runner, plan lint, and repo layout
 pilots/                    the method run against external tasks, validator outputs included
 droid-wiki/                curated wiki: findings, method, probes, how to contribute
 ```
@@ -65,6 +65,26 @@ droid-wiki/                curated wiki: findings, method, probes, how to contri
 ## Running it
 
 The runner is invoked through the per-pilot overlay (`.adversarial-sprint/bin/run-sprint` in a pilot repo), not the framework CLI. `tools/sprint-loop.py --help` is the debugging surface. See [`skills/adversarial-sprint/SKILL.md`](./skills/adversarial-sprint/SKILL.md) for the agent-facing rules digest.
+
+On a fresh clone the suite reports **233 passed, 6 skipped**. The skips are honest, not broken: `telemetry/runs.jsonl` is the system-of-record and is gitignored, so tests that assert on its contents have nothing to assert against outside a real run.
+
+## CI
+
+[`.github/workflows/adversarial-sprint-ci.yml`](./.github/workflows/adversarial-sprint-ci.yml) runs the evidence provider and the cross-family validator panel on every PR. CI is *just the runner* — it detects, classifies, and gates; a REJECT or STOP fails the job and blocks merge as a required status check. Validators consume the signed `EvidenceBundle` and never re-run the tests themselves, so the evidence a validator judges is the same artifact the gate hashes.
+
+A security-scanning pipeline (Harness STO) runs alongside it as a second, independent tier — the deterministic half of the same argument this repo makes about model panels.
+
+**A free personal account is sufficient for both.** Free-tier Harness CI/CD and STO is more than enough to run this — it does ask for a credit card at signup, but nothing charges without explicit authorisation. Nothing here requires a paid tier, and none of the gating logic is vendor-specific: the vendor sits behind the adapter in [`tools/adapters/`](./tools/adapters/), and the gates assert on a neutral envelope shape. That is deliberate — a quality bar that only works with paid tooling is not a quality bar, it is a budget.
+
+Secrets the workflow expects:
+
+| Secret | Required | Why |
+|---|---|---|
+| `EVIDENCE_SIGNING_KEY` | **yes** | Bounds the HMAC-SHA256 of the EvidenceBundle. Absent, the bundle is untrusted and the gate **fails closed** rather than passing. |
+| Validator API key | yes | One per validator family in the panel. |
+| `DROID_BIN_ENV` | no | Overrides the runner binary path for offline debugging. |
+
+**Known limitation, recorded rather than papered over:** GitHub-hosted runners do not ship the `droid` binary, so this workflow assumes a self-hosted runner or a step that installs it. See [`planning/phase-4.5/CI-GATE.md`](./planning/phase-4.5/CI-GATE.md) and the phase's `KNOWN-ISSUES.md`.
 
 ---
 
