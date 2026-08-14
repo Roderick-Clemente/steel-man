@@ -579,3 +579,83 @@ BUILDER: RELAY TO PLANNER: chunk=chunk-D1-2 commit=cae00ed
       phase-4.5/build-evidence/r-chunk2-builder-blocked-20260813/chunk3-citation-inventory.md
       Worth correcting before Chunk 3 is sized, since §17 refuses unbounded
       programs and §5's hard stop reads as if the residual set were small.
+
+VALIDATE COMPLETE: chunk=chunk-D1-2 commit=ee90061 tests=197-passed-3-skipped
+  seat=builder judges=cb00dfac(chunk1,skips-post-flip)+48a579f8(chunk2,3/3-pass)
+  Build per CHUNK-2-SPEC §2.1-§2.4: 618 files moved with `git mv`, ALL R100 —
+  0 insertions / 0 deletions, so no evidence byte changed (§5, §21). Constants
+  flipped by VALUE only; the 7 roots remain independent relative segments.
+  BUILD_EVIDENCE_REL unchanged, BUILD_EVIDENCE_DIR auto-flipped (derived).
+  Zero tracked `phase-*` paths and zero `phase-*` dirs on disk remain.
+  Evidence: evidence/phase-4.5/build-evidence/r-chunk2-builder-20260813/
+    FINDINGS-chunk-D1-2.md, suite.out, move-mapper.py,
+    stronger-matcher-probe-chunk2.{py,out}
+  Verified not asserted: §4.1 197+3; §4.2 test_repo_layout green; §4.3 all 7
+  roots isdir via Chunk-2 judge; §4.4 plan-lint PASS rc=0; §4.5 `git log
+  --follow` crosses the move for 11 files spanning every destination class;
+  local_backend.py --help rc=0 at its new home; `bash -n` clean on
+  fire-design-review.sh; paths.sh contract holds; probe 0 residuals / 9 routed
+  files with 12/12 idioms still flagged; `--help` byte-diff vs c63b776 shows
+  only intended path changes.
+
+  SIX ITEMS BEYOND §2.1-§2.4 — flagged for the gate, not presented as covered:
+  (1) DESTINATION RULE. §2.1's "phase-1/build-evidence/ -> evidence/phase-1/"
+      reads as leaf-dropping; PLAN §4:133-136 states leaf-PRESERVING as an
+      explicit Rule. Dropping leaves would collide the two source subtrees that
+      phase-2, phase-3 and phase-3.2 each have. Applied: leaf preserved, EXCEPT
+      a leaf literally named `evidence`, absorbed by the `evidence/` root.
+      Three pins agree and nothing else does — Chunk-2 judge (tokens,
+      build-evidence), §2.3 CI fix :192 (planning/phase-3.2/reviews/), and
+      PLAN §4:171 (phase-3.2 schema JSONs at evidence/phase-3.2/).
+  (2) .gitignore §2.3 REFUSED. It says keep `phase-*/build-evidence/r-*/` and
+      add `evidence/*/build-evidence/r-*/`. No such pattern exists to keep — it
+      was removed deliberately 2026-08-13 after a prefix-form exclude silently
+      dropped the chunk-D1-1-spec envelopes a SIGNED referee token attested to
+      (they did not exist on a second machine at all). Adding the evidence/
+      variant reinstates that exact silent-loss shape, and directory-form
+      excludes cannot be undone by `!`. NOT added; refusal noted in-file.
+      Planner's call — a form that cannot match a reviewer tree is needed.
+  (3) THREE FILES §2.1 HAS NO HOME FOR, and §4.2 requires all to move.
+      phase-2/reviews/ has ZERO envelope JSONs (all 3 are .md prompts) ->
+      planning/phase-2/reviews/, matching §2.1's own call on
+      phase-3.2/reviews/review-prompt.md. phase-3/reviews/.gitkeep ->
+      evidence/phase-3/reviews/ (holds open the evidence tree §2.1 routes
+      there). phase-3.2/reviews/RUN-COMMANDS.md -> planning/phase-3.2/reviews/.
+  (4) pytest.ini ALSO excludes tests/fixtures. §2.1 moves phase-1/fixtures/
+      INSIDE testpaths, and invalid-red/*.py are deliberately-invalid negative
+      fixtures for valid-red.py — one has an intentional unclosed-paren
+      SyntaxError. Without the exclusion, collection aborts the entire run.
+      Load-bearing, not tidying.
+  (5) TWO SPLIT-SEGMENT SITES MISSING FROM §2.4, plus the stub repo.
+      test_plan_lint.py:147 and test_sprint_loop.py:1161 build the path from
+      separate segments, invisible to a substring sweep — idiom D/I from the 12
+      the matcher was hardened against, in files ROUTED_PY_FILES does not scan.
+      The judge could not catch them; the SUITE did. Also:
+      tests/fixtures/plan-lint/repo/ is a stub mirroring the framework layout,
+      so §2.4's fixture rewrite is unsatisfiable without moving its token path
+      and the 14 citations that lint against it.
+  (6) plan-lint.py:1151 needed a `(?<![\w./-])` lookbehind. Done literally,
+      §2.3's unanchored `evidence` alternative matches MID-TOKEN inside
+      `tools/phase-3.2-evidence/local_backend.py` and warns that
+      `evidence/local_backend.py` is missing — 4 false positives on PLAN.md,
+      and Chunk 3 multiplies that (31 files cite phase-3.2/evidence).
+      24 -> 20 warnings, PASS preserved.
+
+  KNOWN ISSUES CARRIED (Chunk-3 fence, §5 — not gate failures; the matcher
+  skips comments and docstrings by design): stale old-layout prose in
+  sign_chunk_token.py:6,135 and chunk_sequence_gate.py docstrings (neither
+  reaches --help, both use literal description=), OPERATING-RULES.md (7),
+  sprint_loop/prompts/*.md, sprint_loop/__init__.py, and the docstrings of the
+  newly-moved scripts. gen-findings.py's `phase-1/hooks/` strings are recorded
+  finding DATA, not live paths, and should likely stay. §2.4's verify-green.py
+  line was already satisfied by chunk-D1-1's routing — stale, not unimplemented.
+  The committed chunk-D1-1 probe now raises FileNotFoundError on the pre-move
+  local_backend.py path; NOT edited (evidence byte, §5) — a patched copy ran
+  out-of-tree and is preserved in this chunk's evidence dir.
+
+NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
+  no REVIEW REQUEST is posted — a paths= pointing at a nonexistent envelope is
+  the self-declaration §21 forbids. Per Ruling 3 the PLANNER fires this gate
+  (kimi-k3 + minimax-m3, sequentially, via tools/orchestrate-review.py). Builder
+  held no EVIDENCE_SIGNING_KEY, wrote nothing under evidence/phase-4.5/tokens/,
+  fired no droid exec, and edited neither judge (§22).

@@ -1,0 +1,42 @@
+==================================================================
+PART 1 — 12 synthetic idioms through the STRONGER matcher
+==================================================================
+  A os.path.join bare segs     YES
+  B joined literal             YES
+  C static f-string            YES
+  D f-string split segs        YES
+  E str concat (ast.Add)       YES
+  F concat bare seg            YES
+  G percent format             YES
+  H .format()                  YES
+  I variable holds segment     YES
+  J os.sep.join                YES
+  K pathlib /                  YES
+  L PurePath                   YES
+
+  all 12 flagged: YES
+==================================================================
+PART 2 — STRONGER matcher over the routed files at HEAD
+==================================================================
+  tools/sprint_loop/per_chunk.py                 0 hit(s)
+  tools/sprint_loop/config.py                    0 hit(s)
+  tools/sprint_loop/backends.py                  0 hit(s)
+  tools/orchestrate-review.py                    0 hit(s)
+  tools/phase-3.2-evidence/local_backend.py      0 hit(s)
+  tools/sprint_loop/chunk_close_banner.py        0 hit(s)
+  tools/sprint-loop.py                           0 hit(s)
+  tools/chunk_sequence_gate.py                   0 hit(s)
+  tools/sign_chunk_token.py                      0 hit(s)
+
+  TOTAL residual hits in routed code: 0
+==================================================================
+PART 3 — legitimate label sites must stay UNFLAGGED
+==================================================================
+  tools/sprint_loop/per_chunk.py                 labels [287] -> clean
+  tools/sprint_loop/backends.py                  labels [197, 198] -> clean
+  tools/sprint-loop.py                           labels [268, 422, 483] -> clean
+  tools/orchestrate-review.py                    labels [459] -> clean
+
+  false-positive regressions: none
+
+VERDICT: routed code is CLEAN under the stronger matcher
