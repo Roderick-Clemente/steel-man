@@ -659,3 +659,34 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   (kimi-k3 + minimax-m3, sequentially, via tools/orchestrate-review.py). Builder
   held no EVIDENCE_SIGNING_KEY, wrote nothing under evidence/phase-4.5/tokens/,
   fired no droid exec, and edited neither judge (§22).
+
+### chunk-D1-2 CODE gate (close, build commit ee90061)
+
+```
+2026-08-14T09:15Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-2-code commit=ee90061673ea88e6e80fe22a42d6e06bdc9fd7e7
+  judge_sha256_chunk1=cb00dfac5d925f8f643bce1b3fd7fe51fd2b01f3d0578487c5ca201aeedb1121
+  judge_sha256_chunk2=48a579f87e8c97e9de7b49ccd861fd88fa36fb3552a95ee8d5065fd74832cdc3
+  paths=evidence/phase-4.5/build-evidence/r-chunk2-code-20260814-0319/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-chunk2-code-20260814-0319/code/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3) branch=factory/layout-refactor
+  remote=dev
+  prompt_sha256=14506835429cc3db27ff754acc7f5638617c09d8fd393b9a68a7d5722ef69726
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired directly (orchestrate-review.py has internal 600s subprocess timeout;
+  kimi-k3 took 651s). See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both distinct
+  from planner (GLM/zhipu) and builder (claude/anthropic). §17.2 holds.
+
+2026-08-14T09:10Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-2-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2-code-20260814-0319/code/review-kimi-k3-envelope.json
+  envelope_sha256=8b503d93290bd56fbb03cc323ce3129dbe5b3aa7cb91414ff9a342d3d1383e46
+  session_id=547c565c-370d-4106-94ec-a4c43268abd5 verdict=ACCEPT-WITH-NITS turns=27
+  duration_ms=651535 stderr=empty
+  prompt_sha256=14506835429cc3db27ff754acc7f5638617c09d8fd393b9a68a7d5722ef69726
+
+2026-08-14T09:22Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-2-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2-code-20260814-0319/code/review-minimax-m3-envelope.json
+  envelope_sha256=f496c1d4389b725897f492b4290f1cdea80d2e475d43cd5184b3005d13088c8e
+  session_id=f4cece0d-8e8b-46b0-b97a-6ccd41b761d4 verdict=ACCEPT-WITH-NITS turns=80
+  duration_ms=400608 stderr=empty
+  prompt_sha256=14506835429cc3db27ff754acc7f5638617c09d8fd393b9a68a7d5722ef69726
+```
