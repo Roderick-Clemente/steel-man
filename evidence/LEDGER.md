@@ -43,6 +43,8 @@ reproducible if the bytes are identified independently of the path.
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-minimax-m3-envelope.json` | `d4b8f2a90009ccab245d75fccf03b20feefdb605ba396af9cae5551185999610` | ACCEPT |
 | `evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-kimi-k3-envelope.json` | `e6b317ca106de167a5f41e90d0dfc232f5cdab16dc39ce3463e04dd0c67ce72c` | ACCEPT-WITH-NITS |
 | `evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-minimax-m3-envelope.json` | `8787963fa719bcc61c390d486ddff50c6011223220b3b934a233a7558dcd9d34` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-kimi-k3-envelope.json` | `8a93ec28ec1b43e2976f183bba311d8f22c76b05edc1be82a0369737c13deed4` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-minimax-m3-envelope.json` | `c553cd17c1b0b92887d6ab300e3ab3b641fee9b83ed4af6c8d182e1c3142492e` | ACCEPT-WITH-NITS |
 
 ## Rows
 
@@ -1326,6 +1328,45 @@ them.
   git queries). All tests trace to numbered spec sections. Valid GREEN on the built
   tree at 0b5343d (the judge asserts the build's correctness, not pre-fix RED).
   Builder released for close gate.
+```
+
+### chunk-D1-4 CODE gate (build commit 20a3041)
+
+```
+2026-08-14T14:49Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-4-code commit=20a3041e36fa56b1b7570eeff5d58eb0b95dc86a
+  judge_sha256=7333fa628daca5bf550730eb6f8c6115e2c9300204c28401dd93ceca85c7608c
+  paths=evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3) branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=1d6af728fa58610e92796b9768e8c3994847a49749983a5d719b2d9481369530
+  Prompt template authored by planner at planning/layout-refactor/CHUNK-4-VALIDATOR-PROMPT.md.
+  <BUILD_COMMIT> -> 20a3041. Same PROMPT.md bytes for both validators per §23.
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired with --skip-permissions-unsafe. See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  GATE CLOSES: two ACCEPT-class verdicts from two distinct families per Ruling 4.
+  This is the LAST chunk of D1. D2 opens after token signing.
+
+2026-08-14T14:49Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-4-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-kimi-k3-envelope.json
+  envelope_sha256=8a93ec28ec1b43e2976f183bba311d8f22c76b05edc1be82a0369737c13deed4
+  session_id=085aa4af-d29d-4e36-82ac-04efb3a6f976 verdict=ACCEPT-WITH-NITS turns=26
+  duration_ms=421007 stderr=empty
+  prompt_sha256=1d6af728fa58610e92796b9768e8c3994847a49749983a5d719b2d9481369530
+  key_findings=nits about PLAN §5 chunk-4 verify commands not matching verified
+  shapes. Valid-RED fixture confirmed valid, four direct invocations exit 0,
+  path-existence test correct. No blockers.
+
+2026-08-14T14:56Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-4-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-minimax-m3-envelope.json
+  envelope_sha256=c553cd17c1b0b92887d6ab300e3ab3b641fee9b83ed4af6c8d182e1c3142492e
+  session_id=bd67bb84-e42c-4255-a9d4-cb1d2f91afc4 verdict=ACCEPT-WITH-NITS turns=53
+  duration_ms=235447 stderr=empty
+  prompt_sha256=1d6af728fa58610e92796b9768e8c3994847a49749983a5d719b2d9481369530
+  key_findings=praised F-A handling as exemplary (builder correctly refused to
+  edit locked judge, planner resolved with same pattern as chunks 2/2a/3).
+  No blockers. Parent-doc drift is the only open item.
 ```
 
 ### Errata — chunk-D1-3, against 9014db6

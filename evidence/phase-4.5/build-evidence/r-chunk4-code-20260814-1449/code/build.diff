@@ -1,0 +1,386 @@
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/FINDINGS-chunk-D1-4.md b/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/FINDINGS-chunk-D1-4.md
+new file mode 100644
+index 0000000..cbb89a6
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/FINDINGS-chunk-D1-4.md
+@@ -0,0 +1,115 @@
++# FINDINGS — chunk-D1-4 (builder seat)
++
++Findings raised by building chunk-D1-4 against
++`planning/layout-refactor/CHUNK-4-SPEC.md`. Per §13/§6 these are problem
++statements for the planner/referee, not spec edits — the builder seat does not
++amend the spec.
++
++## Summary of the build
++
++Everything in §3.1–§3.4 that does not require editing the locked judge is
++built, verified, and scripted:
++
++| | |
++|---|---|
++| §3.1 CLI argument shapes | verified against live `--help` output, recorded below |
++| §2.1/§3.2 valid-RED fixture | `tests/fixtures/phase-1/valid-red/{test_valid_red.py,subject.py}`, confirmed VALID by `valid-red.py` |
++| §3.3 four direct invocations | all exit 0, scripted in `tools/d1-exit-check.sh`, captured in `d1-exit-check.out` |
++| §3.4.1 `wiki-link-audit.py` | rc=0, 61 pages, all zero |
++| §3.4.2 full suite | 237 collected, 234 passed, 0 failed, 3 skipped (see F-B on the "198" figure) |
++| §2.2/§3.4.4/§4.4 Test 4 (path-existence) | **BLOCKED — see F-A**, not built |
++
++## F-A — BLOCKED: §2.2's Test 4 requires editing a content-hash-locked file
++
++`tests/test_layout_paths.py` is locked at
++`tools/phase-1-locks/tests/test_layout_paths.py.lock.json`
++(`sha256: cb00dfac5d925f8f643bce1b3fd7fe51fd2b01f3d0578487c5ca201aeedb1121`).
++§2.2 asks the executor to "grow the Chunk-1 file" by adding a fourth test to
++that exact file. Framework invariant #3 (re-affirmed at chunk-D1-1's finding 1
++and chunk-D1-3's F8) is that the builder seat does not touch a locked judge —
++not even to fix a stale comment. Adding a test is a larger edit than that, and
++it would also invalidate the lock hash the planner already signed off on.
++
++**This is not a new failure mode — it is the same one chunk-D1-1's finding 1
++raised against CHUNK-1-SPEC §3.4, and chunks 2/2a/3 already carry the fix
++in their own structure:** each of those three chunks added its *own* new
++locked file — `tests/test_layout_paths_chunk2.py`,
++`test_layout_paths_chunk2a.py`, `test_layout_paths_chunk3.py` — rather than
++editing `tests/test_layout_paths.py` in place. Chunk-D1-4 is the first chunk
++whose spec asks to grow the base file instead of following that established
++pattern.
++
++I did not author Test 4 anywhere, under any filename — that is the planner's
++judgment call once §2.2 is amended, not mine to make unilaterally. **For the
++planner:** either (a) add Test 4 to a new `tests/test_layout_paths_chunk4.py`,
++lock it, and let me build against that lock, matching chunks 2/2a/3; or (b)
++edit and re-lock `tests/test_layout_paths.py` directly in the planner/referee
++seat. Either way, §4.4's "path-existence test passes" cannot close until one
++of those lands.
++
++## F-B — the "198 tests green" figure in §3.4.2/§4.2 is stale by three chunks
++
++§3.4.2 and §4.2 both read "198 tests green (197 from chunks 1-3 + 1 new
++path-existence test)". The live suite, measured just now on
++`/private/tmp/asprint-venv/bin/python` via junit XML (not `-q` stdout — see
++chunk-D1-3's F11 on why a second `-q` silently deletes the summary line):
++
++```
++collected=237 passed=234 failed=0 errors=0 skipped=3
++```
++
++197 was the count when v2/v3 of this spec was drafted, before chunk-D1-2a (23
++tests) and the chunk-D1-3 nit-fix commits landed. `test_layout_paths.py` (3) +
++`_chunk2.py` (3) + `_chunk2a.py` (23) + `_chunk3.py` (14) = 43 judge tests
++alone, against a base suite that has also grown independently. The correct
++exit check is "current baseline (237 collected, 234 passed, 3 skipped) + 1 new
++Test 4", not a fixed absolute number — the same drift chunk-D1-3's nits
++already found in a hand-typed statistic elsewhere (`PATH-REDIRECTS.md`'s
++evidence-prefix count). I verified the number rather than hand-typing a
++corrected one, per the same §7 discipline.
++
++## F-C — §3.5 repeats the stale "origin" push target
++
++§3.5 reads "Push to `origin/factory/layout-refactor`". This is the same
++correction chunk-D1-1 already made as an operator decision: `origin`
++(`Roderick-Clemente/adversarial-sprint`) does not carry this branch; the working
++remote is `dev` (`Roderick-Clemente/adversarial-sprint-dev`). Re-flagging
++because CHUNK-4-SPEC.md repeats the pre-correction text rather than the
++corrected one — a future chunk spec drafted from an older template would
++carry the same error forward.
++
++## Verified CLI argument shapes (§3.1)
++
++Read from live `--help` output on this build, not from memory or an earlier
++chunk's notes:
++
++```
++lock.py         [-h] [--pilot-root PILOT_ROOT] [--locks-dir LOCKS_DIR] test_file accepted_assertion
++valid-red.py    [-h] --pilot-root PILOT_ROOT --test-file TEST_FILE [--python PYTHON] --accepted-assertion ACCEPTED_ASSERTION [-o {text,json}]
++verify-green.py [-h] --pilot-root PILOT_ROOT --lock-file LOCK_FILE --test-file TEST_FILE [--python PYTHON]
++local_backend.py [-h] --pilot-root P --framework-root FR --test-file F --lock-file L --output O [--python PY] [--signing-key-env E] [--key-id K] [--security-scan] [--security-allowlist A] [--security-baseline B] [--full-suite]
++```
++
++## §3.3 real invocations — what each one actually demonstrated
++
++Scripted end to end in `tools/d1-exit-check.sh`, captured in
++`d1-exit-check.out`. Two things worth calling out beyond "all four exit 0":
++
++- **`verify-green.py` was run twice on purpose.** Once against the fixture
++  exactly as committed (pre-fix, `subject.py` still has the off-by-one), where
++  it correctly returns rc=1 `GREEN REFUSED` — that refusal is the passing
++  behaviour, not a failure. Once against a scratch copy with the documented
++  one-line fix applied to `subject.py` only, using the **same lock file**,
++  where it returns rc=0 `GREEN ACCEPTED` with the identical
++  `locked_test_sha`. That pair is the real RED→GREEN transition §2.1 asks for,
++  observed by the actual tool rather than asserted.
++- **`local_backend.py` used `EVIDENCE_SIGNING_KEY=test-key`** with
++  `--key-id d1-exit-check-test-key`, never a real signing key — the builder
++  seat holds no key for chunk-close (§22).
++
++## Fence self-check
++
++`git status --porcelain` before this commit shows only the two new fixture
++files, `tools/d1-exit-check.sh`, and this evidence directory. No edits to
++`tests/test_layout_paths*.py`, `evidence/phase-4.5/tokens/`, `planning/**`, or
++`evidence/LEDGER.md` beyond an append.
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/d1-exit-check.out b/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/d1-exit-check.out
+new file mode 100644
+index 0000000..196d25b
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk4-builder-20260814/d1-exit-check.out
+@@ -0,0 +1,40 @@
++chunk-D1-4 exit-check capture
++interpreter : /private/tmp/asprint-venv/bin/python (Python 3.13.3)
++
++========== §3.3.2 valid-red.py classifies the fixture VALID ==========
++exit=0 classified-valid=true
++  ==> PASS  §3.3.2 valid-red.py: VALID, exit 0
++
++========== §3.3.1 lock.py locks the fixture ==========
++LOCKED tests/fixtures/phase-1/valid-red/test_valid_red.py
++sha256: 3769fe1f3e29c21664430b3b7d4be3d530690f85ee8227f169b1cd092191b6c0
++manifest: /var/folders/gz/3n1z6c3n1kv8j96zwf6449j00000gp/T/tmp.CEOnbmSaD1/locks/tests/fixtures/phase-1/valid-red/test_valid_red.py.lock.json
++exit=0 lock-file=written
++  ==> PASS  §3.3.1 lock.py: manifest written, exit 0
++
++========== §3.3.3a verify-green.py refuses on the fixture AS COMMITTED (expected RED) ==========
++GREEN REFUSED: test does not pass after implementation
++  ==> PASS  §3.3.3a verify-green.py correctly refuses GREEN pre-fix
++
++========== §3.3.3b verify-green.py accepts GREEN after the one-line subject.py fix ==========
++GREEN ACCEPTED
++  ==> PASS  §3.3.3b verify-green.py: real RED->GREEN observed, same lock hash
++
++========== §3.3.4 local_backend.py signs a bundle with a TEST key (never the referee's) ==========
++  size: 814 bytes (~203 tokens)
++  green: True
++  locked_sha: 3769fe1f3e29c21664430b3b7d4be3d530690f85ee8227f169b1cd092191b6c0
++  ==> PASS  §3.3.4 local_backend.py: signed bundle written, exit 0, test key only
++
++========== §3.4.1 tools/wiki-link-audit.py ==========
++61 pages · dead=0 anchor=0 absolute=0 escaping=0 skeleton=0
++clean
++  ==> PASS  §3.4.1 wiki-link-audit rc=0
++
++========== §3.4.2 full suite (junit XML count, not -q stdout — F11) ==========
++collected=237 passed=234 failed=0 errors=0 skipped=3
++  ==> PASS  §3.4.2 full suite green
++
++========== RESULT ==========
++failed criteria: 0
++chunk-D1-4 exit-check: ALL PASS
+diff --git a/tests/fixtures/phase-1/valid-red/subject.py b/tests/fixtures/phase-1/valid-red/subject.py
+new file mode 100644
+index 0000000..d09b324
+--- /dev/null
++++ b/tests/fixtures/phase-1/valid-red/subject.py
+@@ -0,0 +1,32 @@
++"""Subject under test for the valid-RED fixture — **pre-fix state**.
++
++`running_total` carries one deliberate off-by-one bug so that
++`test_valid_red.py` fails with a real behavioural `AssertionError` rather than a
++syntax error, a missing import, or a tautology. That distinction is the whole
++point of the fixture: `tools/phase-1-scripts/valid-red.py` must classify this
++RED as VALID, and it rejects every other failure shape
++(`INVALID_RED_SIGNATURES`).
++
++The fix is exactly one line — `return totals[:-1]` becomes `return totals` —
++and it lives **here**, not in the test file. That split is required, not
++stylistic: `lock.py` pins the *test file's* content hash and `verify-green.py`
++re-checks that hash before accepting a GREEN, so a fixture whose fix edited the
++test would break its own lock and could never go green.
++"""
++from __future__ import annotations
++
++
++def running_total(values: list[int]) -> list[int]:
++    """Return the cumulative running totals of `values`.
++
++    >>> running_total([1, 2, 3])
++    [1, 3, 6]
++    """
++    totals: list[int] = []
++    total = 0
++    for value in values:
++        total += value
++        totals.append(total)
++    # BUG (pre-fix): drops the final cumulative value. The one-line fix is to
++    # return `totals`.
++    return totals[:-1]
+diff --git a/tests/fixtures/phase-1/valid-red/test_valid_red.py b/tests/fixtures/phase-1/valid-red/test_valid_red.py
+new file mode 100644
+index 0000000..c333d38
+--- /dev/null
++++ b/tests/fixtures/phase-1/valid-red/test_valid_red.py
+@@ -0,0 +1,37 @@
++"""A **valid** RED for `tools/phase-1-scripts/valid-red.py` (spec §2.1).
++
++The counterpart to `tests/fixtures/phase-1/invalid-red/*`: those four fixtures
++each fail in a way the framework must *reject* as a RED (syntax error, missing
++import, tautology, green-passing, mocked SUT). This one fails in the only way it
++should *accept* — a real behavioural `AssertionError` from real code, with a
++message that says what the code got wrong.
++
++Properties the fixture has to hold, all four checked by `tools/d1-exit-check.sh`:
++
++* **importable, no missing deps.** stdlib only, plus `subject` beside it. It
++  deliberately carries no `@pytest.mark.*`: `pytest.ini` sets
++  `--strict-markers`, and the `invalid-red/` fixtures next door use
++  `@pytest.mark.public` and a Flask `client` fixture from the *pilot* repo, so
++  they only run in that context. This one is self-contained and runs anywhere.
++* **red for a real reason.** The assertion below is behavioural, so it matches
++  none of `valid-red.py`'s `INVALID_RED_SIGNATURES` — not `assert 1 == 1`, not
++  `assert 0 == 0`, not `MagicMock(...) is not None`, no collection error.
++* **fixable.** One line in `subject.py` (`return totals[:-1]` → `return
++  totals`) turns it green, which is what lets `verify-green.py` observe a real
++  RED→GREEN transition rather than a file that could only ever fail.
++* **lock-compatible.** The fix is in `subject.py`, never here. `lock.py` pins
++  *this* file's content hash and `verify-green.py` re-checks it before accepting
++  the GREEN, so a fixture that had to edit its own test to pass would break its
++  own lock. See `subject.py`'s docstring.
++
++`pytest.ini` lists `tests/fixtures` in `norecursedirs`, so this deliberately
++failing test cannot redden the framework suite; it runs only when a script under
++test invokes it by path.
++"""
++from subject import running_total
++
++
++def test_running_total_includes_the_final_value():
++    assert running_total([1, 2, 3]) == [1, 3, 6], (
++        "running_total dropped the final cumulative value"
++    )
+diff --git a/tools/d1-exit-check.sh b/tools/d1-exit-check.sh
+new file mode 100755
+index 0000000..557ff0c
+--- /dev/null
++++ b/tools/d1-exit-check.sh
+@@ -0,0 +1,132 @@
++#!/usr/bin/env bash
++# tools/d1-exit-check.sh — CHUNK-4-SPEC §2.3 optional helper, §3.3/§3.4 exit
++# checks scripted rather than run by hand (§9). Committed code, not evidence.
++#
++# Runs the four direct real script invocations against the valid-RED fixture
++# (tests/fixtures/phase-1/valid-red/) plus the wiki-link-audit and full-suite
++# exit checks, and prints the artifact each check read rather than asserting
++# on an exit code alone (§7).
++#
++# verify-green.py against the fixture AS COMMITTED must REFUSE — the fixture
++# is deliberately pre-fix on disk (§2.1's "fails pre-fix"). To also observe
++# the real RED->GREEN transition the same spec requires, this script copies
++# the fixture into a scratch dir, applies the documented one-line fix to
++# subject.py there, and re-verifies GREEN against the SAME lock file. Two
++# verify-green.py runs, two different verdicts, same lock hash — that
++# disagreement is the evidence, not a flake.
++set -uo pipefail
++
++REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse --show-toplevel)"
++cd "$REPO_ROOT" || exit 2
++PY="${D1_PYTHON:-python3}"
++FIXTURE_DIR="tests/fixtures/phase-1/valid-red"
++ASSERTION="running_total dropped the final cumulative value"
++
++FAILED=0
++pass() { printf '  ==> PASS  %s\n' "$1"; }
++fail() { printf '  ==> FAIL  %s\n' "$1"; FAILED=$((FAILED + 1)); }
++hdr()  { printf '\n========== %s ==========\n' "$1"; }
++
++WORK="$(mktemp -d)"
++trap 'rm -rf "$WORK"' EXIT
++LOCKDIR="$WORK/locks"
++FIXED="$WORK/fixed"
++mkdir -p "$LOCKDIR" "$FIXED"
++
++printf 'chunk-D1-4 exit-check capture\n'
++printf 'interpreter : %s (%s)\n' "$PY" "$("$PY" -V 2>&1)"
++
++# ---------------------------------------------------------------- §3.3.2
++hdr "§3.3.2 valid-red.py classifies the fixture VALID"
++"$PY" tools/phase-1-scripts/valid-red.py \
++  --pilot-root "$REPO_ROOT" \
++  --test-file "$FIXTURE_DIR/test_valid_red.py" \
++  --accepted-assertion "$ASSERTION" \
++  -o json > "$WORK/valid-red.json"
++VR_RC=$?
++grep -q '"valid": true' "$WORK/valid-red.json" && VR_CLASSIFIED=true || VR_CLASSIFIED=false
++printf 'exit=%s classified-valid=%s\n' "$VR_RC" "$VR_CLASSIFIED"
++[ "$VR_RC" -eq 0 ] && [ "$VR_CLASSIFIED" = true ] \
++  && pass "§3.3.2 valid-red.py: VALID, exit 0" \
++  || fail "§3.3.2 valid-red.py did not classify VALID"
++
++# ---------------------------------------------------------------- §3.3.1
++hdr "§3.3.1 lock.py locks the fixture"
++"$PY" tools/phase-1-scripts/lock.py \
++  "$FIXTURE_DIR/test_valid_red.py" "$ASSERTION" \
++  --pilot-root "$REPO_ROOT" --locks-dir "$LOCKDIR"
++LOCK_RC=$?
++LOCK_FILE="$LOCKDIR/$FIXTURE_DIR/test_valid_red.py.lock.json"
++printf 'exit=%s lock-file=%s\n' "$LOCK_RC" "$([ -f "$LOCK_FILE" ] && echo written || echo MISSING)"
++[ "$LOCK_RC" -eq 0 ] && [ -f "$LOCK_FILE" ] \
++  && pass "§3.3.1 lock.py: manifest written, exit 0" \
++  || fail "§3.3.1 lock.py failed"
++
++# ---------------------------------------------------------------- §3.3.3a
++hdr "§3.3.3a verify-green.py refuses on the fixture AS COMMITTED (expected RED)"
++"$PY" tools/phase-1-scripts/verify-green.py \
++  --pilot-root "$REPO_ROOT" --lock-file "$LOCK_FILE" \
++  --test-file "$FIXTURE_DIR/test_valid_red.py" > "$WORK/verify-red.out" 2>&1
++VG_RED_RC=$?
++head -1 "$WORK/verify-red.out"
++# A committed fixture that ever reports GREEN as-is is not testing anything —
++# rc!=0 here IS the pass condition.
++[ "$VG_RED_RC" -ne 0 ] && grep -q 'GREEN REFUSED' "$WORK/verify-red.out" \
++  && pass "§3.3.3a verify-green.py correctly refuses GREEN pre-fix" \
++  || fail "§3.3.3a verify-green.py did not refuse pre-fix (fixture no longer RED?)"
++
++hdr "§3.3.3b verify-green.py accepts GREEN after the one-line subject.py fix"
++cp "$FIXTURE_DIR/test_valid_red.py" "$FIXTURE_DIR/subject.py" "$FIXED/"
++sed -i.bak 's/return totals\[:-1\]/return totals/' "$FIXED/subject.py" && rm -f "$FIXED/subject.py.bak"
++"$PY" tools/phase-1-scripts/verify-green.py \
++  --pilot-root "$FIXED" --lock-file "$LOCK_FILE" \
++  --test-file test_valid_red.py > "$WORK/verify-green.out" 2>&1
++VG_GREEN_RC=$?
++head -1 "$WORK/verify-green.out"
++[ "$VG_GREEN_RC" -eq 0 ] && grep -q 'GREEN ACCEPTED' "$WORK/verify-green.out" \
++  && pass "§3.3.3b verify-green.py: real RED->GREEN observed, same lock hash" \
++  || fail "§3.3.3b verify-green.py did not accept GREEN post-fix"
++
++# ---------------------------------------------------------------- §3.3.4
++hdr "§3.3.4 local_backend.py signs a bundle with a TEST key (never the referee's)"
++EVIDENCE_SIGNING_KEY=test-key "$PY" tools/phase-3.2-evidence/local_backend.py \
++  --pilot-root "$FIXED" --framework-root "$REPO_ROOT" \
++  --test-file test_valid_red.py --lock-file "$LOCK_FILE" \
++  --output "$WORK/bundle.json" \
++  --signing-key-env EVIDENCE_SIGNING_KEY --key-id d1-exit-check-test-key \
++  > "$WORK/local-backend.out" 2>&1
++LB_RC=$?
++tail -3 "$WORK/local-backend.out"
++[ "$LB_RC" -eq 0 ] && [ -f "$WORK/bundle.json" ] \
++  && pass "§3.3.4 local_backend.py: signed bundle written, exit 0, test key only" \
++  || fail "§3.3.4 local_backend.py failed"
++
++# ---------------------------------------------------------------- §3.4.1
++hdr "§3.4.1 tools/wiki-link-audit.py"
++"$PY" tools/wiki-link-audit.py
++WIKI_RC=$?
++[ "$WIKI_RC" -eq 0 ] && pass "§3.4.1 wiki-link-audit rc=0" || fail "§3.4.1 rc=$WIKI_RC"
++
++# ---------------------------------------------------------------- §3.4.2
++hdr "§3.4.2 full suite (junit XML count, not -q stdout — F11)"
++JUNIT="$WORK/junit.xml"
++"$PY" -m pytest --tb=short --junit-xml="$JUNIT" > "$WORK/pytest.out" 2>&1
++SUITE_RC=$?
++"$PY" - "$JUNIT" <<'PYEOF'
++import sys, xml.etree.ElementTree as ET
++r = ET.parse(sys.argv[1]).getroot()
++s = r.find('testsuite') if r.tag == 'testsuites' else r
++a = s.attrib
++total = int(a['tests']); fails = int(a['failures']); errs = int(a['errors']); skips = int(a['skipped'])
++print(f"collected={total} passed={total - fails - errs - skips} failed={fails} errors={errs} skipped={skips}")
++for tc in s.iter('testcase'):
++    for bad in list(tc.findall('failure')) + list(tc.findall('error')):
++        print(f"  FAILING: {tc.get('classname')}::{tc.get('name')}")
++PYEOF
++[ "$SUITE_RC" -eq 0 ] && pass "§3.4.2 full suite green" || fail "§3.4.2 suite rc=$SUITE_RC"
++
++hdr "RESULT"
++printf 'failed criteria: %s\n' "$FAILED"
++[ "$FAILED" -eq 0 ] && printf 'chunk-D1-4 exit-check: ALL PASS\n' \
++                    || printf 'chunk-D1-4 exit-check: %s CRITERION(A) FAILED\n' "$FAILED"
++exit "$FAILED"
