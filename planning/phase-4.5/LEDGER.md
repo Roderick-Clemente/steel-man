@@ -725,4 +725,24 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   envelope_sha256_kimi=8b503d93... envelope_sha256_minimax=f496c1d4...
   4/4 sha256s cross-checked: independently computed from files on disk match operator values.
   Token filename is chunk-D1-2.token.json per convention (chunk-D1-2, no -code suffix).
+
+2026-08-14T04:35:00Z REFEREE: JUDGE RATIFIED: chunk=chunk-D1-2a
+  file=tests/test_layout_paths_chunk2a.py
+  sha256=3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f
+  lock=tools/phase-1-locks/tests/test_layout_paths_chunk2a.py.lock.json
+  suite=12-failed-4-passed (valid RED on Python 3.9.6)
+  hash independently verified: 3307020a... matches file at 56cc750.
+  Audit: every assertion traces to a numbered spec section (§2.1, §2.1, §4.7, §4.7,
+  §4.7, §2.1, §2.1, §4.2, §2.5, §2.5, §2.2). Judge asserts behaviour (isdir, realpath,
+  structural AST checks) rather than literal constant values. Valid RED confirmed: 12
+  failures correctly detect pre-fix defects (stale phase paths, wrong root resolutions,
+  lock.py default not using LOCKS_ROOT, stale fixture paths, CWD-relative opens,
+  reconstruct-telemetry import failure). tools/locks was not created; manifest landed
+  at tools/phase-1-locks/ alongside the two existing lock manifests.
+  Spec review round deliberately skipped for chunk-D1-2a per builder recommendation
+  and chunk-2 precedent (chunk-D1-2 also skipped spec review — both chunks are small,
+  one-class-of-defect repairs on previously-reviewed code). The builder reviews the
+  spec and flags issues before building; the spec gate fires only where the planner
+  and builder disagree or the chunk is novel surface.
+  Builder released.
 ```

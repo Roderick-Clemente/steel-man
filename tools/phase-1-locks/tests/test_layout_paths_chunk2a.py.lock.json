@@ -1,0 +1,6 @@
+{
+  "file": "tests/test_layout_paths_chunk2a.py",
+  "sha256": "3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f",
+  "accepted_at": "2026-08-14T04:32:07.273397+00:00",
+  "accepted_assertion": "assert os.path.isdir(resolved)"
+}
