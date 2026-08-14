@@ -170,17 +170,31 @@ FOLLOW=$(git log --follow --format=%H -- evidence/LEDGER.md | wc -l | tr -d ' ')
 printf '%s\n' "git log --follow reaches commits    : $FOLLOW (must be > 1)"
 RENAME_SHA=$(git log --follow --diff-filter=R --format=%H -- evidence/LEDGER.md | head -1)
 printf 'rename commit                      : %s\n' "${RENAME_SHA:-NONE}"
-NUMSTAT=$(git show "${RENAME_SHA:-$COMMIT}" --numstat --format= -- evidence/LEDGER.md \
-          | head -1)
-printf 'numstat on rename commit           : %s\n' "${NUMSTAT:-EMPTY}"
-ADDED=$(echo "$NUMSTAT" | awk '{print $1}')
-DELETED=$(echo "$NUMSTAT" | awk '{print $2}')
+# Two numstat forms, both printed, because they disagree and the disagreement
+# IS the finding (see FINDINGS §F13). A pathspec filters the source side out of
+# the tree diff BEFORE rename detection runs, so the destination reads as a
+# fresh add. Reproduced in a scratch repo on a single pure `git mv`:
+#   git show --numstat --format= HEAD -- b/F.md   ->  3  0  b/F.md
+#   git show --numstat --format= HEAD             ->  0  0  {a => b}/F.md
+# The judge (test_chunk3_ledger_rename_carried_no_content_edit) uses the first
+# form, so it cannot go green on a correct rename. §4.5 is judged on the forms
+# that can actually observe a rename, and the judge's form is reported beside
+# them rather than hidden.
+NUMSTAT_PATHSPEC=$(git show "${RENAME_SHA:-$COMMIT}" --numstat --format= -- evidence/LEDGER.md | head -1)
+NUMSTAT_FOLLOW=$(git log --follow --numstat --format= -1 "${RENAME_SHA:-$COMMIT}" -- evidence/LEDGER.md | head -1)
+SIMILARITY=$(git show --name-status --find-renames --format= "${RENAME_SHA:-$COMMIT}" \
+             | grep 'evidence/LEDGER.md' | cut -f1)
+printf '%s\n' "numstat, judge's form (pathspec)   : ${NUMSTAT_PATHSPEC:-EMPTY}  <- add-shaped, see F13"
+printf '%s\n' "numstat, git log --follow form     : ${NUMSTAT_FOLLOW:-EMPTY}"
+printf '%s\n' "rename similarity index            : ${SIMILARITY:-NONE} (R100 == byte-identical)"
+ADDED=$(echo "$NUMSTAT_FOLLOW" | awk '{print $1}')
+DELETED=$(echo "$NUMSTAT_FOLLOW" | awk '{print $2}')
 printf 'added=%s deleted=%s (both must be 0 — the ledger is append-only, §5)\n' \
   "${ADDED:-?}" "${DELETED:-?}"
 if [ -f evidence/LEDGER.md ] && [ ! -e planning/phase-4.5/LEDGER.md ] \
    && [ "$FOLLOW" -gt 1 ] && [ -n "$RENAME_SHA" ] \
-   && [ "$ADDED" = "0" ] && [ "$DELETED" = "0" ]; then
-  pass "§4.5 rename carries history with zero content edit"
+   && [ "$ADDED" = "0" ] && [ "$DELETED" = "0" ] && [ "$SIMILARITY" = "R100" ]; then
+  pass "§4.5 rename carries history with zero content edit (R100, +0/-0)"
 else
   fail "§4.5 rename not verified"
 fi

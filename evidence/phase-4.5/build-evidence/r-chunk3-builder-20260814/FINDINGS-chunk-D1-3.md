@@ -156,21 +156,26 @@ The chunk-2a close records:
 > fires its vacuity guard — all emitted paths already exist in the SoR … Not a judge defect.
 
 At this commit on this machine, **all 23 chunk-2a tests pass**, including all
-three parametrizations of that test. The reason is not a fix: the guard compares
-emitted `envelope_path` values against the rows already in
-`tools/telemetry/runs.jsonl`, and **that file does not exist on this machine at
-all** (untracked; `tools/telemetry/` is absent). With no SoR, every emitted value
-counts as newly generated, the guard is satisfied, and the test asserts on real
-resolution.
+three parametrizations of that test. The reason is not a code fix. The guard
+compares emitted `envelope_path` values against the rows already in
+`telemetry/runs.jsonl` (`_SOR_REL`, `tests/test_layout_paths_chunk2a.py:99`),
+which is **gitignored** (`.gitignore:44`) and therefore machine-local. It now
+holds 21 rows — the state the planner's own ledger note records restoring it to,
+from 59 rows polluted by prior validator runs. At 21 rows the newly-emitted
+new-root paths are not already present, `generated` is non-empty, and the test
+asserts on real resolution instead of refusing.
 
-So the same commit yields ACCEPT here and a fired vacuity guard on a machine
-whose SoR happens to be saturated — and running the scripts under test is itself
-what saturates it. A judge whose verdict depends on untracked local state is not
-reproducible evidence (§7, §9), and the carried "known failure" cannot be
-reproduced or fixed by this seat.
+So the recorded failure is a function of local SoR content, not of the commit:
+the same build yields a green test here and a fired vacuity guard on a tree
+whose SoR is saturated — and **running the scripts under test is itself what
+saturates it**. The planner already knows the pollution mechanism (the "SoR NOTE"
+in the round-2 review request); what this adds is that the *judge's verdict*,
+not just the telemetry, moves with it, so the carried "known failure" cannot be
+reproduced or closed by this seat.
 
 **For the planner:** either commit a fixture SoR the guard reads, or scope the
-guard to rows the probe itself emitted in-process.
+guard to rows the probe itself emitted in-process. Restoring the file by hand
+before each suite run is a step §9 would rather see scripted.
 
 ## F10 — `tools/plan-lint.py` with no argument is rc=2, so §4.7 as literally written fails
 
@@ -193,6 +198,52 @@ Recorded because chunk-2a §2.4 K2 already burned one bad evidence row on an
 interpreter mix-up; this is the same class of hazard one layer down. The harness
 takes its counts from `--junit-xml` instead, which is an artifact rather than a
 console line (§7).
+
+## F13 — BLOCKED: `test_chunk3_ledger_rename_carried_no_content_edit` is unsatisfiable by a correct rename
+
+The judge asserts:
+
+```python
+sha  = git log --follow --diff-filter=R --format=%H -- evidence/LEDGER.md   # ok
+stat = git show --numstat --format= <sha> -- evidence/LEDGER.md             # <- the problem
+assert added == "0" and deleted == "0"
+```
+
+A **pathspec filters the source side out of the tree diff before rename
+detection runs**, so git reports the destination as a fresh add. Reproduced in a
+scratch repo containing one commit that is a single pure `git mv` and nothing
+else:
+
+```
+$ git mv a/F.md b/F.md && git commit -m rename
+$ git show --numstat --format= HEAD -- b/F.md      # the judge's form
+3	0	b/F.md
+$ git show --numstat --format= HEAD                # same commit, unfiltered
+0	0	{a => b}/F.md
+```
+
+So the assertion fails **exactly when the builder does the right thing**, and no
+buildable state satisfies it: the only way to get `added == "0"` through that
+command is for the file to be empty. On this chunk it reports `1224 0` for a
+rename git itself scores `R100` — byte-identical.
+
+Per §6 and framework invariant #3 I did not edit the judge. The chunk is
+otherwise green: **237 collected, 233 passed, 1 failed, 3 skipped** on
+`/private/tmp/asprint-venv/bin/python`, the one failure being this assertion.
+
+**Two forms that do observe the rename**, either of which makes the assertion
+satisfiable without weakening it:
+
+```sh
+git log --follow --numstat --format= -1 <sha> -- evidence/LEDGER.md
+# 0	0	{planning/phase-4.5 => evidence}/LEDGER.md
+
+git show --name-status --find-renames --format= <sha> | grep evidence/LEDGER.md
+# R100	planning/phase-4.5/LEDGER.md	evidence/LEDGER.md   (100 == byte-identical)
+```
+
+`verify-chunk3.sh` §4.5 prints all three numbers side by side so the
+disagreement is on the record rather than argued.
 
 ## F12 — §5 hard stop respected
 

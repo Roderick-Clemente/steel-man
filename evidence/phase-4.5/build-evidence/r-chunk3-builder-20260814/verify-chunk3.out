@@ -1,0 +1,126 @@
+chunk-D1-3 §4 exit-criteria capture
+commit under test : 0b5343ddcc2b2929a29677bf8339af39c4cd2cc7 (HEAD)
+branch           : factory/layout-refactor
+worktree clean   : NO
+
+========== §4.1 full suite on the suite interpreter ==========
+interpreter      : /private/tmp/asprint-venv/bin/python
+version          : Python 3.13.3
+NOT              : /usr/bin/python3 (Python 3.9.6, no pytest — chunk-2a §2.4 K2)
+collected=237 passed=233 failed=1 errors=0 skipped=3
+baseline entering chunk (spec §4.1): 213 passed, 3 skipped, plus the chunk-3 judge's 14
+  FAILING: tests.test_layout_paths_chunk3::test_chunk3_ledger_rename_carried_no_content_edit
+  ==> FAIL  §4.1 suite not green (pytest rc=1) — see /tmp/chunk3-pytest.out
+
+========== §4.1b chunk-3 judge in isolation ==========
+FAILED tests/test_layout_paths_chunk3.py::test_chunk3_ledger_rename_carried_no_content_edit
+========================= 1 failed, 13 passed in 0.29s =========================
+  ==> FAIL  §4.1b chunk-3 judge rc=1
+
+========== §4.2 residual citation grep, scoped to the §2.1a surface ==========
+surface files    : 27 (non-empty guard: ok)
+residual hits    : 49 (baseline on 0b1262c: 105 across 15 files)
+residual files   : droid-wiki/by-the-numbers.md droid-wiki/lore.md 
+  ==> PASS  §4.2 all 49 residual hits are enumerated exceptions in 2 narrative files
+
+========== §4.2b rewrite is idempotent (re-running changes nothing) ==========
+
+total: 0 rewrite(s) across 13 file(s) (check only, nothing written)
+  ==> PASS  §4.2b rewrite-citations.py --check: 0 further rewrites
+
+========== §4.2c PATH-REDIRECTS matches its generator ==========
+planning/PATH-REDIRECTS.md: up to date (265 lines)
+  ==> PASS  §4.2c planning/PATH-REDIRECTS.md == generator output
+
+========== §4.3 evidence-internal citations are covered by the table (checklist, not a fix list) ==========
+evidence lines carrying an old prefix : 146
+distinct files                        : 78
+prefix table rows in PATH-REDIRECTS   : 80
+distinct old prefixes in evidence: 10 -> phase-0/ phase-1/ phase-2/ phase-3.1/ phase-3.2/ phase-3.3/ phase-3/ phase-4.5/ phase-4/ phase-5/
+uncovered by any table row      : 0 []
+  ==> PASS  §4.3 every evidence-internal prefix has a redirect row
+
+========== §4.4 relative-link resolution (count checked reported next to count dead) ==========
+§4.4 relative-link resolution over 27 surface files
+file                                              checked   dead
+AGENTS.md                                               0      0
+PRD.md                                                  0      0
+README.md                                              12      0
+droid-wiki/by-the-numbers.md                            0      0
+droid-wiki/fun-facts.md                                 0      0
+droid-wiki/human-in-the-loop.md                        11      0
+droid-wiki/lore.md                                      0      0
+droid-wiki/security.md                                 23      0
+planning/ROADMAP-REVIEW-PROMPT.md                       0      0
+planning/ROADMAP-REVIEW.md                              0      0
+skills/adversarial-sprint/SKILL.md                      0      0
+skills/sprint-invocation/SKILL.md                       0      0
+tools/KNOWN-ISSUES.md                                   0      0
+tools/OPERATING-RULES.md                                1      0
+tools/PHASE-0.5-CLOSE.md                                0      0
+tools/README.md                                         0      0
+tools/REPRODUCE.md                                      0      0
+tools/RUN-LEDGER.md                                     0      0
+tools/conventions/commit-body-recipe.md                 0      0
+tools/conventions/exec-cadence.md                       0      0
+tools/conventions/model-discipline.md                   0      0
+tools/conventions/skill-distribution.md                 0      0
+tools/sprint_loop/prompts/executor.md                   0      0
+tools/sprint_loop/prompts/plan-reviewer.md              0      0
+tools/sprint_loop/prompts/planner.md                    0      0
+tools/sprint_loop/prompts/test-designer.md              0      0
+tools/sprint_loop/prompts/validator.md                  0      0
+TOTAL                                                  47      0
+baseline dead before this chunk: 4 (all README, §2.5)
+  ==> PASS  §4.4 0 dead links, resolver examined a non-zero set
+
+========== §4.5 LEDGER rename verified ==========
+evidence/LEDGER.md exists          : yes
+planning/phase-4.5/LEDGER.md gone  : yes
+tracked at new path                : yes
+tracked at old path                : no
+git log --follow reaches commits    : 31 (must be > 1)
+rename commit                      : 0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
+numstat, judge's form (pathspec)   : 1224	0	evidence/LEDGER.md  <- add-shaped, see F13
+numstat, git log --follow form     : 0	0	{planning/phase-4.5 => evidence}/LEDGER.md
+rename similarity index            : R100 (R100 == byte-identical)
+added=0 deleted=0 (both must be 0 — the ledger is append-only, §5)
+  ==> PASS  §4.5 rename carries history with zero content edit (R100, +0/-0)
+
+========== §4.6 tools/wiki-link-audit.py ==========
+61 pages · dead=0 anchor=0 absolute=0 escaping=0 skeleton=0
+clean
+rc=0 (baseline on 0b1262c: 61 pages, all zero, rc=0)
+NOTE: this walks droid-wiki/ ONLY (wiki-link-audit.py:24,:88). It is NOT
+      a substitute for §4.4 — it reports dead=0 on the very commit where
+      README.md carried four dead links (§7 silent-green shape).
+  ==> PASS  §4.6 wiki-link-audit rc=0
+
+========== §4.7 tools/plan-lint.py ==========
+planning/layout-refactor/PLAN.md               rc=0  PASS with 20 warning(s) — source: none (heuristic mode)
+planning/layout-refactor/CHUNK-3-SPEC.md       rc=0  PASS with 2 warning(s) — source: none (heuristic mode)
+  ==> PASS  §4.7 plan-lint rc=0 on PLAN.md and CHUNK-3-SPEC.md
+
+========== §4.8 scope containment on HEAD ==========
+status letters   :    6 A   15 M    1 R100 
+renames (R):
+  R100	planning/phase-4.5/LEDGER.md	evidence/LEDGER.md
+rename count=1, the LEDGER rename present=1 (both must be 1)
+modified (M) under evidence/:
+M-under-evidence=0 (must be 0 — committed evidence is immutable, §5/§21)
+paths under evidence/phase-4.5/tokens/=0 (must be 0 — §22, the builder
+  seat holds no signing key and writes no token)
+judge files in the diff (must be none):
+locked judge edits=0 (must be 0 — framework invariant #3)
+planning/layout-refactor/ edits=0 (must be 0 — §2.1b)
+planning/phase-N/ edits (excl. the LEDGER rename)=0 (must be 0 — §2.1b)
+  ==> PASS  §4.8 diff shape contained
+
+========== extra — .cursor/rules/*.mdc mirrors regenerate to byte-identical content ==========
+1e3fb79342abae2075f3a0c7fb5f37560532540a77f85107eeccbb17fb8bcdaa  .cursor/rules/adversarial-sprint.mdc
+923d780b82040d0bf534965a3e13abb007bcafbff15ec07fe2ebbbfb0f638e23  .cursor/rules/sprint-invocation.mdc
+  ==> PASS  on-disk .mdc == tools/install-skill.sh cursor output
+
+========== RESULT ==========
+failed criteria: 2
+chunk-D1-3 §4: 2 CRITERION(A) FAILED
