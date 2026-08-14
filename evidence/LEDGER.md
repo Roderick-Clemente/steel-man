@@ -1586,3 +1586,67 @@ them.
   Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, write no token,
   fire no reviewer, and do not run the chunk sequence gate.
 ```
+
+### Nit fixes landed — chunk-D1-3 N1 + N2, after token signing
+
+```
+2026-08-14T14:10Z BUILDER: NITS FIXED: chunk=chunk-D1-3 N1 N2 token=deca800
+  Unblocked by the signed token: chunk-D1-3.token.json pins
+  chunk_commit_sha=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7, so a follow-up commit
+  cannot retroactively change what the two reviewers attested to. Independently
+  verified before touching anything: both envelope_sha256 values in the token equal
+  shasum -a 256 of the envelopes on disk under
+  evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/ —
+  kimi-k3 e6b317ca..., minimax-m3 8787963f... (§21 satisfied, checked not assumed).
+
+  Generator: gen-path-redirects.py is committed evidence at 0b5343d, so it was NOT
+  edited. The amended copy is a new file,
+  evidence/phase-4.5/build-evidence/r-chunk3-nits-20260814/gen-path-redirects-v2.py.
+  v1 bytes confirmed untouched via git status.
+
+  N1 fixed. The evidence statistic is now derived, and PINNED to a commit
+  (MEASURED_AT=0b5343d, tracked files only via `git grep <commit>`). Prose moved from
+  a hand-typed "144 lines across 76 files" to a measured "146 lines across 78 files
+  (Measured at 0b5343d...)". Pinning rather than deriving-live is the load-bearing
+  choice: the count was 146/78 at 0b5343d and 148/80 two commits later, so a live
+  form would make §4.2c `--check` drift on every future evidence commit and convert
+  a green check into a standing false alarm. Non-vacuity guard added: the generator
+  refuses to write if the scan returns 0 lines, because a silently-zero measurement
+  is worse than the stale number it replaces (§7).
+
+  N2 fixed, and my FIRST ATTEMPT AT IT WAS WRONG — recorded because the wrong version
+  looked right. The reviewers' recommendation was to stop the fan-out table dropping
+  nested paths, and the obvious change is to delete the `"/" not in rest` clause in
+  ambiguous_files(). Doing exactly that added 159 rows and grew the file 265 -> 424
+  lines. Cause: that clause was silently doing TWO jobs — excluding nested members,
+  and excluding paths owned by a MORE SPECIFIC prefix row. `phase-4/h-ci/results.json`
+  satisfies startswith("phase-4/") but its own key is `phase-4/h-ci/`, which already
+  has its own row, so deleting the clause duplicated ~154 rows already covered
+  elsewhere. Caught by diffing generator output against the reviewed file rather than
+  by reading the patch.
+  Correct fix: factor the key formula into a single _key_for() used by BOTH prefix_map()
+  and ambiguous_files(), then test membership as "this path's own key IS the fan-out
+  key" instead of "this path starts with the fan-out key". That adds exactly the five
+  phase-3.2/reviews/orchestrated/* rows the reviewers named and moves nothing else.
+  265 -> 273 lines. Shared helper also removes the class of bug where the two
+  functions could disagree about which row owns a path.
+
+  Verified after regeneration:
+    chunk-3 judge (locked, 5c66bcfc...) : 14 passed, 0 failed
+    full suite                          : 237 collected, 234 passed, 0 failed, 3 skipped
+    v2 --check                          : rc=0, up to date (273 lines)
+    all file-level table destinations    : 0 missing on disk
+    v1 generator bytes                  : untouched (git status clean for that dir)
+
+  KNOWN AND EXPECTED DIVERGENCE, stated rather than hidden: verify-chunk3.sh §4.2c
+  invokes the V1 generator with --check, so re-running that harness on this tree now
+  reports "DRIFT — regenerate" and rc=1 at §4.2c. That is correct behaviour, not a
+  regression: v1 is pinned to the reviewed state of the document and is superseded by
+  v2. The chunk-3 acceptance contract is the LOCKED JUDGE, and it is 14/14 green on
+  this tree. Anyone re-verifying chunk-3 as-attested should check out 0b5343d, where
+  v1 --check is rc=0.
+
+  N3, N4, N5 unchanged and not mine to land: N3 is corrected by the ledger row above
+  (FINDINGS is committed evidence); N4 (judge substring match) and N5 (§6 wording vs
+  builder-bundle additions) are planner items.
+```

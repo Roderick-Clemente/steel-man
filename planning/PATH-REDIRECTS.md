@@ -17,9 +17,12 @@ chunk-D1-3. The other **683** must not be edited at all:
   time-stamped run records. `planning/phase-3/RUN-COMMANDS.md` records the literal
   command that was executed at the time. Rewriting it produces a command that was
   never run: a falsified record in exchange for a working link.
-* **Committed evidence under `evidence/`** — immutable by §5/§21. 144 lines across
-  76 envelope/capture files carry old prefixes and stay exactly as the reviewer
-  wrote them.
+* **Committed evidence under `evidence/`** — immutable by §5/§21. 146 lines
+  across 78 envelope/capture files carry old prefixes and stay exactly as
+  the reviewer wrote them. (Measured at `0b5343d`, tracked files only. The
+  pin is deliberate: this count grows with every evidence commit, so an unpinned
+  figure is stale the moment it is written — which is how the previous hand-typed
+  144/76 got here.)
 
 For all of those, this file carries the delta instead. That is the §5 hard stop
 working as designed rather than a scope cut.
@@ -126,6 +129,11 @@ file by file.
 | old | new |
 |---|---|
 | `phase-3.2/reviews/RUN-COMMANDS.md` | `planning/phase-3.2/reviews/RUN-COMMANDS.md` |
+| `phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-envelope.json` | `evidence/phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-envelope.json` |
+| `phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-stderr.log` | `evidence/phase-3.2/reviews/orchestrated/review-gemini-3.1-pro-preview-stderr.log` |
+| `phase-3.2/reviews/orchestrated/review-grok-4.5-envelope.json` | `evidence/phase-3.2/reviews/orchestrated/review-grok-4.5-envelope.json` |
+| `phase-3.2/reviews/orchestrated/review-grok-4.5-stderr.log` | `evidence/phase-3.2/reviews/orchestrated/review-grok-4.5-stderr.log` |
+| `phase-3.2/reviews/orchestrated/review-summary.json` | `evidence/phase-3.2/reviews/orchestrated/review-summary.json` |
 | `phase-3.2/reviews/review-gemini-envelope.json` | `evidence/phase-3.2/reviews/review-gemini-envelope.json` |
 | `phase-3.2/reviews/review-gemini-stderr.log` | `evidence/phase-3.2/reviews/review-gemini-stderr.log` |
 | `phase-3.2/reviews/review-grok-envelope.json` | `evidence/phase-3.2/reviews/review-grok-envelope.json` |
@@ -173,7 +181,7 @@ missed sweep. `tests/test_layout_paths_chunk3.py` asserts this list in both
 directions: no unlisted residual, and no listed row that is no longer residual.
 
 Line numbers are exact as of the commit that lands this file. They are
-regenerable — see `evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/`
+regenerable — see `evidence/phase-4.5/build-evidence/r-chunk3-nits-20260814/`
 — and the judge fails loudly rather than quietly if they rot.
 
 ### `droid-wiki/by-the-numbers.md` — 33 residual tokens
