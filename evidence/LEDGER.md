@@ -1460,5 +1460,19 @@ them.
   key_findings=5 new findings all severity <= low: cosmetic-prose/arithmetic drift,
   strict §6 reading of builder-bundle writes, prompt/judge artifacts. No blockers.
   Suite 234+3 confirmed. §5 hard stop enforced. Scope: 1R, 6A, 15M, 0 token writes.
-```
+
+2026-08-14T12:40:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-3-code verdict=CLOSED
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=e6b317ca106de167a5f41e90d0dfc232f5cdab16dc39ce3463e04dd0c67ce72c
+  envelope_sha256_minimax=8787963fa719bcc61c390d486ddff50c6011223220b3b934a233a7558dcd9d34
+  build_commit=0b5343d prompt_sha256=bafba8052027ef231d882d42e79d744d1969cfbbe61a1e3cd96e910e6b79438b
+  sha256s independently verified on disk; both is_error=False. Ruling 4 satisfied:
+  two ACCEPT-class verdicts from two distinct families on the same bytes. First gate
+  to close without operator override or SPLIT across all chunk-D1 gates.
+
+2026-08-14T12:40:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D1-3-code
+  token=evidence/phase-4.5/tokens/chunk-D1-3.token.json
+  build_commit=0b5343d key_id=referee-deepseek-2026-08-14
+  verified=OK sha=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
 ```
