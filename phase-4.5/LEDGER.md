@@ -448,3 +448,27 @@ corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
   Rule recorded: never force-push on factory/layout-refactor. Amend and force-push on
   d45d0e7 was the exception and will not recur.
 ```
+
+BLOCKED: chunk=chunk-D1-2 seat=builder commit=409c62c judge=10f9e780
+  The locked Chunk-1 judge tests/test_layout_paths.py is structurally
+  incompatible with Chunk 2's deliverable. CHUNK-2-SPEC §4.1 ("197 green") and
+  §2.2 (flip the constant VALUES) cannot both hold while the judge is locked at
+  10f9e780: the judge asserts the OLD values literally (:422-433, :445-451), not
+  merely that constants resolve.
+  MEASURED, not asserted. Detached worktree at HEAD, §2.2 flip applied alone:
+  2 of 3 judge tests fail (EVIDENCE_ROOT 'evidence' != '', phase_path composes
+  evidence/phase-4.5/tokens vs expected phase-4.5/tokens). Adding the two moves
+  that touch the judge's own constants (local_backend.py, fire-design-review.sh)
+  fails the third (missing: phase-3.2/evidence/local_backend.py). 3 failed.
+  Worktree removed; no repo file modified to produce this.
+  PLANNER WRITE, not builder's: framework invariant #3. I did not touch the
+  locked file. Precise 8-site re-authoring surface + two planner decisions
+  (whether _FORBIDDEN_SUBSTRINGS should forbid the NEW roots post-move; whether
+  to re-lock the Chunk-1 judge or add a separate Chunk-2 judge, given the
+  chunk-D1-1 gate is still formally open with no §8 override) are recorded in
+  phase-4.5/build-evidence/r-chunk2-builder-blocked-20260813/judge-incompatibility.md
+  Also note §4.3's prose ("refuses if any constant points to a nonexistent
+  path") does not match the test's implementation, which asserts exact equality
+  against old values BEFORE checking existence.
+  Builder is not blocked on anything else; move inventory read, §2.2 values
+  independently confirmed. Ready to build on resolution.
