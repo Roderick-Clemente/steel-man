@@ -1325,3 +1325,28 @@ them.
   tree at 0b5343d (the judge asserts the build's correctness, not pre-fix RED).
   Builder released for close gate.
 ```
+
+### Errata — chunk-D1-3, against 9014db6
+
+```
+2026-08-14T12:34Z BUILDER: ERRATA: chunk=chunk-D1-3 F14 (not in
+  FINDINGS-chunk-D1-3.md, which is committed evidence at 28c57fd and so is
+  corrected here rather than edited).
+  tests/test_layout_paths_chunk3.py HAS NO LOCK MANIFEST.
+  sha256=1a883c71b0e02b874708731d8a6ffad4f518ed3bb4b957da5a3960ad69aed554
+  tools/phase-1-locks/tests/ holds manifests for its three companions only:
+    test_layout_paths.py.lock.json          cb00dfac...
+    test_layout_paths_chunk2.py.lock.json   48a579f8...
+    test_layout_paths_chunk2a.py.lock.json  7289ca09...
+  Nothing under tools/phase-1-locks/ references chunk3. Framework invariant #3
+  ("the executor cannot write or modify the tests that judge it — locked by
+  content hash, enforced by a PreToolUse hook") was therefore SELF-ENFORCED for
+  this chunk, not enforced: no content lock existed, and no PreToolUse guard is
+  wired in this clone. I did not edit the judge, and the hash above is offered so
+  the referee can verify that against 5ac51dd..HEAD rather than take my word for
+  it — which is the whole point of §21: my own statement that I did not touch it
+  is a self-declaration, and a self-declaration is not evidence.
+  Requested at ratification: lock chunk-3's judge at the amended hash when F13
+  is fixed, so the chunk-D1-3 token's judge_sha256 pins to a manifest like every
+  prior round's did.
+```
