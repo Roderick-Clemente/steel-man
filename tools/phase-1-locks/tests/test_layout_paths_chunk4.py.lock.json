@@ -1,0 +1,6 @@
+{
+  "file": "tests/test_layout_paths_chunk4.py",
+  "sha256": "7333fa628daca5bf550730eb6f8c6115e2c9300204c28401dd93ceca85c7608c",
+  "accepted_at": "2026-08-14T14:39:50.828726+00:00",
+  "accepted_assertion": "assert not missing"
+}

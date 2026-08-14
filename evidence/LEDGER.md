@@ -1694,4 +1694,15 @@ them.
   Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no
   token under evidence/phase-4.5/tokens/, fired no reviewer, and did not run
   the chunk sequence gate.
+
+2026-08-14T14:30:00Z REFEREE: JUDGE RATIFIED: chunk=chunk-D1-4
+  file=tests/test_layout_paths_chunk4.py
+  sha256=7333fa628daca5bf550730eb6f8c6115e2c9300204c28401dd93ceca85c7608c
+  lock=tools/phase-1-locks/tests/test_layout_paths_chunk4.py.lock.json
+  suite=2-passed-0-failed (full suite: 236 passed, 3 skipped on Python 3.9.6)
+  Audit: 2 tests — path-existence assertion on all four §2.2 scripts, plus a
+  subject-count guard preventing silent drift. Mirrors chunk 2/2a/3 convention
+  of separate locked test_layout_paths_chunkN.py files rather than editing the
+  locked base file. Valid GREEN on the built tree at 20a3041: all four paths
+  resolve to existing files post-chunk-2 flip. Builder released for close gate.
 ```
