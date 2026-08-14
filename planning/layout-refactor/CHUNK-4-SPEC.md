@@ -44,9 +44,22 @@ The fixture must be:
 The executor must verify that `valid-red.py` classifies this
 fixture as VALID before using it in the exit check.
 
-### 2.2 New test: `tests/test_layout_paths.py` (grow the Chunk-1 file)
+### 2.2 New test: `tests/test_layout_paths_chunk4.py` (own locked file)
 
-Add a fourth test to the file created in Chunk 1:
+**Amended after the chunk-D1-4 build.** This section originally read
+"grow the Chunk-1 file" and asked the executor to add a fourth test
+directly to `tests/test_layout_paths.py`. That file is
+content-hash-locked (`cb00dfac...`), and the builder seat does not
+touch a locked judge — not even to add a test (invariant #3,
+re-affirmed at chunk-D1-1 finding 1 and chunk-D1-3 F8). The builder
+correctly refused and filed it as F-A in `FINDINGS-chunk-D1-4.md`,
+pointing at chunks 2, 2a, and 3, each of which already added its own
+separately-locked `test_layout_paths_chunkN.py` rather than editing
+the base file. Test 4 now lives in its own locked file,
+`tests/test_layout_paths_chunk4.py` (sha256
+`7333fa628daca5bf550730eb6f8c6115e2c9300204c28401dd93ceca85c7608c`),
+following that precedent. The content below is unchanged from the
+original §2.2 — only its location moved.
 
 **Test 4 — path-existence assertion:** assert that the constructed
 script paths resolve to files that exist on disk:
@@ -56,7 +69,9 @@ script paths resolve to files that exist on disk:
 - `EVIDENCE_CODE_ROOT / "local_backend.py"` → `tools/phase-3.2-evidence/local_backend.py` exists
 
 This is the belt-and-suspenders check that does not depend on
-running the scripts.
+running the scripts. Verified in a sandbox (mutating
+`EVIDENCE_CODE_ROOT` to a wrong path) that the assertion actually
+fails when a root is wrong, not just that it passes on the real tree.
 
 ### 2.3 Exit-check script (optional helper)
 
@@ -102,7 +117,8 @@ The exact argument shapes are to be verified by the executor per
 ### 3.4 Run the exit checks
 
 1. `python3 tools/wiki-link-audit.py` → green
-2. `python3 -m pytest -q` → 198 tests green (197 from chunks 1-3 + 1 new path-existence test)
+2. `python3 -m pytest -q` → current baseline green + 2 new (see §4.2 —
+   the "198" figure below predates chunks 2/2a/3)
 3. The four direct script invocations (§3.3) all exit 0
 4. `git log --stat` shows the expected commits on
    `factory/layout-refactor`
@@ -110,7 +126,11 @@ The exact argument shapes are to be verified by the executor per
 ### 3.5 Commit + push
 
 Commit with message `chunk-4: D1 exit check — direct script invocations + path-existence test`.
-Push to `origin/factory/layout-refactor`.
+Push to `dev/factory/layout-refactor`. **Not `origin`** — `origin`
+(`Roderick-Clemente/adversarial-sprint`) does not carry this branch; `dev`
+(`Roderick-Clemente/adversarial-sprint-dev`) is the working remote,
+per the chunk-D1-1 operator decision. Re-flagged here per F-C because
+this section still carried the pre-correction text.
 
 ## 4. Verify (§11 exit checks — the D1 gate)
 
@@ -120,8 +140,18 @@ Push to `origin/factory/layout-refactor`.
 
 ### 4.2 Full suite green
 
-`python3 -m pytest -q` → 198 tests, all green (194 pre-existing +
-3 from Chunk 1 + 1 new path-existence test from Chunk 4).
+**Amended after the chunk-D1-4 build (F-B).** "198 tests, all green
+(194 pre-existing + 3 from Chunk 1 + 1 new path-existence test from
+Chunk 4)" was correct when this spec was first drafted, but predates
+chunks 2, 2a, and 3, which together added 40 more judge tests
+(3 + 23 + 14) plus independent base-suite growth. `python3 -m pytest
+-q --junit-xml=...` (not bare `-q` stdout — a second `-q` run silently
+drops the summary line, chunk-D1-3 F11) → the measured baseline
+immediately before this chunk's own test landed, plus 2 new from
+`test_layout_paths_chunk4.py` (§2.2): **239 collected, 236 passed, 3
+skipped, 0 failed.** Do not hand-type this number on the next chunk
+either — measure it, per the same §7 discipline chunk-D1-3's N2 nit
+already established.
 
 ### 4.3 Direct script invocations all exit 0
 
@@ -131,8 +161,9 @@ moved scripts work at their new paths.
 
 ### 4.4 Path-existence test passes
 
-`tests/test_layout_paths.py` test 4 (§2.2) passes — the constructed
-script paths resolve to files that exist on disk.
+`tests/test_layout_paths_chunk4.py` (§2.2) passes — the constructed
+script paths resolve to files that exist on disk. (Amended per F-A:
+Test 4 moved to its own locked file; see §2.2.)
 
 ### 4.5 Post-D1 git log
 
