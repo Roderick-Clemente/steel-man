@@ -74,7 +74,7 @@ agent makes.
     chunk-close token's reviewer `envelope_sha256` MUST be computed
     from a real reviewer envelope on disk (the SHA of a fired
     `droid exec` output written to
-    `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
+    `evidence/phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
     Build-time fixture markers — homogeneous leading-character hex
     runs, typed-in placeholders, "5555...55501"-style tokens — fail
     `tools/cross_family_review.py`'s envelope-authenticity check
@@ -82,7 +82,7 @@ agent makes.
     distance: the operator-side `chunk-N.token.json` IS the review,
     and a token without a verifier-traceable envelope is a
     self-declaration, not a verdict. Tier-3 fix: an off-process
-    signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
+    signing daemon (`planning/phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
     POSTs envelope paths to; the daemon holds the key and refuses
     if any envelope is absent on disk.
 11. **Author is not the verifier, even within the same model-family
@@ -91,13 +91,13 @@ agent makes.
     working memory into the reviewer's context. The chunk-close
     signing authority is held by a separate process (Tier-3
     daemon / §21); the reviewer-firing path is held by a separate,
-    persistent cross-family referee (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
+    persistent cross-family referee (`planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
     KN-A-8). A build agent may post `REVIEW REQUEST:` lines to
     `STEER.md` (machine-local cross-agent queue per §1). The
     build agent MUST NOT fire `droid exec` against the reviewer
     model IDs the agent itself selected; MUST NOT hold
     `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
-    `phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
+    `evidence/phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
     enforces the structural predicate (`envelope-on-disk SHA`);
     the persistent referee enforces the identity predicate
     (signing authority / reviewer-firing process). Both must

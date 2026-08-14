@@ -32,7 +32,7 @@ when the executor was OpenAI-family (per
   contains: commit SHA, locked-test SHA observed, structured pytest
   results (``passed``, ``failed``, ``skipped``, ``suite_exit_code``,
   per-failure records), optional coverage, optional security findings
-  (new-vs-baseline only). See ``phase-3.2/evidence/bundle_schema_v1.json``
+  (new-vs-baseline only). See ``evidence/phase-3.2/bundle_schema_v1.json``
   for the schema.
 - The **validator tool policy** per OPERATING-RULES §17.5: in
   bundle-mode (the default for this role), your --enabled-tools is
@@ -62,7 +62,7 @@ when the executor was OpenAI-family (per
    per the bundle's evidence verdict.
 4. **Security lens** (if bundle includes ``security.findings``) —
    accept only ``is_new==true`` ones; baseline debt is excluded per
-   PRD §4.4. The validator consumer (``phase-3.2/evidence/consumer.py``)
+   PRD §4.4. The validator consumer (``tools/phase-3.2-evidence/consumer.py``)
    pre-applies this rule; your job here is to verify the consumer's
    verdict and surface anything you noticed that the bundle missed.
 5. **No regression** — the bundle's full-suite result (when present,

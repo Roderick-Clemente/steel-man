@@ -38,7 +38,7 @@ commit the evidence first. A control environment is only as durable as what's in
 - The 0.180.0 canary box is a **known-good baseline** — it is the only machine that can
   prove the `hooks.json` regression (works at 0.180 → silent at 0.186). Its value
   evaporates the moment it's upgraded, unless the evidence is committed. It is
-  (`phase-0/evidence/canary-0.180.0/`).
+  (`evidence/phase-0/canary-0.180.0/`).
 - `droid update -v <version>` pins to a specific version, so an upgrade is reversible —
   but reversible ≠ free. Capture, then upgrade, then re-measure. Never upgrade-first.
 
@@ -61,7 +61,7 @@ and that is correct:
 
 | Scheme | Canonical source | Example: `.factory/hooks.json` |
 |---|---|---|
-| **Repo defect-N** | `phase-0/GO-NO-GO.md`, `droid-wiki/background/open-questions.md` | **#2** |
+| **Repo defect-N** | `planning/phase-0/GO-NO-GO.md`, `droid-wiki/background/open-questions.md` | **#2** |
 | **GitHub issue-N** | the upstream Factory-AI/factory tracker | **#3** |
 
 Do not renumber either to match the other. When referring to a defect, say *which
@@ -273,7 +273,7 @@ recreating the unbounded-backlog pattern.
 
 **Layer-3 amendment (Phase 5 close, factory/phase-5-chunkadherence-enforcement):**
 A self-run, same-family, implementer-orchestrated subagent review does
-**not** satisfy §17. Only a ``phase-4.5/tokens/chunk-N.token.json``
+**not** satisfy §17. Only a ``evidence/phase-4.5/tokens/chunk-N.token.json``
 whose HMAC-SHA256 signature verifies under ``EVIDENCE_SIGNING_KEY``
 **and** whose reviewer list is cross-family (≥2 distinct families via
 ``tools/sprint_loop/config.py:MODEL_FAMILY_MAP``) **and** disjoint
@@ -285,8 +285,8 @@ signature path before chunk-N+1 may start. Cite the chunk-14 pass-r5
 episode (``factory/chunk-14-kn-J-fixes``, commit ``623e024``) as the
 repro: an ACCEPT-WITH-NITS from two same-family Task subagents that
 the gate rejected on the family-distinctness constraint alone. See
-``phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
-spec and ``phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
+``planning/phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
+spec and ``planning/phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
 
 
 ## 18. Compose existing primitives; build in chunks; fix ergonomic friction inline
@@ -300,7 +300,7 @@ either reinvention (rule §14 silent-scope-lie), duplicate directory
 Concretely, before writing code:
 
 1. **Compose first.** ``grep -l`` the project for the nearest existing
-   primitive (``tools/``, ``phase-1/scripts/``, ``phase-3.2/evidence/``,
+   primitive (``tools/``, ``tools/phase-1-scripts/``, ``tools/phase-3.2-evidence/``,
    the model-discipline conventions). Plan the build as a flow chart of
    *existing* calls with thin orchestration glue between them.
 2. **Build in chunks.** Each commit lands one verifiable unit: state +
@@ -381,7 +381,7 @@ the reconciliation the review was meant to do.
 
 A chunk's "I'm done" is an *agent claim* until the
 `chunk_sequence_gate` confirms it. The runner emits a
-`phase-4.5/tokens/chunk-N.token.json` at chunk close, HMAC-SHA256
+`evidence/phase-4.5/tokens/chunk-N.token.json` at chunk close, HMAC-SHA256
 signed by `EVIDENCE_SIGNING_KEY`. The next-chunk-start path refuses
 without a verifiable token for the prior chunk. Phase 5's
 enforcement layer builds this; the rule sits here so any agent
@@ -408,7 +408,7 @@ A chunk-close token's reviewer `envelope_sha256` field must be
 **computed from a real reviewer envelope** — the SHA-256 digest
 over the literal output of a fired cross-family `droid exec`,
 written to disk at
-`phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
+`evidence/phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
 
 Build-time fixture markers (`"5"` × 60 + `"01"`-style, all-zero SHA
 prefixes, all-homogeneous leading 50-character runs) — even when
@@ -436,7 +436,7 @@ SHAs (KN-A-5) — the same anti-pattern in a milder family-distinct
 form. The fix is structural, not stylistic: bind
 `envelope_sha256` to a disk artifact the implementer did not
 create, and refuse the token otherwise. Tier-3 off-process
-signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
+signing daemon (`planning/phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
 agent POSTs `(chunk_id, chunk_commit_sha, envelope_paths)` to a
 separate process; the daemon computes SHAs from the on-disk
 envelopes, signs the token, and never exposes
@@ -461,7 +461,7 @@ Operationally:
    keyed daemon). The build agent has only **read access** to the
    resulting token, via the commit record.
 2. The **reviewer-firing path** is held by a separate, persistent
-   cross-family referee process (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
+   cross-family referee process (`planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
    / KN-A-8) that wakes on a cadence and reads pending review
    requests from `STEER.md` (machine-local cross-agent queue per
    §1). The referee has its own git session identity / commit
@@ -470,7 +470,7 @@ Operationally:
    lines to `STEER.md`. The agent MAY NOT fire `droid exec`
    against the reviewer model IDs the agent itself selected; the
    agent MAY NOT hold `EVIDENCE_SIGNING_KEY`; the agent MAY NOT
-   write to `phase-4.5/tokens/chunk-N.token.json` directly.
+   write to `evidence/phase-4.5/tokens/chunk-N.token.json` directly.
 4. The chunk-close gate (`cross_family_review.py` + `chunk_sequence_gate.py`)
    validates the *structural* predicate; the persistent referee
    enforces the *identity* predicate. The build agent cannot
@@ -546,7 +546,7 @@ collision) posts a `REFUSED: chunk=X reason=paraphrase` line
 to `STEER.md` and is a §22 audit failure visible to the
 operator.
 
-*Rationale:* KN-A-9 entry in `phase-4.5/KNOWN-ISSUES.md` —
+*Rationale:* KN-A-9 entry in `planning/phase-4.5/KNOWN-ISSUES.md` —
 the Tier-2 paraphrase anti-pattern is structurally possible
 today because §17.2 is satisfied on family labels alone;
 without §23, the guarantee is "different MODEL_TRAINER" not
@@ -578,8 +578,8 @@ The architecture:
   envelope paths the orchestrator computes.
 - The Tier-2 validators themselves (grok, gemini — long-running
   droid sessions, the spawn prompts in
-  `phase-4.5/prompts/phase-5-grok-validator.md` and
-  `phase-4.5/prompts/phase-5-gemini-validator.md`) *receive*
+  `planning/phase-4.5/prompts/phase-5-grok-validator-spawn.md` and
+  `planning/phase-4.5/prompts/phase-5-gemini-validator-spawn.md`) *receive*
   `VALIDATE REQUEST:` lines from STEER.md, perform their own
   invocation within their own session, and write their own
   raw envelope bytes — providing operational-distinctness

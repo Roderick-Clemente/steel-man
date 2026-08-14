@@ -34,7 +34,7 @@ Two concrete practices, both visible in the committed evidence:
 
 | Practice | Where it shows up |
 |---|---|
-| Local usernames and absolute home paths are replaced with `~` in every raw capture **before staging** | stated at the end of the Probe 3 record; the same normalisation runs across `phase-0/evidence/` |
+| Local usernames and absolute home paths are replaced with `~` in every raw capture **before staging** | stated at the end of the Probe 3 record; the same normalisation runs across `evidence/phase-0/` |
 | Secrets used inside probes are model-invented and vaulted without ever being printed | [Probe 3](./probes/probe-3-context-isolation.md) extracted the codename with `grep -o` into a vault file, verified recovery with `grep -qFf` so no verdict required displaying the value, and built in a decoy so a naive grep returns the prompt's placeholder |
 
 The recovered codenames that do appear in Probe 3's captures are synthetic values a model invented for that probe and have never been anything else.
@@ -98,7 +98,7 @@ That is why [Silent green](./findings/silent-green.md) belongs on this page and 
 
 ## The defensive posture the design adopts
 
-Directly out of the Phase 0 build order in `phase-0/GO-NO-GO.md`:
+Directly out of the Phase 0 build order in `planning/phase-0/GO-NO-GO.md`:
 
 1. **One fail-closed `PreToolUse` reference guard**, built and proven firing before anything depends on it. It reads `transcript_path` to learn what actually happened, matches `Edit|Create|ApplyPatch|Execute`, and denies on any payload it cannot interpret. One primitive, three policies — see [The reference guard](./findings/reference-guard.md).
 2. **Deny review roles access to `~/.factory/sessions/` and to `droid search`.** Both paths, because they are independent. The review role's tool schema also omits `Execute`, which Probe 3 proved is enforceable, so the roles split: a test-runner with a shell and no judgement, a judge with judgement and no shell.

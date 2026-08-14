@@ -39,7 +39,7 @@ that preflight.
 
 ## What "GREEN" means here
 
-The runner calls ``phase-1/scripts/verify-green.py`` after you commit
+The runner calls ``tools/phase-1-scripts/verify-green.py`` after you commit
 changes. That script:
 1. Re-checks the locked test SHA-256 against the manifest. If you
    somehow mutated it (you shouldn't be able to), GREEN REFUSED.

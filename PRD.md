@@ -474,7 +474,7 @@ Build blind plan review, structured findings, bounded reconciliation, oversight 
 
 ### Phase 3 — Factory end-to-end
 
-Connect planning, test design, command-orchestrated execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change. (Originally specified as "Mission execution"; the GO-NO-GO decision (`phase-0/GO-NO-GO.md`) closed the Mission-native path — `droid exec --mission` is a no-op that reports success. Execution is command-orchestrated via `tools/orchestrate-review.py`.)
+Connect planning, test design, command-orchestrated execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change. (Originally specified as "Mission execution"; the GO-NO-GO decision (`planning/phase-0/GO-NO-GO.md`) closed the Mission-native path — `droid exec --mission` is a no-op that reports success. Execution is command-orchestrated via `tools/orchestrate-review.py`.)
 
 **Exit:** one complete run plus a replayable demo and baseline comparison.
 
@@ -485,7 +485,7 @@ measure whether cross-family validation alone compensates for lost
 test-independence. Result: panel-dependent — the deterministic standalone
 gate caught the bias every time; the cross-family panel split (grok caught,
 gemini dismissed). Fed back into §17.6 as a binding rule. See
-`phase-3.1/RESULTS.md`.
+`planning/phase-3.1/RESULTS.md`.
 
 ### Phase 3.2 — Evidence provider (completed during Phase 3 execution)
 
@@ -493,12 +493,12 @@ Externalized the deterministic evidence tier into a compact signed
 `EvidenceBundle` that validators consume instead of re-running pytest.
 Local backend as default (zero CI); Harness as an interchangeable backend
 behind the same interface. H-CI experiment designed but not yet run. See
-`phase-3.2/BUILD-NOTES.md`, `phase-3.2/SPIKE.md`.
+`planning/phase-3.2/BUILD-NOTES.md`, `planning/phase-3.2/SPIKE.md`.
 
 ### Phase 3.3 — Visual/behavioral evidence tier (seed only)
 
 Extends the evidence-provider abstraction with screenshot/DOM evidence.
-Spike document exists (`phase-3.3/SPIKE.md`); building waits on Phase 4
+Spike document exists (`planning/phase-3.3/SPIKE.md`); building waits on Phase 4
 H-CI result. Not yet started.
 
 ### Phase 4 — Hardening + roadmap review (complete)
@@ -651,7 +651,7 @@ specifically:
 **Required deliverables.**
 
 1. **Chunk-completion token.** Each chunk commit writes
-   `phase-4.5/tokens/chunk-N.token.json` with:
+   `evidence/phase-4.5/tokens/chunk-N.token.json` with:
    - `chunk_commit_sha` (hex 40);
    - `reviewers` list of `{family, model, verdict, review_envelope_sha}`;
    - `signed_at`, `signed_by`, `signature_algo="hmac-sha256"`, `signature` (hex 64).
@@ -703,7 +703,7 @@ specifically:
 When the runner does NOT emit ✅ at a chunk close, the operator
 runs this check, in order:
 
-1. **Read** `phase-4.5/tokens/chunk-N.token.json`. If absent: `cross_family_review.py`
+1. **Read** `evidence/phase-4.5/tokens/chunk-N.token.json`. If absent: `cross_family_review.py`
    refused (single-family reviewer, missing reviewer, or non-ACCEPT
    verdict). Find `[chunk-N][refusal_reason]` in
    `telemetry/<run-id>/cross_family_review.log` per KN-A-2 log
@@ -721,7 +721,7 @@ runs this check, in order:
    `note` field for the refusal reason.
 5. **Diagnose** zero telemetry rows: `commit_chunk_change` was not
    called — the chunk's inner loop did not reach the close. Inspect
-   `phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
+   `evidence/phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
    last-known step; that step is the failure point. Likely a
    subagent unpinned its `--model` (KN-A-3 first-class step) or the
    family guard refused (KN-A-4 live-path preconditions).
@@ -1077,7 +1077,7 @@ non-negotiable; a run missing **either** MUST stop rather than land:
    degrade-authored code. Same-family authorship reviewed by a single model MUST
    NOT land on `main`.
 
-**Evidence (Phase 3.1 spike — `phase-3.1/RESULTS.md`; sample size 1).** With the
+**Evidence (Phase 3.1 spike — `planning/phase-3.1/RESULTS.md`; sample size 1).** With the
 test-author moved to the executor's own family (`glm-5.2`), the author encoded a
 test-independence defect in 1 of 3 chunks (a locked test that passed only inside
 full-suite ordering). The deterministic gate caught it every time. The pinned

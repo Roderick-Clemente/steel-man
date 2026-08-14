@@ -26,7 +26,7 @@ in ``phase-N/KNOWN-ISSUES.md``).
   ``ApplyPatch`` tools ONLY against the locked test file.
 - The **PRD §5.4** rules for a valid RED: behaviour-changing work
   cannot begin until the intended assertion has run and failed for
-  the expected reason. The runner runs ``phase-1/scripts/valid-red.py``
+  the expected reason. The runner runs ``tools/phase-1-scripts/valid-red.py``
   after you commit the test; that classifier rejects syntax errors,
   import errors, missing fixtures, tautological tests, etc.
 - The **running pytest baseline** (``{{pytest_baseline_path}}``, if
@@ -49,8 +49,8 @@ acceptance criteria. The assertions must be:
   pytest output on a valid RED, so the runner's classifier can match
   it (``--accepted-assertion``).
 
-The runner locks the test via ``phase-1/scripts/lock.py`` and asserts
-the RED via ``phase-1/scripts/valid-red.py``. If your test fails the
+The runner locks the test via ``tools/phase-1-scripts/lock.py`` and asserts
+the RED via ``tools/phase-1-scripts/valid-red.py``. If your test fails the
 RED validation, the runner loops back to you with the rejection
 reasoning — do not preempt by self-classifying.
 

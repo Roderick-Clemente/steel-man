@@ -15,7 +15,7 @@
 | v2 | Grok-4.5 + Gemini-3.1-pro | **APPROVE-WITH-NITS** (both) | Directionally correct; nits: Evidence Provider IS the KI-2 fix; H3 not scheduled; parallelize tracks; Act 3 overclaims; §10 forward-looking only; stray-write STOP is dirty-tree false positive |
 | v3 (this) | — | — | Folds in all v2 nits: parallel tracks, H3 scheduling, KI-2-as-bundle-fix, Act 3 bounded, §10 forward-looking, hermetic stray-write, run-with-model bypass |
 
-Panel findings: `phase-3.2/reviews/roadmap-review-cross-family-findings.json` (v1), `phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` (v2)
+Panel findings: `evidence/phase-3.2/reviews/roadmap-review-cross-family-findings.json` (v1), `evidence/phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` (v2)
 
 ---
 
@@ -67,9 +67,9 @@ A thin per-role invocation wrapper belonged at the Phase 0 contingency / Phase 1
 `telemetry/runs.jsonl` currently has 12 rows, all Phase 3.2 (schema v2). Phase 2 wrote zero rows at the time. Phase 3's rows were overwritten. `telemetry/findings.jsonl` and `dispositions.jsonl` do not exist.
 
 **However, the data is reconstructable from committed artifacts:**
-- Phase 2: 5 envelopes in `phase-2/build-evidence/` + structured findings in `findings.md` = 5 runs.jsonl rows + 6 findings.jsonl rows
-- Phase 3: 13 envelopes in `phase-3/build-evidence/` + `gen-telemetry.py` (the auditable recipe) = 13 runs.jsonl rows
-- Phase 3.1: envelopes in `phase-3.1/build-evidence/` + `gen-telemetry.py` = additional rows
+- Phase 2: 5 envelopes in `evidence/phase-2/build-evidence/` + structured findings in `findings.md` = 5 runs.jsonl rows + 6 findings.jsonl rows
+- Phase 3: 13 envelopes in `evidence/phase-3/build-evidence/` + `gen-telemetry.py` (the auditable recipe) = 13 runs.jsonl rows
+- Phase 3.1: envelopes in `evidence/phase-3.1/build-evidence/` + `gen-telemetry.py` = additional rows
 
 **What it cost:** The §13 efficacy evaluation's system-of-record is incomplete, but the evidence inputs are partially recoverable. The gap is "missing SoR" not "missing evidence." Phase 6 calibration input (`first_seen_in_panel_position`) exists as prose in wiki entries and in `findings.md`, not yet in structured JSONL.
 

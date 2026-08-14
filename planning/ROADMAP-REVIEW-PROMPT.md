@@ -17,13 +17,13 @@ Read the following to understand the full arc:
 - `tools/README.md` and `tools/adapters/factory.py` — the adapter shim architecture
 - `telemetry/SCHEMA.md` — the data schema (now v2)
 - Every phase directory's README / RESULTS / BUILD-NOTES / ASSUMPTIONS:
-  - `phase-0/` — feasibility spike
-  - `phase-1/` — test-evidence vertical slice
-  - `phase-2/` — brief + plan approval
-  - `phase-3/` — execute the sprint (3 chunks, full adversarial loop)
-  - `phase-3.1/` — degraded loop spike (RESULTS.md)
-  - `phase-3.2/` — evidence provider (BUILD-NOTES.md, ASSUMPTIONS.md)
-  - `phase-3.3/` — visual/behavioral tier (SPIKE.md only, seed)
+  - `planning/phase-0/` — feasibility spike
+  - `planning/phase-1/` — test-evidence vertical slice
+  - `planning/phase-2/` — brief + plan approval
+  - `planning/phase-3/` — execute the sprint (3 chunks, full adversarial loop)
+  - `planning/phase-3.1/` — degraded loop spike (RESULTS.md)
+  - `planning/phase-3.2/` — evidence provider (BUILD-NOTES.md, ASSUMPTIONS.md)
+  - `planning/phase-3.3/` — visual/behavioral tier (SPIKE.md only, seed)
 - `telemetry/runs.jsonl` — the actual cost data (gitignored, local only)
 
 ### Phase 2: Dispatch sub-agents to audit each phase

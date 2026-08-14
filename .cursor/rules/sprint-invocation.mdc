@@ -67,7 +67,7 @@ recap; the README is the line-by-line install.)
   exec; do NOT commit. The gate prints `[dry-run] auto-decision:
   accept` and exits 0. The simulator's `COMPLETED · run_id=...`
   banner is NOT a real-verdict: it is a §7 silent-green shape
-  (see §15 in `phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
+  (see §15 in `planning/phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
   wiring test, not as proof that a chunk would land.
 - `--non-interactive` — bypass the reconcile gate stdin pause.
   The §5.3 machine-check still runs; refuse-on-blocker|high
