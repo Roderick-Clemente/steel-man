@@ -298,7 +298,12 @@ def test_chunk2a_runs_path_is_the_real_sor():
     history silently dropped. rc stays 0 throughout.
     """
     want = os.path.realpath(os.path.join(REPO_ROOT, _SOR_REL))
-    assert os.path.isfile(want), f"SoR missing: {want}"
+    if not os.path.isfile(want):
+        pytest.skip(
+            f"no {_SOR_REL} in this tree, so there is no SoR to check the "
+            "writer constants against; the SoR is gitignored and absent on "
+            "a fresh clone (spec §4.7)"
+        )
 
     for rel, const in sorted(_SOR_WRITERS.items()):
         module = _load(rel)
@@ -322,7 +327,13 @@ def test_chunk2a_sor_is_not_empty():
     If this file is ever empty, the non-shrinking check in §4.7 becomes
     vacuous and a dropped-history bug passes unnoticed.
     """
-    with open(os.path.join(REPO_ROOT, _SOR_REL), encoding="utf-8") as fh:
+    path = os.path.join(REPO_ROOT, _SOR_REL)
+    if not os.path.isfile(path):
+        pytest.skip(
+            f"no {_SOR_REL} in this tree, so there is no SoR to check for "
+            "rows; the SoR is gitignored and absent on a fresh clone (spec §4.7)"
+        )
+    with open(path, encoding="utf-8") as fh:
         rows = [ln for ln in fh if ln.strip()]
     assert len(rows) > 0, "telemetry SoR is empty; §4.7 row-count check is vacuous"
 

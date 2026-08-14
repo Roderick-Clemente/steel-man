@@ -30,6 +30,7 @@ ALLOWED_TOP_LEVEL = frozenset({
     "pilots",
     "planning",
     "pytest.ini",
+    "requirements.txt",
     "skills",
     "telemetry",
     "templates",
