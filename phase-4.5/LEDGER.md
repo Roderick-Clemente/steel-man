@@ -32,6 +32,11 @@ reproducible if the bytes are identified independently of the path.
 | `phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json` | `60ddbe11d7bbcff15ea88ab66405278bb89b8252053284ef1b90977809168b2b` | REJECT |
 | `phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-grok-4.5-envelope.json` | `6e374bd3df15cd4886f907008f83bddee5910fca2086964800fcc54b564a27b8` | ACCEPT-WITH-NITS |
 | `phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-gemini-3.1-pro-preview-envelope.json` | `a4d1d66224830c3de4f808c24f2b127e206a97d0adce5332f08f3d044d5ebdf4` | REJECT |
+| `phase-4.5/build-evidence/r-chunk1-code-r2-20260814-0130/code/review-grok-4.5-envelope.json` | `da66173ccd1ba3a0c403b14052698460bf4ab3cbc1af42456e94e66087bb3519` | ACCEPT-WITH-NITS |
+| `phase-4.5/build-evidence/r-chunk1-code-r2-20260814-0130/code/review-gemini-3.1-pro-preview-envelope.json` | `36a66fdf3e84d8a5b8948afa9e198e06aa3dc8bf6603af8c74b0406637fad82b` | BURNED (is_error,turns=0) |
+| `phase-4.5/build-evidence/r-chunk1-spec-v3-20260813-2140/spec/kimi-k3.json` | `7fbe3d93de57b8852001a03520ed73aa7b9e172085c6be21d179e05cebfa6f10` | REJECT |
+| `phase-4.5/build-evidence/r-chunk1-spec-v4-20260813-2255/spec/grok-4.5.json` | `1c80eae8258c8a1c04e653124a137b7b46a54f168c205ae17d1303a6aee3a0a1` | REJECT |
+| `phase-4.5/build-evidence/r-chunk1-spec-v5-20260813-2340/spec/grok-4.5.json` | `2dad5179756b2784fecabc1ce1b89612a5f9857e966a14d46fbd172eea0b2e79` | REJECT |
 
 ## Rows
 
@@ -169,12 +174,24 @@ not fire, does not post those row types, and does not sign.
 2026-08-14T00:20Z PLANNER: SELF-REPORTED DEFECT: id=SD-1 file=tests/test_layout_paths.py
   scope=planner-authored judge  severity=blocking  found_by=planner (running the builder's commit d5db8ff)
   The judge asserted "local_backend.py --help" exits 0. Given KI-1 that assertion was
-  UNSATISFIABLE on this interpreter: the chunk could never close green no matter what the
-  executor did. It survived authoring, a re-lock, and six reviewer rounds because the test was
-  RED for an earlier reason (missing constants, unrouted sites), so the assertion was never
-  evaluated. THIS IS THE VALID-RED BLIND SPOT: a RED test proves the assertions that fired,
-  and says NOTHING about assertions downstream of the first failure. An unsatisfiable
-  assertion is invisible until everything before it passes.
+  UNSATISFIABLE on Python < 3.10 (this interpreter: 3.9.6): the chunk could not close green
+  on this interpreter regardless of what the executor did. It survived authoring, a re-lock,
+  and six reviewer rounds because the test was RED for an earlier reason (missing constants,
+  unrouted sites), so the assertion was never evaluated. THIS IS THE VALID-RED BLIND SPOT:
+  a RED test proves the assertions that fired, and says NOTHING about assertions downstream
+  of the first failure. An unsatisfiable assertion is invisible until everything before it
+  passes.
+  CORRECTION (planner, pre-chunk-D1-2): SD-1 overstated itself. The defect was
+  environment-dependent, not universally unsatisfiable: the suite is 197 green at d5db8ff
+  on Python 3.12 (CI) where PEP-604 is valid, with the OLD un-gated judge in place. "Could
+  never close green" was true only for Python < 3.10, not in absolute terms. The fix (gating
+  exit-0 on sys.version_info >= (3,10)) was still correct and necessary — this interpreter
+  is a supported target — but the wording here overstated the scope.
+  SD-1's real finding is correct and worth keeping: a RED test attests only to the
+  assertions that actually fired, and says nothing about assertions downstream of the first
+  failure. PROPOSED AS A RULES AMENDMENT: a test that is RED for reason X provides no
+  evidence about assertions downstream of X; a chunk-close gate must not treat a RED suite
+  as evidence that downstream assertions are satisfiable.
   FIX: assert the thing that was actually meant — that the sprint_loop bootstrap RESOLVES
   (stderr must not carry ModuleNotFoundError/ImportError naming sprint_loop) — and gate the
   exit-0 assertion on sys.version_info >= (3,10), tolerating ONLY the KI-1 TypeError below
@@ -240,3 +257,160 @@ corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
   CHUNK-2-SPEC §2.2 module-level join (planner amendment, hard stop before Chunk 2);
   grok's low on segment-preserving phase_path (§2.2-mandated, not a defect).
   Chunk 2 NOT opened: gate is SPLIT, which is not an ACCEPT-class close.
+
+### Referee handoff: seat map, provenance, successor rulings
+
+```
+2026-08-14T06:00:00Z OPERATOR: REFEREE HANDOFF: predecessor=gpt-5.2 (openai-family) successor=deepseek (deepseek-family)
+  SEAT MAP (all five families distinct — first such configuration in this project):
+    builder     claude-opus-5   claude-family
+    planner     GLM 5.2         zhipu-family
+    referee     DeepSeek        deepseek-family
+    validators  kimi-k3         moonshot-family + minimax-m3  minimax-family
+  PROVENANCE: Rulings 1-4 were issued by a referee (gpt-5.2, openai-family) sharing
+  the planner's model family. The incoming referee (DeepSeek, deepseek-family) operates
+  under stronger independence. If a ruling is re-examined and decided differently, the
+  original text is in tools/RULINGS.md; the revision cites it explicitly rather than
+  replacing it.
+  NO DEGRADATION TO RECORD. The operator corrected the seat map before this referee
+  posted any rulings: referee and planner are family-distinct, so the same-family
+  degradation the predecessor was asked to record does not apply to this seat.
+
+2026-08-14T06:00:00Z REFEREE: REVIEW REQUEST ACK: chunk=chunk-D1-1-code commit=d5db8ff
+  paths=phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-grok-4.5-envelope.json,
+        phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-gemini-3.1-pro-preview-envelope.json
+  verdict_pending=SPLIT(grok=ACCEPT-WITH-NITS,gemini=REJECT)
+
+2026-08-14T06:00:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-1-code verdict=SPLIT
+  grok=ACCEPT-WITH-NITS gemini=REJECT jaccard=0.234 sessions_distinct=true
+  envelope_sha256_grok=6e374bd3df15cd4886f907008f83bddee5910fca2086964800fcc54b564a27b8
+  envelope_sha256_gemini=a4d1d66224830c3de4f808c24f2b127e206a97d0adce5332f08f3d044d5ebdf4
+  build_commit=d5db8ff judge_sha256=233eee9d0589d024e30dbe5c9fe02028ba358eeb732c0a83927c780748dec4a2
+  SPLIT does not close on the two-family rule (Ruling 4). Signature deferred pending
+  operator resolution.
+
+  AUDIT OF THE SPLIT (independent, reproducible):
+  1. Bytes identical for both reviewers. Verified:
+     - COMMANDS.md confirms both validators reviewed build d5db8ff, judge 233eee9d,
+       repo state at da68fd0 per round-1 COMMANDS.md.
+     - Build commit d5db8ff never touched the judge or lock: git diff 4b47ff3..d5db8ff
+       -- tests/test_layout_paths.py phase-1/locks/ is empty. Invariant #3 intact.
+     - Judge sha256 233eee9d matches HEAD file on disk (post-da68fd0 freeze-exception).
+  2. 197 tests pass at d5db8ff, 5cd2ac4, and HEAD per LEDGER rows.
+  3. gemini's only high: residual scan blind spots in the JUDGE, not the code.
+     Builder verification at bd70d10 proves zero residuals under a strictly stronger
+     matcher across all 9 routed files, with no false positives on the 6 telemetry-label
+     sites (§2.2 exclusions). This does not fix the judge — the builder correctly
+     refrained — but it proves the gate passed no defect that a stronger matcher would
+     have caught.
+  4. grok's ACCEPT-WITH-NITS concerns (shell value assertions, BUILD_EVIDENCE_REL not
+     value-asserted) all fall on the frozen judge (planner-owned) and CHUNK-2-SPEC
+     (also planner-owned), not on builder code.
+  5. The two builder-owned findings (gemini mediums: divergent _REL semantics, Windows
+     evidence backslash) are fixed at 5cd2ac4 per the builder's NITS ADDRESSED row.
+
+  RULING ON THE OVERRIDE: The grounds for an §8 operator override are all independently
+  verified and reproducible. An override is RATIONALLY DEFENSIBLE: gemini's high concerns
+  the judge matcher, not the code; the builder proved zero residuals under a stronger
+  matcher; the two builder-owned findings are fixed; grok's remaining findings are all
+  planner-owned. The referee does NOT issue the override — only the operator does under
+  §8. This ruling certifies that the override request is grounded in evidence, not in
+  self-review or paraphrase. The operator may issue:
+    OPERATOR: OVERRIDE §8 for chunk=chunk-D1-1-code. SPLIT overridden. Gate CLOSED.
+    Rationale: [cite items 1-5 above].
+  Token signing follows the override if issued.
+
+2026-08-14T06:00:00Z REFEREE: THREE PENDING REVIEWS CLOSED (LEDGER "Reviews pending a referee ruling")
+  All three are single-family rounds. Ruling 4: single-family rounds never close a gate.
+  My predecessor's housekeeping note at 2026-08-13T23:14:30Z already marked them as
+  "superseded by the dual-family spec-gate round." Formal close:
+    2026-08-13T22:14Z kimi-k3   chunk-D1-1-spec-v2  verdict=REJECT → SUPERSEDED (single-family)
+    2026-08-13T22:30Z grok-4.5  chunk-D1-1-spec-v3  verdict=REJECT → SUPERSEDED (single-family)
+    2026-08-13T22:41Z grok-4.5  chunk-D1-1-spec-v4  verdict=REJECT → SUPERSEDED (single-family)
+
+2026-08-14T06:00:00Z REFEREE: ENFORCEMENT: unhashed envelope paths
+  LEDGER cites 9 distinct envelope paths in the SHA MAP. 6 carry a sha256; 3 do not:
+    phase-4.5/build-evidence/r-chunk1-spec-v3-20260813-2140/spec/kimi-k3.json
+      sha256=7fbe3d93de57b8852001a03520ed73aa7b9e172085c6be21d179e05cebfa6f10
+    phase-4.5/build-evidence/r-chunk1-spec-v4-20260813-2255/spec/grok-4.5.json
+      sha256=1c80eae8258c8a1c04e653124a137b7b46a54f168c205ae17d1303a6aee3a0a1
+    phase-4.5/build-evidence/r-chunk1-spec-v5-20260813-2340/spec/grok-4.5.json
+      sha256=2dad5179756b2784fecabc1ce1b89612a5f9857e966a14d46fbd172eea0b2e79
+  PRECONDITION FOR chunk-D1-2: CHUNK-2-SPEC §2.1 relocates phase-4.5/build-evidence/ to
+  evidence/phase-4.5/ and phase-4.5/tokens/ to evidence/phase-4.5/tokens/. All envelope
+  paths in this LEDGER's SHA MAP (6 hashed + 3 now-hashed above) will become stale on
+  disk. §21 survives this because tokens attest to bytes and SHA MAP entries identify
+  bytes independently of path — but ONLY where the hash was recorded. All 9 paths now
+  carry sha256s. Token at phase-4.5/tokens/chunk-D1-1-code.token.json (which this
+  referee will write after override/token signing) must cite the relocated paths or
+  include identical sha256s so it remains resolvable post-move.
+
+2026-08-14T06:00:00Z REFEREE: ENFORCEMENT: struck credit claim (predecessor item a)
+  The claim attributed to grok as "zero false positives, zero missed functional sites"
+  appears in NO grok envelope and traces to the firing seat's own PROMPT.md:40. The
+  planner's errata (2026-08-13T23:30Z) already documented this as a misattribution.
+  The LEDGER's seat-independence caveat section relayed this phrase without quotation
+  marks. It is now STRIKEN from the caveat narrative. The grok envelope's actual words
+  are the explicit site list and the documentation-exclusion confirmation — narrower and
+  more precise than the claim they were cited for. Verdicts in this LEDGER now cite
+  only verified envelope content, not paraphrase.
+
+2026-08-14T06:00:00Z REFEREE: ENFORCEMENT: verdicts moved from spec (predecessor item b)
+  Commit 5906a79 recorded gate verdicts inside CHUNK-1-SPEC.md. The planner's errata
+  (2026-08-13T23:30Z) already retracted those and committed the fix at 3872a8a.
+  VERIFIED: grep for "VERDICT\|REVIEW COMPLETE\|VALIDATE COMPLETE" in
+  planning/layout-refactor/CHUNK-1-SPEC.md at HEAD returns zero matches. The spec is
+  now clean of review provenance. The normative content (MUST NOT on dirname depth,
+  authoritative-enumeration rule, paths.sh non-1:1 note) is retained as forward-looking
+  requirements. CONFIRMED RESOLVED.
+
+2026-08-14T06:00:00Z REFEREE: ENFORCEMENT: per-seat commit trailers
+  Every commit on factory/layout-refactor is authored by roderick.clemente +
+  Co-authored-by: factory-droid[bot], identically for planner specs, planner judge
+  tests, and builder code. Ruling 3's "firer != author" predicate therefore rests on
+  a self-declared line in COMMANDS.md rather than on verifiable git metadata.
+  REQUIRE: all subsequent commits on factory/layout-refactor MUST carry a
+  Seat: <seat> trailer, where <seat> is planner, builder, or referee.
+  Example:
+    Seat: planner
+  This makes the firer!=author predicate checkable by grep across the commit log
+  without depending on COMMANDS.md's self-declaration. Existing commits are NOT
+  required to be rewritten — they are grandfathered. This requirement takes effect
+  at the next commit after this LEDGER row.
+  The referee's own commits (including this LEDGER append) will carry:
+    Seat: referee
+
+2026-08-14T08:00:00Z PLANNER: CHUNK-2-SPEC §2.2 FIX (ITEM 1, unblocks builder)
+  §2.2 (lines 71-75) was unbuildable: SCRIPTS_ROOT/LOCKS_ROOT/EVIDENCE_CODE_ROOT
+  referenced `framework_root` (a phase_path() positional, not a module-level name) →
+  NameError at import. TOKENS_ROOT/PROMPTS_ROOT referenced EVIDENCE_ROOT/PLANNING_ROOT,
+  coupling the constants and risking root-doubling if phase_path() ever composes them
+  together. Fix: all constants are independent relative segments; change only the
+  VALUES. BUILD_EVIDENCE_REL and BUILD_EVIDENCE_DIR noted explicitly (REL unchanged;
+  DIR auto-flips via EVIDENCE_ROOT). grok flagged this independently. Builder was
+  idle waiting; this unblocks chunk-D1-2 execution.
+
+2026-08-14T08:00:00Z PLANNER: JUDGE MATCHER REVISION + RE-LOCK (ITEM 2, pre-chunk-D1-2 CLOSE gate)
+  tests/test_layout_paths.py: closed 5 blind spots in the residual scan matcher.
+  Blind spots: D (split-segment f-string), F (concat bare seg), I (variable holds
+  segment), J (os.sep.join list arg), L (PurePath constructor). Approach:
+    (1) Extended forbidden-substring check to evaluate JoinedStr and BinOp(Add)
+        static values → catches D, F (when both operands constant).
+    (2) Extended bare-segment-in-path-context to descend into List/Tuple args
+        (J), recognize PurePath/Path/PosixPath constructors (L), and track
+        variables assigned bare segments via _track_bare_segment_vars (I).
+    (3) Added a concat-chain bare-segment check for BinOp(Add) where one side
+        is a bare segment and the other is non-constant → catches the builder's
+        version of F (root + "phase-1" + "scripts").
+  AUTHORED BLIND, then compared with builder probe at bd70d10. Full agreement
+  on all 12 synthetic cases (A-L). One disagreement found during comparison:
+  the builder's case F (root + "phase-1" + "scripts") was not caught by my
+  initial check 1 + check 2 alone. Resolved by adding check (3). This
+  disagreement was worth more than either matcher alone — it exposed a gap
+  that a single-author matcher would have missed.
+  False-positive control verified: all 6 telemetry-label sites stay unflagged
+  (per_chunk.py:287, backends.py:197-198, sprint-loop.py:268/422/483,
+  orchestrate-review.py:459). Routed code: 0 residuals under the stronger
+  matcher across all 9 routed files.
+  Re-lock: 233eee9d → 10f9e780. Suite: 197 green on Python 3.9.6.
+  Interpreter: Python 3.9.6 (local). CI pins Python 3.12 where PEP-604 is valid.

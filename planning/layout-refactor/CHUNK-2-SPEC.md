@@ -66,14 +66,25 @@ refuses if any `phase-N/` directory is still tracked at top level.
 
 `tools/sprint_loop/config.py`: flip the constants to the new
 taxonomy paths (segment-preserving):
+Each constant is a RELATIVE SEGMENT, never an absolute path.
+`framework_root` is a `phase_path()` positional, not a module-level
+name — it is supplied at call time. Baking it into a constant is a
+NameError at import. The constants must also not reference each
+other (e.g. `os.path.join(EVIDENCE_ROOT, ...)`): that couples them
+and risks doubling the root if `phase_path()` ever composes
+`EVIDENCE_ROOT` and `TOKENS_ROOT` together. Keep the chunk-D1-1
+contract: each constant is an independent relative segment; change
+only the VALUES.
 - `EVIDENCE_ROOT` → `"evidence"`
 - `PLANNING_ROOT` → `"planning"`
-- `TOKENS_ROOT` → `os.path.join(EVIDENCE_ROOT, "phase-4.5", "tokens")` (relative to framework_root)
-- `PROMPTS_ROOT` → `os.path.join(PLANNING_ROOT, "phase-4.5", "prompts")`
-- `SCRIPTS_ROOT` → `os.path.join(framework_root, "tools", "phase-1-scripts")`
-- `LOCKS_ROOT` → `os.path.join(framework_root, "tools", "phase-1-locks")`
-- `EVIDENCE_CODE_ROOT` → `os.path.join(framework_root, "tools", "phase-3.2-evidence")`
-- `default_evidence_dir` composes `EVIDENCE_ROOT / "phase-4.5" / "build-evidence" / run_id` (segment-preserving)
+- `TOKENS_ROOT` → `os.path.join("evidence", "phase-4.5", "tokens")`
+- `PROMPTS_ROOT` → `os.path.join("planning", "phase-4.5", "prompts")`
+- `SCRIPTS_ROOT` → `os.path.join("tools", "phase-1-scripts")`
+- `LOCKS_ROOT` → `os.path.join("tools", "phase-1-locks")`
+- `EVIDENCE_CODE_ROOT` → `os.path.join("tools", "phase-3.2-evidence")`
+- `BUILD_EVIDENCE_REL` stays `os.path.join("phase-4.5", "build-evidence")` (bare segment, unchanged)
+- `BUILD_EVIDENCE_DIR` stays `os.path.join(EVIDENCE_ROOT, BUILD_EVIDENCE_REL)` (derived; auto-flips to `evidence/phase-4.5/build-evidence` when `EVIDENCE_ROOT` becomes `"evidence"`)
+- `default_evidence_dir` already composes `phase_path(framework_root, "evidence", "phase-4.5", "build-evidence", run_id)`; no change needed (segment-preserving)
 
 `tools/sprint_loop/paths.sh`: flip the shell constants to match.
 

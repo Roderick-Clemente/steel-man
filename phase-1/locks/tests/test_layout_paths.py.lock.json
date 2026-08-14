@@ -1,6 +1,6 @@
 {
   "file": "tests/test_layout_paths.py",
-  "sha256": "233eee9d0589d024e30dbe5c9fe02028ba358eeb732c0a83927c780748dec4a2",
-  "accepted_at": "2026-08-13T23:33:09.280132+00:00",
-  "accepted_assertion": "chunk-D1-1 judge tests; planner-authored; fix unsatisfiable --help exit-0 assertion (pre-existing PEP-604 under py3.9)"
+  "sha256": "10f9e780b8c40db6d0acf038c4d886faac538756424dd299d1209949e309e2bc",
+  "accepted_at": "2026-08-14T00:00:00.000000+00:00",
+  "accepted_assertion": "chunk-D1-1 judge tests; planner-authored; matcher revised pre-chunk-D1-2 to close 5 blind spots (D split-segment f-string, F concat bare seg, I variable holds segment, J os.sep.join list arg, L PurePath); authored blind then compared with builder probe bd70d10 — full agreement on all 12 cases; 197 green on Python 3.9.6"
 }

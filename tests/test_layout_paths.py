@@ -8,6 +8,17 @@ the executor raises ``BLOCKED:`` to the planner rather than editing.
 
 Implements CHUNK-1-SPEC.md §4.2 tests 1-3 exactly.
 
+Matcher revision (planner, pre-chunk-D1-2): the original residual scan
+had 5 blind spots — split-segment f-strings (D), bare-segment
+concatenation (F), segments held in variables (I), os.sep.join with a
+list arg (J), and PurePath constructors (L).  Chunk 1 was safe under
+the weak scan because no files moved; a missed site still resolved.
+Chunk 2 runs ``git mv``, so a missed site BREAKS.  The matcher is
+strengthened here to close all 5 blind spots while preserving
+false-positive control on the 6 legitimate telemetry-label sites.
+Authored blind (before comparing with the builder's independent probe
+at bd70d10); see the commit message for the comparison result.
+
 Every path is resolved from this file's own location, never from the
 process CWD. The constants under test are relative segments by design
 and pytest's CWD is the invocation directory, not rootdir, so a
@@ -99,8 +110,75 @@ _BARE_SEGMENT = re.compile(r"^phase-\d+(?:\.\d+)?$")
 # literal is legitimate as a telemetry/HMAC label (per_chunk.py:287,
 # backends.py:197-198, sprint-loop.py:268,422,483, orchestrate-review.py:459),
 # which CHUNK-1-SPEC §2.2 explicitly excludes from the inventory. So the
-# check is scoped to os.path.join arguments and pathlib / operands rather
-# than applied to every bare segment in the file.
+# check is scoped to path-construction contexts rather than applied to
+# every bare segment in the file.
+
+# pathlib constructors whose positional args are path segments.
+_PATHLIKE_CONSTRUCTORS = frozenset({"PurePath", "Path", "PosixPath", "WindowsPath"})
+
+
+def _eval_static_string(node: ast.AST) -> str | None:
+    """Best-effort static evaluation of a string-producing expression.
+
+    Returns the string value if *node* is a constant string, an f-string
+    whose formatted values are themselves constant, or a ``+``
+    concatenation of constant strings.  Returns ``None`` when the value
+    cannot be determined at compile time (e.g. a variable, a non-constant
+    formatted value, or a non-string expression).
+
+    Recursive so nested concatenations and f-strings-inside-f-strings
+    are handled.  When a FormattedValue's inner expression is
+    non-constant, the inner value is treated as the empty string — the
+    remaining literal parts are still concatenated, which is sufficient
+    to catch a forbidden substring that lives entirely in the literal
+    parts (the common split-segment f-string case).
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for val in node.values:
+            if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                parts.append(val.value)
+            elif isinstance(val, ast.FormattedValue):
+                inner = _eval_static_string(val.value)
+                if inner is not None:
+                    parts.append(inner)
+        return "".join(parts)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _eval_static_string(node.left)
+        right = _eval_static_string(node.right)
+        if left is not None and right is not None:
+            return left + right
+        return None
+    return None
+
+
+def _track_bare_segment_vars(tree: ast.AST) -> dict[str, str]:
+    """Map variable names to bare-segment values they were assigned.
+
+    Scans every ``Assign`` in the tree (module-level and function-level)
+    for a target whose value is a string constant matching
+    ``_BARE_SEGMENT``.  Returns ``{var_name: segment_value}``.
+
+    Conservative by design: a variable that is ever assigned a bare
+    segment is tracked, even if it is reassigned elsewhere.  This only
+    matters when the variable is subsequently found in a
+    path-construction context (check 2), so a label assignment that is
+    never used in a path context produces no hit.
+    """
+    seg_vars: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        val = node.value
+        if not (isinstance(val, ast.Constant) and isinstance(val.value, str)
+                and _BARE_SEGMENT.match(val.value)):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                seg_vars[target.id] = val.value
+    return seg_vars
 
 
 def _docstring_nodes(tree: ast.AST) -> set[int]:
@@ -138,11 +216,17 @@ def _is_constant_target(name: str, is_config_module: bool) -> bool:
 
 
 def _constant_definition_nodes(tree: ast.AST, is_config_module: bool) -> set[int]:
-    """ids of Constant nodes inside a module-level path-constant Assign.
+    """ids of ALL nodes inside a module-level path-constant Assign.
 
     This is the mechanical exemption anchor. A by-name or by-line
     exemption would be the same drift-prone class as a line-keyed
     assertion, so structure is used instead.
+
+    Collecting *all* node ids (not just Constants) means f-strings
+    and concatenations that form a constant's value are also skipped
+    by the forbidden-substring check, preventing a JoinedStr or
+    BinOp(Add) inside a ``TOKENS_ROOT = ...`` definition from being
+    double-flagged as a residual.
     """
     found: set[int] = set()
     for node in getattr(tree, "body", []):
@@ -152,81 +236,173 @@ def _constant_definition_nodes(tree: ast.AST, is_config_module: bool) -> set[int
         if not any(_is_constant_target(t, is_config_module) for t in targets):
             continue
         for sub in ast.walk(node.value):
-            if isinstance(sub, ast.Constant):
-                found.add(id(sub))
+            found.add(id(sub))
     return found
 
 
 def _is_path_join_call(node: ast.AST) -> bool:
-    """Is this a call to os.path.join / os.path.sep.join / posixpath.join?"""
+    """Is this a call to os.path.join / os.sep.join / posixpath.join?"""
     if not isinstance(node, ast.Call):
         return False
     func = node.func
     return isinstance(func, ast.Attribute) and func.attr == "join"
 
 
-def _bare_segment_constants_in_path_context(tree: ast.AST) -> list[ast.Constant]:
+def _is_pathlike_constructor(node: ast.AST) -> bool:
+    """Is this a call to PurePath / Path / PosixPath / WindowsPath?"""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _PATHLIKE_CONSTRUCTORS
+    )
+
+
+def _check_arg_for_bare_segment(
+    arg: ast.AST,
+    seg_vars: dict[str, str],
+    skip: set[int],
+) -> list[str]:
+    """Check one argument (or list/tuple element) for bare-segment hits.
+
+    Handles three shapes:
+      * ``ast.Constant`` — a literal bare segment (skip if inside a
+        constant definition).
+      * ``ast.Name`` — a variable that was tracked as holding a bare
+        segment.
+      * ``ast.List`` / ``ast.Tuple`` — descend into elements (needed
+        for ``os.sep.join(["phase-1", "scripts"])`` where the segments
+        sit in a list literal, not as direct call args).
+    """
+    if id(arg) in skip:
+        return []
+    hits: list[str] = []
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and _BARE_SEGMENT.match(arg.value):
+        hits.append(f"line {arg.lineno}: bare segment {arg.value!r} in path composition")
+    elif isinstance(arg, ast.Name) and arg.id in seg_vars:
+        hits.append(
+            f"line {arg.lineno}: bare segment {seg_vars[arg.id]!r} "
+            f"(via variable {arg.id!r}) in path composition"
+        )
+    elif isinstance(arg, (ast.List, ast.Tuple)):
+        for elt in arg.elts:
+            hits.extend(_check_arg_for_bare_segment(elt, seg_vars, skip))
+    return hits
+
+
+def _bare_segment_hits_in_path_context(
+    tree: ast.AST,
+    seg_vars: dict[str, str],
+    skip: set[int],
+) -> list[str]:
     """Bare phase-dir segments used to CONSTRUCT a path.
 
-    Covers the two composition idioms in this repo:
+    Covers five composition idioms:
       * ``os.path.join(root, "phase-1", "scripts", ...)``  -> Call args
+      * ``os.sep.join(["phase-1", "scripts"])``            -> List elements
       * ``Path(root) / "phase-1" / "scripts"``             -> BinOp(Div)
+      * ``PurePath(root, "phase-1", "scripts")``           -> Constructor args
+      * ``seg = "phase-1"; os.path.join(root, seg, ...)``  -> Tracked variable
 
     Excludes bare segments used as labels, which is why the scan is
     context-scoped instead of matching every ``phase-N`` literal.
     """
-    found: list[ast.Constant] = []
+    hits: list[str] = []
 
     for node in ast.walk(tree):
-        if _is_path_join_call(node):
+        if _is_path_join_call(node) or _is_pathlike_constructor(node):
             for arg in node.args:
-                if (
-                    isinstance(arg, ast.Constant)
-                    and isinstance(arg.value, str)
-                    and _BARE_SEGMENT.match(arg.value)
-                ):
-                    found.append(arg)
+                hits.extend(_check_arg_for_bare_segment(arg, seg_vars, skip))
         elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             for side in (node.left, node.right):
-                if (
-                    isinstance(side, ast.Constant)
-                    and isinstance(side.value, str)
-                    and _BARE_SEGMENT.match(side.value)
-                ):
-                    found.append(side)
+                hits.extend(_check_arg_for_bare_segment(side, seg_vars, skip))
 
-    return found
+    return hits
 
 
 def _residual_phase_literals(abs_path: str) -> list[str]:
-    """Executable-code string literals still naming a phase dir.
+    """Executable-code string expressions still naming a phase dir.
 
     Comments never appear in the AST, which exempts them mechanically.
     Docstrings and the constant definitions themselves are skipped.
+
+    Two complementary checks:
+
+    (1) Forbidden-substring check — any string-producing expression
+        whose static value contains a joined forbidden path (e.g.
+        ``"phase-1/scripts"``, ``f"{root}/phase-4.5/tokens"``,
+        ``"phase-1" + "/scripts"``).  Covers plain literals (B),
+        static f-strings (C), split-segment f-strings (D),
+        concatenations (E, F), percent-format (G), and .format() (H).
+
+    (2) Bare-segment-in-path-context check — a bare ``"phase-N"``
+        literal or a variable holding one, found inside a
+        path-construction call or operator.  Covers os.path.join
+        args (A), pathlib ``/`` (K), os.sep.join list elements (J),
+        PurePath constructor args (L), and tracked variables (I).
     """
     with open(abs_path, "r", encoding="utf-8") as fh:
         tree = ast.parse(fh.read(), filename=abs_path)
 
     is_config_module = os.path.basename(abs_path) == "config.py"
     skip = _docstring_nodes(tree) | _constant_definition_nodes(tree, is_config_module)
+    seg_vars = _track_bare_segment_vars(tree)
 
     hits: list[str] = []
 
-    # (1) literals that already contain a joined path, e.g. help text and
-    #     "phase-1/scripts/verify-green.py"
+    # (1) string expressions whose static value contains a forbidden
+    #     joined path.  Extended beyond plain Constants to f-strings
+    #     (JoinedStr) and + concatenations (BinOp.Add) so that
+    #     split-segment and concat idioms are caught.
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Constant) or id(node) in skip:
-            continue
-        if not isinstance(node.value, str):
-            continue
-        if any(bad in node.value for bad in _FORBIDDEN_SUBSTRINGS):
-            hits.append(f"line {node.lineno}: {node.value!r}")
+        if isinstance(node, ast.Constant):
+            if id(node) in skip or not isinstance(node.value, str):
+                continue
+            if any(bad in node.value for bad in _FORBIDDEN_SUBSTRINGS):
+                hits.append(f"line {node.lineno}: {node.value!r}")
+        elif isinstance(node, ast.JoinedStr):
+            if id(node) in skip:
+                continue
+            val = _eval_static_string(node)
+            if val is not None and any(bad in val for bad in _FORBIDDEN_SUBSTRINGS):
+                hits.append(f"line {node.lineno}: f-string evaluates to {val!r}")
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            if id(node) in skip:
+                continue
+            val = _eval_static_string(node)
+            if val is not None and any(bad in val for bad in _FORBIDDEN_SUBSTRINGS):
+                hits.append(f"line {node.lineno}: concat evaluates to {val!r}")
 
-    # (2) bare segments passed into a path composition
-    for node in _bare_segment_constants_in_path_context(tree):
+    # (2) bare segments (or variables holding them) inside
+    #     path-construction contexts.
+    hits.extend(_bare_segment_hits_in_path_context(tree, seg_vars, skip))
+
+    # (3) bare segments in + concatenation chains.
+    #     Catches ``root + "phase-1" + "scripts"`` where check 1 cannot
+    #     fold the full value (root is non-constant) and check 2 does
+    #     not treat BinOp(Add) as a path-construction call.  The
+    #     segment may carry leading/trailing slashes (``"/phase-1"``)
+    #     so the match is against the slash-stripped value.
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Add):
+            continue
         if id(node) in skip:
             continue
-        hits.append(f"line {node.lineno}: bare segment {node.value!r} in path composition")
+        for side in (node.left, node.right):
+            if id(side) in skip:
+                continue
+            if isinstance(side, ast.Name):
+                if side.id in seg_vars:
+                    hits.append(
+                        f"line {node.lineno}: bare segment "
+                        f"{seg_vars[side.id]!r} (via variable "
+                        f"{side.id!r}) in concat"
+                    )
+            else:
+                val = _eval_static_string(side)
+                if val is not None and _BARE_SEGMENT.match(val.strip("/")):
+                    hits.append(
+                        f"line {node.lineno}: bare segment {val!r} in concat"
+                    )
 
     return sorted(set(hits))
 
