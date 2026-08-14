@@ -506,8 +506,15 @@ moved scripts against fixtures** + the path-existence test.
 **Verify (§11 — checked, not assumed):**
 
 1. `python3 tools/wiki-link-audit.py` → green (no dead links).
-2. `python3 -m pytest -q` → 198 tests green (197 from chunks 1-3 +
-   1 new path-existence test from chunk 4).
+2. `python3 -m pytest -q` → measured baseline green + 1 new
+   path-existence test from chunk 4.
+
+   **Erratum (both Tier-2 reviewers, chunk-D1-4-code gate).** "198
+   tests" predates chunks 2, 2a, and 3, which together added 40 judge
+   tests (3+23+14) plus independent base-suite growth. Measured at the
+   chunk-D1-4 close: **239 collected, 236 passed, 3 skipped, 0
+   failed.** Do not hand-type this figure on a future chunk either —
+   measure it, per §7.
 3. **Direct real script invocations** (the core exit check — proves
    the moved scripts work at their new paths, not dry-run):
    a. `python3 tools/phase-1-scripts/lock.py
@@ -621,15 +628,23 @@ D1 closes successfully iff **all** hold:
 3. Top-level `phase-0` … `phase-5` directories no longer exist;
    `evidence/` and `planning/<phase>/` do; `tools/phase-N-*/`
    subdirs exist for the moved code.
-4. `python3 -m pytest -q` reports 198 tests, all green (194
-   pre-existing + 3 from `tests/test_layout_paths.py` + 1 new from
-   Chunk 4).
+4. `python3 -m pytest -q` reports the current baseline, all green.
 
-   **Attribution correction.** The 3 tests are Chunk 1's *judge*, but
-   they land in a **planner** commit before `chunk-D1-1` opens, not in
-   the Chunk 1 commit — per framework invariant #3 the executor of a
-   chunk must not author the tests that grade it. The total is
-   unchanged at 198. Between the planner's commit and Chunk 1's close
+   **Erratum (both Tier-2 reviewers, chunk-D1-4-code gate; verified at
+   the actual D1 close below).** "198 tests (194 pre-existing + 3 from
+   `tests/test_layout_paths.py` + 1 new from Chunk 4)" predates chunks
+   2, 2a, and 3, which together added 40 more judge tests (3+23+14)
+   plus independent base-suite growth, and Chunk 4's own test landed
+   in its own locked file rather than as a 4th test in Chunk 1's judge
+   (F-A, `tests/test_layout_paths_chunk4.py`). Measured at D1 close:
+   **239 collected, 236 passed, 3 skipped, 0 failed.** Do not
+   hand-type this figure on the next track either — measure it.
+
+   **Attribution correction, still accurate.** The 3 tests are Chunk
+   1's *judge*, but they land in a **planner** commit before
+   `chunk-D1-1` opens, not in the Chunk 1 commit — per framework
+   invariant #3 the executor of a chunk must not author the tests that
+   grade it. Between the planner's commit and Chunk 1's close
    the suite is a **valid RED at 3 failed / 194 passed**; that RED is
    the expected state, not a regression, and Chunk 1's exit is those
    3 flipping green with no others broken.

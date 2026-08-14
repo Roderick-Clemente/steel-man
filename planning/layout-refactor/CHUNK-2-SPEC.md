@@ -147,6 +147,16 @@ only the VALUES.
 7. Commit with message `chunk-2: git mv phase dirs to taxonomy homes + flip constants + fix linters`.
 8. Push to `origin/factory/layout-refactor`.
 
+   **Closed-spec erratum (both Tier-2 reviewers, chunk-D1-4-code
+   gate).** `origin` (`Roderick-Clemente/adversarial-sprint`) does not carry
+   this branch; `dev` (`Roderick-Clemente/adversarial-sprint-dev`) is
+   the working remote, per the chunk-D1-1 operator decision.
+   chunk-D1-2 is already closed and pushed under the correct remote,
+   so there is no live risk — recorded here only because the text
+   above is what a future spec drafted from this one as a template
+   would copy. CHUNK-3-SPEC.md and CHUNK-4-SPEC.md already carry the
+   corrected remote.
+
 ## 4. Verify (§11 exit checks)
 
 ### 4.1 Full suite green
