@@ -191,6 +191,17 @@ def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
         cwd=str(_REPO), capture_output=True, text=True, check=True,
     )
     matches = [line for line in sha_proc.stdout.split() if line]
+    if not matches:
+        shallow = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=str(_REPO), capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if shallow == "true":
+            pytest.skip(
+                "shallow clone (git rev-parse --is-shallow-repository=true): "
+                "the chunk-13 fixture commit is not fetched, so there is "
+                "nothing to replay against in this checkout"
+            )
     assert matches, (
         f"chunk-13 fixture commit not found by subject: "
         f"{CHUNK_13_FIXTURE_SUBJECT!r}"
