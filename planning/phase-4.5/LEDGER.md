@@ -1109,4 +1109,24 @@ them.
   supposed to identify them. Written by the phase-3.2 review tooling, not by anything
   this chunk touched, so it is recorded and not fixed — sibling to F7. Recommend it as a
   named chunk-3+ target alongside F5, F6 and F7.
+
+2026-08-14T06:10:00Z REFEREE: JUDGE RE-RATIFIED: chunk=chunk-D1-2a (amended)
+  file=tests/test_layout_paths_chunk2a.py
+  prior=3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f
+  amended=7289ca0967095fb4f9f2d45daf4637da77d556048e5a59664532d665fd89691c
+  lock=tools/phase-1-locks/tests/test_layout_paths_chunk2a.py.lock.json
+  patch=planning/layout-refactor/CHUNK-2a-JUDGE-AMENDMENT.patch
+  suite=22-passed-1-failed (23 tests, up from 16)
+  kimi-k3's three blockers addressed with behavioral checks:
+    1. test_chunk2a_emitted_envelope_paths_resolve — write-intercepting probe resolves
+       emitted envelope_path values and asserts isfile() on each.
+    2. test_chunk2a_gen_findings_opens_use_anchored_root — white-list of allowed
+       anchored roots checked per open() call.
+    3. test_chunk2a_lock_py_default_locks_dir_is_locks_root — now evaluates the
+       argparse default and asserts realpath equality with REPO_ROOT/LOCKS_ROOT.
+  KNOWN 1-FAILURE: test_chunk2a_emitted_envelope_paths_resolve[reconstruct-telemetry]
+  fires its vacuity guard — all emitted paths already exist in the SoR (saturated from
+  prior pipeline runs). The 54 old-prefix SoR paths that do not resolve are carried rows.
+  The test correctly refuses to pass vacuously. Not a judge defect.
+  Builder released for re-fire.
 ```
