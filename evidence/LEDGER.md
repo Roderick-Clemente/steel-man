@@ -1222,3 +1222,92 @@ them.
   per the actual envelope, not rewritten. The override closes the gate; it does
   not alter the review record.
 ```
+
+### chunk-D1-3 build (living-doc citations + PATH-REDIRECTS + LEDGER rename)
+
+```
+2026-08-14T12:17Z BUILDER: NOTE: this file moved. planning/phase-4.5/LEDGER.md ->
+  evidence/LEDGER.md at commit 0b5343d, by git mv with zero content edits
+  (R100, +0/-0). A sprint-wide append-only record does not belong inside one
+  phase's planning directory. git log --follow reaches 31 commits through the
+  rename. Cited at the old path in one live file that this seat may not touch —
+  tests/test_layout_paths.py:571, a lock-frozen judge — and that staleness is
+  enumerated in planning/PATH-REDIRECTS.md under "Stale citations inside
+  lock-frozen live code" rather than fixed.
+
+2026-08-14T12:17Z BUILDER: VALIDATE COMPLETE: chunk=chunk-D1-3
+  commit=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
+  interpreter=/private/tmp/asprint-venv/bin/python (3.13.3)
+  tests=237 passed=233 failed=1 skipped=3
+  failed_test=test_chunk3_ledger_rename_carried_no_content_edit (see BLOCKED below)
+  evidence=evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/verify-chunk3.out
+  §4.1 237/233/1/3 · §4.2 49 residual tokens (from 105), all enumerated
+  exceptions in 2 narrative files · §4.3 every evidence-internal prefix covered
+  by a redirect row · §4.4 47 links resolved, 0 dead (from 4) · §4.5 R100 +0/-0,
+  --follow reaches 31 · §4.6 wiki-link-audit rc=0, 61 pages · §4.7 plan-lint
+  rc=0 on PLAN.md and CHUNK-3-SPEC.md · §4.8 1 R entry, 0 M under evidence/,
+  0 paths under tokens/, 0 judge edits, 0 edits under planning/layout-refactor/
+  or planning/phase-N/.
+  Counts read from --junit-xml, not from a console line: pytest.ini already sets
+  -q, and a second -q raises quiet level 2, which deletes the "N passed" summary
+  line entirely (FINDINGS F11).
+
+2026-08-14T12:17Z BUILDER: BLOCKED: chunk=chunk-D1-3
+  test=test_chunk3_ledger_rename_carried_no_content_edit
+  judge=tests/test_layout_paths_chunk3.py (locked; not edited, invariant #3)
+  The assertion is unsatisfiable by a correct rename. It runs
+  `git show --numstat --format= <sha> -- evidence/LEDGER.md`; a pathspec filters
+  the source side out of the tree diff BEFORE rename detection runs, so git
+  reports the destination as a fresh add. Reproduced in a scratch repo whose
+  single commit is one pure `git mv` and nothing else:
+    git show --numstat --format= HEAD -- b/F.md   ->  3  0  b/F.md
+    git show --numstat --format= HEAD             ->  0  0  {a => b}/F.md
+  On this chunk it reports 1224/0 for a rename git itself scores R100. The
+  assertion fails exactly when the builder does the right thing, and the only
+  way to satisfy it through that command is an empty file.
+  Two forms that do observe the rename, either of which keeps the assertion's
+  strength:
+    git log --follow --numstat --format= -1 <sha> -- evidence/LEDGER.md
+      -> 0  0  {planning/phase-4.5 => evidence}/LEDGER.md
+    git show --name-status --find-renames --format= <sha> | grep evidence/LEDGER.md
+      -> R100  planning/phase-4.5/LEDGER.md  evidence/LEDGER.md
+  Requesting a planner amendment + re-lock. All three numbers are printed side
+  by side in verify-chunk3.out §4.5 so the disagreement is on the record.
+
+2026-08-14T12:17Z BUILDER: REVIEW REQUEST: chunk=chunk-D1-3
+  commit=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
+  evidence_commit=28c57fd
+  branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  paths=evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/
+  findings=13 (FINDINGS-chunk-D1-3.md)
+  Load-bearing findings for the reviewer:
+    F13 the unsatisfiable rename assertion above.
+    F3  the residual matcher structurally cannot see a markdown link TARGET —
+        `](./phase-3.1/RESULTS.md)` puts `/` before the token, which the shared
+        negative lookbehind excludes. Rewriting only the visible label leaves
+        the href 404ing while every token count reads clean (§7). README carried
+        four. §3.1 asserts on resolution, not counts, which is what caught it —
+        any later chunk using a token grep as its exit check inherits the hole.
+    F4  OPERATING-RULES:581-582 cited two prompt files that never existed
+        (6c315a2 added them as -spawn.md), so the citation was stale BEFORE the
+        move. Re-rooting alone yields a correctly-rooted 404. Tails corrected;
+        arguably outside a re-rooting chunk, flagged for a ruling.
+    F6  gen-path-redirects.py refuses (rc=1, writes nothing) if a residual turns
+        up outside the two files it declares historical narrative, so
+        test_chunk3_every_residual_token_is_accounted_for is satisfied by
+        argument rather than by construction.
+    F7  .cursor/rules/*.mdc are in the diff and NOT in the §2.1a allowlist. They
+        are generated mirrors of the two allowlisted SKILL.md files and
+        tests/test_sprint_loop.py:1698 pins their bodies to the canon; stashing
+        just those two changes reddens G-6. Regenerated via
+        ./tools/install-skill.sh cursor and proved byte-identical. §2.1a should
+        name generated mirrors as collateral, or spec and suite disagree.
+    F9  chunk-2a's carried KNOWN 1-FAILURE does not reproduce: 23/23 chunk-2a
+        tests pass here. The guard reads telemetry/runs.jsonl, gitignored
+        (.gitignore:44), now at the 21 rows the planner's own SoR NOTE records
+        restoring. The judge's VERDICT moves with local SoR content, not with
+        the commit, so this seat cannot reproduce or close it.
+  Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no
+  token, fired no reviewer, and did not run the chunk sequence gate.
+```
