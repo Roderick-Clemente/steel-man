@@ -511,4 +511,33 @@ BLOCKED: chunk=chunk-D1-2 seat=builder commit=409c62c judge=10f9e780
   ast.Name.func, not covered by _is_path_join_call or _is_pathlike_constructor). Correctly
   classified as low severity — current build does not exploit it; should be raised at
   chunk-D1-2 review. Forward-invariant for the planner to address.
+
+2026-08-14T05:30:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-1-code (re-fire, round 3)
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=7e99236fe726b074272db13d37fbd1fb8ce9721b150bf19828ab406c9bc73257
+  envelope_sha256_minimax=5dc442aed8e5cd7dd5c35e2b6f2377e0bb9523dedbb55c9564d3270246605f1d
+  build_commit=d5db8ff judge_sha256=10f9e780 prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+  AUDIT: envelopes on disk match LEDGER sha256s. Both is_error=False, real verdicts in
+  result body. Sequential firing confirmed (COMMANDS.md). Same PROMPT.md bytes as round 1.
+  Families distinct from each other and from planner/builder/referee. §17.2 and Ruling 4
+  satisfied: two ACCEPT-class verdicts from two distinct families on the same bytes.
+  GATE CLOSES.
+  TOKEN SIGNING: deferred. EVIDENCE_SIGNING_KEY is unset. The operator must set it and
+  confirm the close commit (d5db8ff per validators; or 5cd2ac4 including the addressed
+  nits; or cae00ed as the latest on the branch). Invocation once key is set:
+    python3 tools/sign_chunk_token.py sign \
+      --chunk-id chunk-D1-1-code \
+      --chunk-commit-sha <operator-chosen-sha> \
+      --reviewers-json '[{"family":"moonshot-family","model_id":"kimi-k3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"7e99236fe726b074272db13d37fbd1fb8ce9721b150bf19828ab406c9bc73257"},{"family":"minimax-family","model_id":"minimax-m3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"5dc442aed8e5cd7dd5c35e2b6f2377e0bb9523dedbb55c9564d3270246605f1d"}]' \
+      --signed-by "DeepSeek (deepseek-family)" \
+      --out phase-4.5/tokens/chunk-D1-1-code.token.json
+
+2026-08-14T05:30:00Z REFEREE: ACK BLOCKED: chunk=chunk-D1-2 at 409c62c.
+  The planner's judge (10f9e780) asserts old path values literally and cannot survive
+  the Chunk 2 value flip. This is a planner-owned artifact. The referee does not fix
+  it — framework invariant #3. The planner must re-author the locked test for Chunk 2
+  surface before the builder can proceed. The builder's incompatibility analysis at
+  phase-4.5/build-evidence/r-chunk2-builder-blocked-20260813/judge-incompatibility.md
+  is the correct handoff document.
 ```
