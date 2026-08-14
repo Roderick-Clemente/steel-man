@@ -41,6 +41,8 @@ reproducible if the bytes are identified independently of the path.
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-minimax-m3-envelope.json` | `9221eef14a5cfcaca54aca6a969838702c7c9e2607c9efd6d57113392777b8db` | ACCEPT-WITH-NITS |
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-kimi-k3-envelope.json` | `ed9a1e707a090e0b805befe3498c67ff0fae7232f2fd04bc7d7a358c7c7bfec5` | REJECT |
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-minimax-m3-envelope.json` | `d4b8f2a90009ccab245d75fccf03b20feefdb605ba396af9cae5551185999610` | ACCEPT |
+| `evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-kimi-k3-envelope.json` | `e6b317ca106de167a5f41e90d0dfc232f5cdab16dc39ce3463e04dd0c67ce72c` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-minimax-m3-envelope.json` | `8787963fa719bcc61c390d486ddff50c6011223220b3b934a233a7558dcd9d34` | ACCEPT-WITH-NITS |
 
 ## Rows
 
@@ -1418,4 +1420,45 @@ them.
           markdown-link-target blind spot. Exit checks must resolve links, not count tokens.
   Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no token under
   evidence/phase-4.5/tokens/, fired no reviewer, and did not run the chunk sequence gate.
+```
+
+### chunk-D1-3 CODE gate (build commit 0b5343d)
+
+```
+2026-08-14T12:28Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-3-code commit=0b5343ddcc2b2929a29677bf8339af39c4cd2cc7
+  judge_sha256=5c66bcfc1b42c6fe1d07376ee899f4fd9d98f4909acce761710f3bd3e1ad3362
+  paths=evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3) branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=bafba8052027ef231d882d42e79d744d1969cfbbe61a1e3cd96e910e6b79438b
+  Prompt template authored by planner at planning/layout-refactor/CHUNK-3-VALIDATOR-PROMPT.md.
+  <BUILD_COMMIT> -> 0b5343d. Same PROMPT.md bytes for both validators per §23.
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired with --skip-permissions-unsafe (first kimi-k3 attempt at --auto high
+  returned error: insufficient permission, 0 turns, session 2c93ef1d; re-fired per the
+  error message's own instruction). See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  GATE CLOSES: two ACCEPT-class verdicts from two distinct families per Ruling 4.
+
+2026-08-14T12:28Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-3-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-kimi-k3-envelope.json
+  envelope_sha256=e6b317ca106de167a5f41e90d0dfc232f5cdab16dc39ce3463e04dd0c67ce72c
+  session_id=734e4735-534f-4136-956f-7b319e2f05a5 verdict=ACCEPT-WITH-NITS turns=41
+  duration_ms=625103 stderr=empty
+  prompt_sha256=bafba8052027ef231d882d42e79d744d1969cfbbe61a1e3cd96e910e6b79438b
+  key_findings=nits about stale 144/76 statistic and fan-out nested-file gap.
+  F1/F2 classifications confirmed correct. F4 legitimate widening. F9 real risk.
+  No blockers. First ACCEPT-class verdict from kimi-k3 across all chunk gates.
+
+2026-08-14T12:38Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-3-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-minimax-m3-envelope.json
+  envelope_sha256=8787963fa719bcc61c390d486ddff50c6011223220b3b934a233a7558dcd9d34
+  session_id=440f43a2-62d1-4a50-950f-a485af42a34d verdict=ACCEPT-WITH-NITS turns=99
+  duration_ms=600209 stderr=empty
+  prompt_sha256=bafba8052027ef231d882d42e79d744d1969cfbbe61a1e3cd96e910e6b79438b
+  key_findings=5 new findings all severity <= low: cosmetic-prose/arithmetic drift,
+  strict §6 reading of builder-bundle writes, prompt/judge artifacts. No blockers.
+  Suite 234+3 confirmed. §5 hard stop enforced. Scope: 1R, 6A, 15M, 0 token writes.
+```
 ```

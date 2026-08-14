@@ -1,0 +1,1915 @@
+diff --git a/.cursor/rules/adversarial-sprint.mdc b/.cursor/rules/adversarial-sprint.mdc
+index 5f56cd5..61e7a15 100644
+--- a/.cursor/rules/adversarial-sprint.mdc
++++ b/.cursor/rules/adversarial-sprint.mdc
+@@ -74,7 +74,7 @@ agent makes.
+     chunk-close token's reviewer `envelope_sha256` MUST be computed
+     from a real reviewer envelope on disk (the SHA of a fired
+     `droid exec` output written to
+-    `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
++    `evidence/phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
+     Build-time fixture markers — homogeneous leading-character hex
+     runs, typed-in placeholders, "5555...55501"-style tokens — fail
+     `tools/cross_family_review.py`'s envelope-authenticity check
+@@ -82,7 +82,7 @@ agent makes.
+     distance: the operator-side `chunk-N.token.json` IS the review,
+     and a token without a verifier-traceable envelope is a
+     self-declaration, not a verdict. Tier-3 fix: an off-process
+-    signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
++    signing daemon (`planning/phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
+     POSTs envelope paths to; the daemon holds the key and refuses
+     if any envelope is absent on disk.
+ 11. **Author is not the verifier, even within the same model-family
+@@ -91,13 +91,13 @@ agent makes.
+     working memory into the reviewer's context. The chunk-close
+     signing authority is held by a separate process (Tier-3
+     daemon / §21); the reviewer-firing path is held by a separate,
+-    persistent cross-family referee (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
++    persistent cross-family referee (`planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
+     KN-A-8). A build agent may post `REVIEW REQUEST:` lines to
+     `STEER.md` (machine-local cross-agent queue per §1). The
+     build agent MUST NOT fire `droid exec` against the reviewer
+     model IDs the agent itself selected; MUST NOT hold
+     `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
+-    `phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
++    `evidence/phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
+     enforces the structural predicate (`envelope-on-disk SHA`);
+     the persistent referee enforces the identity predicate
+     (signing authority / reviewer-firing process). Both must
+diff --git a/.cursor/rules/sprint-invocation.mdc b/.cursor/rules/sprint-invocation.mdc
+index 0479fc1..e7a31fa 100644
+--- a/.cursor/rules/sprint-invocation.mdc
++++ b/.cursor/rules/sprint-invocation.mdc
+@@ -67,7 +67,7 @@ recap; the README is the line-by-line install.)
+   exec; do NOT commit. The gate prints `[dry-run] auto-decision:
+   accept` and exits 0. The simulator's `COMPLETED · run_id=...`
+   banner is NOT a real-verdict: it is a §7 silent-green shape
+-  (see §15 in `phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
++  (see §15 in `planning/phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
+   wiring test, not as proof that a chunk would land.
+ - `--non-interactive` — bypass the reconcile gate stdin pause.
+   The §5.3 machine-check still runs; refuse-on-blocker|high
+diff --git a/AGENTS.md b/AGENTS.md
+index cf975d4..c6a574e 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -37,7 +37,7 @@ Three agents work in this repo — Factory Droid, Codex, and Claude Code. They s
+ - Hand off via `git diff`; the reviewing agent reads the diff, not the other agent's reasoning
+ - Land work on `main` only after review, and keep convention/spec changes off feature branches so they don't ride along with unreviewed work
+ 
+-This mirrors the method the repo itself specifies — independent context, no transcript bleed. If it feels clumsy in practice, that is real signal about the design. Record it in `phase-0/README.md` under Notes.
++This mirrors the method the repo itself specifies — independent context, no transcript bleed. If it feels clumsy in practice, that is real signal about the design. Record it in `planning/phase-0/README.md` under Notes.
+ 
+ **A note on which agent does what.** Roles here are not interchangeable, and the split should be deliberate rather than whoever is open in a window: the agent that authored a plan should not be the one that approves it, and the agent that writes an implementation should not be the one that validates it. That is invariant #1 applied to the humans-and-agents layer, not just the runtime.
+ 
+diff --git a/PRD.md b/PRD.md
+index c039f59..dc49fa1 100644
+--- a/PRD.md
++++ b/PRD.md
+@@ -474,7 +474,7 @@ Build blind plan review, structured findings, bounded reconciliation, oversight
+ 
+ ### Phase 3 — Factory end-to-end
+ 
+-Connect planning, test design, command-orchestrated execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change. (Originally specified as "Mission execution"; the GO-NO-GO decision (`phase-0/GO-NO-GO.md`) closed the Mission-native path — `droid exec --mission` is a no-op that reports success. Execution is command-orchestrated via `tools/orchestrate-review.py`.)
++Connect planning, test design, command-orchestrated execution, validator blocking, retry/re-plan, artifact rollup, and local PR creation on the selected pilot change. (Originally specified as "Mission execution"; the GO-NO-GO decision (`planning/phase-0/GO-NO-GO.md`) closed the Mission-native path — `droid exec --mission` is a no-op that reports success. Execution is command-orchestrated via `tools/orchestrate-review.py`.)
+ 
+ **Exit:** one complete run plus a replayable demo and baseline comparison.
+ 
+@@ -485,7 +485,7 @@ measure whether cross-family validation alone compensates for lost
+ test-independence. Result: panel-dependent — the deterministic standalone
+ gate caught the bias every time; the cross-family panel split (grok caught,
+ gemini dismissed). Fed back into §17.6 as a binding rule. See
+-`phase-3.1/RESULTS.md`.
++`planning/phase-3.1/RESULTS.md`.
+ 
+ ### Phase 3.2 — Evidence provider (completed during Phase 3 execution)
+ 
+@@ -493,12 +493,12 @@ Externalized the deterministic evidence tier into a compact signed
+ `EvidenceBundle` that validators consume instead of re-running pytest.
+ Local backend as default (zero CI); Harness as an interchangeable backend
+ behind the same interface. H-CI experiment designed but not yet run. See
+-`phase-3.2/BUILD-NOTES.md`, `phase-3.2/SPIKE.md`.
++`planning/phase-3.2/BUILD-NOTES.md`, `planning/phase-3.2/SPIKE.md`.
+ 
+ ### Phase 3.3 — Visual/behavioral evidence tier (seed only)
+ 
+ Extends the evidence-provider abstraction with screenshot/DOM evidence.
+-Spike document exists (`phase-3.3/SPIKE.md`); building waits on Phase 4
++Spike document exists (`planning/phase-3.3/SPIKE.md`); building waits on Phase 4
+ H-CI result. Not yet started.
+ 
+ ### Phase 4 — Hardening + roadmap review (complete)
+@@ -651,7 +651,7 @@ specifically:
+ **Required deliverables.**
+ 
+ 1. **Chunk-completion token.** Each chunk commit writes
+-   `phase-4.5/tokens/chunk-N.token.json` with:
++   `evidence/phase-4.5/tokens/chunk-N.token.json` with:
+    - `chunk_commit_sha` (hex 40);
+    - `reviewers` list of `{family, model, verdict, review_envelope_sha}`;
+    - `signed_at`, `signed_by`, `signature_algo="hmac-sha256"`, `signature` (hex 64).
+@@ -703,7 +703,7 @@ specifically:
+ When the runner does NOT emit ✅ at a chunk close, the operator
+ runs this check, in order:
+ 
+-1. **Read** `phase-4.5/tokens/chunk-N.token.json`. If absent: `cross_family_review.py`
++1. **Read** `evidence/phase-4.5/tokens/chunk-N.token.json`. If absent: `cross_family_review.py`
+    refused (single-family reviewer, missing reviewer, or non-ACCEPT
+    verdict). Find `[chunk-N][refusal_reason]` in
+    `telemetry/<run-id>/cross_family_review.log` per KN-A-2 log
+@@ -721,7 +721,7 @@ runs this check, in order:
+    `note` field for the refusal reason.
+ 5. **Diagnose** zero telemetry rows: `commit_chunk_change` was not
+    called — the chunk's inner loop did not reach the close. Inspect
+-   `phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
++   `evidence/phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
+    last-known step; that step is the failure point. Likely a
+    subagent unpinned its `--model` (KN-A-3 first-class step) or the
+    family guard refused (KN-A-4 live-path preconditions).
+@@ -1077,7 +1077,7 @@ non-negotiable; a run missing **either** MUST stop rather than land:
+    degrade-authored code. Same-family authorship reviewed by a single model MUST
+    NOT land on `main`.
+ 
+-**Evidence (Phase 3.1 spike — `phase-3.1/RESULTS.md`; sample size 1).** With the
++**Evidence (Phase 3.1 spike — `planning/phase-3.1/RESULTS.md`; sample size 1).** With the
+ test-author moved to the executor's own family (`glm-5.2`), the author encoded a
+ test-independence defect in 1 of 3 chunks (a locked test that passed only inside
+ full-suite ordering). The deterministic gate caught it every time. The pinned
+diff --git a/README.md b/README.md
+index b576ba3..f6f9ae9 100644
+--- a/README.md
++++ b/README.md
+@@ -16,7 +16,7 @@ Four findings from live runs. Each has a repro or a committed artifact behind it
+ 
+ **1. Two frontier models, same failing test, opposite verdicts.**
+ A planted test-independence defect went to a cross-family panel. `grok-4.5` rejected it with correct attribution to the test. `gemini-3.1-pro-preview` looked at the identical failure and rationalized an ACCEPT. A single-validator configuration using gemini would have shipped it. The deterministic standalone gate caught it every time — not the hypothesis going in; the mechanical check outranked the model panel.
+-→ [`phase-3.1/RESULTS.md`](./phase-3.1/RESULTS.md)
++→ [`planning/phase-3.1/RESULTS.md`](./planning/phase-3.1/RESULTS.md)
+ 
+ **2. A forged transcript passed every gate — with zero real validation.**
+ Three aligned permissive defaults let a fake-pass envelope through: an unmatched `tool_use` yields `is_error=None`, which read as success. The fix is one line (`is True` → `is not False`). The forged input is committed as a fixture so the hole stays testable.
+@@ -24,11 +24,11 @@ Three aligned permissive defaults let a fake-pass envelope through: an unmatched
+ 
+ **3. The wrong model ran a five-chunk refactor, and nothing surfaced it.**
+ A live run filled the executor seat with `claude-haiku-4-5` — the cheapest model in the lineup — and the operator discovered it days later from the commit record. No log line made the seat assignment visible. The fix: the protocol banner now carries the model id, sourced from the invocation rather than self-reported.
+-→ [`phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §3
++→ [`planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §3
+ 
+ **4. Five review rounds, and the panel never raised scope.**
+ The same live run went five rounds of review without any family flagging that the plan was mis-scoped; the operator caught it. Convergence is observable from *where* findings land across rounds, not from how many rounds have run. Breadth of defect is a scope signal.
+-→ [`phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §4
++→ [`planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §4
+ 
+ ## How it works
+ 
+@@ -36,7 +36,7 @@ Quality in agentic coding doesn't come from a smarter model. It comes from **str
+ 
+ 1. **Family separation.** The plan reviewer isn't the planner's family. The validator isn't the executor's family. Two passes from one family are one opinion twice.
+ 2. **Fresh review context.** The validator sees the approved spec, the diff, read-only repo state, and test evidence — never the executor's reasoning. (Finding 1 is what happens without this.)
+-3. **Independent test authorship.** The executor cannot write or modify the tests that judge it — locked by content hash, enforced by a PreToolUse hook. The enforcement was probed: seven bypasses filed, five fixed, two documented open in [`phase-1/KNOWN-ISSUES.md`](./phase-1/KNOWN-ISSUES.md).
++3. **Independent test authorship.** The executor cannot write or modify the tests that judge it — locked by content hash, enforced by a PreToolUse hook. The enforcement was probed: seven bypasses filed, five fixed, two documented open in [`planning/phase-1/KNOWN-ISSUES.md`](./planning/phase-1/KNOWN-ISSUES.md).
+ 4. **Valid RED before GREEN.** Behavior-changing work can't start until the intended assertion has run and failed *for the expected reason*. A syntax error is not a RED.
+ 
+ Because the findings above showed declarations don't hold, enforcement is layered: chunk close is gated by an HMAC-signed token bound to reviewer envelopes on disk, the author is never the verifier, and validators are checked for being more than each other's paraphrase ([`tools/OPERATING-RULES.md`](./tools/OPERATING-RULES.md) §20–§24).
+@@ -47,7 +47,7 @@ Not a replacement for Factory Missions, Spec Mode, custom Droids, hooks, or CI 
+ 
+ ## Layout
+ 
+-The phase directories are the build record, kept on purpose — each phase's README, known-issues, and committed evidence show what was claimed, what was probed, and what broke. Evidence a finding attests to is committed; only per-run scratch trees are ignored.
++The build record is kept on purpose, and it is organized by **kind** rather than by phase: each phase's plans and prompts under `planning/`, its committed evidence under `evidence/`, its scripts under `tools/`. Every phase still has its README, its known-issues, and the evidence behind what it claimed — `planning/phase-3.2/` and `evidence/phase-3.2/` are two halves of one phase's record. Evidence a finding attests to is committed; only per-run scratch trees are ignored.
+ 
+ ```
+ PRD.md                     full spec — problem, invariants, phases, evaluation design
+@@ -55,11 +55,11 @@ tools/                     the code: sprint-loop.py runner, gates, adapters, OPE
+ tools/OPERATING-RULES.md   operating discipline §1–§24, each rule with the incident behind it
+ templates/                 canonical GROK → CHUNK → EXECUTE method + the per-pilot overlay
+ skills/                    agent-facing skill assets (digest + index + rehydration)
+-planning/                  the cross-family roadmap review and its prompts
+-phase-0 … phase-5/         the build record: probes, runs, findings, known issues, evidence
++planning/                  per-phase plans, prompts and run records + the roadmap review
++evidence/                  the build record: probes, envelopes, findings, signed chunk tokens
++tests/                     237 tests over the gates, runner, plan lint, and repo layout
+ pilots/                    the method run against external tasks, validator outputs included
+ droid-wiki/                curated wiki: findings, method, probes, how to contribute
+-tests/                     194 tests over the gates, runner, plan lint, and repo layout
+ ```
+ 
+ ## Running it
+diff --git a/droid-wiki/security.md b/droid-wiki/security.md
+index 51ececd..9e9ce9a 100644
+--- a/droid-wiki/security.md
++++ b/droid-wiki/security.md
+@@ -34,7 +34,7 @@ Two concrete practices, both visible in the committed evidence:
+ 
+ | Practice | Where it shows up |
+ |---|---|
+-| Local usernames and absolute home paths are replaced with `~` in every raw capture **before staging** | stated at the end of the Probe 3 record; the same normalisation runs across `phase-0/evidence/` |
++| Local usernames and absolute home paths are replaced with `~` in every raw capture **before staging** | stated at the end of the Probe 3 record; the same normalisation runs across `evidence/phase-0/` |
+ | Secrets used inside probes are model-invented and vaulted without ever being printed | [Probe 3](./probes/probe-3-context-isolation.md) extracted the codename with `grep -o` into a vault file, verified recovery with `grep -qFf` so no verdict required displaying the value, and built in a decoy so a naive grep returns the prompt's placeholder |
+ 
+ The recovered codenames that do appear in Probe 3's captures are synthetic values a model invented for that probe and have never been anything else.
+@@ -98,7 +98,7 @@ That is why [Silent green](./findings/silent-green.md) belongs on this page and
+ 
+ ## The defensive posture the design adopts
+ 
+-Directly out of the Phase 0 build order in `phase-0/GO-NO-GO.md`:
++Directly out of the Phase 0 build order in `planning/phase-0/GO-NO-GO.md`:
+ 
+ 1. **One fail-closed `PreToolUse` reference guard**, built and proven firing before anything depends on it. It reads `transcript_path` to learn what actually happened, matches `Edit|Create|ApplyPatch|Execute`, and denies on any payload it cannot interpret. One primitive, three policies — see [The reference guard](./findings/reference-guard.md).
+ 2. **Deny review roles access to `~/.factory/sessions/` and to `droid search`.** Both paths, because they are independent. The review role's tool schema also omits `Execute`, which Probe 3 proved is enforceable, so the roles split: a test-runner with a shell and no judgement, a judge with judgement and no shell.
+diff --git a/planning/phase-4.5/LEDGER.md b/evidence/LEDGER.md
+similarity index 100%
+rename from planning/phase-4.5/LEDGER.md
+rename to evidence/LEDGER.md
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/FINDINGS-chunk-D1-3.md b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/FINDINGS-chunk-D1-3.md
+new file mode 100644
+index 0000000..7ca75cf
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/FINDINGS-chunk-D1-3.md
+@@ -0,0 +1,206 @@
++# FINDINGS — chunk-D1-3 (builder seat)
++
++Findings raised by building chunk-D1-3 against
++`planning/layout-refactor/CHUNK-3-SPEC.md`. Each one is a *problem statement*
++for the planner/referee, not a spec edit — the builder seat does not amend the
++spec (§13, §6). Every claim below is a measurement with the command behind it;
++the harness that produces the numbers is `verify-chunk3.sh` in this directory
++and its capture is `verify-chunk3.out`.
++
++Interpreter for every count: `/private/tmp/asprint-venv/bin/python` (3.13.3).
++
++## Summary of the build
++
++| | |
++|---|---|
++| §2.1a surface residuals, before | **105** tokens across 15 files |
++| §2.1a surface residuals, after | **49** tokens across 2 files, all enumerated as historical narrative |
++| Mechanical rewrites applied | 57 across 13 files, plus 4 markdown link targets and 2 stale tails |
++| Dead relative links on the surface | 4 → **0**, out of 47 links resolved |
++| Files edited outside the citation rewrite | `README.md` Layout block (§2.5), `planning/PATH-REDIRECTS.md` (new), 2 generated `.cursor` mirrors (F7) |
++| Renames | exactly 1: `planning/phase-4.5/LEDGER.md → evidence/LEDGER.md`, +0/-0 |
++
++---
++
++## F1 — `droid-wiki/by-the-numbers.md` is a measurement, so re-rooting it would falsify it
++
++**Classification, not a defect.** 33 of the 49 surviving residuals live here.
++Every row in that file is a count taken against one commit — files, lines, mean
++line length, per directory. Re-rooting the directory name falsifies the number
++printed beside it. The sharpest case:
++
++```
++| `phase-3.2/` | 21 | 8,681 | 413 |
++```
++
++There is no directory today that holds those 21 files. On the move commit, the
++`phase-3.2/` silo fanned out to three roots — measured from `ee90061`'s own
++rename records, **22** paths to `evidence/`, **9** to `planning/`, **3** to
++`tools/` (34 paths, because the wiki's 21 was counted at an earlier commit; the
++drift is itself the point). Rewriting the label to any one of the three
++produces a row whose count was never true of the directory it now names. A
++measurement is only true of the tree it was taken on. Spec §2.3 already carves
++out historical narrative; this is the strongest instance of it, and the file is
++listed in §2.1b as redirect-only for exactly this reason.
++
++## F2 — `droid-wiki/lore.md` is a build record, and §2.3 names this case
++
++The remaining 16 residuals are `Key files created:` lines — a record of what
++each phase created **at the path it created it at**. Spec §2.3 names this case
++verbatim ("Phase 1 built `phase-1/scripts/lock.py`") and rules it out of the
++rewrite. Handled by enumeration in `planning/PATH-REDIRECTS.md`, not by editing.
++
++## F3 — the residual matcher cannot see a markdown link *target*, only its label
++
++The judge's `_BARE_PHASE` and my rewriter share a negative lookbehind
++`(?<![/A-Za-z0-9_.\-])`, which is what stops an already-rooted `evidence/phase-3/`
++from being rewritten twice. A markdown link target is written `](./phase-3.1/RESULTS.md)`
++— the character before the token is `/`, so **the lookbehind excludes it**.
++
++Consequence, and it is a §7 silent-green shape: rewriting only the visible label
++leaves the href still 404ing on GitHub while **every token count reads clean**.
++README carried four of these (`./phase-3.1/RESULTS.md`,
++`./phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md` ×2, `./phase-1/KNOWN-ISSUES.md`).
++The judge is not fooled — §3.1 asserts on link *resolution* rather than on token
++counts, which is the right shape and caught this — but the blind spot is shared
++by both the matcher and any future sweep tool derived from it. Handled here by a
++separate `LINK_FIXES` pass in `rewrite-citations.py` (documented inline) and
++measured by `dead-links.py` (§4.4): 47 links checked, 0 dead.
++
++**For the planner:** any later chunk that greps for residual tokens as its exit
++check inherits this hole. The exit check must resolve links, not count tokens.
++
++## F4 — `tools/OPERATING-RULES.md:581-582` cited two files that never existed
++
++The rule text cited `phase-4.5/prompts/phase-5-grok-validator.md` and
++`…-gemini-validator.md`. Neither has ever existed: `git log` shows `6c315a2`
++added them as `phase-5-grok-validator-spawn.md` / `-gemini-validator-spawn.md`,
++so the citation was stale **before** the move.
++
++Re-rooting alone would have produced `planning/phase-4.5/prompts/phase-5-grok-validator.md`
++— a path that is correctly rooted and still 404s. That is the silent-green shape
++§7 forbids: it *looks* swept, and a token-counting exit check would agree. I
++re-rooted **and** corrected the tails, with both referents verified on disk, and
++recorded the reasoning in `rewrite-citations.py`'s `TAIL_FIXES` comment rather
++than leaving it to the diff.
++
++**For the planner:** the tail correction is arguably outside a
++"citation-re-rooting" chunk. I judged that landing a knowingly-dead re-rooted
++path is worse than the scope widening, and flag it here for a ruling.
++
++## F5 — two cited paths resolve nowhere at all, in either taxonomy
++
++`phase-3.2/evidence/single-round-report.py` and `phase-2/brief-v2.md` are cited
++in the two narrative files and were **never tracked** (`git log --all -- <path>`
++is empty; they were scratch files at the time of writing). No redirect can be
++correct for them, because there is no destination. They are covered by
++enumeration in the narrative exception list, not by a table row — and the
++prefix-table generator would have refused to emit a row it could not probe on
++disk (F6).
++
++## F6 — the generator refuses rather than absorbs, so the judge's assertion is not vacuous
++
++`test_chunk3_every_residual_token_is_accounted_for` asserts that every residual
++appears in the PATH-REDIRECTS exception list. A generator that simply enumerated
++whatever residuals it found would satisfy that test **by construction** — a
++future half-swept sweep would be papered over by re-running the generator, and
++the judge would still go green.
++
++`gen-path-redirects.py` therefore enumerates residuals **only** in the two files
++named in its `NARRATIVE` dict (the classification is the human judgment; only
++the line numbers are mechanical) and exits 1 writing nothing if a residual turns
++up anywhere else. Same discipline in `prefix_map()`: it raises rather than
++emitting a row for a non-segment-preserving rename or a destination that does
++not resolve on disk. The prefix table is derived from the move commit's own
++rename records (`git show --name-status --find-renames ee90061`), so it cannot
++disagree with what actually moved.
++
++## F7 — `.cursor/rules/*.mdc` are outside the §2.1a allowlist but pinned to it by an existing test
++
++§2.1a allowlists `skills/adversarial-sprint/SKILL.md` (4 tokens) and
++`skills/sprint-invocation/SKILL.md` (1 token). It does not mention
++`.cursor/rules/adversarial-sprint.mdc` / `sprint-invocation.mdc` — which are
++**generated mirrors of those exact files**, and which
++`tests/test_sprint_loop.py:1698` (`…cursor_mdc_body_matches_canonical_g6`) pins
++body-for-body to the SKILL.md canon.
++
++Demonstrated mechanically rather than argued: stashing just the `.cursor/`
++changes and re-running that test fails with
++`G-6: committed .mdc body drifted from canonical body`; restoring them passes.
++So editing an allowlisted file **requires** committing the generated mirror, and
++a builder who honoured the allowlist literally would have shipped a red suite.
++
++Regenerated through the sanctioned script (`./tools/install-skill.sh cursor`,
++§14) and proved byte-identical to what is on disk, so the mirrors are generator
++output and not hand-edits. The harness re-checks that idempotence.
++
++**For the planner:** §2.1a should name generated mirrors as collateral of their
++canonical source, or the spec's allowlist and the suite disagree.
++
++## F8 — the LEDGER's one live-code referrer is inside a locked judge
++
++`tests/test_layout_paths.py:571` carries a comment citing the ledger at its
++pre-chunk-3 path. That file is a judge, content-locked at `cb00dfac…` against
++`tools/phase-1-locks/tests/test_layout_paths.py.lock.json`, and this seat may
++not touch it — not even to fix a comment (§6, framework invariant #3). Left
++stale deliberately and called out in `planning/PATH-REDIRECTS.md` under
++"Stale citations inside lock-frozen live code", because it is the first case
++where the redirect map covers live code rather than a document or an evidence
++byte.
++
++## F9 — chunk-2a's recorded `KNOWN 1-FAILURE` is machine-dependent, not commit-dependent
++
++The chunk-2a close records:
++
++> `KNOWN 1-FAILURE: test_chunk2a_emitted_envelope_paths_resolve[reconstruct-telemetry]`
++> fires its vacuity guard — all emitted paths already exist in the SoR … Not a judge defect.
++
++At this commit on this machine, **all 23 chunk-2a tests pass**, including all
++three parametrizations of that test. The reason is not a fix: the guard compares
++emitted `envelope_path` values against the rows already in
++`tools/telemetry/runs.jsonl`, and **that file does not exist on this machine at
++all** (untracked; `tools/telemetry/` is absent). With no SoR, every emitted value
++counts as newly generated, the guard is satisfied, and the test asserts on real
++resolution.
++
++So the same commit yields ACCEPT here and a fired vacuity guard on a machine
++whose SoR happens to be saturated — and running the scripts under test is itself
++what saturates it. A judge whose verdict depends on untracked local state is not
++reproducible evidence (§7, §9), and the carried "known failure" cannot be
++reproduced or fixed by this seat.
++
++**For the planner:** either commit a fixture SoR the guard reads, or scope the
++guard to rows the probe itself emitted in-process.
++
++## F10 — `tools/plan-lint.py` with no argument is rc=2, so §4.7 as literally written fails
++
++§4.7 reads "`tools/plan-lint.py` rc=0". The tool takes a required positional
++`plan`; bare invocation is an argparse usage error (rc=2) that reads like a chunk
++failure but is a missing argument. The harness lints the two documents earlier
++chunks used — `planning/layout-refactor/PLAN.md` and this chunk's
++`CHUNK-3-SPEC.md` — and reports rc per file.
++
++## F11 — measurement hazard: a second `-q` silently deletes pytest's count line
++
++`pytest.ini` already sets `addopts = -ra --strict-markers -q`. Adding `-q` on the
++command line raises quiet level to 2, which **suppresses the `N passed, M failed`
++summary line entirely** — `pytest -q | tail -1` returns the last `FAILED` row and
++no counts at all. A builder reporting counts from that output has nothing to
++report and is one step from hand-writing a number, which is precisely the §9
++failure mode.
++
++Recorded because chunk-2a §2.4 K2 already burned one bad evidence row on an
++interpreter mix-up; this is the same class of hazard one layer down. The harness
++takes its counts from `--junit-xml` instead, which is an artifact rather than a
++console line (§7).
++
++## F12 — §5 hard stop respected
++
++§4.2's residuals are only historical narrative (F1, F2), so per §5 the chunk
++**stops**: 683 tokens across `planning/layout-refactor/**` (265),
++`planning/phase-N/**` (418, 357 after the LEDGER moved out) and committed
++evidence are deliberately unedited, and the delta is carried by
++`planning/PATH-REDIRECTS.md` instead.
++`test_chunk3_redirect_only_surfaces_untouched` is that hard stop expressed as a
++test, and it passes — which is the useful shape: sweeping those trees "to finish
++the job" would now redden the suite.
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/dead-links.py b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/dead-links.py
+new file mode 100755
+index 0000000..4e69a1b
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/dead-links.py
+@@ -0,0 +1,114 @@
++#!/usr/bin/env python3
++"""§4.4 — resolve every relative markdown link on the §2.1a surface and report
++**count checked alongside count dead**.
++
++The spec is explicit that this must not be hand-checked: a link that 404s on
++GitHub is exactly the class a human eye skips. It is also explicit that
++`tools/wiki-link-audit.py` must not be substituted — that tool walks only
++`droid-wiki/` and reports `dead=0` on the very commit where `README.md` carries
++four dead links.
++
++Reporting the CHECKED count matters as much as the dead count: "0 dead" is
++worthless if the resolver silently examined nothing (§7 — a check that can pass
++because it ran on nothing is worse than no check). This script therefore exits
++non-zero if the checked count is zero, and prints per-file counts so the total
++can be audited rather than trusted.
++
++Resolution mirrors `tests/test_layout_paths_chunk3.py::_..._every_relative_link_resolves`:
++anchors and URL schemes are skipped, `#fragment`/`?query` are stripped, and a
++target resolves if it exists relative to the citing file's directory OR relative
++to the repo root (README-style `./planning/...` links satisfy the first form).
++
++Usage: python3 dead-links.py
++"""
++from __future__ import annotations
++
++import glob
++import os
++import re
++import sys
++
++REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
++
++MD_LINK = re.compile(r"\]\(([^)]+)\)")
++SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
++
++SURFACE_FILES = (
++    "PRD.md",
++    "AGENTS.md",
++    "README.md",
++    "tools/OPERATING-RULES.md",
++    "tools/README.md",
++    "tools/KNOWN-ISSUES.md",
++    "tools/PHASE-0.5-CLOSE.md",
++    "tools/RUN-LEDGER.md",
++    "tools/REPRODUCE.md",
++    "skills/adversarial-sprint/SKILL.md",
++    "skills/sprint-invocation/SKILL.md",
++)
++SURFACE_GLOBS = (
++    "tools/conventions/*.md",
++    "tools/sprint_loop/prompts/*.md",
++    "droid-wiki/*.md",
++    "planning/ROADMAP-REVIEW*.md",
++)
++
++
++def surface() -> list[str]:
++    out = [rel for rel in SURFACE_FILES if os.path.isfile(os.path.join(REPO_ROOT, rel))]
++    for pattern in SURFACE_GLOBS:
++        for abs_path in sorted(glob.glob(os.path.join(REPO_ROOT, pattern))):
++            out.append(os.path.relpath(abs_path, REPO_ROOT))
++    return sorted(set(out))
++
++
++def main() -> int:
++    checked = 0
++    dead: list[str] = []
++    per_file: list[tuple[str, int, int]] = []
++
++    for rel in surface():
++        abs_path = os.path.join(REPO_ROOT, rel)
++        base = os.path.dirname(abs_path)
++        n_checked = n_dead = 0
++        with open(abs_path, encoding="utf-8") as fh:
++            for lineno, line in enumerate(fh, start=1):
++                for match in MD_LINK.finditer(line):
++                    target = match.group(1).strip()
++                    if not target or target.startswith("#"):
++                        continue
++                    if SCHEME.match(target):
++                        continue  # http:, mailto:, …
++                    path = target.split("#", 1)[0].split("?", 1)[0].strip()
++                    if not path:
++                        continue
++                    n_checked += 1
++                    if os.path.exists(os.path.join(base, path)) or os.path.exists(
++                        os.path.join(REPO_ROOT, path)
++                    ):
++                        continue
++                    n_dead += 1
++                    dead.append(f"{rel}:{lineno} -> {target}")
++        checked += n_checked
++        per_file.append((rel, n_checked, n_dead))
++
++    print(f"§4.4 relative-link resolution over {len(surface())} surface files")
++    print(f"{'file':<48} {'checked':>8} {'dead':>6}")
++    for rel, n_checked, n_dead in per_file:
++        print(f"{rel:<48} {n_checked:>8} {n_dead:>6}")
++    print(f"{'TOTAL':<48} {checked:>8} {len(dead):>6}")
++
++    if dead:
++        print("\ndead:")
++        for row in dead:
++            print(f"  {row}")
++
++    if checked == 0:
++        print("\nREFUSING to report a green: 0 links checked means the resolver "
++              "ran on nothing (§7).", file=sys.stderr)
++        return 2
++    return 1 if dead else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/gen-path-redirects.py b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/gen-path-redirects.py
+new file mode 100755
+index 0000000..bcc4a1b
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/gen-path-redirects.py
+@@ -0,0 +1,329 @@
++#!/usr/bin/env python3
++"""Generate `planning/PATH-REDIRECTS.md` for chunk-D1-3.
++
++Two of the three blocks in that file are measurements, not prose, so they are
++generated rather than typed (§9, §7):
++
++* the **prefix table** is derived from the chunk-D1-2 move commit itself
++  (``git show --name-status --find-renames ee90061``), so it cannot disagree with
++  what actually moved. 618 renames collapse to a prefix map; every destination is
++  probed on disk before it is written.
++* the **historical-narrative exception list** is derived by re-running the
++  residual matcher over the §2.1a surface, so its ``file:line`` rows are exact
++  at generation time rather than hand-counted.
++
++The deliberate non-vacuity guard: this script does NOT enumerate whatever
++residuals it happens to find. It enumerates residuals only in the files named in
++``NARRATIVE`` — the two documents I argue are records rather than pointers — and
++**refuses (rc=1, writes nothing)** if a residual turns up anywhere else. Without
++that, a future half-swept sweep would be papered over by re-running the
++generator, and `test_chunk3_every_residual_token_is_accounted_for` would pass by
++construction instead of by argument. The classification is the human judgment;
++only the line numbers are mechanical.
++
++Usage: python3 gen-path-redirects.py [--check]
++  --check   compare against the file on disk, write nothing (rc=1 on drift)
++"""
++from __future__ import annotations
++
++import collections
++import glob
++import os
++import re
++import subprocess
++import sys
++
++REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
++OUT_REL = os.path.join("planning", "PATH-REDIRECTS.md")
++MOVE_COMMIT = "ee90061"
++
++# Mirrors the judge's ``_BARE_PHASE`` (tests/test_layout_paths_chunk3.py). If the
++# two ever drift, the judge fails rather than this script lying: an under-broad
++# regex here means a residual goes unlisted, which the judge catches.
++BARE_PHASE = re.compile(r"(?:^|[^/A-Za-z0-9_.\-])(phase-[0-9]+(?:\.[0-9]+)?/)")
++
++# §2.1a citation-edit surface, same membership as the judge's.
++SURFACE_FILES = (
++    "PRD.md",
++    "AGENTS.md",
++    "README.md",
++    "tools/OPERATING-RULES.md",
++    "tools/README.md",
++    "tools/KNOWN-ISSUES.md",
++    "tools/PHASE-0.5-CLOSE.md",
++    "tools/RUN-LEDGER.md",
++    "tools/REPRODUCE.md",
++    "skills/adversarial-sprint/SKILL.md",
++    "skills/sprint-invocation/SKILL.md",
++)
++SURFACE_GLOBS = (
++    "tools/conventions/*.md",
++    "tools/sprint_loop/prompts/*.md",
++    "droid-wiki/*.md",
++    "planning/ROADMAP-REVIEW*.md",
++)
++
++# The classification this chunk stands behind. Anything else with a residual is
++# an error, not an exception.
++NARRATIVE = {
++    "droid-wiki/by-the-numbers.md": (
++        "Measurement snapshot. Every row is a count taken against one commit — "
++        "files, lines, mean line length per directory. Re-rooting the directory "
++        "name falsifies the number beside it: `phase-3.2/` counted 21 files as one "
++        "silo, and no directory holds those 21 files today (they are split across "
++        "`planning/phase-3.2/`, `evidence/phase-3.2/` and "
++        "`tools/phase-3.2-evidence/`). A measurement is only true of the tree it "
++        "was taken on."
++    ),
++    "droid-wiki/lore.md": (
++        "Build history. The `Key files created:` lines record what each phase "
++        "created **at the path it created it at** — that is the record. Spec §2.3 "
++        "names this case exactly (\"Phase 1 built `phase-1/scripts/lock.py`\") and "
++        "rules it out of the rewrite."
++    ),
++}
++
++
++def surface() -> list[str]:
++    out = []
++    for rel in SURFACE_FILES:
++        if os.path.isfile(os.path.join(REPO_ROOT, rel)):
++            out.append(rel)
++    for pattern in SURFACE_GLOBS:
++        for abs_path in sorted(glob.glob(os.path.join(REPO_ROOT, pattern))):
++            out.append(os.path.relpath(abs_path, REPO_ROOT))
++    return out
++
++
++def read(rel: str) -> str:
++    with open(os.path.join(REPO_ROOT, rel), encoding="utf-8") as fh:
++        return fh.read()
++
++
++def residuals() -> list[tuple[str, int, str]]:
++    found = []
++    for rel in surface():
++        for lineno, line in enumerate(read(rel).splitlines(), start=1):
++            for match in BARE_PHASE.finditer(line):
++                found.append((rel, lineno, match.group(1)))
++    return found
++
++
++def prefix_map() -> list[tuple[str, str, int]]:
++    """(old prefix, new prefix, files moved) from the move commit's renames."""
++    proc = subprocess.run(
++        ["git", "show", "--name-status", "--find-renames", "--format=", MOVE_COMMIT],
++        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
++    )
++    counts: dict[tuple[str, str], int] = collections.Counter()
++    for line in proc.stdout.splitlines():
++        parts = line.split("\t")
++        if not parts[0].startswith("R") or len(parts) != 3:
++            continue
++        old, new = parts[1], parts[2]
++        segs = old.split("/")
++        if not segs[0].startswith("phase-"):
++            continue  # the plan-lint fixture repo; covered in prose, not the table
++        key = segs[0] + "/" + (segs[1] + "/" if len(segs) > 2 else "")
++        tail = old[len(key):]
++        if not new.endswith(tail):
++            raise SystemExit(f"non-segment-preserving rename, table would lie: {old} -> {new}")
++        counts[(key, new[:len(new) - len(tail)])] += 1
++    rows = []
++    for (old, new), n in sorted(counts.items()):
++        if not os.path.exists(os.path.join(REPO_ROOT, new.rstrip("/"))):
++            raise SystemExit(f"redirect target does not resolve, refusing to write: {new}")
++        rows.append((old, new, n))
++    return rows
++
++
++def ambiguous_files(rows: list[tuple[str, str, int]]) -> dict[str, list[tuple[str, str]]]:
++    """File-level rows for old prefixes that fan out to more than one root."""
++    fan = collections.Counter(old for old, _, _ in rows)
++    multi = {old for old, n in fan.items() if n > 1}
++    if not multi:
++        return {}
++    proc = subprocess.run(
++        ["git", "show", "--name-status", "--find-renames", "--format=", MOVE_COMMIT],
++        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
++    )
++    out: dict[str, list[tuple[str, str]]] = collections.defaultdict(list)
++    for line in proc.stdout.splitlines():
++        parts = line.split("\t")
++        if not parts[0].startswith("R") or len(parts) != 3:
++            continue
++        old, new = parts[1], parts[2]
++        for key in multi:
++            rest = old[len(key):]
++            if old.startswith(key) and rest and "/" not in rest:
++                out[key].append((old, new))
++    return {k: sorted(v) for k, v in out.items()}
++
++
++def build() -> str:
++    rows = prefix_map()
++    amb = ambiguous_files(rows)
++    res = residuals()
++
++    unexpected = sorted({rel for rel, _, _ in res} - set(NARRATIVE))
++    if unexpected:
++        print("REFUSING to write: residual phase-N citations in files that are not "
++              "declared historical narrative. Fix the citation or argue the "
++              "exception explicitly — do not let the generator absorb it.",
++              file=sys.stderr)
++        for rel in unexpected:
++            for r, ln, tok in res:
++                if r == rel:
++                    print(f"  {r}:{ln}  {tok}", file=sys.stderr)
++        raise SystemExit(1)
++
++    per_file: dict[str, list[tuple[int, str]]] = collections.defaultdict(list)
++    for rel, ln, tok in res:
++        per_file[rel].append((ln, tok))
++
++    L: list[str] = []
++    A = L.append
++    A("# `PATH-REDIRECTS.md` — old path → new home")
++    A("")
++    A("Deliverable D1 (chunk-D1-2, commit `ee90061`) moved **618 tracked files** out of")
++    A("the `phase-N/` silos and into homes organized by kind. This file is how a citation")
++    A("written before that move is still followable afterwards.")
++    A("")
++    A("It exists because the alternative does not scale and would not be honest.")
++    A("**788** bare `phase-N/` tokens survive the move across markdown; **105** of them")
++    A("sit in living documents that a reader follows today, and those were rewritten in")
++    A("chunk-D1-3. The other **683** must not be edited at all:")
++    A("")
++    A("* **`planning/layout-refactor/**` (265 tokens at measurement time)** — the move")
++    A("  specs. Their `phase-N/` tokens are the *before* side of move tables. \"Updating\"")
++    A("  `` `phase-0/evidence/` → `evidence/phase-0/` `` yields")
++    A("  `` `evidence/phase-0/` → `evidence/phase-0/` `` and destroys the document.")
++    A("* **`planning/phase-N/**` (418 tokens, 357 after the LEDGER moved out)** —")
++    A("  time-stamped run records. `planning/phase-3/RUN-COMMANDS.md` records the literal")
++    A("  command that was executed at the time. Rewriting it produces a command that was")
++    A("  never run: a falsified record in exchange for a working link.")
++    A("* **Committed evidence under `evidence/`** — immutable by §5/§21. 144 lines across")
++    A("  76 envelope/capture files carry old prefixes and stay exactly as the reviewer")
++    A("  wrote them.")
++    A("")
++    A("For all of those, this file carries the delta instead. That is the §5 hard stop")
++    A("working as designed rather than a scope cut.")
++    A("")
++    A("## Matching algorithm")
++    A("")
++    A("Carried from `planning/layout-refactor/PLAN.md`:")
++    A("")
++    A("1. Strip an optional absolute repo-root prefix")
++    A("   (`/Users/factory/work/adversarial-sprint-dev/`) from the cited path.")
++    A("2. Match the **longest** old prefix in the table below against the resulting")
++    A("   relative path.")
++    A("3. Apply only to path-shaped tokens:")
++    A("   `(?:tools|phase-\\d+(?:\\.\\d+)?|tests|telemetry|evidence|planning)/[\\w/.-]+`")
++    A("4. Leave prose mentions (\"Phase 1 built…\") untouched.")
++    A("")
++    A("The mapping is **segment-preserving**: everything after the matched prefix is")
++    A("copied through unchanged, so")
++    A("`phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt` →")
++    A("`evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt`.")
++    A("")
++    A(f"## Prefix table — {len(rows)} rows, derived from `{MOVE_COMMIT}`")
++    A("")
++    A("Generated from the move commit's own rename records")
++    A("(`git show --name-status --find-renames`), not hand-transcribed, and every")
++    A("destination is probed on disk before this file is written. The count is how many")
++    A("files moved under that prefix.")
++    A("")
++    A("| redirect | files |")
++    A("|---|---|")
++    for old, new, n in rows:
++        A(f"| `{old}` → `{new}` | {n} |")
++    A("")
++    A("### Prefixes that fan out to more than one root")
++    A("")
++    A("The move split silos by **kind**, so a few old prefixes have no single answer:")
++    A("code went to `tools/`, committed evidence to `evidence/`, plans and prompts to")
++    A("`planning/`. Longest-prefix matching is not enough for these; resolve them")
++    A("file by file.")
++    A("")
++    for key in sorted(amb):
++        A(f"**`{key}`**")
++        A("")
++        A("| old | new |")
++        A("|---|---|")
++        for old, new in amb[key]:
++            A(f"| `{old}` | `{new}` |")
++        A("")
++    A("## Historical-narrative exceptions")
++    A("")
++    A("Spec §2.3 keeps historical narrative out of the rewrite: a sentence about what")
++    A("was built, or a measurement of a past tree, is a record rather than a pointer.")
++    A(f"Every surviving residual on the §2.1a surface is listed here — **{len(res)}**")
++    A("tokens in 2 files — so that a residual is an accounted-for decision and never a")
++    A("missed sweep. `tests/test_layout_paths_chunk3.py` asserts this list in both")
++    A("directions: no unlisted residual, and no listed row that is no longer residual.")
++    A("")
++    A("Line numbers are exact as of the commit that lands this file. They are")
++    A("regenerable — see `evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/`")
++    A("— and the judge fails loudly rather than quietly if they rot.")
++    A("")
++    for rel in sorted(per_file):
++        entries = per_file[rel]
++        A(f"### `{rel}` — {len(entries)} residual tokens")
++        A("")
++        A(NARRATIVE[rel])
++        A("")
++        A("| citation | token | line |")
++        A("|---|---|---|")
++        lines = read(rel).splitlines()
++        for ln, tok in entries:
++            text = lines[ln - 1].strip().replace("|", "\\|")
++            if len(text) > 88:
++                text = text[:85] + "…"
++            A(f"| `{rel}:{ln}` | `{tok}` | {text} |")
++        A("")
++    A("## Stale citations inside lock-frozen live code")
++    A("")
++    A("One residual is not in a document at all. `tests/test_layout_paths.py` line 571")
++    A("carries a comment citing the ledger at its pre-chunk-3 path,")
++    A("`planning/phase-4.5/LEDGER.md`. That file is a judge, content-locked at")
++    A("`cb00dfac…` against `tools/phase-1-locks/tests/test_layout_paths.py.lock.json`,")
++    A("and the executor of this chunk may not touch it — not even to fix a comment")
++    A("(spec §6, framework invariant #3).")
++    A("")
++    A("It is called out separately because it is the first case where this file covers a")
++    A("stale citation inside **live code** rather than inside a document or an evidence")
++    A("byte. A future reader who greps the tests, finds the old path, and cannot find")
++    A("the file needs to know that the staleness is intentional and where the ledger")
++    A("went: `planning/phase-4.5/LEDGER.md` → `evidence/LEDGER.md`, moved by `git mv` in")
++    A("chunk-D1-3 with zero content edits, because the ledger is append-only (§5, §21)")
++    A("and a sprint-wide record does not belong inside one phase's planning directory.")
++    A("")
++    A("## Scope")
++    A("")
++    A("This file is a redirect map, not a to-do list. The 683 tokens it covers are")
++    A("**deliberately** unedited, for the reasons at the top. Anyone tempted to \"finish")
++    A("the job\" by sweeping them should read spec §5 first — and")
++    A("`test_chunk3_redirect_only_surfaces_untouched` fails if those trees are swept,")
++    A("which is the same hard stop expressed as a test.")
++    A("")
++    return "\n".join(L)
++
++
++def main() -> int:
++    text = build()
++    out_abs = os.path.join(REPO_ROOT, OUT_REL)
++    if "--check" in sys.argv[1:]:
++        current = open(out_abs, encoding="utf-8").read() if os.path.isfile(out_abs) else None
++        if current == text:
++            print(f"{OUT_REL}: up to date ({len(text.splitlines())} lines)")
++            return 0
++        print(f"{OUT_REL}: DRIFT — regenerate", file=sys.stderr)
++        return 1
++    with open(out_abs, "w", encoding="utf-8") as fh:
++        fh.write(text)
++    print(f"wrote {OUT_REL}: {len(text.splitlines())} lines")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/rewrite-citations.py b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/rewrite-citations.py
+new file mode 100755
+index 0000000..5bcb0b8
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/rewrite-citations.py
+@@ -0,0 +1,181 @@
++#!/usr/bin/env python3
++"""chunk-D1-3 citation rewrite — the exact transformation applied to the §2.1a
++surface, scripted so a reviewer can re-run it and diff rather than take the
++diff on faith (§9).
++
++Idempotent: every replacement is anchored with the same negative lookbehind the
++judge uses for residual detection, so a token that has already been re-rooted
++(``evidence/phase-3/``) is invisible to it. Re-running on a rewritten tree makes
++zero changes and reports 0 for every rule.
++
++Scope discipline (CHUNK-3-SPEC §2.1a / §2.1b): only the files listed in
++``TARGETS`` are opened for writing. ``droid-wiki/by-the-numbers.md`` and
++``droid-wiki/lore.md`` are deliberately ABSENT — they are a measurement snapshot
++and a build history respectively, and rewriting their tokens would falsify a
++record rather than fix a link (see FINDINGS §F1/§F2). Their residuals are
++enumerated in ``planning/PATH-REDIRECTS.md`` instead, which is what §2.3 asks
++for. Nothing under ``planning/layout-refactor/`` or ``planning/phase-N/`` is
++touched at all.
++
++Usage: python3 rewrite-citations.py [--check]
++  --check   report what would change, write nothing (rc=1 if anything would)
++"""
++from __future__ import annotations
++
++import os
++import re
++import sys
++
++REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
++
++# Old citation -> new home. Longest key first at match time, so
++# `phase-3.2/evidence/consumer.py` wins over `phase-3.2/evidence/`.
++#
++# Two roots, not one: chunk-D1-2 split each phase silo by KIND, so the correct
++# destination depends on what the cited thing IS. Planning prose went to
++# `planning/phase-N/`, committed evidence to `evidence/phase-N/`, and executable
++# code to `tools/phase-N-<subdir>/`. `phase-3.2/evidence/` is the sharpest case:
++# `consumer.py` is code (tools/), `bundle_schema_v1.json` is data (evidence/).
++MAP = {
++    # phase-0
++    "phase-0/GO-NO-GO.md": "planning/phase-0/GO-NO-GO.md",
++    "phase-0/README.md": "planning/phase-0/README.md",
++    "phase-0/evidence/canary-0.180.0/": "evidence/phase-0/canary-0.180.0/",
++    "phase-0/evidence/": "evidence/phase-0/",
++    # phase-1
++    "phase-1/KNOWN-ISSUES.md": "planning/phase-1/KNOWN-ISSUES.md",
++    "phase-1/scripts/": "tools/phase-1-scripts/",
++    "phase-1/locks/": "tools/phase-1-locks/",
++    # phase-2 / phase-3
++    "phase-2/build-evidence/": "evidence/phase-2/build-evidence/",
++    "phase-3/build-evidence/": "evidence/phase-3/build-evidence/",
++    # phase-3.1
++    "phase-3.1/build-evidence/": "evidence/phase-3.1/build-evidence/",
++    "phase-3.1/RESULTS.md": "planning/phase-3.1/RESULTS.md",
++    # phase-3.2 — code to tools/, data and envelopes to evidence/, prose to planning/
++    "phase-3.2/evidence/bundle_schema_v1.json": "evidence/phase-3.2/bundle_schema_v1.json",
++    "phase-3.2/evidence/consumer.py": "tools/phase-3.2-evidence/consumer.py",
++    "phase-3.2/evidence/": "tools/phase-3.2-evidence/",
++    "phase-3.2/reviews/": "evidence/phase-3.2/reviews/",
++    "phase-3.2/BUILD-NOTES.md": "planning/phase-3.2/BUILD-NOTES.md",
++    "phase-3.2/SPIKE.md": "planning/phase-3.2/SPIKE.md",
++    # phase-3.3
++    "phase-3.3/SPIKE.md": "planning/phase-3.3/SPIKE.md",
++    # phase-4.5
++    "phase-4.5/tokens/": "evidence/phase-4.5/tokens/",
++    "phase-4.5/build-evidence/": "evidence/phase-4.5/build-evidence/",
++    "phase-4.5/DESIGN-DAEMON-SIGNER.md": "planning/phase-4.5/DESIGN-DAEMON-SIGNER.md",
++    "phase-4.5/DESIGN-PERSISTENT-REFEREE.md": "planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md",
++    "phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md": "planning/phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md",
++    "phase-4.5/KNOWN-ISSUES.md": "planning/phase-4.5/KNOWN-ISSUES.md",
++    "phase-4.5/RUN-PROMPT.md": "planning/phase-4.5/RUN-PROMPT.md",
++    "phase-4.5/prompts/": "planning/phase-4.5/prompts/",
++    # phase-5
++    "phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md": "planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md",
++}
++
++# A bare directory token — `phase-0/` with nothing after it — has no unique new
++# home, because chunk-2 split each silo across two or three roots. It is only
++# rewritten where the surrounding prose says which kind is meant. In
++# ROADMAP-REVIEW-PROMPT.md the list is introduced by "Every phase directory's
++# README / RESULTS / BUILD-NOTES / ASSUMPTIONS", all of which are planning docs.
++PER_FILE = {
++    "planning/ROADMAP-REVIEW-PROMPT.md": {
++        f"phase-{n}/": f"planning/phase-{n}/"
++        for n in ("0", "1", "2", "3", "3.1", "3.2", "3.3")
++    },
++}
++
++# Markdown link TARGETS need their own pass, and the reason is worth stating: a
++# target is written `](./phase-3.1/RESULTS.md)`, so the character before the
++# token is `/`, which LOOKBEHIND deliberately excludes — the same exclusion that
++# stops `evidence/phase-3/` being rewritten twice. The judge's residual matcher
++# has the identical blind spot, which is why §3.1 asserts on link RESOLUTION
++# instead of on token counts: rewriting only the visible label would leave the
++# href still 404ing on GitHub and every token check would still read clean.
++LINK_FIXES = {
++    "README.md": {
++        "](./phase-3.1/RESULTS.md)": "](./planning/phase-3.1/RESULTS.md)",
++        "](./phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md)":
++            "](./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md)",
++        "](./phase-1/KNOWN-ISSUES.md)": "](./planning/phase-1/KNOWN-ISSUES.md)",
++    },
++}
++
++# Stale tails, corrected because a re-rooted path that still 404s is the
++# silent-green shape §7 forbids: it LOOKS swept. Both referents were verified on
++# disk, and `git log` shows the file was named `-spawn.md` when it was added
++# (6c315a2) — the rule text never matched it, so this predates the move.
++TAIL_FIXES = {
++    "tools/OPERATING-RULES.md": {
++        "planning/phase-4.5/prompts/phase-5-grok-validator.md":
++            "planning/phase-4.5/prompts/phase-5-grok-validator-spawn.md",
++        "planning/phase-4.5/prompts/phase-5-gemini-validator.md":
++            "planning/phase-4.5/prompts/phase-5-gemini-validator-spawn.md",
++    },
++}
++
++TARGETS = (
++    "AGENTS.md",
++    "PRD.md",
++    "README.md",
++    "droid-wiki/security.md",
++    "planning/ROADMAP-REVIEW.md",
++    "planning/ROADMAP-REVIEW-PROMPT.md",
++    "skills/adversarial-sprint/SKILL.md",
++    "skills/sprint-invocation/SKILL.md",
++    "tools/OPERATING-RULES.md",
++    "tools/conventions/model-discipline.md",
++    "tools/sprint_loop/prompts/executor.md",
++    "tools/sprint_loop/prompts/test-designer.md",
++    "tools/sprint_loop/prompts/validator.md",
++)
++
++# Same lookbehind as the judge's residual matcher: an already-rooted token
++# (`evidence/phase-3/`, `tools/phase-1-scripts/`) must never be rewritten twice.
++LOOKBEHIND = r"(?<![/A-Za-z0-9_.\-])"
++
++
++def rules_for(rel: str) -> list[tuple[str, str]]:
++    merged = dict(MAP)
++    merged.update(PER_FILE.get(rel, {}))
++    # Longest old-token first: prefix keys must not shadow their own children.
++    return sorted(merged.items(), key=lambda kv: -len(kv[0]))
++
++
++def main() -> int:
++    check = "--check" in sys.argv[1:]
++    grand = 0
++    for rel in TARGETS:
++        path = os.path.join(REPO_ROOT, rel)
++        with open(path, encoding="utf-8") as fh:
++            text = original = fh.read()
++        per_file = []
++        for old, new in rules_for(rel):
++            text, n = re.subn(LOOKBEHIND + re.escape(old), new, text)
++            if n:
++                per_file.append((old, new, n))
++        for old, new in LINK_FIXES.get(rel, {}).items():
++            text, n = re.subn(re.escape(old), new, text)
++            if n:
++                per_file.append((old, new, n))
++        for old, new in TAIL_FIXES.get(rel, {}).items():
++            text, n = re.subn(re.escape(old), new, text)
++            if n:
++                per_file.append((old, new, n))
++        total = sum(n for _, _, n in per_file)
++        grand += total
++        if total:
++            print(f"{rel}: {total} rewrite(s)")
++            for old, new, n in per_file:
++                print(f"    {n:3d}x  {old}  ->  {new}")
++        if text != original and not check:
++            with open(path, "w", encoding="utf-8") as fh:
++                fh.write(text)
++    print(f"\ntotal: {grand} rewrite(s) across {len(TARGETS)} file(s)"
++          f"{' (check only, nothing written)' if check else ''}")
++    return 1 if (check and grand) else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/verify-chunk3.sh b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/verify-chunk3.sh
+new file mode 100755
+index 0000000..62c8282
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/verify-chunk3.sh
+@@ -0,0 +1,271 @@
++#!/usr/bin/env bash
++# verify-chunk3.sh — CHUNK-3-SPEC §4 exit criteria, run and captured (§9, §11).
++#
++# Every §4 criterion below is *run*, and its real number is printed next to the
++# baseline the spec recorded, so a reviewer compares measurements rather than
++# reading a claim. Nothing here asserts on an exit code alone (§7): each check
++# prints the artifact it read — counts, file lists, git status letters, SHAs.
++#
++# Usage: bash verify-chunk3.sh [<commit-ish>]   (default HEAD)
++#   §4.5 and §4.8 inspect a commit, so this runs AFTER the chunk-3 commit lands.
++#
++# Deliberately NOT `set -e`: a failing criterion must not abort the capture.
++# Every check records PASS/FAIL into a tally and the script exits non-zero at the
++# end if any failed — a partial capture that stops at the first problem is how a
++# reviewer ends up with no numbers for the other seven criteria.
++set -uo pipefail
++
++COMMIT="${1:-HEAD}"
++REPO_ROOT="$(git rev-parse --show-toplevel)"
++cd "$REPO_ROOT" || exit 2
++PY=/private/tmp/asprint-venv/bin/python
++HERE="evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814"
++
++FAILED=0
++pass() { printf '  ==> PASS  %s\n' "$1"; }
++fail() { printf '  ==> FAIL  %s\n' "$1"; FAILED=$((FAILED + 1)); }
++hdr()  { printf '\n========== %s ==========\n' "$1"; }
++
++printf 'chunk-D1-3 §4 exit-criteria capture\n'
++printf 'commit under test : %s (%s)\n' "$(git rev-parse "$COMMIT")" "$COMMIT"
++printf 'branch           : %s\n' "$(git rev-parse --abbrev-ref HEAD)"
++printf 'worktree clean   : %s\n' "$([ -z "$(git status --porcelain)" ] && echo yes || echo NO)"
++
++# ---------------------------------------------------------------- §4.1
++hdr "§4.1 full suite on the suite interpreter"
++printf 'interpreter      : %s\n' "$PY"
++printf 'version          : %s\n' "$("$PY" -V 2>&1)"
++printf 'NOT              : /usr/bin/python3 (%s, no pytest — chunk-2a §2.4 K2)\n' \
++  "$(/usr/bin/python3 -V 2>&1)"
++# Counts come from the junit XML, not from stdout. pytest.ini already sets -q;
++# adding a second -q raises quiet level 2, which SUPPRESSES the "N passed" line
++# entirely — a builder tailing that output sees no counts and is one step from
++# hand-writing a number. The XML is the artifact (§7).
++"$PY" -m pytest --tb=short --junit-xml=/tmp/chunk3-junit.xml > /tmp/chunk3-pytest.out 2>&1
++PYTEST_RC=$?
++"$PY" - <<'PYEOF'
++import xml.etree.ElementTree as ET
++r = ET.parse('/tmp/chunk3-junit.xml').getroot()
++s = r.find('testsuite') if r.tag == 'testsuites' else r
++a = s.attrib
++total = int(a['tests']); fails = int(a['failures']); errs = int(a['errors'])
++skips = int(a['skipped'])
++print(f"collected={total} passed={total - fails - errs - skips} "
++      f"failed={fails} errors={errs} skipped={skips}")
++print("baseline entering chunk (spec §4.1): 213 passed, 3 skipped, plus the "
++      "chunk-3 judge's 14")
++for tc in s.iter('testcase'):
++    for bad in list(tc.findall('failure')) + list(tc.findall('error')):
++        print(f"  FAILING: {tc.get('classname')}::{tc.get('name')}")
++PYEOF
++if [ "$PYTEST_RC" -eq 0 ]; then pass "§4.1 suite green"; else
++  fail "§4.1 suite not green (pytest rc=$PYTEST_RC) — see /tmp/chunk3-pytest.out"; fi
++
++hdr "§4.1b chunk-3 judge in isolation"
++"$PY" -m pytest tests/test_layout_paths_chunk3.py -v --tb=short 2>&1 | grep -E 'PASSED|FAILED|passed|failed'
++CHUNK3_RC=${PIPESTATUS[0]}
++[ "$CHUNK3_RC" -eq 0 ] && pass "§4.1b all 14 chunk-3 tests green" \
++                       || fail "§4.1b chunk-3 judge rc=$CHUNK3_RC"
++
++# ---------------------------------------------------------------- §4.2
++hdr "§4.2 residual citation grep, scoped to the §2.1a surface"
++# The spec's own command, verbatim in shape. zsh does not word-split unquoted
++# expansions, so `for f in $LIST` reports 0 hits per file — a clean, completely
++# false green. xargs -0 is used for exactly that reason (spec §4.2 hazard note).
++ls -1 PRD.md AGENTS.md README.md \
++      tools/OPERATING-RULES.md tools/README.md tools/KNOWN-ISSUES.md \
++      tools/PHASE-0.5-CLOSE.md tools/RUN-LEDGER.md tools/REPRODUCE.md \
++      skills/adversarial-sprint/SKILL.md skills/sprint-invocation/SKILL.md \
++      tools/conventions/*.md tools/sprint_loop/prompts/*.md \
++      droid-wiki/*.md planning/ROADMAP-REVIEW*.md > /tmp/citation-surface.txt
++printf 'surface files    : %s (non-empty guard: %s)\n' \
++  "$(wc -l < /tmp/citation-surface.txt | tr -d ' ')" \
++  "$([ -s /tmp/citation-surface.txt ] && echo ok || echo EMPTY-LIST)"
++tr '\n' '\0' < /tmp/citation-surface.txt \
++  | xargs -0 grep -onE '(^|[^/A-Za-z0-9_.-])phase-[0-9]+(\.[0-9]+)?/' \
++  > /tmp/chunk3-residuals.txt 2>/dev/null
++RESID=$(wc -l < /tmp/chunk3-residuals.txt | tr -d ' ')
++RESID_FILES=$(cut -d: -f1 < /tmp/chunk3-residuals.txt | sort -u)
++printf 'residual hits    : %s (baseline on 0b1262c: 105 across 15 files)\n' "$RESID"
++printf 'residual files   : %s\n' "$(echo "$RESID_FILES" | tr '\n' ' ')"
++# Every surviving hit must be an enumerated historical-narrative exception.
++UNLISTED=0
++while IFS= read -r f; do
++  [ -z "$f" ] && continue
++  case "$f" in
++    droid-wiki/by-the-numbers.md|droid-wiki/lore.md) ;;
++    *) printf '  UNLISTED narrative file: %s\n' "$f"; UNLISTED=$((UNLISTED + 1)) ;;
++  esac
++done <<< "$RESID_FILES"
++while IFS= read -r hit; do
++  [ -z "$hit" ] && continue
++  ref="$(echo "$hit" | cut -d: -f1,2)"
++  grep -qF "$ref" planning/PATH-REDIRECTS.md || {
++    printf '  NOT enumerated in PATH-REDIRECTS: %s\n' "$ref"
++    UNLISTED=$((UNLISTED + 1))
++  }
++done < /tmp/chunk3-residuals.txt
++[ "$UNLISTED" -eq 0 ] \
++  && pass "§4.2 all $RESID residual hits are enumerated exceptions in 2 narrative files" \
++  || fail "§4.2 $UNLISTED residual hit(s) unaccounted for"
++
++hdr "§4.2b rewrite is idempotent (re-running changes nothing)"
++"$PY" "$HERE/rewrite-citations.py" --check | tail -3
++[ "${PIPESTATUS[0]}" -eq 0 ] && pass "§4.2b rewrite-citations.py --check: 0 further rewrites" \
++                             || fail "§4.2b rewrite not idempotent"
++
++hdr "§4.2c PATH-REDIRECTS matches its generator"
++"$PY" "$HERE/gen-path-redirects.py" --check
++[ $? -eq 0 ] && pass "§4.2c planning/PATH-REDIRECTS.md == generator output" \
++             || fail "§4.2c PATH-REDIRECTS drifted from its generator"
++
++# ---------------------------------------------------------------- §4.3
++hdr "§4.3 evidence-internal citations are covered by the table (checklist, not a fix list)"
++grep -rn --include='*.json' --include='*.raw.txt' --include='*.stream.json' \
++  'phase-[0-9]' evidence/ > /tmp/chunk3-evidence-refs.txt 2>/dev/null
++printf 'evidence lines carrying an old prefix : %s\n' \
++  "$(wc -l < /tmp/chunk3-evidence-refs.txt | tr -d ' ')"
++printf 'distinct files                        : %s\n' \
++  "$(cut -d: -f1 < /tmp/chunk3-evidence-refs.txt | sort -u | wc -l | tr -d ' ')"
++printf 'prefix table rows in PATH-REDIRECTS   : %s\n' \
++  "$(grep -cE '^\| `phase-[0-9]' planning/PATH-REDIRECTS.md)"
++# Coverage: every distinct bare prefix seen in evidence has a table row.
++"$PY" - <<'PYEOF'
++import re, pathlib
++seen = set()
++for line in pathlib.Path('/tmp/chunk3-evidence-refs.txt').read_text(
++        encoding='utf-8', errors='replace').splitlines():
++    for m in re.finditer(r'(?:^|[^/A-Za-z0-9_.\-])(phase-[0-9]+(?:\.[0-9]+)?/)', line):
++        seen.add(m.group(1))
++table = pathlib.Path('planning/PATH-REDIRECTS.md').read_text(encoding='utf-8')
++rows = set(re.findall(r'^\| `(phase-[0-9][^`]*)`', table, re.MULTILINE))
++missing = sorted(p for p in seen if not any(r.startswith(p) for r in rows))
++print(f"distinct old prefixes in evidence: {len(seen)} -> {' '.join(sorted(seen))}")
++print(f"uncovered by any table row      : {len(missing)} {missing}")
++raise SystemExit(1 if missing else 0)
++PYEOF
++[ $? -eq 0 ] && pass "§4.3 every evidence-internal prefix has a redirect row" \
++             || fail "§4.3 evidence carries a prefix with no redirect row"
++
++# ---------------------------------------------------------------- §4.4
++hdr "§4.4 relative-link resolution (count checked reported next to count dead)"
++"$PY" "$HERE/dead-links.py"
++DEAD_RC=$?
++printf 'baseline dead before this chunk: 4 (all README, §2.5)\n'
++[ "$DEAD_RC" -eq 0 ] && pass "§4.4 0 dead links, resolver examined a non-zero set" \
++                     || fail "§4.4 dead-links.py rc=$DEAD_RC"
++
++# ---------------------------------------------------------------- §4.5
++hdr "§4.5 LEDGER rename verified"
++printf 'evidence/LEDGER.md exists          : %s\n' \
++  "$([ -f evidence/LEDGER.md ] && echo yes || echo NO)"
++printf 'planning/phase-4.5/LEDGER.md gone  : %s\n' \
++  "$([ ! -e planning/phase-4.5/LEDGER.md ] && echo yes || echo STILL-THERE)"
++printf 'tracked at new path                : %s\n' \
++  "$(git ls-files --error-unmatch evidence/LEDGER.md >/dev/null 2>&1 && echo yes || echo NO)"
++printf 'tracked at old path                : %s\n' \
++  "$(git ls-files --error-unmatch planning/phase-4.5/LEDGER.md >/dev/null 2>&1 \
++      && echo STILL-TRACKED || echo no)"
++FOLLOW=$(git log --follow --format=%H -- evidence/LEDGER.md | wc -l | tr -d ' ')
++printf '%s\n' "git log --follow reaches commits    : $FOLLOW (must be > 1)"
++RENAME_SHA=$(git log --follow --diff-filter=R --format=%H -- evidence/LEDGER.md | head -1)
++printf 'rename commit                      : %s\n' "${RENAME_SHA:-NONE}"
++NUMSTAT=$(git show "${RENAME_SHA:-$COMMIT}" --numstat --format= -- evidence/LEDGER.md \
++          | head -1)
++printf 'numstat on rename commit           : %s\n' "${NUMSTAT:-EMPTY}"
++ADDED=$(echo "$NUMSTAT" | awk '{print $1}')
++DELETED=$(echo "$NUMSTAT" | awk '{print $2}')
++printf 'added=%s deleted=%s (both must be 0 — the ledger is append-only, §5)\n' \
++  "${ADDED:-?}" "${DELETED:-?}"
++if [ -f evidence/LEDGER.md ] && [ ! -e planning/phase-4.5/LEDGER.md ] \
++   && [ "$FOLLOW" -gt 1 ] && [ -n "$RENAME_SHA" ] \
++   && [ "$ADDED" = "0" ] && [ "$DELETED" = "0" ]; then
++  pass "§4.5 rename carries history with zero content edit"
++else
++  fail "§4.5 rename not verified"
++fi
++
++# ---------------------------------------------------------------- §4.6
++hdr "§4.6 tools/wiki-link-audit.py"
++"$PY" tools/wiki-link-audit.py
++WIKI_RC=$?
++printf 'rc=%s (baseline on 0b1262c: 61 pages, all zero, rc=0)\n' "$WIKI_RC"
++printf 'NOTE: this walks droid-wiki/ ONLY (wiki-link-audit.py:24,:88). It is NOT\n'
++printf '      a substitute for §4.4 — it reports dead=0 on the very commit where\n'
++printf '      README.md carried four dead links (§7 silent-green shape).\n'
++[ "$WIKI_RC" -eq 0 ] && pass "§4.6 wiki-link-audit rc=0" || fail "§4.6 rc=$WIKI_RC"
++
++# ---------------------------------------------------------------- §4.7
++hdr "§4.7 tools/plan-lint.py"
++# The spec writes "`tools/plan-lint.py` rc=0" with no argument, but the tool
++# takes a required positional `plan` — bare invocation is argparse rc=2, which
++# would read as a chunk failure that is really a missing argument. Linted on the
++# same two documents the earlier chunks used: the parent PLAN and this chunk's
++# own spec. Warnings do not set rc; only structural errors do.
++LINT_RC=0
++for plan in planning/layout-refactor/PLAN.md planning/layout-refactor/CHUNK-3-SPEC.md; do
++  "$PY" tools/plan-lint.py "$plan" > "/tmp/chunk3-plan-lint-$(basename "$plan").out" 2>&1
++  rc=$?
++  printf '%-46s rc=%s  %s\n' "$plan" "$rc" \
++    "$(grep -oE '(PASS|FAIL)[^|]*' "/tmp/chunk3-plan-lint-$(basename "$plan").out" | head -1)"
++  [ "$rc" -ne 0 ] && LINT_RC=$rc
++done
++[ "$LINT_RC" -eq 0 ] && pass "§4.7 plan-lint rc=0 on PLAN.md and CHUNK-3-SPEC.md" \
++                     || fail "§4.7 rc=$LINT_RC"
++
++# ---------------------------------------------------------------- §4.8
++hdr "§4.8 scope containment on $COMMIT"
++git show --name-status --find-renames --format= "$COMMIT" > /tmp/chunk3-diffshape.txt
++printf 'status letters   : %s\n' \
++  "$(cut -f1 < /tmp/chunk3-diffshape.txt | sort | uniq -c | tr '\n' ' ')"
++printf 'renames (R):\n'
++grep -E '^R' /tmp/chunk3-diffshape.txt | sed 's/^/  /'
++R_COUNT=$(grep -cE '^R' /tmp/chunk3-diffshape.txt)
++R_OK=$(grep -E '^R' /tmp/chunk3-diffshape.txt \
++       | grep -c 'planning/phase-4.5/LEDGER.md.*evidence/LEDGER.md')
++printf 'rename count=%s, the LEDGER rename present=%s (both must be 1)\n' \
++  "$R_COUNT" "$R_OK"
++printf 'modified (M) under evidence/:\n'
++grep -E '^M' /tmp/chunk3-diffshape.txt | grep 'evidence/' | sed 's/^/  /' || true
++M_EVIDENCE=$(grep -E '^M' /tmp/chunk3-diffshape.txt | grep -c 'evidence/')
++printf 'M-under-evidence=%s (must be 0 — committed evidence is immutable, §5/§21)\n' \
++  "$M_EVIDENCE"
++TOKENS=$(grep -c 'evidence/phase-4.5/tokens/' /tmp/chunk3-diffshape.txt)
++printf 'paths under evidence/phase-4.5/tokens/=%s (must be 0 — §22, the builder\n' "$TOKENS"
++printf '  seat holds no signing key and writes no token)\n'
++printf 'judge files in the diff (must be none):\n'
++grep -E 'tests/test_layout_paths' /tmp/chunk3-diffshape.txt | sed 's/^/  /' || true
++JUDGES=$(grep -cE 'tests/test_layout_paths' /tmp/chunk3-diffshape.txt)
++printf 'locked judge edits=%s (must be 0 — framework invariant #3)\n' "$JUDGES"
++SPECS=$(grep -c 'planning/layout-refactor/' /tmp/chunk3-diffshape.txt)
++printf 'planning/layout-refactor/ edits=%s (must be 0 — §2.1b)\n' "$SPECS"
++PHASEN=$(grep -E 'planning/phase-[0-9]' /tmp/chunk3-diffshape.txt \
++         | grep -vc 'LEDGER.md')
++printf 'planning/phase-N/ edits (excl. the LEDGER rename)=%s (must be 0 — §2.1b)\n' "$PHASEN"
++if [ "$R_COUNT" = "1" ] && [ "$R_OK" = "1" ] && [ "$M_EVIDENCE" = "0" ] \
++   && [ "$TOKENS" = "0" ] && [ "$JUDGES" = "0" ] && [ "$SPECS" = "0" ] \
++   && [ "$PHASEN" = "0" ]; then
++  pass "§4.8 diff shape contained"
++else
++  fail "§4.8 diff shape out of scope"
++fi
++
++# ------------------------------------------------- extra: generated mirrors
++hdr "extra — .cursor/rules/*.mdc mirrors regenerate to byte-identical content"
++# Not in the §2.1a allowlist, but tests/test_sprint_loop.py:1698
++# (…cursor_mdc_body_matches_canonical_g6) pins the .mdc body to the SKILL.md
++# body, so editing an allowlisted SKILL.md without regenerating reddens the
++# suite. Regenerated through the sanctioned script (§14), never hand-edited.
++BEFORE=$(shasum -a 256 .cursor/rules/*.mdc)
++./tools/install-skill.sh cursor > /dev/null 2>&1
++AFTER=$(shasum -a 256 .cursor/rules/*.mdc)
++printf '%s\n' "$AFTER"
++[ "$BEFORE" = "$AFTER" ] \
++  && pass "on-disk .mdc == tools/install-skill.sh cursor output" \
++  || fail ".mdc drifted from the generator"
++
++hdr "RESULT"
++printf 'failed criteria: %s\n' "$FAILED"
++[ "$FAILED" -eq 0 ] && printf 'chunk-D1-3 §4: ALL CRITERIA PASS\n' \
++                    || printf 'chunk-D1-3 §4: %s CRITERION(A) FAILED\n' "$FAILED"
++exit "$FAILED"
+diff --git a/planning/PATH-REDIRECTS.md b/planning/PATH-REDIRECTS.md
+new file mode 100644
+index 0000000..d181bce
+--- /dev/null
++++ b/planning/PATH-REDIRECTS.md
+@@ -0,0 +1,265 @@
++# `PATH-REDIRECTS.md` — old path → new home
++
++Deliverable D1 (chunk-D1-2, commit `ee90061`) moved **618 tracked files** out of
++the `phase-N/` silos and into homes organized by kind. This file is how a citation
++written before that move is still followable afterwards.
++
++It exists because the alternative does not scale and would not be honest.
++**788** bare `phase-N/` tokens survive the move across markdown; **105** of them
++sit in living documents that a reader follows today, and those were rewritten in
++chunk-D1-3. The other **683** must not be edited at all:
++
++* **`planning/layout-refactor/**` (265 tokens at measurement time)** — the move
++  specs. Their `phase-N/` tokens are the *before* side of move tables. "Updating"
++  `` `phase-0/evidence/` → `evidence/phase-0/` `` yields
++  `` `evidence/phase-0/` → `evidence/phase-0/` `` and destroys the document.
++* **`planning/phase-N/**` (418 tokens, 357 after the LEDGER moved out)** —
++  time-stamped run records. `planning/phase-3/RUN-COMMANDS.md` records the literal
++  command that was executed at the time. Rewriting it produces a command that was
++  never run: a falsified record in exchange for a working link.
++* **Committed evidence under `evidence/`** — immutable by §5/§21. 144 lines across
++  76 envelope/capture files carry old prefixes and stay exactly as the reviewer
++  wrote them.
++
++For all of those, this file carries the delta instead. That is the §5 hard stop
++working as designed rather than a scope cut.
++
++## Matching algorithm
++
++Carried from `planning/layout-refactor/PLAN.md`:
++
++1. Strip an optional absolute repo-root prefix
++   (`/Users/factory/work/adversarial-sprint-dev/`) from the cited path.
++2. Match the **longest** old prefix in the table below against the resulting
++   relative path.
++3. Apply only to path-shaped tokens:
++   `(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.-]+`
++4. Leave prose mentions ("Phase 1 built…") untouched.
++
++The mapping is **segment-preserving**: everything after the matched prefix is
++copied through unchanged, so
++`phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt` →
++`evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt`.
++
++## Prefix table — 44 rows, derived from `ee90061`
++
++Generated from the move commit's own rename records
++(`git show --name-status --find-renames`), not hand-transcribed, and every
++destination is probed on disk before this file is written. The count is how many
++files moved under that prefix.
++
++| redirect | files |
++|---|---|
++| `phase-0/` → `planning/phase-0/` | 2 |
++| `phase-0/evidence/` → `evidence/phase-0/` | 159 |
++| `phase-1/` → `planning/phase-1/` | 5 |
++| `phase-1/build-evidence/` → `evidence/phase-1/build-evidence/` | 6 |
++| `phase-1/fixtures/` → `tests/fixtures/phase-1/` | 4 |
++| `phase-1/hooks/` → `tools/phase-1-hooks/` | 1 |
++| `phase-1/locks/` → `tools/phase-1-locks/` | 6 |
++| `phase-1/probes/` → `tools/phase-1-probes/` | 1 |
++| `phase-1/prompts/` → `planning/phase-1/prompts/` | 2 |
++| `phase-1/scripts/` → `tools/phase-1-scripts/` | 3 |
++| `phase-2/` → `planning/phase-2/` | 5 |
++| `phase-2/build-evidence/` → `evidence/phase-2/build-evidence/` | 10 |
++| `phase-2/reviews/` → `planning/phase-2/reviews/` | 3 |
++| `phase-3.1/` → `planning/phase-3.1/` | 3 |
++| `phase-3.1/` → `tools/phase-3.1-gen/` | 1 |
++| `phase-3.1/build-evidence/` → `evidence/phase-3.1/build-evidence/` | 42 |
++| `phase-3.1/locks/` → `tools/phase-3.1-locks/` | 3 |
++| `phase-3.1/prompts/` → `planning/phase-3.1/prompts/` | 10 |
++| `phase-3.2/` → `planning/phase-3.2/` | 7 |
++| `phase-3.2/build-evidence/` → `evidence/phase-3.2/build-evidence/` | 6 |
++| `phase-3.2/evidence/` → `evidence/phase-3.2/` | 2 |
++| `phase-3.2/evidence/` → `tools/phase-3.2-evidence/` | 3 |
++| `phase-3.2/reviews/` → `evidence/phase-3.2/reviews/` | 14 |
++| `phase-3.2/reviews/` → `planning/phase-3.2/reviews/` | 2 |
++| `phase-3.3/` → `planning/phase-3.3/` | 1 |
++| `phase-3/` → `planning/phase-3/` | 4 |
++| `phase-3/` → `tools/phase-3-gen/` | 1 |
++| `phase-3/build-evidence/` → `evidence/phase-3/build-evidence/` | 26 |
++| `phase-3/prompts/` → `planning/phase-3/prompts/` | 9 |
++| `phase-3/reviews/` → `evidence/phase-3/reviews/` | 1 |
++| `phase-4.5/` → `planning/phase-4.5/` | 19 |
++| `phase-4.5/adversarial_review/` → `planning/phase-4.5/adversarial_review/` | 11 |
++| `phase-4.5/build-evidence/` → `evidence/phase-4.5/build-evidence/` | 158 |
++| `phase-4.5/prompts/` → `planning/phase-4.5/prompts/` | 3 |
++| `phase-4.5/tokens/` → `evidence/phase-4.5/tokens/` | 5 |
++| `phase-4/` → `evidence/phase-4/` | 4 |
++| `phase-4/` → `planning/phase-4/` | 5 |
++| `phase-4/` → `tools/phase-4-gen/` | 2 |
++| `phase-4/demo/` → `planning/phase-4/demo/` | 4 |
++| `phase-4/h-ci/` → `evidence/phase-4/h-ci/` | 44 |
++| `phase-4/h3/` → `evidence/phase-4/h3/` | 12 |
++| `phase-5/` → `planning/phase-5/` | 3 |
++| `phase-5/prompts/` → `planning/phase-5/prompts/` | 2 |
++| `phase-5/scripts/` → `tools/phase-5-scripts/` | 3 |
++
++### Prefixes that fan out to more than one root
++
++The move split silos by **kind**, so a few old prefixes have no single answer:
++code went to `tools/`, committed evidence to `evidence/`, plans and prompts to
++`planning/`. Longest-prefix matching is not enough for these; resolve them
++file by file.
++
++**`phase-3.1/`**
++
++| old | new |
++|---|---|
++| `phase-3.1/RESULTS.md` | `planning/phase-3.1/RESULTS.md` |
++| `phase-3.1/RUN-PROMPT.md` | `planning/phase-3.1/RUN-PROMPT.md` |
++| `phase-3.1/SPIKE.md` | `planning/phase-3.1/SPIKE.md` |
++| `phase-3.1/gen-telemetry.py` | `tools/phase-3.1-gen/gen-telemetry.py` |
++
++**`phase-3.2/evidence/`**
++
++| old | new |
++|---|---|
++| `phase-3.2/evidence/bundle_schema_v1.json` | `evidence/phase-3.2/bundle_schema_v1.json` |
++| `phase-3.2/evidence/consumer.py` | `tools/phase-3.2-evidence/consumer.py` |
++| `phase-3.2/evidence/local_backend.py` | `tools/phase-3.2-evidence/local_backend.py` |
++| `phase-3.2/evidence/security_allowlist.json` | `evidence/phase-3.2/security_allowlist.json` |
++| `phase-3.2/evidence/token_accounting.py` | `tools/phase-3.2-evidence/token_accounting.py` |
++
++**`phase-3.2/reviews/`**
++
++| old | new |
++|---|---|
++| `phase-3.2/reviews/RUN-COMMANDS.md` | `planning/phase-3.2/reviews/RUN-COMMANDS.md` |
++| `phase-3.2/reviews/review-gemini-envelope.json` | `evidence/phase-3.2/reviews/review-gemini-envelope.json` |
++| `phase-3.2/reviews/review-gemini-stderr.log` | `evidence/phase-3.2/reviews/review-gemini-stderr.log` |
++| `phase-3.2/reviews/review-grok-envelope.json` | `evidence/phase-3.2/reviews/review-grok-envelope.json` |
++| `phase-3.2/reviews/review-grok-stderr.log` | `evidence/phase-3.2/reviews/review-grok-stderr.log` |
++| `phase-3.2/reviews/review-prompt.md` | `planning/phase-3.2/reviews/review-prompt.md` |
++| `phase-3.2/reviews/roadmap-review-cross-family-findings.json` | `evidence/phase-3.2/reviews/roadmap-review-cross-family-findings.json` |
++| `phase-3.2/reviews/roadmap-review-gemini-envelope.json` | `evidence/phase-3.2/reviews/roadmap-review-gemini-envelope.json` |
++| `phase-3.2/reviews/roadmap-review-grok-envelope.json` | `evidence/phase-3.2/reviews/roadmap-review-grok-envelope.json` |
++| `phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` | `evidence/phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` |
++| `phase-3.2/reviews/roadmap-review-v2-gemini-envelope.json` | `evidence/phase-3.2/reviews/roadmap-review-v2-gemini-envelope.json` |
++
++**`phase-3/`**
++
++| old | new |
++|---|---|
++| `phase-3/KICKOFF.md` | `planning/phase-3/KICKOFF.md` |
++| `phase-3/KNOWN-ISSUES.md` | `planning/phase-3/KNOWN-ISSUES.md` |
++| `phase-3/README.md` | `planning/phase-3/README.md` |
++| `phase-3/RUN-COMMANDS.md` | `planning/phase-3/RUN-COMMANDS.md` |
++| `phase-3/gen-telemetry.py` | `tools/phase-3-gen/gen-telemetry.py` |
++
++**`phase-4/`**
++
++| old | new |
++|---|---|
++| `phase-4/gen-findings.py` | `tools/phase-4-gen/gen-findings.py` |
++| `phase-4/post-v3-review-gemini-envelope.json` | `evidence/phase-4/post-v3-review-gemini-envelope.json` |
++| `phase-4/post-v3-review-grok-envelope.json` | `evidence/phase-4/post-v3-review-grok-envelope.json` |
++| `phase-4/post-v3-review-prompt.md` | `planning/phase-4/post-v3-review-prompt.md` |
++| `phase-4/reconstruct-telemetry.py` | `tools/phase-4-gen/reconstruct-telemetry.py` |
++| `phase-4/track-a-prompt.md` | `planning/phase-4/track-a-prompt.md` |
++| `phase-4/track-b-prompt.md` | `planning/phase-4/track-b-prompt.md` |
++| `phase-4/track-c-prompt.md` | `planning/phase-4/track-c-prompt.md` |
++| `phase-4/track-execution-review-gemini-envelope.json` | `evidence/phase-4/track-execution-review-gemini-envelope.json` |
++| `phase-4/track-execution-review-grok-envelope.json` | `evidence/phase-4/track-execution-review-grok-envelope.json` |
++| `phase-4/track-execution-review-prompt.md` | `planning/phase-4/track-execution-review-prompt.md` |
++
++## Historical-narrative exceptions
++
++Spec §2.3 keeps historical narrative out of the rewrite: a sentence about what
++was built, or a measurement of a past tree, is a record rather than a pointer.
++Every surviving residual on the §2.1a surface is listed here — **49**
++tokens in 2 files — so that a residual is an accounted-for decision and never a
++missed sweep. `tests/test_layout_paths_chunk3.py` asserts this list in both
++directions: no unlisted residual, and no listed row that is no longer residual.
++
++Line numbers are exact as of the commit that lands this file. They are
++regenerable — see `evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/`
++— and the judge fails loudly rather than quietly if they rot.
++
++### `droid-wiki/by-the-numbers.md` — 33 residual tokens
++
++Measurement snapshot. Every row is a count taken against one commit — files, lines, mean line length per directory. Re-rooting the directory name falsifies the number beside it: `phase-3.2/` counted 21 files as one silo, and no directory holds those 21 files today (they are split across `planning/phase-3.2/`, `evidence/phase-3.2/` and `tools/phase-3.2-evidence/`). A measurement is only true of the tree it was taken on.
++
++| citation | token | line |
++|---|---|---|
++| `droid-wiki/by-the-numbers.md:41` | `phase-0/` | \| `phase-0/` \| 106 \| 5,243 \| 49 \| |
++| `droid-wiki/by-the-numbers.md:43` | `phase-3.2/` | \| `phase-3.2/` \| 21 \| 8,681 \| 413 \| |
++| `droid-wiki/by-the-numbers.md:44` | `phase-3.1/` | \| `phase-3.1/` \| 38 \| 1,547 \| 41 \| |
++| `droid-wiki/by-the-numbers.md:45` | `phase-3/` | \| `phase-3/` \| 27 \| 1,484 \| 55 \| |
++| `droid-wiki/by-the-numbers.md:46` | `phase-2/` | \| `phase-2/` \| 13 \| 1,158 \| 89 \| |
++| `droid-wiki/by-the-numbers.md:47` | `phase-1/` | \| `phase-1/` \| 17 \| 941 \| 55 \| |
++| `droid-wiki/by-the-numbers.md:52` | `phase-3.3/` | \| `phase-3.3/` \| 1 \| 130 \| 130 \| |
++| `droid-wiki/by-the-numbers.md:55` | `phase-3.2/` | `phase-3.2/` has the highest average file size by far. Its evidence scripts, SPIKE do… |
++| `droid-wiki/by-the-numbers.md:88` | `phase-0/` | \| `phase-0/README.md` \| 12 \| |
++| `droid-wiki/by-the-numbers.md:90` | `phase-3.2/` | \| `phase-3.2/evidence/consumer.py` \| 5 \| |
++| `droid-wiki/by-the-numbers.md:92` | `phase-3.1/` | \| `phase-3.1/SPIKE.md` \| 4 \| |
++| `droid-wiki/by-the-numbers.md:93` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 4 \| |
++| `droid-wiki/by-the-numbers.md:94` | `phase-0/` | \| `phase-0/evidence/probe-1/README.md` \| 4 \| |
++| `droid-wiki/by-the-numbers.md:96` | `phase-3.2/` | The top two are the project overview and the product spec, which makes sense: as the … |
++| `droid-wiki/by-the-numbers.md:116` | `phase-2/` | \| `phase-2/README.md` \| 559 \| Markdown \| |
++| `droid-wiki/by-the-numbers.md:118` | `phase-3.2/` | \| `phase-3.2/evidence/local_backend.py` \| 441 \| Python \| |
++| `droid-wiki/by-the-numbers.md:119` | `phase-3.2/` | \| `phase-3.2/SPIKE.md` \| 405 \| Markdown \| |
++| `droid-wiki/by-the-numbers.md:122` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 276 \| Python \| |
++| `droid-wiki/by-the-numbers.md:125` | `phase-3.2/` | The largest executable file is `tools/orchestrate-review.py`, which runs the multi-mo… |
++| `droid-wiki/by-the-numbers.md:132` | `phase-3.2/` | \| `phase-3.2/evidence/local_backend.py` \| 441 \| |
++| `droid-wiki/by-the-numbers.md:134` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 276 \| |
++| `droid-wiki/by-the-numbers.md:136` | `phase-3.2/` | \| `phase-3.2/evidence/consumer.py` \| 222 \| |
++| `droid-wiki/by-the-numbers.md:137` | `phase-1/` | \| `phase-1/scripts/valid-red.py` \| 159 \| |
++| `droid-wiki/by-the-numbers.md:140` | `phase-3.2/` | \| `phase-3.2/evidence/single-round-report.py` \| 121 \| |
++| `droid-wiki/by-the-numbers.md:147` | `phase-3.2/` | \| `phase-3.2/` \| 413 \| |
++| `droid-wiki/by-the-numbers.md:150` | `phase-2/` | \| `phase-2/` \| 89 \| |
++| `droid-wiki/by-the-numbers.md:152` | `phase-1/` | \| `phase-1/` \| 55 \| |
++| `droid-wiki/by-the-numbers.md:153` | `phase-3/` | \| `phase-3/` \| 55 \| |
++| `droid-wiki/by-the-numbers.md:154` | `phase-0/` | \| `phase-0/` \| 49 \| |
++| `droid-wiki/by-the-numbers.md:155` | `phase-3.1/` | \| `phase-3.1/` \| 41 \| |
++| `droid-wiki/by-the-numbers.md:157` | `phase-3.3/` | \| `phase-3.3/` \| 130 \| |
++| `droid-wiki/by-the-numbers.md:159` | `phase-3.3/` | Single-file directories (`templates/`, `phase-3.3/`) naturally inflate the average. A… |
++| `droid-wiki/by-the-numbers.md:159` | `phase-3.2/` | Single-file directories (`templates/`, `phase-3.3/`) naturally inflate the average. A… |
++
++### `droid-wiki/lore.md` — 16 residual tokens
++
++Build history. The `Key files created:` lines record what each phase created **at the path it created it at** — that is the record. Spec §2.3 names this case exactly ("Phase 1 built `phase-1/scripts/lock.py`") and rules it out of the rewrite.
++
++| citation | token | line |
++|---|---|---|
++| `droid-wiki/lore.md:18` | `phase-0/` | **Key files created:** `PRD.md`, `phase-0/`, `tools/fixtures/rung*-gate.py`, `tools/a… |
++| `droid-wiki/lore.md:25` | `phase-1/` | - `phase-1/scripts/lock.py` — hash-lock a test file so it cannot be modified |
++| `droid-wiki/lore.md:26` | `phase-1/` | - `phase-1/scripts/valid-red.py` — verify tests fail for the right reason (not a synt… |
++| `droid-wiki/lore.md:27` | `phase-1/` | - `phase-1/scripts/verify-green.py` — re-check the hash, run pytest, refuse GREEN on … |
++| `droid-wiki/lore.md:31` | `phase-1/` | **Key files created:** `phase-1/scripts/`, `phase-1/locks/`, `tools/run-with-model.sh` |
++| `droid-wiki/lore.md:31` | `phase-1/` | **Key files created:** `phase-1/scripts/`, `phase-1/locks/`, `tools/run-with-model.sh` |
++| `droid-wiki/lore.md:52` | `phase-2/` | **Key files created:** `phase-2/APPROVAL.md`, `phase-2/brief-v2.md` |
++| `droid-wiki/lore.md:52` | `phase-2/` | **Key files created:** `phase-2/APPROVAL.md`, `phase-2/brief-v2.md` |
++| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
++| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
++| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
++| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
++| `droid-wiki/lore.md:80` | `phase-3.1/` | **Key files created:** `phase-3.1/RESULTS.md`, `phase-3.1/SPIKE.md`, PRD §17.6 amendment |
++| `droid-wiki/lore.md:80` | `phase-3.1/` | **Key files created:** `phase-3.1/RESULTS.md`, `phase-3.1/SPIKE.md`, PRD §17.6 amendment |
++| `droid-wiki/lore.md:108` | `phase-3.2/` | **Key files created:** `phase-3.2/evidence/`, `tools/orchestrate-review.py`, `tools/O… |
++| `droid-wiki/lore.md:112` | `phase-1/` | - **`phase-1/scripts/verify-green.py`** — created Aug 5, still the locked-hash gate f… |
++
++## Stale citations inside lock-frozen live code
++
++One residual is not in a document at all. `tests/test_layout_paths.py` line 571
++carries a comment citing the ledger at its pre-chunk-3 path,
++`planning/phase-4.5/LEDGER.md`. That file is a judge, content-locked at
++`cb00dfac…` against `tools/phase-1-locks/tests/test_layout_paths.py.lock.json`,
++and the executor of this chunk may not touch it — not even to fix a comment
++(spec §6, framework invariant #3).
++
++It is called out separately because it is the first case where this file covers a
++stale citation inside **live code** rather than inside a document or an evidence
++byte. A future reader who greps the tests, finds the old path, and cannot find
++the file needs to know that the staleness is intentional and where the ledger
++went: `planning/phase-4.5/LEDGER.md` → `evidence/LEDGER.md`, moved by `git mv` in
++chunk-D1-3 with zero content edits, because the ledger is append-only (§5, §21)
++and a sprint-wide record does not belong inside one phase's planning directory.
++
++## Scope
++
++This file is a redirect map, not a to-do list. The 683 tokens it covers are
++**deliberately** unedited, for the reasons at the top. Anyone tempted to "finish
++the job" by sweeping them should read spec §5 first — and
++`test_chunk3_redirect_only_surfaces_untouched` fails if those trees are swept,
++which is the same hard stop expressed as a test.
+diff --git a/planning/ROADMAP-REVIEW-PROMPT.md b/planning/ROADMAP-REVIEW-PROMPT.md
+index a37d618..570e653 100644
+--- a/planning/ROADMAP-REVIEW-PROMPT.md
++++ b/planning/ROADMAP-REVIEW-PROMPT.md
+@@ -17,13 +17,13 @@ Read the following to understand the full arc:
+ - `tools/README.md` and `tools/adapters/factory.py` — the adapter shim architecture
+ - `telemetry/SCHEMA.md` — the data schema (now v2)
+ - Every phase directory's README / RESULTS / BUILD-NOTES / ASSUMPTIONS:
+-  - `phase-0/` — feasibility spike
+-  - `phase-1/` — test-evidence vertical slice
+-  - `phase-2/` — brief + plan approval
+-  - `phase-3/` — execute the sprint (3 chunks, full adversarial loop)
+-  - `phase-3.1/` — degraded loop spike (RESULTS.md)
+-  - `phase-3.2/` — evidence provider (BUILD-NOTES.md, ASSUMPTIONS.md)
+-  - `phase-3.3/` — visual/behavioral tier (SPIKE.md only, seed)
++  - `planning/phase-0/` — feasibility spike
++  - `planning/phase-1/` — test-evidence vertical slice
++  - `planning/phase-2/` — brief + plan approval
++  - `planning/phase-3/` — execute the sprint (3 chunks, full adversarial loop)
++  - `planning/phase-3.1/` — degraded loop spike (RESULTS.md)
++  - `planning/phase-3.2/` — evidence provider (BUILD-NOTES.md, ASSUMPTIONS.md)
++  - `planning/phase-3.3/` — visual/behavioral tier (SPIKE.md only, seed)
+ - `telemetry/runs.jsonl` — the actual cost data (gitignored, local only)
+ 
+ ### Phase 2: Dispatch sub-agents to audit each phase
+diff --git a/planning/ROADMAP-REVIEW.md b/planning/ROADMAP-REVIEW.md
+index 5cb1679..26aeca9 100644
+--- a/planning/ROADMAP-REVIEW.md
++++ b/planning/ROADMAP-REVIEW.md
+@@ -15,7 +15,7 @@
+ | v2 | Grok-4.5 + Gemini-3.1-pro | **APPROVE-WITH-NITS** (both) | Directionally correct; nits: Evidence Provider IS the KI-2 fix; H3 not scheduled; parallelize tracks; Act 3 overclaims; §10 forward-looking only; stray-write STOP is dirty-tree false positive |
+ | v3 (this) | — | — | Folds in all v2 nits: parallel tracks, H3 scheduling, KI-2-as-bundle-fix, Act 3 bounded, §10 forward-looking, hermetic stray-write, run-with-model bypass |
+ 
+-Panel findings: `phase-3.2/reviews/roadmap-review-cross-family-findings.json` (v1), `phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` (v2)
++Panel findings: `evidence/phase-3.2/reviews/roadmap-review-cross-family-findings.json` (v1), `evidence/phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json` (v2)
+ 
+ ---
+ 
+@@ -67,9 +67,9 @@ A thin per-role invocation wrapper belonged at the Phase 0 contingency / Phase 1
+ `telemetry/runs.jsonl` currently has 12 rows, all Phase 3.2 (schema v2). Phase 2 wrote zero rows at the time. Phase 3's rows were overwritten. `telemetry/findings.jsonl` and `dispositions.jsonl` do not exist.
+ 
+ **However, the data is reconstructable from committed artifacts:**
+-- Phase 2: 5 envelopes in `phase-2/build-evidence/` + structured findings in `findings.md` = 5 runs.jsonl rows + 6 findings.jsonl rows
+-- Phase 3: 13 envelopes in `phase-3/build-evidence/` + `gen-telemetry.py` (the auditable recipe) = 13 runs.jsonl rows
+-- Phase 3.1: envelopes in `phase-3.1/build-evidence/` + `gen-telemetry.py` = additional rows
++- Phase 2: 5 envelopes in `evidence/phase-2/build-evidence/` + structured findings in `findings.md` = 5 runs.jsonl rows + 6 findings.jsonl rows
++- Phase 3: 13 envelopes in `evidence/phase-3/build-evidence/` + `gen-telemetry.py` (the auditable recipe) = 13 runs.jsonl rows
++- Phase 3.1: envelopes in `evidence/phase-3.1/build-evidence/` + `gen-telemetry.py` = additional rows
+ 
+ **What it cost:** The §13 efficacy evaluation's system-of-record is incomplete, but the evidence inputs are partially recoverable. The gap is "missing SoR" not "missing evidence." Phase 6 calibration input (`first_seen_in_panel_position`) exists as prose in wiki entries and in `findings.md`, not yet in structured JSONL.
+ 
+diff --git a/skills/adversarial-sprint/SKILL.md b/skills/adversarial-sprint/SKILL.md
+index c125ce5..d16b276 100644
+--- a/skills/adversarial-sprint/SKILL.md
++++ b/skills/adversarial-sprint/SKILL.md
+@@ -74,7 +74,7 @@ agent makes.
+     chunk-close token's reviewer `envelope_sha256` MUST be computed
+     from a real reviewer envelope on disk (the SHA of a fired
+     `droid exec` output written to
+-    `phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
++    `evidence/phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer>.json`).
+     Build-time fixture markers — homogeneous leading-character hex
+     runs, typed-in placeholders, "5555...55501"-style tokens — fail
+     `tools/cross_family_review.py`'s envelope-authenticity check
+@@ -82,7 +82,7 @@ agent makes.
+     distance: the operator-side `chunk-N.token.json` IS the review,
+     and a token without a verifier-traceable envelope is a
+     self-declaration, not a verdict. Tier-3 fix: an off-process
+-    signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
++    signing daemon (`planning/phase-4.5/DESIGN-DAEMON-SIGNER.md`) the agent
+     POSTs envelope paths to; the daemon holds the key and refuses
+     if any envelope is absent on disk.
+ 11. **Author is not the verifier, even within the same model-family
+@@ -91,13 +91,13 @@ agent makes.
+     working memory into the reviewer's context. The chunk-close
+     signing authority is held by a separate process (Tier-3
+     daemon / §21); the reviewer-firing path is held by a separate,
+-    persistent cross-family referee (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
++    persistent cross-family referee (`planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md`,
+     KN-A-8). A build agent may post `REVIEW REQUEST:` lines to
+     `STEER.md` (machine-local cross-agent queue per §1). The
+     build agent MUST NOT fire `droid exec` against the reviewer
+     model IDs the agent itself selected; MUST NOT hold
+     `EVIDENCE_SIGNING_KEY`; MUST NOT write directly to
+-    `phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
++    `evidence/phase-4.5/tokens/chunk-N.token.json`. The chunk-close gate
+     enforces the structural predicate (`envelope-on-disk SHA`);
+     the persistent referee enforces the identity predicate
+     (signing authority / reviewer-firing process). Both must
+diff --git a/skills/sprint-invocation/SKILL.md b/skills/sprint-invocation/SKILL.md
+index c9d4812..b6d8c67 100644
+--- a/skills/sprint-invocation/SKILL.md
++++ b/skills/sprint-invocation/SKILL.md
+@@ -66,7 +66,7 @@ recap; the README is the line-by-line install.)
+   exec; do NOT commit. The gate prints `[dry-run] auto-decision:
+   accept` and exits 0. The simulator's `COMPLETED · run_id=...`
+   banner is NOT a real-verdict: it is a §7 silent-green shape
+-  (see §15 in `phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
++  (see §15 in `planning/phase-4.5/RUN-PROMPT.md`). Treat dry-run as a
+   wiring test, not as proof that a chunk would land.
+ - `--non-interactive` — bypass the reconcile gate stdin pause.
+   The §5.3 machine-check still runs; refuse-on-blocker|high
+diff --git a/tools/OPERATING-RULES.md b/tools/OPERATING-RULES.md
+index 83ec6e8..42ff5a1 100644
+--- a/tools/OPERATING-RULES.md
++++ b/tools/OPERATING-RULES.md
+@@ -38,7 +38,7 @@ commit the evidence first. A control environment is only as durable as what's in
+ - The 0.180.0 canary box is a **known-good baseline** — it is the only machine that can
+   prove the `hooks.json` regression (works at 0.180 → silent at 0.186). Its value
+   evaporates the moment it's upgraded, unless the evidence is committed. It is
+-  (`phase-0/evidence/canary-0.180.0/`).
++  (`evidence/phase-0/canary-0.180.0/`).
+ - `droid update -v <version>` pins to a specific version, so an upgrade is reversible —
+   but reversible ≠ free. Capture, then upgrade, then re-measure. Never upgrade-first.
+ 
+@@ -61,7 +61,7 @@ and that is correct:
+ 
+ | Scheme | Canonical source | Example: `.factory/hooks.json` |
+ |---|---|---|
+-| **Repo defect-N** | `phase-0/GO-NO-GO.md`, `droid-wiki/background/open-questions.md` | **#2** |
++| **Repo defect-N** | `planning/phase-0/GO-NO-GO.md`, `droid-wiki/background/open-questions.md` | **#2** |
+ | **GitHub issue-N** | the upstream Factory-AI/factory tracker | **#3** |
+ 
+ Do not renumber either to match the other. When referring to a defect, say *which
+@@ -273,7 +273,7 @@ recreating the unbounded-backlog pattern.
+ 
+ **Layer-3 amendment (Phase 5 close, factory/phase-5-chunkadherence-enforcement):**
+ A self-run, same-family, implementer-orchestrated subagent review does
+-**not** satisfy §17. Only a ``phase-4.5/tokens/chunk-N.token.json``
++**not** satisfy §17. Only a ``evidence/phase-4.5/tokens/chunk-N.token.json``
+ whose HMAC-SHA256 signature verifies under ``EVIDENCE_SIGNING_KEY``
+ **and** whose reviewer list is cross-family (≥2 distinct families via
+ ``tools/sprint_loop/config.py:MODEL_FAMILY_MAP``) **and** disjoint
+@@ -285,8 +285,8 @@ signature path before chunk-N+1 may start. Cite the chunk-14 pass-r5
+ episode (``factory/chunk-14-kn-J-fixes``, commit ``623e024``) as the
+ repro: an ACCEPT-WITH-NITS from two same-family Task subagents that
+ the gate rejected on the family-distinctness constraint alone. See
+-``phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
+-spec and ``phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
++``planning/phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md`` §8 for the design
++spec and ``planning/phase-4.5/KNOWN-ISSUES.md`` KN-R1 for the issue trail.
+ 
+ 
+ ## 18. Compose existing primitives; build in chunks; fix ergonomic friction inline
+@@ -300,7 +300,7 @@ either reinvention (rule §14 silent-scope-lie), duplicate directory
+ Concretely, before writing code:
+ 
+ 1. **Compose first.** ``grep -l`` the project for the nearest existing
+-   primitive (``tools/``, ``phase-1/scripts/``, ``phase-3.2/evidence/``,
++   primitive (``tools/``, ``tools/phase-1-scripts/``, ``tools/phase-3.2-evidence/``,
+    the model-discipline conventions). Plan the build as a flow chart of
+    *existing* calls with thin orchestration glue between them.
+ 2. **Build in chunks.** Each commit lands one verifiable unit: state +
+@@ -381,7 +381,7 @@ the reconciliation the review was meant to do.
+ 
+ A chunk's "I'm done" is an *agent claim* until the
+ `chunk_sequence_gate` confirms it. The runner emits a
+-`phase-4.5/tokens/chunk-N.token.json` at chunk close, HMAC-SHA256
++`evidence/phase-4.5/tokens/chunk-N.token.json` at chunk close, HMAC-SHA256
+ signed by `EVIDENCE_SIGNING_KEY`. The next-chunk-start path refuses
+ without a verifiable token for the prior chunk. Phase 5's
+ enforcement layer builds this; the rule sits here so any agent
+@@ -408,7 +408,7 @@ A chunk-close token's reviewer `envelope_sha256` field must be
+ **computed from a real reviewer envelope** — the SHA-256 digest
+ over the literal output of a fired cross-family `droid exec`,
+ written to disk at
+-`phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
++`evidence/phase-4.5/build-evidence/<run-id>/<chunk-id>/<reviewer-label>.json`.
+ 
+ Build-time fixture markers (`"5"` × 60 + `"01"`-style, all-zero SHA
+ prefixes, all-homogeneous leading 50-character runs) — even when
+@@ -436,7 +436,7 @@ SHAs (KN-A-5) — the same anti-pattern in a milder family-distinct
+ form. The fix is structural, not stylistic: bind
+ `envelope_sha256` to a disk artifact the implementer did not
+ create, and refuse the token otherwise. Tier-3 off-process
+-signing daemon (`phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
++signing daemon (`planning/phase-4.5/DESIGN-DAEMON-SIGNER.md`) — the
+ agent POSTs `(chunk_id, chunk_commit_sha, envelope_paths)` to a
+ separate process; the daemon computes SHAs from the on-disk
+ envelopes, signs the token, and never exposes
+@@ -461,7 +461,7 @@ Operationally:
+    keyed daemon). The build agent has only **read access** to the
+    resulting token, via the commit record.
+ 2. The **reviewer-firing path** is held by a separate, persistent
+-   cross-family referee process (`phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
++   cross-family referee process (`planning/phase-4.5/DESIGN-PERSISTENT-REFEREE.md`
+    / KN-A-8) that wakes on a cadence and reads pending review
+    requests from `STEER.md` (machine-local cross-agent queue per
+    §1). The referee has its own git session identity / commit
+@@ -470,7 +470,7 @@ Operationally:
+    lines to `STEER.md`. The agent MAY NOT fire `droid exec`
+    against the reviewer model IDs the agent itself selected; the
+    agent MAY NOT hold `EVIDENCE_SIGNING_KEY`; the agent MAY NOT
+-   write to `phase-4.5/tokens/chunk-N.token.json` directly.
++   write to `evidence/phase-4.5/tokens/chunk-N.token.json` directly.
+ 4. The chunk-close gate (`cross_family_review.py` + `chunk_sequence_gate.py`)
+    validates the *structural* predicate; the persistent referee
+    enforces the *identity* predicate. The build agent cannot
+@@ -546,7 +546,7 @@ collision) posts a `REFUSED: chunk=X reason=paraphrase` line
+ to `STEER.md` and is a §22 audit failure visible to the
+ operator.
+ 
+-*Rationale:* KN-A-9 entry in `phase-4.5/KNOWN-ISSUES.md` —
++*Rationale:* KN-A-9 entry in `planning/phase-4.5/KNOWN-ISSUES.md` —
+ the Tier-2 paraphrase anti-pattern is structurally possible
+ today because §17.2 is satisfied on family labels alone;
+ without §23, the guarantee is "different MODEL_TRAINER" not
+@@ -578,8 +578,8 @@ The architecture:
+   envelope paths the orchestrator computes.
+ - The Tier-2 validators themselves (grok, gemini — long-running
+   droid sessions, the spawn prompts in
+-  `phase-4.5/prompts/phase-5-grok-validator.md` and
+-  `phase-4.5/prompts/phase-5-gemini-validator.md`) *receive*
++  `planning/phase-4.5/prompts/phase-5-grok-validator-spawn.md` and
++  `planning/phase-4.5/prompts/phase-5-gemini-validator-spawn.md`) *receive*
+   `VALIDATE REQUEST:` lines from STEER.md, perform their own
+   invocation within their own session, and write their own
+   raw envelope bytes — providing operational-distinctness
+diff --git a/tools/conventions/model-discipline.md b/tools/conventions/model-discipline.md
+index 78313ad..a82dbc3 100644
+--- a/tools/conventions/model-discipline.md
++++ b/tools/conventions/model-discipline.md
+@@ -7,7 +7,7 @@ Operational form of `PRD.md` §17. Read this before invoking `droid exec` on a f
+ 1. **Every invocation's model is recorded; separation-bearing seats are pinned.** Attribution (which model ran) is recoverable from the envelope; enforcement (guaranteeing family separation *before* the run) is not. So (per PRD §17.1): the **plan reviewer** and **validator** seats MUST pin `--model` (or a router family-exclude) before running, because a colliding family voids independence and post-hoc detection wastes the round; the **planner** and **executor** seats MAY use `--auto`, provided the resolved `modelId`/`providerLock`/`apiProviderLock` are recorded in the commit body and `telemetry/runs.jsonl`. An author seat on `--auto` runs a collision guard that swaps a same-family reviewer to the `claude-opus-4-8` fallback. This supersedes the earlier blanket "no silent `--auto`" — the rule is "always *know* the model, and pin wherever a family constraint must be guaranteed."
+ 2. **Cross-family review is by design.** A non-author-family reviewer is required for any code that lands on `main`. Standing panel: `Gemini-Pro` + `Grok-4.5` (cross-family primary); `Claude-Opus-4.8` (fallback). `Codex-class` is excluded when the author was OpenAI-family.
+ 3. **Telemetry data is git-ignored.** `telemetry/runs.jsonl`, `telemetry/findings.jsonl`, and `telemetry/dispositions.jsonl` never enter `git` history. Schema lives in `telemetry/SCHEMA.md`; aggregate script reads from a configurable path.
+-4. **Degrading the test-author family invariant is an outage fallback, not a cost lever** (PRD §17.6). Default: if you cannot seat an independent-family test-author, **stop** (invariant #7). A same-family test-author (author family == executor family) is allowed **only** under a confirmed frontier outage recorded in `phase-N/KNOWN-ISSUES.md`, and **only** with **both**: (a) a family-blind deterministic gate that runs each locked test **in isolation** (`verify-green.py` standalone — full-suite green is not enough), and (b) a fail-closed **≥2-family** validator panel where **any REJECT blocks**, with retry-on-reject. A single-validator panel is insufficient; same-family + single reviewer MUST NOT land on `main`. Evidence: Phase 3.1 (`phase-3.1/RESULTS.md`, n=1) — the frontier panel split (grok REJECT, gemini ACCEPT), so a single reviewer would have shipped the defect, and the forced retry erased the cheap-seat savings (~2.4× control tokens). Strict on small n by design; strengthen first, relax only on evidence.
++4. **Degrading the test-author family invariant is an outage fallback, not a cost lever** (PRD §17.6). Default: if you cannot seat an independent-family test-author, **stop** (invariant #7). A same-family test-author (author family == executor family) is allowed **only** under a confirmed frontier outage recorded in `phase-N/KNOWN-ISSUES.md`, and **only** with **both**: (a) a family-blind deterministic gate that runs each locked test **in isolation** (`verify-green.py` standalone — full-suite green is not enough), and (b) a fail-closed **≥2-family** validator panel where **any REJECT blocks**, with retry-on-reject. A single-validator panel is insufficient; same-family + single reviewer MUST NOT land on `main`. Evidence: Phase 3.1 (`planning/phase-3.1/RESULTS.md`, n=1) — the frontier panel split (grok REJECT, gemini ACCEPT), so a single reviewer would have shipped the defect, and the forced retry erased the cheap-seat savings (~2.4× control tokens). Strict on small n by design; strengthen first, relax only on evidence.
+ 
+ ## Commit body recipe
+ 
+diff --git a/tools/sprint_loop/prompts/executor.md b/tools/sprint_loop/prompts/executor.md
+index b936a5c..60a4204 100644
+--- a/tools/sprint_loop/prompts/executor.md
++++ b/tools/sprint_loop/prompts/executor.md
+@@ -39,7 +39,7 @@ that preflight.
+ 
+ ## What "GREEN" means here
+ 
+-The runner calls ``phase-1/scripts/verify-green.py`` after you commit
++The runner calls ``tools/phase-1-scripts/verify-green.py`` after you commit
+ changes. That script:
+ 1. Re-checks the locked test SHA-256 against the manifest. If you
+    somehow mutated it (you shouldn't be able to), GREEN REFUSED.
+diff --git a/tools/sprint_loop/prompts/test-designer.md b/tools/sprint_loop/prompts/test-designer.md
+index 368d3fd..139c35b 100644
+--- a/tools/sprint_loop/prompts/test-designer.md
++++ b/tools/sprint_loop/prompts/test-designer.md
+@@ -26,7 +26,7 @@ in ``phase-N/KNOWN-ISSUES.md``).
+   ``ApplyPatch`` tools ONLY against the locked test file.
+ - The **PRD §5.4** rules for a valid RED: behaviour-changing work
+   cannot begin until the intended assertion has run and failed for
+-  the expected reason. The runner runs ``phase-1/scripts/valid-red.py``
++  the expected reason. The runner runs ``tools/phase-1-scripts/valid-red.py``
+   after you commit the test; that classifier rejects syntax errors,
+   import errors, missing fixtures, tautological tests, etc.
+ - The **running pytest baseline** (``{{pytest_baseline_path}}``, if
+@@ -49,8 +49,8 @@ acceptance criteria. The assertions must be:
+   pytest output on a valid RED, so the runner's classifier can match
+   it (``--accepted-assertion``).
+ 
+-The runner locks the test via ``phase-1/scripts/lock.py`` and asserts
+-the RED via ``phase-1/scripts/valid-red.py``. If your test fails the
++The runner locks the test via ``tools/phase-1-scripts/lock.py`` and asserts
++the RED via ``tools/phase-1-scripts/valid-red.py``. If your test fails the
+ RED validation, the runner loops back to you with the rejection
+ reasoning — do not preempt by self-classifying.
+ 
+diff --git a/tools/sprint_loop/prompts/validator.md b/tools/sprint_loop/prompts/validator.md
+index 16274e6..e9282b1 100644
+--- a/tools/sprint_loop/prompts/validator.md
++++ b/tools/sprint_loop/prompts/validator.md
+@@ -32,7 +32,7 @@ when the executor was OpenAI-family (per
+   contains: commit SHA, locked-test SHA observed, structured pytest
+   results (``passed``, ``failed``, ``skipped``, ``suite_exit_code``,
+   per-failure records), optional coverage, optional security findings
+-  (new-vs-baseline only). See ``phase-3.2/evidence/bundle_schema_v1.json``
++  (new-vs-baseline only). See ``evidence/phase-3.2/bundle_schema_v1.json``
+   for the schema.
+ - The **validator tool policy** per OPERATING-RULES §17.5: in
+   bundle-mode (the default for this role), your --enabled-tools is
+@@ -62,7 +62,7 @@ when the executor was OpenAI-family (per
+    per the bundle's evidence verdict.
+ 4. **Security lens** (if bundle includes ``security.findings``) —
+    accept only ``is_new==true`` ones; baseline debt is excluded per
+-   PRD §4.4. The validator consumer (``phase-3.2/evidence/consumer.py``)
++   PRD §4.4. The validator consumer (``tools/phase-3.2-evidence/consumer.py``)
+    pre-applies this rule; your job here is to verify the consumer's
+    verdict and surface anything you noticed that the bundle missed.
+ 5. **No regression** — the bundle's full-suite result (when present,
