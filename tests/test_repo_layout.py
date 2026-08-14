@@ -22,16 +22,11 @@ ALLOWED_TOP_LEVEL = frozenset({
     "README.md",
     "build-evidence",
     "droid-wiki",
-    "phase-0",
-    "phase-1",
-    "phase-2",
-    "phase-3",
-    "phase-3.1",
-    "phase-3.2",
-    "phase-3.3",
-    "phase-4",
-    "phase-4.5",
-    "phase-5",
+    # chunk-D1-2 retired the phase-N silos: their contents moved to
+    # evidence/<phase>/, planning/<phase>/ and tools/phase-N-<subdir>/.
+    # A reappearing `phase-N` top-level dir is a regression, so the
+    # allowlist no longer carries them.
+    "evidence",
     "pilots",
     "planning",
     "pytest.ini",

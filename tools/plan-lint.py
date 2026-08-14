@@ -900,7 +900,7 @@ def _is_file_path(val: str) -> bool:
 
     Examples: 'tools/cross_family_review.py', 'phase-4.5/tokens/chunk-5a.token.json'.
     """
-    return bool(re.match(r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry)/[\w/.-]+$", val)) and "." in val.split("/")[-1]
+    return bool(re.match(r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.-]+$", val)) and "." in val.split("/")[-1]
 
 
 def _is_value_negated(line: str, val: str) -> bool:
@@ -1148,7 +1148,13 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
                             pass
 
         # Rule 7: file paths referenced in the plan body.
-        for match in re.finditer(r"(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry)/[\w/.]+\.\w+", line):
+        #
+        # The lookbehind is load-bearing since chunk-D1-2 added `evidence` as an
+        # alternative: unanchored, `evidence/` also matches mid-token inside
+        # `tools/phase-3.2-evidence/local_backend.py`, and the linter then warns
+        # that `evidence/local_backend.py` does not exist. Requiring a
+        # non-path character before the prefix means only a path START matches.
+        for match in re.finditer(r"(?<![\w./-])(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.]+\.\w+", line):
             path = match.group(0)
             full = repo_root / path
             if not full.exists():

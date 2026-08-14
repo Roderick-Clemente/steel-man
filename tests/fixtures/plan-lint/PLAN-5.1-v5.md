@@ -280,10 +280,10 @@ Each claim verified against the named live artifact:
 
 | Claim | Artifact checked | Result |
 |-------|-----------------|--------|
-| Token has no top-level `verdict`; verdicts are `reviewers[i].verdict` | `phase-4.5/tokens/chunk-5a.token.json` | ✅ Confirmed: `reviewers[0].verdict: "ACCEPT-WITH-NITS"`, `reviewers[1].verdict: "ACCEPT"`, no root `verdict` |
+| Token has no top-level `verdict`; verdicts are `reviewers[i].verdict` | `evidence/phase-4.5/tokens/chunk-5a.token.json` | ✅ Confirmed: `reviewers[0].verdict: "ACCEPT-WITH-NITS"`, `reviewers[1].verdict: "ACCEPT"`, no root `verdict` |
 | `ACCEPT_CLASS = {"ACCEPT", "ACCEPT-WITH-NITS"}` | `tools/sign_chunk_token.py` | ✅ Confirmed: `ACCEPT_CLASS: frozenset[str] = frozenset({"ACCEPT", "ACCEPT-WITH-NITS"})` |
 | `build_token()` signature: `chunk_id, chunk_commit_sha, reviewers, signed_by, signing_key_env` | `tools/sign_chunk_token.py` | ✅ Confirmed |
-| Token schema: `chunk-token/v1`, fields `chunk_id, chunk_commit_sha, reviewers[.{envelope_sha256,family,model_id,provider,verdict}], schema, signature, signed_at, signed_by` | `phase-4.5/tokens/chunk-5a.token.json` + `tools/sign_chunk_token.py build_token()` | ✅ Confirmed (note: `provider` is `""` in live tokens — referee-side gap) |
+| Token schema: `chunk-token/v1`, fields `chunk_id, chunk_commit_sha, reviewers[.{envelope_sha256,family,model_id,provider,verdict}], schema, signature, signed_at, signed_by` | `evidence/phase-4.5/tokens/chunk-5a.token.json` + `tools/sign_chunk_token.py build_token()` | ✅ Confirmed (note: `provider` is `""` in live tokens — referee-side gap) |
 | `check_reviewer_panel()` checks: implementer-disjoint, count≥2, unknown family, placeholder SHA, ACCEPT-class | `tools/cross_family_review.py` | ✅ Confirmed |
 | `chunk_sequence_gate` CLI: `--prior-token`, `--next-chunk-id`, `--signing-key-env`, `--check-current-head`, `--repo` | `tools/chunk_sequence_gate.py` argparse | ✅ Confirmed |
 | `chunk_close_banner` CLI: `--token-path`, `--signing-key-env`, `--plan-review-rendered`, `--validation-gate-executed` | `tools/sprint_loop/chunk_close_banner.py` argparse | ✅ Confirmed |

@@ -8,10 +8,12 @@
 # constant of the same name, and PHASE5_SCRIPTS_ROOT has no Python consumer.
 # This file carries exactly what fire-design-review.sh composes with, no more.
 #
-# Today's layout (Chunk 1 defaults). Chunk 2 flips these.
+# Taxonomy layout (flipped by chunk-D1-2). BUILD_EVIDENCE_REL is a bare
+# segment and must keep matching the Python constant of the same name exactly;
+# the evidence root is applied by the consumer, not baked in here.
 
-EVIDENCE_ROOT=""                                # → "evidence" in Chunk 2
+EVIDENCE_ROOT="evidence"
 BUILD_EVIDENCE_REL="phase-4.5/build-evidence"   # segment; unchanged by Chunk 2
-PHASE5_SCRIPTS_ROOT="phase-5/scripts"           # → "tools/phase-5-scripts" in Chunk 2
+PHASE5_SCRIPTS_ROOT="tools/phase-5-scripts"
 
 export EVIDENCE_ROOT BUILD_EVIDENCE_REL PHASE5_SCRIPTS_ROOT

@@ -162,7 +162,7 @@ jobs:
           # back to a synthesized chunk that just verifies the locked
           # test (the runner reads --chunks-file from the runner-config).
           python3 -c "import json; print(json.dumps({'chunks': [{'chunk_id': 'ci-${{ steps.chunk.outputs.chunk_id }}', 'scope': 'PR '+'${{ steps.chunk.outputs.chunk_id }}', 'observable_criteria': ['PR passes adversarial review'], 'allowed_files': [], 'locked_test_files': ['test/'+'${{ steps.chunk.outputs.chunk_id }}.py'], 'commands': ['pytest -v'], 'accepted_assertion': 'PASS'}]}))" > chunks.json
-          python3 framework/phase-3.2/evidence/local_backend.py \
+          python3 framework/tools/phase-3.2-evidence/local_backend.py \
             --pilot-root "$GITHUB_WORKSPACE/pilot" \
             --framework-root "$GITHUB_WORKSPACE/framework" \
             --test-file "test/${{ steps.chunk.outputs.chunk_id }}.py" \
@@ -189,7 +189,7 @@ jobs:
               --pilot-python "$( which python3 )" \
               --test-file "test/${{ steps.chunk.outputs.chunk_id }}.py" \
               --lock-file "$GITHUB_WORKSPACE/pilot/phase-1/locks/test/${{ steps.chunk.outputs.chunk_id }}.py.lock.json" \
-              --prompt-file framework/phase-3.2/reviews/review-prompt.md \
+              --prompt-file framework/planning/phase-3.2/reviews/review-prompt.md \
               --review-output-dir phase-4.5-ci/reviews \
               --validators "grok-4.5:xai:grok-family:grok-4.5,gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview" \
               --evidence-output phase-4.5-ci/evidence/bundle.json \
@@ -242,7 +242,7 @@ jobs:
               '**Validator panel:**',
               validators || '_(no validators ran)_',
               '',
-              `See \`phase-4.5-ci/evidence/bundle.json\` for the deterministic evidence tier (signed; replays in \`phase-3.2/evidence/consumer.py\`).`,
+              `See \`phase-4.5-ci/evidence/bundle.json\` for the deterministic evidence tier (signed; replays in \`tools/phase-3.2-evidence/consumer.py\`).`,
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,

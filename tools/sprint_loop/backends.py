@@ -122,6 +122,11 @@ class LocalBackend:
         # generic "orchestrator missing" message.
         test_file = chunk.get("test_file", "")
         lock_file = chunk.get("lock_file", "")
+        # "evidence" is the phase_path KIND (expanded to EVIDENCE_ROOT), not a
+        # literal directory name, so the remaining segments must be spelled
+        # out. Substituting config.BUILD_EVIDENCE_REL — itself already rooted —
+        # would double the evidence root. CHUNK-2-SPEC §2.2 mandates this
+        # segment-preserving form; it reads as duplication and is not.
         review_output_dir = chunk.get("review_output_dir", "") or phase_path(
             framework_root, "evidence", "phase-4.5", "build-evidence",
             extra.get("run_id", run_label), "reviews"

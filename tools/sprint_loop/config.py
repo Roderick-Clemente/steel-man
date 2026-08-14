@@ -63,23 +63,28 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
 
 # ── layout roots (CHUNK-1-SPEC §2.1) ─────────────────────────────────────
 #
-# Single source of truth for the phase-directory prefixes the runner, the
-# gates and the orchestrator seat compose paths from. Chunk 1 introduces
-# them pointing at today's homes, so behaviour is byte-identical and no
-# directory moves happen; Chunk 2 flips the values and the tree moves.
+# Single source of truth for the layout prefixes the runner, the gates and
+# the orchestrator seat compose paths from. Chunk 1 introduced them pointing
+# at the old phase-silo homes so behaviour was byte-identical; Chunk 2
+# (chunk-D1-2) flipped the VALUES and moved the tree to the taxonomy homes.
+# Only the values changed — the shape is the chunk-D1-1 contract.
 #
 # These are RELATIVE SEGMENTS, never absolute paths. ``framework_root``
 # lives on the ``Config`` dataclass and is supplied per call — baking it in
 # here would make the constants unusable from the standalone scripts and
-# would break the forward invariant Chunk 2 relies on.
+# would double the root inside ``phase_path``.
+#
+# The seven roots are INDEPENDENT of each other: none is written as
+# ``os.path.join(EVIDENCE_ROOT, ...)``. Coupling them risks doubling the
+# root if ``phase_path`` is ever handed both a root and a rooted segment.
 
-EVIDENCE_ROOT = ""
-PLANNING_ROOT = ""
-TOKENS_ROOT = os.path.join("phase-4.5", "tokens")
-PROMPTS_ROOT = os.path.join("phase-4.5", "prompts")
-SCRIPTS_ROOT = os.path.join("phase-1", "scripts")
-LOCKS_ROOT = os.path.join("phase-1", "locks")
-EVIDENCE_CODE_ROOT = os.path.join("phase-3.2", "evidence")
+EVIDENCE_ROOT = "evidence"
+PLANNING_ROOT = "planning"
+TOKENS_ROOT = os.path.join("evidence", "phase-4.5", "tokens")
+PROMPTS_ROOT = os.path.join("planning", "phase-4.5", "prompts")
+SCRIPTS_ROOT = os.path.join("tools", "phase-1-scripts")
+LOCKS_ROOT = os.path.join("tools", "phase-1-locks")
+EVIDENCE_CODE_ROOT = os.path.join("tools", "phase-3.2-evidence")
 
 # Derived. TWO names, because the segment and the root-composed path are
 # different things and giving them one name is a Chunk-2 trap.
@@ -90,10 +95,11 @@ EVIDENCE_CODE_ROOT = os.path.join("phase-3.2", "evidence")
 # ``EVIDENCE_ROOT`` a second time is what double-applies the root.
 #
 # ``BUILD_EVIDENCE_DIR`` is that segment under the evidence root: it is what
-# prose means by "the build-evidence dir", and it grows the ``evidence/``
-# prefix at the Chunk-2 flip. ``os.path.join`` swallows the empty component,
-# so it renders without a leading slash while ``EVIDENCE_ROOT`` is still "" —
-# an f-string on ``EVIDENCE_ROOT`` would not, and would change --help bytes.
+# prose means by "the build-evidence dir". It grew the ``evidence/`` prefix
+# automatically at the Chunk-2 flip because it is DERIVED — that is the whole
+# point of the two names. ``os.path.join`` is used rather than an f-string so
+# that an empty ``EVIDENCE_ROOT`` renders without a leading slash (it did in
+# Chunk 1); an f-string would have changed --help bytes.
 BUILD_EVIDENCE_REL = os.path.join("phase-4.5", "build-evidence")
 BUILD_EVIDENCE_DIR = os.path.join(EVIDENCE_ROOT, BUILD_EVIDENCE_REL)
 
@@ -225,6 +231,13 @@ class Config:
     def default_evidence_dir(self, run_id: str) -> str:
         if self.evidence_output_dir:
             return self.evidence_output_dir
+        # The segments are spelled out rather than reused from
+        # BUILD_EVIDENCE_REL on purpose: BUILD_EVIDENCE_REL is a *rooted*
+        # relative segment, and "evidence" here is the phase_path KIND, which
+        # phase_path expands to EVIDENCE_ROOT. Passing BUILD_EVIDENCE_REL in
+        # its place would compose the evidence root twice. CHUNK-2-SPEC §2.2
+        # mandates this segment-preserving form; three reviewer families have
+        # flagged it as duplication, so the reason is recorded here.
         return phase_path(
             self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id
         )

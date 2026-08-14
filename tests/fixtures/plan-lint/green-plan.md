@@ -22,7 +22,7 @@ against the ground-truth artifacts in the fixture repo.
       "line": 1,
       "claim": "Token has reviewers array",
       "field_path": "reviewers",
-      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
       "expect": "exists"
     },
     {
@@ -30,7 +30,7 @@ against the ground-truth artifacts in the fixture repo.
       "line": 1,
       "claim": "Token reviewers have verdict field",
       "field_path": "reviewers[0].verdict",
-      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
       "expect": "exists"
     },
     {
@@ -69,7 +69,7 @@ against the ground-truth artifacts in the fixture repo.
       "line": 1,
       "claim": "Gate predicate: token file exists at chunk-{chunk_id}.token.json with reviewers[*].verdict in ACCEPT_CLASS",
       "field_path": "reviewers[*].verdict",
-      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
       "expect": "resolvable"
     }
   ]

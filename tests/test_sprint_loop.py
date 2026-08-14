@@ -411,12 +411,12 @@ def test_config_provider_family_lookup():
 
 def test_config_default_locks_dir():
     cfg = Config(framework_root="/tmp/fw")
-    assert cfg.default_locks_dir() == "/tmp/fw/phase-1/locks"
+    assert cfg.default_locks_dir() == "/tmp/fw/tools/phase-1-locks"
 
 
 def test_config_default_evidence_dir():
     cfg = Config(framework_root="/tmp/fw")
-    assert cfg.default_evidence_dir("r-001") == "/tmp/fw/phase-4.5/build-evidence/r-001"
+    assert cfg.default_evidence_dir("r-001") == "/tmp/fw/evidence/phase-4.5/build-evidence/r-001"
 
 
 def test_role_assignments_materialise_from_config():
@@ -698,7 +698,7 @@ def test_backends_local_dry_run_returns_accept(tmp_path):
     backend = LocalBackend(dry_run=True)
     chunk = {
         "test_file": "test/test_x.py",
-        "lock_file": "phase-1/locks/test/test_x.py.lock.json",
+        "lock_file": "tools/phase-1-locks/test/test_x.py.lock.json",
         "review_output_dir": str(tmp_path / "reviews"),
     }
     res = backend.validate(
@@ -728,7 +728,7 @@ def test_backends_local_refuses_missing_orchestrator(tmp_path, monkeypatch):
     backend = LocalBackend(dry_run=False)
     # Force a framework_root that doesn't contain orchestrate-review.py
     res = backend.validate(
-        chunk={"test_file": "test/x.py", "lock_file": "phase-1/locks/x.lock.json"},
+        chunk={"test_file": "test/x.py", "lock_file": "tools/phase-1-locks/x.lock.json"},
         evidence_bundle=str(tmp_path / "bundle.json"),
         framework_root=str(tmp_path),
         pilot_root=str(tmp_path),
@@ -1158,7 +1158,9 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
         _sys.argv = saved
     assert rc == 0, f"runner exited {rc}"
     # Evidence dir produced
-    evidence_root = tmp_path / "fw" / "phase-4.5" / "build-evidence"
+    evidence_root = (
+        tmp_path / "fw" / "evidence" / "phase-4.5" / "build-evidence"
+    )
     runs = list(evidence_root.glob("r-phase45-*"))
     assert runs, f"no evidence dir under {evidence_root}"
     run_dir = runs[0]
@@ -1369,7 +1371,7 @@ def test_local_backend_refuses_closed_when_signing_key_unset_f10():
     try:
         res = backend.validate(
             chunk={"test_file": "tests/test_x.py",
-                   "lock_file": "phase-1/locks/test_x.py.lock.json"},
+                   "lock_file": "tools/phase-1-locks/test_x.py.lock.json"},
             evidence_bundle="/tmp/unused.json",
             framework_root=repo,
             pilot_root="/unused",
@@ -1395,10 +1397,10 @@ def test_local_backend_dry_run_simulates_accept_regardless_of_key(tmp_path):
     try:
         res = backend.validate(
             chunk={"test_file": "tests/test_x.py",
-                   "lock_file": "phase-1/locks/test_x.py.lock.json"},
+                   "lock_file": "tools/phase-1-locks/test_x.py.lock.json"},
             evidence_bundle=str(tmp_path / "unused.json"),
             # Must be per-test, not a shared /tmp root: the backend writes
-            # <framework_root>/phase-4.5/build-evidence/... , so a fixed /tmp
+            # <framework_root>/evidence/phase-4.5/build-evidence/... , so a fixed /tmp
             # collides with whatever user ran the suite first and the second
             # user gets EACCES on a directory they do not own.
             framework_root=str(tmp_path),

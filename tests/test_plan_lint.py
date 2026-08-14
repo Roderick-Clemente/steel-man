@@ -144,7 +144,9 @@ class TestFailClosed:
 
     def test_unreadable_artifact_exits_2(self, tmp_path):
         """An artifact that exists but is unreadable → exit 2."""
-        bad_json = _REPO_ROOT / "phase-4.5" / "tokens" / "bad.token.json"
+        bad_json = (
+            _REPO_ROOT / "evidence" / "phase-4.5" / "tokens" / "bad.token.json"
+        )
         bad_json.write_text("{not valid json}")
         try:
             contract = tmp_path / "bad.contract.json"
@@ -155,7 +157,7 @@ class TestFailClosed:
                         "line": 1,
                         "claim": "field exists",
                         "field_path": "verdict",
-                        "artifact": "phase-4.5/tokens/bad.token.json",
+                        "artifact": "evidence/phase-4.5/tokens/bad.token.json",
                         "expect": "exists",
                     }
                 ]
@@ -218,7 +220,7 @@ class TestRule1FieldPath:
                     "line": 10,
                     "claim": "Token has top-level verdict",
                     "field_path": "verdict",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]
@@ -363,7 +365,7 @@ class TestRule4InternalConsistency:
                     "rule": 4,
                     "line": 10,
                     "claim": "Token filename pattern chunk-{chunk_id}.token.json",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "field_path": "filename",
                     "expect": "pattern:chunk-{chunk_id}.token.json"
                 },
@@ -483,7 +485,7 @@ class TestRule6RequiredAnchors:
                     "rule": 6,
                     "line": 10,
                     "claim": "Gate: token file exists with reviewers[*].verdict in ACCEPT_CLASS",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "field_path": "reviewers[*].verdict",
                     "expect": "resolvable"
                 }
@@ -651,7 +653,7 @@ class TestHeuristicRecall:
         plan.write_text(
             "# Plan\n\n"
             "The token has a `nonexistent_field` at "
-            "`phase-4.5/tokens/chunk-5a.token.json`.\n"
+            "`evidence/phase-4.5/tokens/chunk-5a.token.json`.\n"
         )
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0
@@ -771,7 +773,7 @@ class TestContractPrecedence:
                     "line": 1,
                     "claim": "field exists",
                     "field_path": "nonexistent_field_xyz",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]
@@ -850,7 +852,7 @@ class TestHeadingDiscriminator:
             "- The `verdict` field was checked.\n\n"
             "### Body\n\n"
             "The `nonexistent_field` is at "
-            "`phase-4.5/tokens/chunk-5a.token.json`.\n"
+            "`evidence/phase-4.5/tokens/chunk-5a.token.json`.\n"
         )
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0
@@ -878,7 +880,7 @@ class TestNegationScoping:
             "# Plan\n\n"
             "Token has no top-level `verdict` but does have "
             "`nonexistent_field_xyz` at "
-            "`phase-4.5/tokens/chunk-5a.token.json`.\n"
+            "`evidence/phase-4.5/tokens/chunk-5a.token.json`.\n"
         )
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0
@@ -916,7 +918,7 @@ class TestCompanionTier:
                     "line": 1,
                     "claim": "field exists",
                     "field_path": "nonexistent_field_xyz",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]
@@ -963,7 +965,7 @@ class TestCompanionTier:
                     "line": 1,
                     "claim": "field exists",
                     "field_path": "nonexistent_field_xyz",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]
@@ -1021,7 +1023,7 @@ class TestCompanionTier:
                     "line": 1,
                     "claim": "field exists",
                     "field_path": "nonexistent_field_xyz",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]
@@ -1060,7 +1062,7 @@ class TestCompanionTier:
                     "line": 1,
                     "claim": "field exists",
                     "field_path": "nonexistent_field_xyz",
-                    "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
                     "expect": "exists",
                 }
             ]

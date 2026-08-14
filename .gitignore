@@ -9,9 +9,17 @@ node_modules/
 CLEANUP-PLAN.md
 
 # Local Factory tool state (sessions, caches, local settings). Not evidence.
-# Probe and run evidence that should survive is committed under phase-0/evidence/
-# instead — see phase-0/evidence/README.md. PRD §9 permits a configured artifact
+# Probe and run evidence that should survive is committed under evidence/phase-0/
+# instead — see evidence/phase-0/README.md. PRD §9 permits a configured artifact
 # path, so nothing here needs to be un-ignored.
+#
+# chunk-D1-2 note: CHUNK-2-SPEC §2.3 asked to keep a `phase-*/build-evidence/r-*/`
+# pattern and add `evidence/*/build-evidence/r-*/` beside it. There is no such
+# pattern to keep — it was removed deliberately on 2026-08-13 (rationale at the
+# end of this file) after a prefix-form exclude silently dropped the chunk-D1-1
+# review envelopes a signed token attested to. Adding the evidence/ variant
+# would reinstate that exact silent-loss shape, so it is NOT added here. Raised
+# to the planner as a chunk-D1-2 finding rather than resolved by the executor.
 .factory/*
 !.factory/*.md
 !.factory/skills/**

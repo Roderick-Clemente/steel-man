@@ -21,7 +21,7 @@
       "line": 48,
       "claim": "Token JSON has reviewers array with len(reviewers) >= 2",
       "field_path": "reviewers",
-      "artifact": "phase-4.5/tokens/chunk-5a.token.json",
+      "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
       "expect": "exists"
     }
   ]
