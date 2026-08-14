@@ -251,6 +251,27 @@ assertions:
      sufficient; a well-formed pointer to nothing is the defect this chunk
      exists to prevent.
 
+   **Errata, filed post-build against the planner — "system of record" is
+   overstated.** This spec calls `telemetry/runs.jsonl` the SoR in §2.1 and
+   above. It is **gitignored** (`.gitignore:44`) and therefore not a
+   committed artifact. Two consequences a reviewer should not mistake for a
+   contradiction:
+
+   - The row-count check measures a working-tree file. On a fresh clone
+     `telemetry/runs.jsonl` does not exist at all, so that check is
+     unrunnable there and its absence is not a finding. Run it in a tree
+     that has one, or state that you could not.
+   - The defect is undiminished. A forked write to `tools/telemetry/` still
+     splits the file on every local run, and the `envelope_path` values
+     landing in it must still resolve. What changes is the stake: this is a
+     local generated artifact, not evidence, so "poisoned telemetry" means
+     a broken local tool rather than a corrupted audit trail.
+
+   The planner ran the three writers without `--dry-run` while verifying the
+   build, which the reviewer rules forbid. It was idempotent — the merge is
+   keyed on `run_id`, 21 rows before and after — but it should not have been
+   done, and it is recorded here rather than omitted.
+
 ## §5 — Forbidden
 
 - Do not amend, revert, or force-push `ee90061` or any commit at or before it.
