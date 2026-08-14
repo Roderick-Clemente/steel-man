@@ -388,6 +388,32 @@ including committed envelope JSONs, manifests, `MANIFEST.md`,
 `raw`/`stream` outputs, and any file whose bytes are HMAC-signed
 or SHA-quoted somewhere else.
 
+**Named target — the four dead README links.** The general citation sweep
+would probably catch these, but they are the highest-visibility broken
+references in the repo and are worth pinning rather than leaving to a grep.
+All four are the links backing the "What the runs found" findings — the
+evidence citations the README's whole credibility rests on — and every one
+of them 404s on GitHub today.
+
+Audited across the full allowlist: **README.md is the only file with any dead
+relative link.** `PRD.md`, `AGENTS.md`, `tools/OPERATING-RULES.md`,
+`tools/README.md`, `tools/KNOWN-ISSUES.md`, and both `skills/*/SKILL.md` are
+clean. Four occurrences, three unique targets, all fixed by a `planning/`
+prefix:
+
+| README link (dead) | new home |
+|---|---|
+| `./phase-3.1/RESULTS.md` (finding 1) | `./planning/phase-3.1/RESULTS.md` |
+| `./phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md` (findings 3 and 4, cited twice) | `./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md` |
+| `./phase-1/KNOWN-ISSUES.md` (invariant 3) | `./planning/phase-1/KNOWN-ISSUES.md` |
+
+The `Layout` code block in the README is separately stale — it still lists
+`phase-0 … phase-5/` as the build record. That is prose describing a layout
+that no longer exists, not a citation, so it needs rewriting to the taxonomy
+homes rather than a prefix. Do it in the same pass; a reader who follows the
+README's own map into nonexistent directories is the failure this chunk
+exists to prevent.
+
 **One rename, not a citation edit — `LEDGER.md` destination.** Chunk 2
 landed the ledger at `planning/phase-4.5/LEDGER.md` as a side effect of
 clearing the repo root. Wrong home: it is the sprint's general-purpose
@@ -438,6 +464,14 @@ unpartitioned at the evidence root for the same reason
   `planning/PATH-REDIRECTS.md` as a historical-narrative exception.
 - `planning/PATH-REDIRECTS.md` covers every old-prefix that still
   appears in any evidence file.
+- **Zero dead relative links across the allowlist.** Resolve every
+  `](path)` target that is not an external URL and not a bare `#anchor`,
+  relative to both the repo root and the citing file's directory; report the
+  count checked alongside the count dead. Baseline before this chunk is 4
+  dead occurrences over 3 unique targets, all in `README.md`, everything
+  else clean — so anything other than 0 dead means the sweep regressed a
+  file that was already fine. Do not hand-check: a link that 404s on GitHub
+  is exactly the class a human eye skips.
 - `evidence/LEDGER.md` exists, `planning/phase-4.5/LEDGER.md` does not,
   `git log --follow evidence/LEDGER.md` reaches the pre-rename history,
   and `git show --numstat HEAD -- evidence/LEDGER.md` reports the rename
