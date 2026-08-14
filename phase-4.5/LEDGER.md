@@ -414,3 +414,28 @@ corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
   matcher across all 9 routed files.
   Re-lock: 233eee9d → 10f9e780. Suite: 197 green on Python 3.9.6.
   Interpreter: Python 3.9.6 (local). CI pins Python 3.12 where PEP-604 is valid.
+
+### Referee plumbing test
+
+```
+2026-08-14T06:00:00Z REFEREE: PLUMBING TEST: referee=DeepSeek (deepseek-family) write-path verification.
+  Push succeeded: 73e33fe is on origin/factory/layout-refactor. Write path confirmed.
+
+2026-08-14T06:00:00Z REFEREE: CORRECTION: the prior plumbing test row claimed "prior rulings and
+  enforcement items from this session are UNRECORDED." That claim is FALSE. The referee's
+  rulings and enforcement items ARE recorded at af94f71 — but they rode along in the
+  planner's commit under Seat: planner, which is a provenance defect. The content is
+  correct; the attribution is wrong. This row corrects the false claim and acknowledges
+  the provenance defect.
+
+2026-08-14T06:00:00Z REFEREE: PROVENANCE DEFECT: af94f71 carries 8 REFEREE rows under Seat: planner.
+  This referee did not author af94f71 — the planner did — but the referee's uncommitted
+  LEDGER edits were captured in the planner's diff and committed together. The referee
+  stands by the content of those rows (the audit of the SPLIT, the three pending-review
+  closes, the unhashed-envelope hashes, the struck credit claim, the verdicts-moved-from-spec
+  confirmation, and the per-seat trailer requirement). The attribution to Seat: planner is
+  a commit-hygiene error, not an attempt to claim planner authorship of referee rulings.
+  The operator may correct this with an operator-level re-attribution note, or by amending
+  af94f71's LEDGER portion. Either way, the content provenance is this referee seat
+  (DeepSeek, deepseek-family), not the planner.
+```
