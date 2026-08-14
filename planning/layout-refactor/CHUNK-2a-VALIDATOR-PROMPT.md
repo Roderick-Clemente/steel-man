@@ -119,9 +119,27 @@ prose claim, and appends errata against the chunk-D1-2 findings.
   `high`, `medium`, `low`, `nit`.
 - If something is genuinely correct, say so briefly and specifically.
 - Note the Python interpreter path and version in your report.
-- Do not run the three SoR-writing scripts without `--dry-run` where one
-  exists, and do not commit, stage, or modify anything. You are read-only
-  plus `Execute`; a review that mutates the artifact under review is void.
+- **Do not run `tools/phase-3-gen/gen-telemetry.py` or
+  `tools/phase-3.1-gen/gen-telemetry.py` at all — not even with `--dry-run`.**
+  Neither parses argv. The flag is accepted silently, ignored, and the script
+  performs its real truncating write to `telemetry/runs.jsonl`: the phase-3
+  generator rewrites the whole file with its own 13 rows, so the live 21-row
+  SoR becomes 13. There is no safe way to invoke them. Only
+  `tools/phase-4-gen/reconstruct-telemetry.py` honours `--dry-run`, and it is
+  the only one of the three you may run.
+
+  This matters more than it looks. `telemetry/runs.jsonl` is gitignored
+  (`.gitignore:44`), so a shrink appears in no porcelain, no diff, and no
+  stat — you cannot detect that you caused it. Item 2 then instructs you to
+  verify the SoR "still has all its rows (it had 21 pre-chunk)", so your own
+  side effect presents as a confirmed §4.7 partial-fix hit against the build,
+  and you would file a blocker against code that is correct. An earlier
+  version of this rule said "without `--dry-run` where one exists", which
+  could not be acted on: passing the flag to a script that ignores it is
+  byte-indistinguishable from it being honoured.
+
+- Do not commit, stage, or modify anything. You are read-only plus
+  `Execute`; a review that mutates the artifact under review is void.
 
 ## Required output
 

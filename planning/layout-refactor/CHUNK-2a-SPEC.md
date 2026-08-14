@@ -154,8 +154,19 @@ the two existing manifests exactly. No code change needed to lock the 2a judge.
 
 ## §2.4 — Errata pass (append-only)
 
-These target `FINDINGS-chunk-D1-2.md`, a committed evidence byte. **Correct
-them by appending errata rows, never by editing the file** (§5, §21).
+These concern `FINDINGS-chunk-D1-2.md`, a committed evidence byte. It is
+immutable under §5/§21, so **record them as appended LEDGER rows naming what
+each supersedes — do not touch the findings file.**
+
+**Erratum against this instruction's own first draft.** It read "correct them
+by appending errata rows, never by editing the file," which cannot be
+followed: appending to a file *is* editing it, and §5/§21 forbid editing that
+file at all. The instruction named no legal destination, so it was impossible
+as written. The builder correctly recorded nothing rather than violate
+immutability, and kimi-k3 then filed the absence as a blocker — the builder
+was right about the artifact, kimi was right about the gap, and the spec was
+the thing at fault. The LEDGER is the append-only errata record; that is
+where these belong.
 
 - **K2 stands, with the label corrected.** The `local_backend.py --help | rc=0`
   row names no interpreter, and it should. Measured both ways:
@@ -203,9 +214,29 @@ assertions:
    **not** the repo root. CWD-independence is the actual invariant; asserting
    it from the repo root only would pass vacuously for `gen-findings.py`.
 2. No `envelope_path` value emitted by any of the four matches
-   `^phase-\d`, **and** each emitted path resolves to an existing file.
-   Shape alone is insufficient — see §4.7; a partial fix satisfies the
-   regex while pointing at nothing.
+   `^phase-\d`. Shape alone is insufficient — a partial fix satisfies the
+   regex while pointing at nothing — so resolution is **also** required, but
+   it is enforced at the §4.7 exit-criteria level rather than here.
+
+   **Erratum, filed against the planner.** The first draft of this
+   assertion required the judge to verify that each emitted path resolves.
+   A side-effect-free judge structurally cannot: observing emitted values
+   means running the writers, and running them mutates the SoR the judge is
+   judging. Measured — `reconstruct-telemetry.py --dry-run` prints a
+   summary table containing **zero** `envelope_path` values, so even the one
+   script with a no-write mode does not expose them. The ratified judge
+   therefore implements only the shape half, and `grep -n envelope_path
+   tests/test_layout_paths_chunk2a.py` returns docstrings and one section
+   comment — no assertions.
+
+   The requirement itself stands and is met: §4.7 requires every emitted
+   `envelope_path` to resolve, the builder ran it, and 18/18
+   script-generated rows resolved. What was wrong was asserting it at the
+   judge level, and then not recording that the judge did not implement it.
+   Per §11 the distinction that matters is between a criterion *met* and a
+   criterion the judge can *enforce*; this one is met by exit check, not by
+   judge. Found by the builder auditing its own F2 as too narrow, after
+   kimi-k3 filed the gap as a REJECT.
 3. `tests/test_sprint_loop.py`'s fixture directories resolve under
    `SCRIPTS_ROOT` / `EVIDENCE_CODE_ROOT` rather than bare `phase-*` segments.
 
