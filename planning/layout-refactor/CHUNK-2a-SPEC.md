@@ -121,10 +121,15 @@ the variant reinstates that exact shape.
 These target `FINDINGS-chunk-D1-2.md`, a committed evidence byte. **Correct
 them by appending errata rows, never by editing the file** (§5, §21).
 
-- **K2 stands.** The `local_backend.py --help | rc=0` row names no interpreter.
-  On the 3.9.6 suite interpreter it is rc=1 — pre-existing PEP-604
-  `dict | None` at `:189`, which the chunk-2 judge explicitly tolerates. rc=0
-  requires 3.10+. Record the interpreter, not just the code.
+- **K2 stands, with the label corrected.** The `local_backend.py --help | rc=0`
+  row names no interpreter, and it should. Measured both ways:
+  `/private/tmp/asprint-venv/bin/python` (3.13.3) gives **rc=0**;
+  `/usr/bin/python3` (3.9.6) gives **rc=1** on the pre-existing PEP-604
+  `dict | None` at `:189`, which the chunk-2 judge explicitly tolerates.
+  3.9.6 is the **system** interpreter, not the suite interpreter — the suite
+  runs on the 3.13.3 venv (197 passed + 3 skipped there; 3.9.6 has no pytest
+  installed at all). So the original row's rc=0 was correct and only
+  under-specified. Record the interpreter path, not just the code.
 - **K5 stands.** `backends.py:125-129` gained a comment block inside a set of
   six changes presented as unenumerated. Comment-only, zero behaviour.
 - **K1 does not reproduce.** kimi flagged untracked `phase-4.5/` scratch
@@ -170,8 +175,11 @@ assertions:
 
 ## §4 — Exit criteria (run and reported, not asserted — §11)
 
-1. Full suite green on the 3.9.6 suite interpreter; report passed/skipped
-   counts and the interpreter version explicitly (§2.4 K2 is why).
+1. Full suite green on the suite interpreter,
+   `/private/tmp/asprint-venv/bin/python` (3.13.3). Pre-2a baseline is
+   **197 passed + 3 skipped**; the 2a judge adds 13, so the target is
+   **210 passed + 3 skipped**. Report the counts and the interpreter path
+   explicitly — §2.4 K2 exists because a bare rc was recorded without one.
 2. All four scripts rc=0 invoked from a non-root CWD, with output shown.
 3. `grep -rn 'phase-[0-9]' ` over the four scripts returns no path-forming
    occurrence; prose and docstring mentions are acceptable and should be
