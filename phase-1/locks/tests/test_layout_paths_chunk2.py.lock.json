@@ -1,0 +1,6 @@
+{
+  "file": "tests/test_layout_paths_chunk2.py",
+  "sha256": "48a579f87e8c97e9de7b49ccd861fd88fa36fb3552a95ee8d5065fd74832cdc3",
+  "accepted_at": "2026-08-14T08:00:00.000000+00:00",
+  "accepted_assertion": "chunk-D1-2 judge tests; planner-authored; tests post-flip constant values, path composition, residual scan (old + new forbidden substrings), shell wiring, and local_backend.py bootstrap at new location; imports strengthened matcher from test_layout_paths.py; skips pre-flip (EVIDENCE_ROOT == ''); 197 passed + 3 skipped on Python 3.9.6"
+}

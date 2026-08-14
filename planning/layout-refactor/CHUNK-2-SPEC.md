@@ -141,7 +141,7 @@ only the VALUES.
 2. Flip the constants in `config.py` and `paths.sh` per §2.2.
 3. Fix the linters / config / CI per §2.3.
 4. Update the test fixtures + code per §2.4.
-5. Run the full suite and confirm 197 tests green.
+5. Run the full suite and confirm 197 passed, 3 skipped.
 6. Run `git log --follow` on one representative file per subtree
    to confirm history is preserved.
 7. Commit with message `chunk-2: git mv phase dirs to taxonomy homes + flip constants + fix linters`.
@@ -151,7 +151,14 @@ only the VALUES.
 
 ### 4.1 Full suite green
 
-`python3 -m pytest -q` → 197 tests, all green.
+`python3 -m pytest -q` → 197 passed, 3 skipped.
+
+The 3 skips are the Chunk-1 judge tests
+(tests/test_layout_paths.py), which skip when EVIDENCE_ROOT != ""
+(constants flipped). The Chunk-2 judge
+(tests/test_layout_paths_chunk2.py) provides 3 replacement tests
+that run post-flip. Suite count is constant: 197 passed + 3 skipped
+both before and after the flip.
 
 ### 4.2 Layout allowlist refuses residual phase dirs
 
@@ -161,9 +168,10 @@ still tracked at top level. The allowlist has lost `phase-0`…
 
 ### 4.3 Constants resolve to new paths
 
-`tests/test_layout_paths.py` (from Chunk 1) refuses if any constant
-points to a nonexistent path. The flipped constants must resolve
-to the new dirs.
+`tests/test_layout_paths_chunk2.py` (the Chunk-2 judge) asserts the
+flipped constant values per §2.2 AND that each resolves to an existing
+directory. The Chunk-1 judge (tests/test_layout_paths.py) skips
+post-flip; the Chunk-2 judge takes over.
 
 ### 4.4 plan-lint accepts the new prefixes
 

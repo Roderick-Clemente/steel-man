@@ -35,11 +35,25 @@ import re
 import subprocess
 import sys
 
+import pytest
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 _TOOLS = os.path.join(REPO_ROOT, "tools")
 if _TOOLS not in sys.path:
     sys.path.insert(0, _TOOLS)
+
+
+def _skip_if_flipped():
+    """Skip these Chunk-1 tests when chunk-D1-2 has flipped the constants.
+
+    After the flip, EVIDENCE_ROOT is ``"evidence"`` (not ``""``), so the
+    old value assertions and old file paths no longer hold.  The Chunk-2
+    judge (tests/test_layout_paths_chunk2.py) covers the post-flip state.
+    """
+    config = _cfg()
+    if _require(config, "EVIDENCE_ROOT") != "":
+        pytest.skip("constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py")
 
 def _cfg():
     """Import the config module lazily.
@@ -319,7 +333,10 @@ def _bare_segment_hits_in_path_context(
     return hits
 
 
-def _residual_phase_literals(abs_path: str) -> list[str]:
+def _residual_phase_literals(
+    abs_path: str,
+    forbidden: tuple[str, ...] = _FORBIDDEN_SUBSTRINGS,
+) -> list[str]:
     """Executable-code string expressions still naming a phase dir.
 
     Comments never appear in the AST, which exempts them mechanically.
@@ -357,19 +374,19 @@ def _residual_phase_literals(abs_path: str) -> list[str]:
         if isinstance(node, ast.Constant):
             if id(node) in skip or not isinstance(node.value, str):
                 continue
-            if any(bad in node.value for bad in _FORBIDDEN_SUBSTRINGS):
+            if any(bad in node.value for bad in forbidden):
                 hits.append(f"line {node.lineno}: {node.value!r}")
         elif isinstance(node, ast.JoinedStr):
             if id(node) in skip:
                 continue
             val = _eval_static_string(node)
-            if val is not None and any(bad in val for bad in _FORBIDDEN_SUBSTRINGS):
+            if val is not None and any(bad in val for bad in forbidden):
                 hits.append(f"line {node.lineno}: f-string evaluates to {val!r}")
         elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
             if id(node) in skip:
                 continue
             val = _eval_static_string(node)
-            if val is not None and any(bad in val for bad in _FORBIDDEN_SUBSTRINGS):
+            if val is not None and any(bad in val for bad in forbidden):
                 hits.append(f"line {node.lineno}: concat evaluates to {val!r}")
 
     # (2) bare segments (or variables holding them) inside
@@ -417,6 +434,7 @@ def test_path_root_constants_have_expected_values_and_exist():
     stronger after Chunk 2's flip. Existence is corroboration only,
     and only for the five non-empty roots.
     """
+    _skip_if_flipped()
     config = _cfg()
 
     assert _require(config, "EVIDENCE_ROOT") == ""
@@ -439,6 +457,7 @@ def test_path_root_constants_have_expected_values_and_exist():
 
 def test_phase_path_helper_signature_and_composition():
     """§4.2 test 2 — framework_root is positional; there is no phase= kwarg."""
+    _skip_if_flipped()
     config = _cfg()
     phase_path = _require(config, "phase_path")
 
@@ -466,6 +485,7 @@ def test_no_residual_hardcoded_phase_paths_in_routed_code():
     executor's edits shift them, letting a missed site pass silently.
     This is the chunk's only anti-missed-site check.
     """
+    _skip_if_flipped()
     # --- main body: routed Python files, executable code only ---
     failures: dict[str, list[str]] = {}
     for rel in ROUTED_PY_FILES:
