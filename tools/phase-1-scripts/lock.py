@@ -2,10 +2,10 @@
 """Compute and record a SHA-256 lock manifest for an accepted test file.
 
 Usage:
-    python3 phase-1/scripts/lock.py <test-file> <accepted-assertion>
+    python3 tools/phase-1-scripts/lock.py <test-file> <accepted-assertion>
         [--pilot-root <path>] [--locks-dir <path>]
 
-The manifest is written to phase-1/locks/<test-file>.lock.json, preserving
+The manifest is written to <LOCKS_ROOT>/<test-file>.lock.json, preserving
 any directory separators in the test-file path so a single lock directory
 can hold tests from different pilot-repo subdirectories.
 """
@@ -15,6 +15,20 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+
+# chunk-D1-2a: this script moved from phase-1/scripts/ to tools/phase-1-scripts/,
+# so the old two-hop self-relative default resolved to tools/locks rather than
+# the real lock store. Unlike the four telemetry generators, this one would NOT
+# have failed closed — it creates the directory it writes into, so it would have
+# reported a successful lock while the reader looked elsewhere and framework
+# invariant #3 quietly stopped being enforced. Deriving the default from
+# LOCKS_ROOT is what keeps the writer and the reader from disagreeing.
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import LOCKS_ROOT  # noqa: E402
 
 
 def compute_sha256(path: str) -> str:
@@ -39,7 +53,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--locks-dir",
-        default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks"),
+        default=os.path.join(_FRAMEWORK_ROOT, LOCKS_ROOT),
         help="Directory where lock manifests are written.",
     )
     args = parser.parse_args()

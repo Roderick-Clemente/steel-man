@@ -133,7 +133,7 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
             f"lock.py exited {r.returncode} for chunk '{chunk.chunk_id}': "
             f"{r.stderr[:500]!r}"
         )
-    # Find the lock file (lock.py writes to phase-1/locks/<test_file>.lock.json)
+    # Find the lock file (lock.py writes to <LOCKS_ROOT>/<test_file>.lock.json)
     lock_path = phase_path(framework_root, "locks",
                            f"{chunk.locked_test_files[0]}.lock.json")
     if not os.path.isfile(lock_path):

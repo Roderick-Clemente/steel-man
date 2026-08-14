@@ -17,10 +17,27 @@ role). We emit the canonical role name anyway; see KI-4.
 """
 import json
 import os
+import sys
 from datetime import datetime, timezone
 
-EVID = os.path.join(os.path.dirname(__file__), "build-evidence")
-OUT = os.path.join(os.path.dirname(__file__), os.pardir, "telemetry", "runs.jsonl")
+# chunk-D1-2a: this script used to live at phase-3/ with its evidence as a
+# sibling directory. It now lives under tools/, so a self-relative
+# "build-evidence" resolves to tools/phase-3-gen/build-evidence and does not
+# exist. Resolve through the layout roots in sprint_loop.config instead of
+# re-hardcoding "evidence/phase-3/..." — a literal prefix is what broke here,
+# and it would break again on the next move.
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
+
+EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3", "build-evidence")
+OUT = os.path.join(_FRAMEWORK_ROOT, "telemetry", "runs.jsonl")
+# Relative form for the telemetry row's envelope_path field. Forward slashes:
+# the field is a portable record, not a local filesystem path.
+_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
 BRANCH = "factory/phase-3-profile"
 
 # model_id -> (provider, family). providerLock/apiProviderLock == provider here
@@ -98,7 +115,7 @@ def main():
             "is_error": bool(env.get("is_error", False)),
             "decision": decision,
             "verdict_text_first_240": verdict,
-            "envelope_path": "phase-3/build-evidence/" + fname,
+            "envelope_path": _ENVELOPE_DIR_REL + "/" + fname,
         }
         rows.append(row)
     with open(OUT, "w") as fh:

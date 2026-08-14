@@ -19,7 +19,33 @@ With 2 reviewers, position is 1 (unique) or 0 (shared).
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
+
+# chunk-D1-2a: the reads below were CWD-relative, so this script only worked
+# when invoked from the repo root — and after the chunk-2 move the paths were
+# wrong from every directory. Anchor them to the framework root derived from
+# __file__ and compose through sprint_loop.config's roots.
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import phase_path  # noqa: E402
+
+# chunk-D1-2a: the historical `surface` labels below were also bare `phase-N/...`
+# strings. They are DATA, not paths — nothing opens them — but they named
+# locations that no longer exist, which makes them unresolvable to any future
+# analyst reading findings.jsonl. Re-rooted onto the chunk-2 taxonomy by
+# swapping the leading segment only, leaving each tail byte-identical: a
+# reviewer's recorded surface is their finding, so re-rooting it is a migration
+# while "correcting" the tail would be a rewrite. `phase-1/hooks/lock.py` is
+# preserved as `tools/phase-1-hooks/lock.py` for exactly that reason, even
+# though lock.py in fact lives in tools/phase-1-scripts/ — the imprecision is
+# the reviewer's and stays theirs.
+
+_P32_REVIEWS = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3.2", "reviews")
+_P4_EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-4")
 
 def ts(date_str):
     return date_str
@@ -65,32 +91,32 @@ p1_grok_r1 = [
     ("F-P1R1-G07", "spec-deviation", "nit", "test-quality: real Werkzeug behavior"),
 ]
 for fid, cat, sev, desc in p1_grok_r1:
-    findings.append(row(fid, "phase-1", D, "phase-1/hooks/", cat, sev,
+    findings.append(row(fid, "phase-1", D, "tools/phase-1-hooks/", cat, sev,
         "reviewer", "r-phase1-r1-grok", "grok-4.5", "grok-family", 2, 1, desc))
 
 # Gemini R1: 1 blocking (tooling refusal)
-findings.append(row("F-P1R1-M01", "phase-1", D, "phase-1/review-prompt",
+findings.append(row("F-P1R1-M01", "phase-1", D, "planning/phase-1/review-prompt",
     "spec-deviation", "blocking", "reviewer", "r-phase1-r1-gemini",
     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
     "Execute tool not in --enabled-tools; refused to render judgment"))
 
 # Round 2 — Grok: 1 blocking (python3 bypass), Gemini: 3 (hook bypasses)
 # Grok R2: python3 inline-eval bypass (also found by Gemini)
-findings.append(row("F-P1R2-G01", "phase-1", D, "phase-1/hooks/lock.py",
+findings.append(row("F-P1R2-G01", "phase-1", D, "tools/phase-1-hooks/lock.py",
     "security", "blocking", "reviewer", "r-phase1-r2-grok", "grok-4.5",
     "grok-family", 2, 0,  # shared — Gemini also found python3
     "python3 inline-eval bypass in READ_ONLY_HEADS"))
 
 # Gemini R2: 3 findings (glob short-circuit, python3, MultiEdit missing)
-findings.append(row("F-P1R2-M01", "phase-1", D, "phase-1/hooks/glob-match",
+findings.append(row("F-P1R2-M01", "phase-1", D, "tools/phase-1-hooks/glob-match",
     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
     "glob short-circuit on basename prefilter"))
-findings.append(row("F-P1R2-M02", "phase-1", D, "phase-1/hooks/lock.py",
+findings.append(row("F-P1R2-M02", "phase-1", D, "tools/phase-1-hooks/lock.py",
     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
     "gemini-3.1-pro-preview", "gemini-family", 2, 0,  # shared with Grok
     "python3 inline-eval bypass in READ_ONLY_HEADS"))
-findings.append(row("F-P1R2-M03", "phase-1", D, "phase-1/hooks/multiedit",
+findings.append(row("F-P1R2-M03", "phase-1", D, "tools/phase-1-hooks/multiedit",
     "security", "blocking", "reviewer", "r-phase1-r2-gemini",
     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
     "MultiEdit missing from hook matcher"))
@@ -103,10 +129,10 @@ p1_grok_r3 = [
     ("F-P1R3-G04", "correctness", "minor", "regex tightening needed"),
 ]
 for fid, cat, sev, desc in p1_grok_r3:
-    findings.append(row(fid, "phase-1", D, "phase-1/", cat, sev,
+    findings.append(row(fid, "phase-1", D, "planning/phase-1/", cat, sev,
         "reviewer", "r-phase1-r3-grok", "grok-4.5", "grok-family", 2, 1, desc))
 
-findings.append(row("F-P1R3-M01", "phase-1", D, "phase-1/hooks/",
+findings.append(row("F-P1R3-M01", "phase-1", D, "tools/phase-1-hooks/",
     "readability", "nit", "reviewer", "r-phase1-r3-gemini",
     "gemini-3.1-pro-preview", "gemini-family", 2, 1,
     "structurally sound, only nit on hook"))
@@ -118,12 +144,12 @@ findings.append(row("F-P1R3-M01", "phase-1", D, "phase-1/hooks/",
 D2 = "2026-07-20"
 
 # Grok unique findings on plan review
-findings.append(row("F-P2-G01", "phase-2", D2, "phase-2/plan-v1.md",
+findings.append(row("F-P2-G01", "phase-2", D2, "planning/phase-2/plan-v1.md",
     "spec-deviation", "minor", "reviewer", "r-phase2-plan-grok",
     "grok-4.5", "grok-family", 2, 1,
     "Plan self-corrected 3 wrong file anchors in its own prompt"))
 
-findings.append(row("F-P2-G02", "phase-2", D2, "phase-2/plan-v1.md",
+findings.append(row("F-P2-G02", "phase-2", D2, "planning/phase-2/plan-v1.md",
     "correctness", "minor", "reviewer", "r-phase2-plan-grok",
     "grok-4.5", "grok-family", 2, 1,
     "Hidden scope trap: ALTER TABLE + migration runner needed for address column"))
@@ -136,7 +162,7 @@ findings.append(row("F-P2-G02", "phase-2", D2, "phase-2/plan-v1.md",
 # ============================================================
 D3 = "2026-07-28"
 
-findings.append(row("F-P31-G01", "phase-3.1", D3, "phase-3.1/chunk-1",
+findings.append(row("F-P31-G01", "phase-3.1", D3, "evidence/phase-3.1/chunk-1",
     "correctness", "major", "reviewer", "r-phase31-c1-validator-grok-r1",
     "grok-4.5", "grok-family", 2, 1,
     "Same-family test-author encoded test-independence bias in chunk 1"))
@@ -150,7 +176,7 @@ findings.append(row("F-P31-G01", "phase-3.1", D3, "phase-3.1/chunk-1",
 D4 = "2026-08-08"
 
 # Load Grok's structured findings
-with open("phase-3.2/reviews/roadmap-review-cross-family-findings.json") as f:
+with open(os.path.join(_P32_REVIEWS, "roadmap-review-cross-family-findings.json")) as f:
     v1_data = json.load(f)
 
 for finding in v1_data.get("findings", []):
@@ -187,7 +213,7 @@ for fid, surface, cat, sev, desc in gem_v1_findings:
 # ============================================================
 
 # Load Grok's structured findings
-with open("phase-3.2/reviews/roadmap-review-v2-cross-family-findings.json") as f:
+with open(os.path.join(_P32_REVIEWS, "roadmap-review-v2-cross-family-findings.json")) as f:
     v2_data = json.load(f)
 
 for finding in v2_data.get("findings", []):
@@ -232,7 +258,7 @@ for name, model, family, run_id in [
     ("gemini", "gemini-3.1-pro-preview", "gemini-family", "r-post-v3-gemini"),
 ]:
     try:
-        with open(f"phase-4/post-v3-review-{name}-envelope.json") as f:
+        with open(os.path.join(_P4_EVID, f"post-v3-review-{name}-envelope.json")) as f:
             env = json.load(f)
         result = env.get("result", "")
         # Extract JSON finding blocks
@@ -268,7 +294,7 @@ for name, model, family, run_id in [
     ("gemini", "gemini-3.1-pro-preview", "gemini-family", "r-tex-gemini"),
 ]:
     try:
-        with open(f"phase-4/track-execution-review-{name}-envelope.json") as f:
+        with open(os.path.join(_P4_EVID, f"track-execution-review-{name}-envelope.json")) as f:
             env = json.load(f)
         result = env.get("result", "")
         json_blocks = re.findall(r'\{[^{}]*"finding_id"[^{}]*\}', result, re.DOTALL)
@@ -295,8 +321,7 @@ for name, model, family, run_id in [
 # ============================================================
 # Write findings.jsonl
 # ============================================================
-import os
-out_path = os.path.join("telemetry", "findings.jsonl")
+out_path = os.path.join(_FRAMEWORK_ROOT, "telemetry", "findings.jsonl")
 with open(out_path, "w") as f:
     for r in findings:
         f.write(json.dumps(r) + "\n")

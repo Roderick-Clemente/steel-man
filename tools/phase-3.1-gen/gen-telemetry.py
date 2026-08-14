@@ -17,11 +17,25 @@ apiProviderLock, so those are set to the known provider for the pinned model.
 """
 import json
 import os
+import sys
 
-EVID = os.path.join(os.path.dirname(__file__), "build-evidence")
-RUNS = os.path.join(os.path.dirname(__file__), os.pardir, "telemetry", "runs.jsonl")
+# chunk-D1-2a: see the sibling note in tools/phase-3-gen/gen-telemetry.py. The
+# self-relative roots broke when this script moved under tools/; they resolve
+# through sprint_loop.config now so the next move cannot silently re-break them.
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
+
 BRANCH = "factory/phase-3.1-degraded"
 PHASE = "phase-3.1"
+
+EVID = phase_path(_FRAMEWORK_ROOT, "evidence", PHASE, "build-evidence")
+RUNS = os.path.join(_FRAMEWORK_ROOT, "telemetry", "runs.jsonl")
+# Portable relative form for the telemetry row's envelope_path field.
+_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), PHASE, "build-evidence"))
 
 MODEL_META = {
     "glm-5.2": ("zhipu", "glm-family"),
@@ -103,7 +117,7 @@ def build_rows(ts: str):
             "is_error": bool(env.get("is_error", False)),
             "decision": decision,
             "verdict_text_first_240": verdict,
-            "envelope_path": "phase-3.1/build-evidence/" + fname,
+            "envelope_path": _ENVELOPE_DIR_REL + "/" + fname,
         })
     return out
 

@@ -19,21 +19,37 @@ Both Phase 2 and Phase 3 rows use schema_version "v2" but set evidence_source
 to null — they predate the Phase 3.2 evidence provider.
 
 Usage:
-    python3 phase-4/reconstruct-telemetry.py [--dry-run]
+    python3 tools/phase-4-gen/reconstruct-telemetry.py [--dry-run]
 """
 import json
 import os
 import sys
 from datetime import datetime, timezone
 
-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
+# chunk-D1-2a: this script moved from phase-4/ to tools/phase-4-gen/, so a
+# single os.pardir hop reached tools/ rather than the repo root. Every path
+# below hangs off this one value, which is why the partial-fix trap in
+# CHUNK-2a-SPEC §4.7 is a trap: repairing the two EVID roots while leaving this
+# line pointed at tools/ sends RUNS_PATH to tools/telemetry/runs.jsonl, whose
+# absence silently zeroes the merge guard at :157 and truncates the system of
+# record. Two hops up from tools/phase-4-gen is the framework root.
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from sprint_loop.config import EVIDENCE_ROOT, phase_path  # noqa: E402
+
 RUNS_PATH = os.path.join(REPO_ROOT, "telemetry", "runs.jsonl")
-PHASE2_EVID = os.path.join(REPO_ROOT, "phase-2", "build-evidence")
-PHASE3_EVID = os.path.join(REPO_ROOT, "phase-3", "build-evidence")
+PHASE2_EVID = phase_path(REPO_ROOT, "evidence", "phase-2", "build-evidence")
+PHASE3_EVID = phase_path(REPO_ROOT, "evidence", "phase-3", "build-evidence")
+# Portable relative forms for the rows' envelope_path field.
+_P2_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-2", "build-evidence"))
+_P3_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
 
 # model_id -> (provider, family). providerLock/apiProviderLock == provider
 # (envelope does not surface the observed lock in the CLI version used; see
-# phase-3/gen-telemetry.py KI-3 note).
+# tools/phase-3-gen/gen-telemetry.py KI-3 note).
 MODEL_META = {
     "claude-opus-5": ("anthropic", "claude-family"),
     "glm-5.2": ("zhipu", "glm-family"),
@@ -169,7 +185,7 @@ def main():
     # 2. Generate Phase 2 rows.
     phase2_rows = []
     for run_id, role, model_id, decision, fname, panel in PHASE2_RUNS:
-        env_rel = f"phase-2/build-evidence/{fname}"
+        env_rel = f"{_P2_ENVELOPE_DIR_REL}/{fname}"
         row = make_row(run_id, "phase-2", PHASE2_BRANCH, role, model_id,
                        decision, env_rel, PHASE2_EVID, ts, reviewer_panel=panel)
         phase2_rows.append(row)
@@ -177,7 +193,7 @@ def main():
     # 3. Generate Phase 3 rows.
     phase3_rows = []
     for run_id, role, model_id, decision, fname in PHASE3_RUNS:
-        env_rel = f"phase-3/build-evidence/{fname}"
+        env_rel = f"{_P3_ENVELOPE_DIR_REL}/{fname}"
         row = make_row(run_id, "phase-3", PHASE3_BRANCH, role, model_id,
                        decision, env_rel, PHASE3_EVID, ts)
         phase3_rows.append(row)

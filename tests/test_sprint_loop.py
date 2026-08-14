@@ -1116,8 +1116,11 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
     cfg_path.write_text(json.dumps(cfg_payload))
     # Bootstrap a fake framework + pilot so the directory-validation passes.
     (tmp_path / "fw" / "tools" / "sprint_loop").mkdir(parents=True)
-    (tmp_path / "fw" / "phase-1" / "scripts").mkdir(parents=True)
-    (tmp_path / "fw" / "phase-3.2" / "evidence").mkdir(parents=True)
+    # Single-segment literals, matching the chunk-2 §2.4 precedent elsewhere in
+    # this file: the fixture must build the taxonomy roots the runner validates,
+    # and spelling them as one string keeps them greppable when they move again.
+    (tmp_path / "fw" / "tools/phase-1-scripts").mkdir(parents=True)
+    (tmp_path / "fw" / "tools/phase-3.2-evidence").mkdir(parents=True)
     (tmp_path / "fw" / "tools" / "orchestrate-review.py").write_text("# stub")
     (tmp_path / "pilot").mkdir()
     chunks_path = tmp_path / "chunks.json"

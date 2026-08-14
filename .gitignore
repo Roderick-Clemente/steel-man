@@ -76,8 +76,13 @@ telemetry/plan_lint_runs.jsonl
 # against their sha256) did not exist there at all. The only surviving trace was
 # a commit message. A BURNED.md written in that tree claimed its envelopes were
 # "preserved here"; they were untracked and did not travel. Directory-form
-# excludes also cannot be undone with a `!` negation, so there was no way to
-# re-include an envelope without -f on every single commit.
+# excludes also cannot be undone by a `!` negation on an individual FILE inside
+# the excluded tree: git never descends into an excluded directory, so a
+# `!<dir>/kimi-k3.json` line is inert. Negating the DIRECTORY itself does work.
+# Measured with `git check-ignore -v`, which is the authoritative answer here —
+# `git status --porcelain` collapses untracked directories, so grepping its
+# output for the file reports nothing either way and confirms whichever claim
+# you started with. Per-file rescue therefore needed -f on every single commit.
 #
 # Reviewer run trees are ~24K each (792K total to date). That is a trivial cost
 # against losing the audit trail, so envelopes, manifests, prompts, command logs

@@ -4,7 +4,7 @@ lock manifests.
 
 This is the Phase 1 implementation of the reference guard's policy #3
 (independent test authorship) extended to protect the lock manifest itself.
-It reads the lock manifests written by phase-1/scripts/lock.py and denies
+It reads the lock manifests written by tools/phase-1-scripts/lock.py and denies
 any tool call that would modify:
 
   - a locked test file, OR
@@ -43,10 +43,35 @@ import shlex
 import sys
 
 
-# Default: lock manifests live in the sibling `locks/` directory.
-DEFAULT_LOCKS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "locks"
-)
+# chunk-D1-2a: this guard is the READER half of the lock store, and it carried
+# the same broken two-hop default as lock.py, the writer — after the chunk-2
+# move, dirname(dirname(__file__)) + "locks" resolves to tools/locks, not
+# tools/phase-1-locks. Writer and reader sharing one wrong directory is not the
+# worst case; the worst case is the two DISAGREEING, which is exactly what
+# fixing only lock.py would produce: the writer records manifests in the real
+# store while this guard walks an empty one and F1's "absence is not
+# permission" deny fires on every call. Both halves resolve through LOCKS_ROOT.
+#
+# The import is caught rather than left to propagate: an unhandled module-level
+# ImportError exits 1, and only exit 2 denies a PreToolUse call — 1 is a
+# non-blocking hook error, so a broken import would fail OPEN, reopening the
+# enforcement hole F1 closed for a missing directory. On failure the default
+# becomes None and load_locked_state() raises OSError, routing into main()'s
+# existing fail-closed deny (which still honours LOCKS_REQUIRED=0).
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FRAMEWORK_ROOT = os.path.dirname(_TOOLS_DIR)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+try:
+    from sprint_loop.config import LOCKS_ROOT  # noqa: E402
+except ImportError as exc:
+    _LOCKS_ROOT_IMPORT_ERROR = exc
+    DEFAULT_LOCKS_DIR = None
+else:
+    _LOCKS_ROOT_IMPORT_ERROR = None
+    DEFAULT_LOCKS_DIR = os.path.join(_FRAMEWORK_ROOT, LOCKS_ROOT)
+
 LOCKS_DIR = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_DIR", DEFAULT_LOCKS_DIR)
 
 # F1 fix. A missing or empty locks directory used to mean "no policy to enforce,
@@ -118,6 +143,14 @@ def load_locked_state() -> dict:
     we cannot tell which tests are protected without a readable manifest.
     """
     state = {"tests": [], "manifests": []}
+    if LOCKS_DIR is None:
+        # LOCKS_ROOT could not be imported and no override was set: we do not
+        # know where the locks live, which is the same inability-to-enforce
+        # state as a missing directory. OSError so main() denies.
+        raise OSError(
+            f"cannot resolve the locks directory: {_LOCKS_ROOT_IMPORT_ERROR}. "
+            f"Set ADVERSARIAL_SPRINT_LOCKS_DIR to enforce without the import."
+        )
     if not os.path.isdir(LOCKS_DIR):
         # F1: absence is not permission. The caller denies unless the operator
         # has explicitly declared this phase unlocked.
