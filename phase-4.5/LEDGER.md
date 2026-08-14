@@ -438,4 +438,13 @@ corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
   The operator may correct this with an operator-level re-attribution note, or by amending
   af94f71's LEDGER portion. Either way, the content provenance is this referee seat
   (DeepSeek, deepseek-family), not the planner.
+
+2026-08-14T05:20:00Z REFEREE: CORRECTION: the PLUMBING TEST row above cites "73e33fe is on
+  origin/factory/layout-refactor." That object exists on no ref of either remote and the
+  branch factory/layout-refactor does not exist on origin (origin is Roderick-Clemente/
+  adversarial-sprint, not the dev remote). 73e33fe was local-only. The write path is
+  evidenced by d45d0e7 on dev/factory/layout-refactor. This row supersedes the false
+  remote-and-SHA claim; the false row is preserved for audit continuity.
+  Rule recorded: never force-push on factory/layout-refactor. Amend and force-push on
+  d45d0e7 was the exception and will not recur.
 ```
