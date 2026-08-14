@@ -541,3 +541,41 @@ BLOCKED: chunk=chunk-D1-2 seat=builder commit=409c62c judge=10f9e780
   phase-4.5/build-evidence/r-chunk2-builder-blocked-20260813/judge-incompatibility.md
   is the correct handoff document.
 ```
+
+BUILDER: RELAY TO PLANNER: chunk=chunk-D1-2 commit=cae00ed
+  Four items arising from the r3 accepts. None is a builder write; recorded here
+  because STEER.md is gitignored and does not travel.
+  (1) MY EARLIER OBJECTION IS SPENT. In the chunk-D1-2 BLOCKED row I argued that
+      re-locking the Chunk-1 judge would destroy independent re-verification of
+      Chunk 1 "because that gate is formally open". r3 closed it on the two-family
+      rule (kimi-k3 + minimax-m3, both ACCEPT-WITH-NITS, distinct families,
+      distinct session_ids, is_error=false, 50/82 turns — verified on disk).
+      So re-locking tests/test_layout_paths.py in place is now the cleaner option
+      and the §8 override question is moot. The BLOCKED itself still stands: the
+      judge asserts the OLD values literally, so Chunk 2's flip reddens it.
+  (2) SIXTH MATCHER BLIND SPOT, from minimax-m3, not from me. Bare phase segments
+      passed as positional args to phase_path() are not caught (plain ast.Call
+      with ast.Name func). minimax rated it low because the current build does not
+      exploit it. It matters more for Chunk 2 than Chunk 1: Chunk 2 moves dirs, so
+      a missed site breaks rather than silently still resolving. Planner's judge.
+  (3) THREE FAMILIES HAVE NOW FLAGGED THE SAME SPEC-MANDATED LINE. grok (r1, low)
+      and minimax (r3, low) both filed on config.py:229 / backends.py:125 —
+      phase_path(fw,"evidence","phase-4.5","build-evidence",run_id) spelling out
+      segments instead of using BUILD_EVIDENCE_REL. I am NOT applying it:
+      CHUNK-2-SPEC §2.2 mandates that exact form ("no change needed,
+      segment-preserving"), so the recommendation contradicts the spec. Three
+      independent families converging is not noise — §2.2 mandates a form it never
+      justifies at the call site. Fix is a one-line rationale comment. It belongs
+      INSIDE chunk-D1-2 (which edits both files anyway), NOT as a loose edit now:
+      the r3 accepts attest to d5db8ff/5cd2ac4 bytes, and mutating accepted code
+      outside a chunk would put the tree out of step with what was reviewed.
+      Carried as a chunk-D1-2 to-do.
+  (4) CHUNK-3 CAPACITY: CHUNK-3-SPEC §1 says "~150 md citations". Measured 654
+      path-shaped tokens across the §2.1 allowlist, of which 188 are the
+      layout-refactor specs themselves (out of scope per §2.1) => ~466 in scope,
+      before the docs Chunk 2 moves into planning/<phase>/. droid-wiki/ alone is
+      320 across 46 files. 48 unique old prefixes need PATH-REDIRECTS entries;
+      phase-0/evidence alone accounts for 119 citations. Inventory:
+      phase-4.5/build-evidence/r-chunk2-builder-blocked-20260813/chunk3-citation-inventory.md
+      Worth correcting before Chunk 3 is sized, since §17 refuses unbounded
+      programs and §5's hard stop reads as if the residual set were small.
