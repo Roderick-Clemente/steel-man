@@ -889,3 +889,224 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   needed — the REJECT targets the judge, and the builder's code at da14ef5 survives
   both reviews without a code-level blocker.
 ```
+
+### Errata — chunk-D1-2a §2.4 pass
+
+Appended, not inserted into the Errata section above: that section was the tail
+of the file when the planner wrote it, and the ledger has since grown past it.
+Editing a mid-file section would break the append-only property that makes this
+record citable. Every row below names what it supersedes, and every claim in it
+was re-measured on this machine rather than transcribed from the spec — a §2.4
+pass that copies the spec's assertions forward would launder them, not verify
+them.
+
+```
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=FINDINGS-chunk-D1-2.md:K2 topic=rc-row-names-no-interpreter
+  K2 STANDS, label corrected. The `local_backend.py --help | rc=0` row named no
+  interpreter and should have. Re-measured both ways just now:
+    /private/tmp/asprint-venv/bin/python (3.13.3)  rc=0
+    /usr/bin/python3                     (3.9.6)   rc=1
+  The 3.9.6 failure is a pre-existing PEP-604 annotation at
+  tools/phase-3.2-evidence/local_backend.py:189 —
+  `def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:`
+  → `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`, which the
+  chunk-2 judge explicitly tolerates. 3.9.6 is the system interpreter, not the suite
+  interpreter, and has no pytest installed at all (`ModuleNotFoundError: No module
+  named 'pytest'`), so it cannot host the suite whose counts the row was reporting.
+  So the original rc=0 was CORRECT and only under-specified. The defect is the
+  missing label, not the number. Standing instruction: an rc row names the
+  interpreter that produced it.
+
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=FINDINGS-chunk-D1-2.md:K5 topic=unenumerated-comment-block
+  K5 STANDS. tools/sprint_loop/backends.py:125-129 gained a five-line comment block
+  inside a set of changes presented as unenumerated. Verified comment-only at the hunk
+  level, not merely by reading the file as it stands now: `git log -p -S'phase_path'`
+  on that file shows ee90061 (chunk-2) added ONLY the five `#` lines, while the code
+  line the comment describes (os.path.join → phase_path) was changed one commit
+  earlier in d5db8ff (chunk-1). Zero behaviour change in chunk-2. The finding is about
+  enumeration discipline and it is upheld on that ground.
+
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=FINDINGS-chunk-D1-2.md:K1 topic=phase-dir-scratch-residue
+  K1 DOES NOT REPRODUCE. kimi flagged untracked `phase-4.5/` scratch residue as
+  contradicting the "zero phase-* dirs on disk" row. Measured now: 0 glob matches for
+  `phase-*` at the repo root, 0 tracked paths beginning `phase-`, 0 untracked ones in
+  `git status --porcelain`. Recorded as a time-of-review divergence, not a defect —
+  the reviewer saw a real working tree and the row described a different one. Both
+  were accurate when written, which is why this is an erratum and not a correction of
+  either party.
+
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=none topic=no-change-needed-items
+  Two review items need no build action, recorded so their silence is a decision.
+  (1) minimax's lookbehind item: the fix was right; the ask is only that the comment
+  survive chunk-3's rename. Carried forward as a chunk-3 constraint, not a defect.
+  (2) minimax's §2.4 verify-green.py line-number erratum corrects a SPEC, not a build.
+  Routing it to the builder would have produced a code change in answer to a document
+  defect.
+
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=chunk-D1-1.token.json,chunk-D1-2.token.json topic=provider-empty-in-signed-tokens
+  NEW, and the only forward-binding row here. Every reviewer record in both signed
+  tokens carries an empty `provider`. Measured, all four records:
+    chunk-D1-1: kimi-k3 family=moonshot-family provider=''
+                minimax-m3 family=minimax-family provider=''
+    chunk-D1-2: kimi-k3 family=moonshot-family provider=''
+                minimax-m3 family=minimax-family provider=''
+  Nothing breaks today: Ruling 2c fixes seat identity by model_id, and `family` is
+  populated, so §17.2 cross-family distinctness and §23 paraphrase detection both
+  still resolve. But these tokens are HMAC-signed and therefore immutable: if any
+  future gate asserts `provider` non-empty, these two retroactively fail and cannot be
+  repaired. THE FIX IS FORWARD-ONLY — populate `provider` on all subsequent tokens and
+  carry these two as a known incompleteness. Do NOT re-sign. Re-signing an immutable
+  token to make the record look tidier is the exact move the signing scheme exists to
+  prevent, and it would cost more than the empty field does.
+
+2026-08-14T05:38Z BUILDER: ERRATUM: supersedes=FINDINGS-chunk-D1-2a.md:F2 topic=judge-gap-wider-than-F2-recorded
+  Against my OWN findings doc, committed in 08d0072 and therefore immutable by the
+  same rule §2.4 applies to chunk-2's. F2 recorded one judge gap — the inert
+  `"0 existing rows" not in stdout` assertion at
+  tests/test_layout_paths_chunk2a.py:282, which cannot fire because the script prints
+  `Existing rows: 0`. That stands. What F2 did NOT say, and should have:
+  CHUNK-2a-SPEC §3 required assertion 2 has two halves — no emitted `envelope_path`
+  matches `^phase-\d` AND the emitted path RESOLVES to an existing file — and the
+  ratified judge implements only the first. `grep -n envelope_path
+  tests/test_layout_paths_chunk2a.py` returns docstring and comment lines only: zero
+  assertions. The spec anticipated exactly this ("Shape alone is insufficient — a
+  partial fix satisfies the regex while pointing at nothing") and the judge does not
+  close it. I measured resolution myself (18/18 script-generated rows resolve) and
+  reported it, but I reported it as a criterion met rather than as a criterion the
+  judge cannot enforce, which is the distinction §11 turns on.
+  CORRECTION IN THE OTHER DIRECTION: test_chunk2a_runs_path_is_the_real_sor is NOT
+  inert and I do not claim it is. It imports all three SoR writers and asserts each
+  one's destination constant (OUT / RUNS / RUNS_PATH) realpath-equals
+  telemetry/runs.jsonl, so the specific §4.7 trap — repairing reconstruct-telemetry
+  :31-32 while leaving :29 pointed at tools/ — WOULD fail that test at the constant
+  level. Any remediation summary saying the judge is blind to the §4.7 partial fix
+  overstates it. The two genuine holes are the inert string assertion and the
+  unimplemented resolution half.
+  I am NOT drafting the amendment. tests/test_layout_paths_chunk2a.py is my own judge,
+  it is locked, and invariant #3 forbids me modifying it; the patch is the planner's
+  after the referee unlocks. Naming which assertion is inert and which required
+  assertion is unimplemented is the measurement, and the measurement is builder work.
+  Writing the replacement test would not be.
+
+2026-08-14T05:40Z BUILDER: ERRATUM: supersedes=FINDINGS-chunk-D1-2a.md:F6 topic=dry-run-is-a-live-false-reject-generator
+  ESCALATION. F6 recorded --dry-run as a convention honoured by one script in a family
+  and ignored by the rest. That undersells it. Wired to CHUNK-2a-VALIDATOR-PROMPT.md it
+  is a mechanism that makes a reviewer void their own review and manufacture a false
+  blocker, and neither party can see it happen.
+  THE CHAIN, all four links verified:
+  1. Prompt line 122: "Do not run the three SoR-writing scripts without `--dry-run`
+     where one exists." The hedge cannot be acted on. Passing --dry-run to either
+     gen-telemetry.py yields no error, no warning, no output difference and exit 0 —
+     byte-indistinguishable from being honoured. A reviewer has no way to learn which
+     of the three parse argv, so the reasonable reading is that all three do.
+  2. Only reconstruct-telemetry.py parses it. Both generators ignore argv entirely and
+     perform their real truncating write. tools/phase-3-gen/gen-telemetry.py rewrites
+     the whole file with its own 13 rows, so the live 21-row SoR becomes 13.
+  3. Prompt lines 49-50 then instruct: "Verify: telemetry/runs.jsonl still has all its
+     rows (it had 21 pre-chunk)". The reviewer looks, finds 13, and has found the exact
+     symptom step 2 told them to treat as a blocker — self-inflicted, and it presents
+     as a confirmed §4.7 partial-fix hit against the build.
+  4. Prompt line 124: "a review that mutates the artifact under review is void." So
+     complying with line 122 breaches line 124.
+  WHY IT IS INVISIBLE: telemetry/runs.jsonl is git-ignored (.gitignore:44, confirmed
+  with `git check-ignore -v`). It appears in no porcelain, no diff, no stat. The
+  reviewer cannot detect that they did it, and the next reviewer inherits the shrunk
+  file as their baseline and measures the build against it.
+  NOT CONTAMINATED SO FAR: measured at 2026-08-14T05:40Z, after kimi-k3's 51-turn
+  review returned, the SoR is 21 rows, sha256
+  85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d — byte-identical to
+  the baseline recorded in this bundle. kimi did not trip it. A read-only copy is at
+  /tmp/asprint-sor-snapshots/runs.jsonl.pre-minimax-2a so the referee can distinguish
+  reviewer-inflicted mutation from build defect if a later report claims a shrink. I
+  have not restored, altered, or staged the file: a review is in flight and the builder
+  does not touch the artifact under review mid-gate.
+  REMEDIATION, and it is not mine: the two generators need real argument parsing or a
+  hard reject on unknown argv (code, chunk-3+), and prompt line 122 needs to name which
+  script accepts the flag instead of hedging (planner, before the next reviewer fires).
+  The prompt fix is the urgent half — it is one line and it is live right now.
+```
+
+### Errata — post-gate, against 4aa96b7
+
+```
+2026-08-14T05:50Z BUILDER: ERRATUM: supersedes=4aa96b7-commit-body topic=suite-count-attributed-to-an-interpreter-without-pytest
+  4aa96b7's body states: "Suite: 213 passed, 3 skipped on Python 3.9.6." That
+  measurement cannot have been taken on that interpreter. Re-measured just now:
+    /usr/bin/python3 -m pytest -q
+    -> "No module named pytest"   (/usr/bin/python3 is 3.9.6)
+  There is no pytest under 3.9.6 on this machine, which is the same fact the K2 erratum
+  above records and which CHUNK-2a-VALIDATOR-PROMPT.md:19-20 warns reviewers about in
+  its own words. The count is real but belongs to a different interpreter: 213 passed +
+  3 skipped is the venv measurement at da14ef5, /private/tmp/asprint-venv/bin/python
+  (3.13.3), reported in the VALIDATE COMPLETE row above.
+  IT IS ALSO STALE AS A DESCRIPTION OF THIS TREE. At 4aa96b7 the venv reports
+  "10 failed, 217 passed, 3 skipped" — the chunk-3 judge landed at 4e49484 as
+  deliberate valid RED awaiting ratification, and all 10 failures are inside
+  tests/test_layout_paths_chunk3.py. Nothing outside that file fails. A referee reading
+  "213 passed, 3 skipped" against the current tree would find 10 reds and have no way to
+  tell intended-RED from regression from that row alone.
+  NEITHER ERROR CHANGES ANY VERDICT. The build at da14ef5 was green on the suite
+  interpreter and neither validator alleges otherwise. Recorded because this is the K2
+  defect recurring one commit after the erratum about it, which makes it a process
+  signal rather than a typo: an rc-or-count row names the interpreter that produced it,
+  and a count carries the commit it was taken at.
+
+2026-08-14T05:50Z BUILDER: ERRATUM: supersedes=none topic=2a-code-gate-disposition-builder-view
+  Recorded for the referee resolving the SPLIT, from the builder seat only — I am not
+  adjudicating it (§22, §24).
+  NEITHER VALIDATOR ALLEGES A CODE DEFECT AT da14ef5. kimi-k3's REJECT targets the
+  judge's coverage, not the build; its own stated remediation is a judge amendment plus
+  an errata append, explicitly no code change. minimax-m3's ACCEPT-WITH-NITS nits are
+  that the spec cites planning/PATH-REDIRECTS.md, a chunk-3 deliverable that does not
+  exist yet — a planner-surface item, and one I was fenced from touching. So the split
+  is over judge and spec surfaces, and the nine changed files are unaccused.
+  BOTH KIMI ITEMS ARE INDEPENDENTLY CONFIRMED, and both were self-reported before the
+  gate fired: the inert assertion is F2 in the bundle at 08d0072, and the missing §2.4
+  errata are appended by this commit. On the first, my measurement is narrower than
+  kimi's framing and the difference matters to the amendment: the partial fix kimi
+  describes — reconstruct-telemetry.py:29's REPO_ROOT walking one level up — WOULD be
+  caught by test_chunk2a_runs_path_is_the_real_sor, which imports all three SoR writers
+  and asserts each destination constant realpath-equals telemetry/runs.jsonl. The
+  uncovered surface is narrower and different: the inert
+  `"0 existing rows" not in stdout` string at :282, and spec §3's required assertion 2
+  second half — that each emitted envelope_path RESOLVES — which the judge never
+  implements at all. Amending only the string would leave the resolution half open.
+  The planner's patch is already drafted at planning/layout-refactor/CHUNK-2a-JUDGE-F2.patch
+  (untracked, not mine, not modified by me).
+```
+
+### Errata — SoR state after the 2a code gate
+
+```
+2026-08-14T05:55Z BUILDER: ERRATUM: supersedes=e5c2855-audit-note topic=sor-is-back-at-baseline-and-its-primary-key-is-not-unique
+  e5c2855's audit note records: SoR snapshotted at 21 rows pre-minimax, "post-run SoR is
+  59 rows (d3dadb14...)", growth judged likely a pipeline artifact rather than an
+  invalidating mutation. That is no longer a description of the working tree, and the
+  question does not have to stay a judgement call.
+  MEASURED NOW: telemetry/runs.jsonl is 21 rows, sha256
+  85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d — byte-identical to
+  the read-only copy I took at 05:40Z before minimax returned
+  (/tmp/asprint-sor-snapshots/runs.jsonl.pre-minimax-2a, same sha). Compared row by row,
+  not just by count: the 21-row prefix is identical, 0 original rows are missing, 0 rows
+  are new. So whatever produced 59 rows has been reverted, and no finding in either
+  envelope now rests on a grown or shrunk SoR. The 59-row state was real when the
+  referee saw it; it is not present now. Anyone re-deriving the audit from the current
+  tree will measure 21 and should not read that as contradicting the note.
+  Two things this does NOT settle, both left open deliberately: which script wrote the
+  38 rows, and whether minimax or the pipeline ran it. I cannot attribute a mutation I
+  did not observe, and the file is git-ignored so no git surface recorded it. The F6
+  escalation above is the reason to care: the validator prompt tells reviewers to use
+  --dry-run, two of the three writers ignore it, and 21 -> 59 is the growth signature of
+  reconstruct-telemetry.py running for real (it merges 18 rows) rather than of either
+  generator, which rewrite the file instead.
+  SEPARATE, PRE-EXISTING, AND NEW: the SoR's primary key is not unique. The 21 baseline
+  rows carry only 13 distinct run_ids. r-phase32-review-grok-4.5 and
+  r-phase32-review-gemini-3.1-pro-preview each appear 5 times, and those 10 rows hold 10
+  DISTINCT payloads — 10 genuinely different runs sharing 2 ids, not accidental
+  duplicates of one row. Consequences: (1) reconstruct-telemetry.py deduplicates by
+  run_id into a set, so any future row reusing either id is silently SKIPPED as already
+  present; (2) 10 phase-3.2 review runs are not addressable in the record that is
+  supposed to identify them. Written by the phase-3.2 review tooling, not by anything
+  this chunk touched, so it is recorded and not fixed — sibling to F7. Recommend it as a
+  named chunk-3+ target alongside F5, F6 and F7.
+```
