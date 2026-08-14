@@ -1350,3 +1350,72 @@ them.
   is fixed, so the chunk-D1-3 token's judge_sha256 pins to a manifest like every
   prior round's did.
 ```
+
+### Close — chunk-D1-3, after referee ratification 5d8296d
+
+```
+2026-08-14T13:05Z BUILDER: F13 CLOSED: chunk=chunk-D1-3 by=planner commit=e032e08
+  Finding: test_chunk3_ledger_rename_carried_no_content_edit used
+  `git show --numstat --format= <sha> -- evidence/LEDGER.md`. A pathspec filters the
+  source side out of the tree diff BEFORE rename detection runs, so a correct pure
+  rename reads as a fresh add (1224 0) and the assertion could not go green on any
+  buildable state. Planner replaced it with `git show --numstat --format= -M <sha>`
+  (no pathspec) plus a substring filter on "LEDGER.md". I did not edit the judge.
+  Verified: judge sha256 moved 1a883c71... -> 5c66bcfc..., and the assertion now
+  observes 0 0 {planning/phase-4.5 => evidence}/LEDGER.md on the same commit that
+  previously failed it. No build bytes changed to achieve this — 0b5343d is untouched.
+
+2026-08-14T13:05Z BUILDER: F14 CLOSED: chunk=chunk-D1-3 by=referee commit=5d8296d
+  Finding: the chunk-3 judge had no lock manifest, so framework invariant #3 was
+  self-enforced rather than enforced for this chunk. Referee created
+  tools/phase-1-locks/tests/test_layout_paths_chunk3.py.lock.json pinning
+  sha256=5c66bcfc1b42c6fe1d07376ee899f4fd9d98f4909acce761710f3bd3e1ad3362.
+  Independently confirmed from this seat: on-disk shasum -a 256 of the judge equals
+  the manifest's sha256 byte-for-byte, and the manifest sits alongside its three
+  companions under tools/phase-1-locks/tests/ (no tools/locks/ was created).
+  My errata row above states "HAS NO LOCK MANIFEST" and cites the pre-fix hash
+  1a883c71...; that was true when written against 9014db6 and is superseded here
+  rather than edited, because this ledger is append-only (§5, §21).
+
+2026-08-14T13:05Z BUILDER: VALIDATE COMPLETE: chunk=chunk-D1-3 commit=0b5343d
+  tests=237-collected/234-passed/0-failed/3-skipped
+  judge=tests/test_layout_paths_chunk3.py sha256=5c66bcfc1b42c6fe1d07376ee899f4fd9d98f4909acce761710f3bd3e1ad3362
+  judge-in-isolation=14-passed/0-failed
+  interpreter=/private/tmp/asprint-venv/bin/python (3.13.3)
+  §4 exit criteria: 8/8 PASS, 0 failed (was 2 failed before e032e08 — both were the
+  single F13 assertion, once in §4.1 and once in §4.1b).
+  Capture: evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/verify-chunk3-rerun-5d8296d.out
+  This SUPERSEDES the VALIDATE COMPLETE row at 9014db6, which recorded 233-passed/
+  1-failed and a BLOCKED. That BLOCKED is now retired — see F13 CLOSED above.
+  Counts come from --junit-xml, not stdout: pytest.ini already sets -q, and a second
+  -q suppresses the summary line entirely (F11).
+  NOTE on the capture's header: `worktree clean : NO` is the capture file itself being
+  untracked while the harness that writes it runs. `git status --porcelain` at run time
+  listed exactly one path, the .out being written. Nothing else was dirty.
+  NOTE: the refreshed capture is a NEW file. verify-chunk3.out is committed evidence at
+  28c57fd and immutable (§5/§21); it is left carrying its 2-failed record on purpose so
+  the RED->GREEN transition stays legible in git rather than being overwritten.
+
+2026-08-14T13:05Z BUILDER: REVIEW REQUEST: chunk=chunk-D1-3 commit=0b5343d
+  build=0b5343d (6 A, 15 M, 1 R100) evidence=28c57fd refresh=<this commit>
+  paths=evidence/phase-4.5/build-evidence/r-chunk3-builder-20260814/
+  Read in this order:
+    1. FINDINGS-chunk-D1-3.md — F1..F13, each a measurement with its command
+    2. verify-chunk3-rerun-5d8296d.out — §4.1-§4.8, all PASS
+    3. verify-chunk3.sh — the harness; §4.5 prints three numstat forms side by side
+    4. planning/PATH-REDIRECTS.md — the deliverable; generated, --check clean
+  Open rulings still wanted from planner/referee, none blocking:
+    F4  — I corrected two citation TAILS (…-validator.md -> …-validator-spawn.md), not
+          just their roots, because re-rooting alone lands a knowingly-dead path. That
+          is arguably wider than "citation re-rooting". Want a ruling.
+    F7  — .cursor/rules/*.mdc are outside the §2.1a allowlist but pinned to it by
+          tests/test_sprint_loop.py:1698. Honouring the allowlist literally ships a red
+          suite. §2.1a should name generated mirrors as collateral of their source.
+    F9  — chunk-2a's carried KNOWN 1-FAILURE is machine-dependent, not commit-dependent:
+          the vacuity guard reads a gitignored SoR that running the scripts saturates.
+          Cannot be reproduced or closed from this seat.
+    F3  — any later chunk using a residual-token grep as its exit check inherits the
+          markdown-link-target blind spot. Exit checks must resolve links, not count tokens.
+  Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no token under
+  evidence/phase-4.5/tokens/, fired no reviewer, and did not run the chunk sequence gate.
+```
