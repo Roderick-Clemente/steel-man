@@ -1,0 +1,59 @@
+tools/phase-3-gen/gen-telemetry.py:12:name if it is not yet known"). Recorded as KI-3 in phase-3/KNOWN-ISSUES.md.
+tools/phase-3-gen/gen-telemetry.py:23:# chunk-D1-2a: this script used to live at phase-3/ with its evidence as a
+tools/phase-3-gen/gen-telemetry.py:25:# "build-evidence" resolves to tools/phase-3-gen/build-evidence and does not
+tools/phase-3-gen/gen-telemetry.py:27:# re-hardcoding "evidence/phase-3/..." — a literal prefix is what broke here,
+tools/phase-3-gen/gen-telemetry.py:36:EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3", "build-evidence")
+tools/phase-3-gen/gen-telemetry.py:40:_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
+tools/phase-3-gen/gen-telemetry.py:41:BRANCH = "factory/phase-3-profile"
+tools/phase-3-gen/gen-telemetry.py:101:            "phase": "phase-3",
+tools/phase-3.1-gen/gen-telemetry.py:5:Same recipe as phase-3/gen-telemetry.py, but:
+tools/phase-3.1-gen/gen-telemetry.py:6:  - phase == "phase-3.1", branch == "factory/phase-3.1-degraded"
+tools/phase-3.1-gen/gen-telemetry.py:12:it strips any existing phase-3.1 rows from runs.jsonl and appends fresh ones,
+tools/phase-3.1-gen/gen-telemetry.py:13:leaving phase-3 (control) rows untouched.
+tools/phase-3.1-gen/gen-telemetry.py:22:# chunk-D1-2a: see the sibling note in tools/phase-3-gen/gen-telemetry.py. The
+tools/phase-3.1-gen/gen-telemetry.py:32:BRANCH = "factory/phase-3.1-degraded"
+tools/phase-3.1-gen/gen-telemetry.py:33:PHASE = "phase-3.1"
+tools/phase-4-gen/reconstruct-telemetry.py:9:Phase 2 (5 envelopes in phase-2/build-evidence/):
+tools/phase-4-gen/reconstruct-telemetry.py:14:Phase 3 (13 envelopes in phase-3/build-evidence/):
+tools/phase-4-gen/reconstruct-telemetry.py:22:    python3 tools/phase-4-gen/reconstruct-telemetry.py [--dry-run]
+tools/phase-4-gen/reconstruct-telemetry.py:29:# chunk-D1-2a: this script moved from phase-4/ to tools/phase-4-gen/, so a
+tools/phase-4-gen/reconstruct-telemetry.py:35:# record. Two hops up from tools/phase-4-gen is the framework root.
+tools/phase-4-gen/reconstruct-telemetry.py:44:PHASE2_EVID = phase_path(REPO_ROOT, "evidence", "phase-2", "build-evidence")
+tools/phase-4-gen/reconstruct-telemetry.py:45:PHASE3_EVID = phase_path(REPO_ROOT, "evidence", "phase-3", "build-evidence")
+tools/phase-4-gen/reconstruct-telemetry.py:47:_P2_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-2", "build-evidence"))
+tools/phase-4-gen/reconstruct-telemetry.py:48:_P3_ENVELOPE_DIR_REL = "/".join((*EVIDENCE_ROOT.split(os.sep), "phase-3", "build-evidence"))
+tools/phase-4-gen/reconstruct-telemetry.py:52:# tools/phase-3-gen/gen-telemetry.py KI-3 note).
+tools/phase-4-gen/reconstruct-telemetry.py:61:PHASE2_BRANCH = "factory/phase-2-slice"
+tools/phase-4-gen/reconstruct-telemetry.py:62:PHASE3_BRANCH = "factory/phase-3-profile"
+tools/phase-4-gen/reconstruct-telemetry.py:85:# Adapted from phase-3/gen-telemetry.py.
+tools/phase-4-gen/reconstruct-telemetry.py:189:        row = make_row(run_id, "phase-2", PHASE2_BRANCH, role, model_id,
+tools/phase-4-gen/reconstruct-telemetry.py:197:        row = make_row(run_id, "phase-3", PHASE3_BRANCH, role, model_id,
+tools/phase-4-gen/gen-findings.py:6:- Phase 2 review findings (from phase-2/findings.md)
+tools/phase-4-gen/gen-findings.py:7:- Phase 3.1 degraded spike findings (from phase-3.1/RESULTS.md)
+tools/phase-4-gen/gen-findings.py:42:# while "correcting" the tail would be a rewrite. `phase-1/hooks/lock.py` is
+tools/phase-4-gen/gen-findings.py:43:# preserved as `tools/phase-1-hooks/lock.py` for exactly that reason, even
+tools/phase-4-gen/gen-findings.py:44:# though lock.py in fact lives in tools/phase-1-scripts/ — the imprecision is
+tools/phase-4-gen/gen-findings.py:47:_P32_REVIEWS = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-3.2", "reviews")
+tools/phase-4-gen/gen-findings.py:48:_P4_EVID = phase_path(_FRAMEWORK_ROOT, "evidence", "phase-4")
+tools/phase-4-gen/gen-findings.py:94:    findings.append(row(fid, "phase-1", D, "tools/phase-1-hooks/", cat, sev,
+tools/phase-4-gen/gen-findings.py:98:findings.append(row("F-P1R1-M01", "phase-1", D, "planning/phase-1/review-prompt",
+tools/phase-4-gen/gen-findings.py:105:findings.append(row("F-P1R2-G01", "phase-1", D, "tools/phase-1-hooks/lock.py",
+tools/phase-4-gen/gen-findings.py:111:findings.append(row("F-P1R2-M01", "phase-1", D, "tools/phase-1-hooks/glob-match",
+tools/phase-4-gen/gen-findings.py:115:findings.append(row("F-P1R2-M02", "phase-1", D, "tools/phase-1-hooks/lock.py",
+tools/phase-4-gen/gen-findings.py:119:findings.append(row("F-P1R2-M03", "phase-1", D, "tools/phase-1-hooks/multiedit",
+tools/phase-4-gen/gen-findings.py:132:    findings.append(row(fid, "phase-1", D, "planning/phase-1/", cat, sev,
+tools/phase-4-gen/gen-findings.py:135:findings.append(row("F-P1R3-M01", "phase-1", D, "tools/phase-1-hooks/",
+tools/phase-4-gen/gen-findings.py:142:# Encoded from phase-2/findings.md
+tools/phase-4-gen/gen-findings.py:147:findings.append(row("F-P2-G01", "phase-2", D2, "planning/phase-2/plan-v1.md",
+tools/phase-4-gen/gen-findings.py:152:findings.append(row("F-P2-G02", "phase-2", D2, "planning/phase-2/plan-v1.md",
+tools/phase-4-gen/gen-findings.py:165:findings.append(row("F-P31-G01", "phase-3.1", D3, "evidence/phase-3.1/chunk-1",
+tools/phase-4-gen/gen-findings.py:187:        fid, "phase-4", D4,
+tools/phase-4-gen/gen-findings.py:206:    findings.append(row(fid, "phase-4", D4, surface, cat, sev,
+tools/phase-4-gen/gen-findings.py:224:        fid, "phase-4", D4,
+tools/phase-4-gen/gen-findings.py:242:    findings.append(row(fid, "phase-4", D4, surface, cat, sev,
+tools/phase-4-gen/gen-findings.py:273:                    "phase-4", D5,
+tools/phase-4-gen/gen-findings.py:308:                    "phase-4", D6,
+tools/phase-1-scripts/lock.py:5:    python3 tools/phase-1-scripts/lock.py <test-file> <accepted-assertion>
+tools/phase-1-scripts/lock.py:19:# chunk-D1-2a: this script moved from phase-1/scripts/ to tools/phase-1-scripts/,
+tools/phase-1-hooks/locked-test-guard.py:7:It reads the lock manifests written by tools/phase-1-scripts/lock.py and denies
+tools/phase-1-hooks/locked-test-guard.py:49:# tools/phase-1-locks. Writer and reader sharing one wrong directory is not the

@@ -1,0 +1,10 @@
+Wrote 71 findings to /Users/m3racbookpro/Work/adversarial-sprint/telemetry/findings.jsonl
+
+By model: {'grok-4.5': 55, 'gemini-3.1-pro-preview': 16}
+By family: {'grok-family': 55, 'gemini-family': 16}
+By severity: {'minor': 29, 'nit': 18, 'blocking': 7, 'major': 17}
+
+Grok unique: 54
+Gemini unique: 15
+Shared: 2
+Total: 71

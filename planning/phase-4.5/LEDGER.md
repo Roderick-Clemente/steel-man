@@ -752,4 +752,60 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   so RED is confirmed on both. But the label is wrong: the suite interpreter is the
   3.13.3 venv per CHUNK-2a-SPEC §4.1, and §4.1 exit criteria must reconcile against
   that interpreter. The builder's build validation will use 3.13.3 and quote the path.
+
+2026-08-14T05:05Z BUILDER: VALIDATE COMPLETE: chunk=chunk-D1-2a commit=da14ef5 tests=213-passed-3-skipped
+  interpreter=/private/tmp/asprint-venv/bin/python (3.13.3), quoted per the REFEREE
+  CORRECTION above. Valid RED before the fix: 12 failed / 201 passed / 3 skipped.
+  seat=builder judges=3307020a(chunk2a,16/16 pass)+cb00dfac+48a579f8(both byte-unchanged
+  and lock-matched; all three absent from git status)
+  Build per CHUNK-2a-SPEC §2.1-§2.5. 9 files, all M, ZERO rename entries — this chunk
+  moves nothing. Read path and envelope_path write string fixed together in every
+  script, because repairing reads alone converts a loud FileNotFoundError into
+  telemetry rows pointing at files that are not there.
+  BEYOND THE SPEC'S PREMISE, and the reason matters: §2.5 fixes lock.py (the lock
+  WRITER) and treats the reader as sound, but tools/phase-1-hooks/locked-test-guard.py
+  derived DEFAULT_LOCKS_DIR from the same broken two-hop expression and also resolved
+  to tools/locks. Sharing one wrong directory is a consistent wrong answer; fixing only
+  the writer makes them DISAGREE, so lock.py records manifests in the real store while
+  the guard walks an empty one and denies every author-tool call under "absence is not
+  permission." A partial §2.5 fix is worse than none. Fixed in code, no judge touched.
+  Verified not asserted (§7, §11): §4.1 213+3; §4.2 all four scripts rc=0 from a
+  non-root CWD; §4.3 zero path-forming phase-N literals, 59 residual prose/segment
+  occurrences LISTED in residual-phase-literals.out; §4.4 judges lock-matched; §4.5
+  plan-lint rc=0 on PLAN.md and CHUNK-2a-SPEC.md; §4.6 0 R entries; §4.7
+  reconstruct-telemetry reads "Existing rows: 21" (not 0) and grows the SoR 21->39,
+  tools/telemetry never exists on disk or in porcelain, and all 18 script-generated
+  rows carry envelope_path values that resolve to real files.
+  Regression not rot: predecessor c63b776 runs all four at rc=0.
+  Evidence: evidence/phase-4.5/build-evidence/r-chunk2a-builder-20260814/
+    FINDINGS-chunk-D1-2a.md, verify-chunk2a.{sh,out}, repro-predecessor.{sh,out},
+    suite.out, residual-phase-literals.out, run-*.{out,err}
+  SIX FINDINGS FOR PLANNER/REFEREE, three about the judge and spec rather than the code:
+    F2 test_chunk2a_reconstruct_telemetry_dry_run_from_foreign_cwd asserts
+       '"0 existing rows" not in stdout' but the script prints "Existing rows: 0" —
+       the assertion can never fire, including in the §4.7 scenario it exists for.
+       Checked here by hand instead; recommend the planner retarget it.
+    F3 test_chunk2a_no_stale_phase_prefix_literals is stricter than §4.3 (which accepts
+       non-path-forming occurrences) and caught 11 historical `surface` DATA labels in
+       gen-findings.py that nothing opens. Re-rooted by swapping the leading segment
+       only, tails byte-identical, so no reviewer's recorded finding is rewritten.
+       Rejected: editing the judge, and splitting literals to evade the matcher.
+    F4 the fixture test forces a hardcoded root literal, which will drift on the next
+       move — the opposite of what the rest of the chunk does. Recorded as a choice.
+    F5 the phase-3 generator shrinks the SoR by pre-existing design (open(OUT,"w") at
+       c63b776:104), so §4.7's non-shrinking check is per-script from a restored
+       baseline. Recommend making it phase-preserving as a chunk-3+ target.
+    F6 --dry-run is honoured by reconstruct only; both gen-telemetry scripts ignore
+       argv entirely and perform real truncating writes when handed it. Found by a
+       changed row count, not by any rc. Recommend arg parsing or a hard reject.
+    F7 11 pre-existing SoR rows carry unresolvable envelope_path values (CWD-relative
+       and pilot-absolute into QuantumBank), written by other tooling. Per §21 a row
+       whose pointer does not resolve is a self-declaration. Chunk-3+ target.
+  Held no EVIDENCE_SIGNING_KEY, wrote no token, fired no reviewer, did not run the
+  sequence gate (§22, §24). Builder standing by.
+
+2026-08-14T05:05Z BUILDER: REVIEW REQUEST: chunk=chunk-D1-2a-code commit=da14ef56f24ec3de82ea70b862f7346fae6aca67
+  paths=evidence/phase-4.5/build-evidence/r-chunk2a-builder-20260814/
+  The bundle exists on disk and is committed with this row, so paths= does not point at
+  a nonexistent envelope dir. Referee fires the validators and signs; I do neither.
 ```

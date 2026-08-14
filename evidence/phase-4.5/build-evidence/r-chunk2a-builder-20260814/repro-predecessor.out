@@ -1,0 +1,20 @@
+predecessor: c63b776   (chunk-D1-2 tip for comparison: ee90061)
+worktree:    /var/folders/gz/3n1z6c3n1kv8j96zwf6449j00000gp/T/tmp.EuYcQlEj6h/pred-c63b776
+SoR snapshot: 21 rows, sha256 85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d
+
+script (pre-move path)                 @c63b776  @HEAD     verdict
+-------------------------------------- --------  --------  -------
+phase-3/gen-telemetry.py               rc=0      rc=0      chunk-2 REGRESSION (worked pre-move)
+phase-3.1/gen-telemetry.py             rc=0      rc=0      chunk-2 REGRESSION (worked pre-move)
+phase-4/reconstruct-telemetry.py       rc=0      rc=0      chunk-2 REGRESSION (worked pre-move)
+phase-4/gen-findings.py                rc=0      rc=0      chunk-2 REGRESSION (worked pre-move)
+
+Note: the SoR-shrink property of phase-3/gen-telemetry.py is also
+pre-existing, and provable independently of rc — the full-file rewrite is
+in the predecessor source, not introduced by this chunk:
+  c63b776:104:    with open(OUT, "w") as fh:
+  HEAD:121:    with open(OUT, "w") as fh:
+
+worktree removed.
+live SoR restored: 21 rows, sha 85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d
+  pass: byte-identical to the pre-run snapshot

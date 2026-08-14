@@ -1,0 +1,7 @@
+Existing rows: 21 (run_ids: ['r-chunk-0-review-gemini-3.1-pro-preview', 'r-chunk-0-review-grok-4.5', 'r-chunk-0-review-rerun-gemini-3.1-pro-preview', 'r-chunk-0-review-rerun-grok-4.5', 'r-chunk-1-review-gemini-3.1-pro-preview', 'r-chunk-1-review-grok-4.5', 'r-chunk-3-58a2742a-gemini-3.1-pro-preview', 'r-chunk-3-58a2742a-grok-4.5', 'r-chunk-3-grok-retry-1-grok-4.5', 'r-chunk-4-a72ee733-gemini-3.1-pro-preview', 'r-chunk-4-a72ee733-grok-4.5', 'r-phase32-review-gemini-3.1-pro-preview', 'r-phase32-review-grok-4.5'])
+Phase 2 rows generated: 5
+Phase 3 rows generated: 13
+New rows to append: 18
+Merged total: 39
+
+Wrote 39 rows to telemetry/runs.jsonl

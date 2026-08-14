@@ -1,0 +1,25 @@
+Existing rows: 29 (run_ids: ['r-phase3-c1-executor', 'r-phase3-c1-executor-openai-fail', 'r-phase3-c1-test-author', 'r-phase3-c1-validator-gemini', 'r-phase3-c1-validator-grok', 'r-phase3-c2-executor', 'r-phase3-c2-test-author', 'r-phase3-c2-validator-gemini', 'r-phase3-c2-validator-grok', 'r-phase3-c3-executor', 'r-phase3-c3-test-author', 'r-phase3-c3-validator-gemini', 'r-phase3-c3-validator-grok', 'r-phase31-c1-executor-r1', 'r-phase31-c1-executor-r2', 'r-phase31-c1-test-author-r1', 'r-phase31-c1-test-author-r2', 'r-phase31-c1-validator-gemini-r1', 'r-phase31-c1-validator-gemini-r2', 'r-phase31-c1-validator-grok-r1', 'r-phase31-c1-validator-grok-r2', 'r-phase31-c2-executor', 'r-phase31-c2-test-author', 'r-phase31-c2-validator-gemini', 'r-phase31-c2-validator-grok', 'r-phase31-c3-executor', 'r-phase31-c3-test-author', 'r-phase31-c3-validator-gemini', 'r-phase31-c3-validator-grok'])
+  SKIP (already exists): r-phase3-c1-test-author
+  SKIP (already exists): r-phase3-c1-executor-openai-fail
+  SKIP (already exists): r-phase3-c1-executor
+  SKIP (already exists): r-phase3-c1-validator-grok
+  SKIP (already exists): r-phase3-c1-validator-gemini
+  SKIP (already exists): r-phase3-c2-test-author
+  SKIP (already exists): r-phase3-c2-executor
+  SKIP (already exists): r-phase3-c2-validator-grok
+  SKIP (already exists): r-phase3-c2-validator-gemini
+  SKIP (already exists): r-phase3-c3-test-author
+  SKIP (already exists): r-phase3-c3-executor
+  SKIP (already exists): r-phase3-c3-validator-grok
+  SKIP (already exists): r-phase3-c3-validator-gemini
+Phase 2 rows generated: 5
+Phase 3 rows generated: 13
+New rows to append: 5
+Merged total: 34
+
+--dry-run: not writing. New rows:
+  r-phase2-planner | phase-2 | planner | claude-opus-5 | turns=44 | in=88 out=39067 | dur=561116ms | err=False | dec=None
+  r-phase2-plan-review-grok | phase-2 | reviewer | grok-4.5 | turns=9 | in=45737 out=21072 | dur=414236ms | err=False | dec=ACCEPT
+  r-phase2-plan-review-gemini | phase-2 | reviewer | gemini-3.1-pro-preview | turns=11 | in=478038 out=11733 | dur=131590ms | err=False | dec=ACCEPT
+  r-phase2-brief-review-grok | phase-2 | reviewer | grok-4.5 | turns=8 | in=56898 out=13992 | dur=274640ms | err=False | dec=ACCEPT-WITH-NITS
+  r-phase2-brief-review-gemini | phase-2 | reviewer | gemini-3.1-pro-preview | turns=21 | in=697367 out=14955 | dur=220344ms | err=False | dec=ACCEPT

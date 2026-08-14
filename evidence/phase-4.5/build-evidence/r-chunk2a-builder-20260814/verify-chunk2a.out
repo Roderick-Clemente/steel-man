@@ -1,0 +1,71 @@
+repo:        /Users/m3racbookpro/Work/adversarial-sprint
+interpreter: /private/tmp/asprint-venv/bin/python  (Python 3.13.3)
+scratch:     /var/folders/gz/3n1z6c3n1kv8j96zwf6449j00000gp/T/tmp.vbPkbhRhTk
+
+SoR snapshot: 21 rows, sha256 85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d
+
+########## §4.1 — full suite on the suite interpreter ##########
+rc=0
+=========================== short test summary info ============================
+SKIPPED [3] tests/test_layout_paths.py:56: constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py
+213 passed, 3 skipped in 5.49s
+
+########## §4.2 + §4.7 — the four scripts, from a NON-ROOT CWD ##########
+each run starts from the same restored SoR baseline of 21 rows
+
+tools/phase-4-gen/reconstruct-telemetry.py --dry-run rc=0  SoR 21->21  tools/telemetry:no
+    Existing rows: 21
+    Phase 2 rows generated: 5
+tools/phase-4-gen/gen-findings.py              rc=0  SoR 21->21  tools/telemetry:no
+    Wrote 71 findings to /Users/m3racbookpro/Work/adversarial-sprint/telemetry/findings.jsonl
+    
+tools/phase-3-gen/gen-telemetry.py             rc=0  SoR 21->13  tools/telemetry:no
+    wrote 13 rows to ../../../../../../../Users/m3racbookpro/Work/adversarial-sprint/telemetry/runs.jsonl
+tools/phase-3.1-gen/gen-telemetry.py           rc=0  SoR 21->37  tools/telemetry:no
+    kept 21 non-phase-3.1 rows; wrote 16 phase-3.1 rows to ../../../../../../../Users/m3racbookpro/Work/adversarial-sprint/telemetry/runs.jsonl
+tools/phase-4-gen/reconstruct-telemetry.py     rc=0  SoR 21->39  tools/telemetry:no
+    Existing rows: 21
+    Phase 2 rows generated: 5
+
+########## §4.7 — do the emitted envelope_paths resolve? ##########
+  pre-existing row   UNRESOLVED  11
+  pre-existing row   resolves    10
+  script-generated   resolves    18
+  pre-existing row: 11 unresolved, e.g. 'chunk-0-review-evidence/review-grok-4.5-envelope.json'
+
+########## §4.7 — forked telemetry tree ##########
+  pass: tools/telemetry absent on disk
+  pass: nothing under tools/telemetry in git status --porcelain
+
+########## restore the SoR ##########
+  restored sha256 85696eb50eb7caf016c0515947393754bbdfb64bf4d3696670d8e9471dcdd36d
+  pass: byte-identical to the pre-run snapshot
+
+########## §4.3 — residual phase-[0-9] occurrences (listed, not hidden) ##########
+  59 occurrences -> residual-phase-literals.out
+  path-forming ones (bare 'phase-N/...' as a path literal): judged by
+  test_chunk2a_no_stale_phase_prefix_literals, which is green in suite.out.
+
+########## §4.4 — judges byte-unchanged and lock-matching ##########
+  MATCH tests/test_layout_paths.py  cb00dfac5d925f8f643bce1b3fd7fe51fd2b01f3d0578487c5ca201aeedb1121
+  MATCH tests/test_layout_paths_chunk2.py  48a579f87e8c97e9de7b49ccd861fd88fa36fb3552a95ee8d5065fd74832cdc3
+  MATCH tests/test_layout_paths_chunk2a.py  3307020a3e6adfd9485a2d03ed8b2f0d326011745bae316f9a8a2482a4f6a85f
+  git status for the three judges (must be empty):
+
+########## §4.5 — plan-lint ##########
+  planning/layout-refactor/PLAN.md rc=0  PASS with 25 warning(s) — source: none (heuristic mode)
+  planning/layout-refactor/CHUNK-2a-SPEC.md rc=0  PASS with 3 warning(s) — source: none (heuristic mode)
+
+########## §4.6 — no renames; fence self-audit ##########
+  M	.gitignore
+  M	tests/test_sprint_loop.py
+  M	tools/phase-1-hooks/locked-test-guard.py
+  M	tools/phase-1-scripts/lock.py
+  M	tools/phase-3-gen/gen-telemetry.py
+  M	tools/phase-3.1-gen/gen-telemetry.py
+  M	tools/phase-4-gen/gen-findings.py
+  M	tools/phase-4-gen/reconstruct-telemetry.py
+  M	tools/sprint_loop/per_chunk.py
+  rename entries: 0 (must be 0 — this chunk moves nothing)
+
+done.
