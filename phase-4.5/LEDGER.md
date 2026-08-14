@@ -224,3 +224,19 @@ corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
 | **planner (judge, FROZEN)** | grok medium x2: shell values only non-empty-checked, `BUILD_EVIDENCE_REL` never value-asserted. grok medium + gemini high: residual-scan blind spots (five, per ADJUDICATION.md). |
 | **planner (CHUNK-2-SPEC)** | grok **high**: CHUNK-2-SPEC §2.2 still drafts `SCRIPTS_ROOT = os.path.join(framework_root, ...)` at module level — `NameError` at import, or doubled roots through `phase_path`. Independent confirmation of the amendment already listed as a chunk-D1-2 precondition. Hard stop before Chunk 2 opens. |
 | **spec-mandated, not a defect** | grok low: `phase_path(fw,"evidence","phase-4.5","build-evidence",run_id)` keeps segments at the call site. §2.2 requires segment-preserving form; verified byte-identical today. |
+
+2026-08-14T01:40Z BUILDER: NITS ADDRESSED: chunk=chunk-D1-1 commit=5cd2ac4 prior=d5db8ff findings=2 owner=builder tests=197 judge_sha256=233eee9d0589d024e30dbe5c9fe02028ba358eeb732c0a83927c780748dec4a2
+  Both builder-owned findings from the code gate are fixed. Both were gemini mediums and
+  both were read verbatim out of its envelope before acting, not taken from the summary
+  table — Ruling 4 item 5a is the standing reason this seat does not act on paraphrase.
+  (1) config.py BUILD_EVIDENCE_REL split into REL (bare segment, mirrors paths.sh exactly
+  in both chunks) and DIR (root-composed, grows evidence/ at the flip); the 5 prose sites
+  all meant DIR. Kills the same-name-two-meanings divergence and the double-apply trap.
+  (2) local_backend.py verify_green label re-split on os.sep and rejoined with "/" so the
+  bundle JSON byte is platform-independent; posixpath.join alone was insufficient because
+  SCRIPTS_ROOT already carries the separator. Byte-identity re-verified by diff against a
+  d5db8ff worktree: all --help surfaces and CHECKLIST_POINTER identical, suite 197 green.
+  NOT touched: judge blind spots and shell value assertions (planner-owned, frozen);
+  CHUNK-2-SPEC §2.2 module-level join (planner amendment, hard stop before Chunk 2);
+  grok's low on segment-preserving phase_path (§2.2-mandated, not a defect).
+  Chunk 2 NOT opened: gate is SPLIT, which is not an ACCEPT-class close.
