@@ -708,4 +708,21 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
       --reviewers-json '[{"family":"moonshot-family","model_id":"kimi-k3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"8b503d93290bd56fbb03cc323ce3129dbe5b3aa7cb91414ff9a342d3d1383e46"},{"family":"minimax-family","model_id":"minimax-m3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"f496c1d4389b725897f492b4290f1cdea80d2e475d43cd5184b3005d13088c8e"}]' \
       --signed-by "DeepSeek (deepseek-family)" \
       --out evidence/phase-4.5/tokens/chunk-D1-2-code.token.json
+
+2026-08-14T04:00:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D1-1-code
+  token=evidence/phase-4.5/tokens/chunk-D1-1.token.json
+  build_commit=d5db8ff key_id=referee-deepseek-2026-08-14
+  verified=OK sha=d5db8ff4ee939f199c40c60427a7b54a7b8abdc8
+  envelope_sha256_kimi=7e99236fe... envelope_sha256_minimax=5dc442ae...
+  4/4 sha256s cross-checked: independently computed from files on disk match operator values.
+  Token filename is chunk-D1-1.token.json per CHUNK-1-SPEC.md:7 convention (chunk-D1-1,
+  no -code suffix; the next seat's --prior-token targets this name).
+
+2026-08-14T04:00:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D1-2-code
+  token=evidence/phase-4.5/tokens/chunk-D1-2.token.json
+  build_commit=ee90061 key_id=referee-deepseek-2026-08-14
+  verified=OK sha=ee90061673ea88e6e80fe22a42d6e06bdc9fd7e7
+  envelope_sha256_kimi=8b503d93... envelope_sha256_minimax=f496c1d4...
+  4/4 sha256s cross-checked: independently computed from files on disk match operator values.
+  Token filename is chunk-D1-2.token.json per convention (chunk-D1-2, no -code suffix).
 ```
