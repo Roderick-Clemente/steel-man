@@ -1069,17 +1069,19 @@ as a first-class step, not an implicit side effect of the planner gate.
   an `OPERATING-RULES §17` amendment. Applies to both the framework repo
   (self-dogfood) and pilot overlays.
 
-### KN-R2. Org-level SCA/SAST gate fails with no dependency manifest to scan
+### KN-R2. Harness-pipeline SCA/SAST gate fails with no dependency manifest to scan
 
 - **Status:** OPEN — deferred (operator chose Option B for now).
 - **Filed:** 2026-08-14 (D1 close, PR #2 against `Roderick-Clemente/adversarial-sprint-dev`).
-- **What:** an SCA (dependency) / SAST scan fails on PRs against this
-  repo. It is NOT defined in `.github/workflows/adversarial-sprint-ci.yml`
-  — that workflow's own `--security-scan` flag (CI-GATE.md §"what this
-  workflow does" step 3) is an unrelated internal thing (an
-  optional, non-blocking artefact of `local_backend.py`). The SCA/SAST
-  gate is configured somewhere outside this repo's checked-in config
-  (org-level required check or a GitHub App), not yet located.
+- **What:** an SCA (dependency) / SAST scan fails on this repo. It runs
+  from a **Harness CI/STO pipeline**, not GitHub Actions — this repo's
+  only in-tree workflow (`.github/workflows/adversarial-sprint-ci.yml`)
+  is unrelated (its `--security-scan` flag, CI-GATE.md §"what this
+  workflow does" step 3, is an optional, non-blocking artefact of
+  `local_backend.py`, not an SCA/SAST tool). The Harness pipeline itself
+  is configured in the Harness platform (SaaS UI/API) — nothing named
+  `.harness/` or `*pipeline*.yaml` exists anywhere in this git tree, so
+  its step config isn't visible or editable from this checkout.
 - **Why not fixed now:** an audit of every `.py` file under this repo
   (`tools/`, `tests/`, scripts) shows zero third-party imports — only
   stdlib + local modules, plus `pytest` (a dev/test-only dependency, not
@@ -1088,12 +1090,12 @@ as a first-class step, not an implicit side effect of the planner gate.
   (skip/soften the scan step for this repo) over Option A (add a
   manifest anyway) — adding a placeholder manifest would misrepresent a
   dependency-free repo as having a dependency surface. Option C
-  (`fail_on_severity: none`) is a candidate too, but depends on knobs
-  this operator cannot see from this checkout.
+  (`fail_on_severity: none`) is a candidate too, but depends on step
+  settings inside the Harness pipeline UI, not visible from this repo.
 - **Reproduction:** PR #2, `Roderick-Clemente/adversarial-sprint-dev`
   — SCA/SAST check fails; repo root has no dependency manifest.
-- **When to fix:** once the scan's actual definition is located (likely
-  org-level policy, outside this repo's git tree) — configure it there
-  to skip/soft-fail repos with no manifest. Revisit with a real
+- **When to fix:** in the Harness pipeline itself (SaaS UI, or wherever
+  its YAML/template actually lives) — configure the SCA/SAST step to
+  skip/soft-fail repos with no manifest. Revisit with a real
   `requirements.txt` only if/when this repo gains an actual third-party
   Python dependency (audited at zero as of this filing).
