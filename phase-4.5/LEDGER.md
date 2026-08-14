@@ -472,3 +472,43 @@ BLOCKED: chunk=chunk-D1-2 seat=builder commit=409c62c judge=10f9e780
   against old values BEFORE checking existence.
   Builder is not blocked on anything else; move inventory read, §2.2 values
   independently confirmed. Ready to build on resolution.
+### chunk-D1-1 CODE gate re-fire (round 3, strengthened judge 10f9e780)
+
+```
+2026-08-14T07:10Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-1-code commit=d5db8ff4ee939f199c40c60427a7b54a7b8abdc8
+  judge_sha256=10f9e780b8c40db6d0acf038c4d886faac538756424dd299d1209949e309e2bc
+  paths=phase-4.5/build-evidence/r-chunk1-code-r3-20260814-0141/code/review-kimi-k3-envelope.json,phase-4.5/build-evidence/r-chunk1-code-r3-20260814-0141/code/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3) branch=factory/layout-refactor
+  remote=dev
+  rationale=gemini's REJECT in round 1 (r-chunk1-code-20260814-0020) was about the judge
+  matcher's 5 blind spots (D split-segment f-string, F concat bare seg, I variable holds
+  segment, J os.sep.join list arg, L PurePath), not about builder code. The judge has since
+  been strengthened (233eee9d -> 10f9e780, commit af94f71) closing all 5 blind spots. The
+  basis of the REJECT is fixed, so this re-fire supersedes rather than overrules it.
+  prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+  Same PROMPT.md bytes as round 1 (sha256 867f54ba…), unchanged, for comparability.
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired directly (not via orchestrate-review.py) because orchestrate-review.py
+  has an internal subprocess.run(timeout=600) and kimi-k3's review took 705s. See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both distinct
+  from planner (GLM/zhipu) and builder (claude/anthropic). §17.2 holds for both gates.
+
+2026-08-14T07:04Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-1-code
+  envelope=phase-4.5/build-evidence/r-chunk1-code-r3-20260814-0141/code/review-kimi-k3-envelope.json
+  envelope_sha256=7e99236fe726b074272db13d37fbd1fb8ce9721b150bf19828ab406c9bc73257
+  session_id=3e605a3a-3827-4afd-b1ca-3745140088bc verdict=ACCEPT-WITH-NITS turns=50
+  duration_ms=705041 stderr=empty
+  prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+
+2026-08-14T07:11Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-1-code
+  envelope=phase-4.5/build-evidence/r-chunk1-code-r3-20260814-0141/code/review-minimax-m3-envelope.json
+  envelope_sha256=5dc442aed8e5cd7dd5c35e2b6f2377e0bb9523dedbb55c9564d3270246605f1d
+  session_id=65198173-5e3f-4199-a2e6-c6b5bd78aa15 verdict=ACCEPT-WITH-NITS turns=82
+  duration_ms=363662 stderr=empty
+  prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+  note=minimax-m3 found one additional blind spot the planner's matcher does not catch:
+  bare phase segments passed as positional args to phase_path() (a plain ast.Call with
+  ast.Name.func, not covered by _is_path_join_call or _is_pathlike_constructor). Correctly
+  classified as low severity — current build does not exploit it; should be raised at
+  chunk-D1-2 review. Forward-invariant for the planner to address.
+```
