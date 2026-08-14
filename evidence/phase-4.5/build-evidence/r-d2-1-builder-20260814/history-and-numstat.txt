@@ -1,0 +1,14 @@
+history representatives:
+evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json
+844d0c8 chunk-D2-1: consolidate orphaned build evidence
+8f762df evidence: commit the attested role-split run trees; fix the mis-cited path
+evidence/phase-4.5/build-evidence/review-convention-gemini.json
+844d0c8 chunk-D2-1: consolidate orphaned build evidence
+cfb1a32 Commit orphaned Phase 1 build-evidence envelopes to main; remove stray plan-review.md
+evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md
+844d0c8 chunk-D2-1: consolidate orphaned build evidence
+8f762df evidence: commit the attested role-split run trees; fix the mis-cited path
+relocation_zero_numstat_entries= 34
+expected_relocation_entries=34
+relocation_numstat_zero= True
+new_additive_build_bundle_and_judge_are_allowed=true

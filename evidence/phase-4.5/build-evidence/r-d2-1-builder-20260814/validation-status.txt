@@ -1,0 +1,3 @@
+pytest_rc=0
+plan_lint_rc=0
+wiki_audit_rc=0

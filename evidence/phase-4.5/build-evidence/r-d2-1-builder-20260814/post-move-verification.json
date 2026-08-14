@@ -1,0 +1,283 @@
+{
+  "source_root_absent": true,
+  "relocated": [
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md",
+      "exists": true,
+      "bytes": 5096,
+      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186",
+      "expected_sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
+      "exists": true,
+      "bytes": 127695,
+      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9",
+      "expected_sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt",
+      "exists": true,
+      "bytes": 26598,
+      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf",
+      "expected_sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json",
+      "exists": true,
+      "bytes": 1873,
+      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361",
+      "expected_sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
+      "exists": true,
+      "bytes": 28,
+      "sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd",
+      "expected_sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
+      "exists": true,
+      "bytes": 413124,
+      "sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d",
+      "expected_sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
+      "exists": true,
+      "bytes": 28,
+      "sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3",
+      "expected_sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
+      "exists": true,
+      "bytes": 112579,
+      "sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a",
+      "expected_sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
+      "exists": true,
+      "bytes": 28,
+      "sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1",
+      "expected_sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
+      "exists": true,
+      "bytes": 500124,
+      "sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c",
+      "expected_sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
+      "exists": true,
+      "bytes": 28,
+      "sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2",
+      "expected_sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
+      "exists": true,
+      "bytes": 193667,
+      "sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b",
+      "expected_sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-convention-gemini.json",
+      "exists": true,
+      "bytes": 2090,
+      "sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4",
+      "expected_sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-convention-grok.json",
+      "exists": true,
+      "bytes": 3997,
+      "sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81",
+      "expected_sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-gemini-envelope.json",
+      "exists": true,
+      "bytes": 445,
+      "sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf",
+      "expected_sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-gemini-round2.json",
+      "exists": true,
+      "bytes": 1714,
+      "sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25",
+      "expected_sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-gemini-stderr.log",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-gemini.json",
+      "exists": true,
+      "bytes": 2074,
+      "sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313",
+      "expected_sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-grok-round2.json",
+      "exists": true,
+      "bytes": 3595,
+      "sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a",
+      "expected_sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-grok-round3.json",
+      "exists": true,
+      "bytes": 3348,
+      "sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d",
+      "expected_sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/review-grok.json",
+      "exists": true,
+      "bytes": 3495,
+      "sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162",
+      "expected_sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json",
+      "exists": true,
+      "bytes": 727,
+      "sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99",
+      "expected_sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh",
+      "exists": true,
+      "bytes": 5071,
+      "sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a",
+      "expected_sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt",
+      "exists": true,
+      "bytes": 1661,
+      "sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117",
+      "expected_sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json",
+      "exists": true,
+      "bytes": 564,
+      "sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88",
+      "expected_sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
+      "exists": true,
+      "bytes": 489,
+      "sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4",
+      "expected_sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json",
+      "exists": true,
+      "bytes": 406,
+      "sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324",
+      "expected_sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
+      "exists": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "canonical_d1_tree": [
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/MANIFEST.md",
+      "exists": true,
+      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186",
+      "expected_sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.raw.txt",
+      "exists": true,
+      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9",
+      "expected_sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.stderr.txt",
+      "exists": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt",
+      "exists": true,
+      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf",
+      "expected_sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.stderr.txt",
+      "exists": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/manifest.json",
+      "exists": true,
+      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361",
+      "expected_sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
+    }
+  ],
+  "all_relocated_match": true,
+  "canonical_match": true
+}

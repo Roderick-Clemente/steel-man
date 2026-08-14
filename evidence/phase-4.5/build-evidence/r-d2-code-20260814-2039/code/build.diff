@@ -1,0 +1,935 @@
+diff --git a/build-evidence/r-drs-role-split-1/MANIFEST.md b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/MANIFEST.md
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md
+diff --git a/build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt
+diff --git a/build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-1/grok-4.5.raw.txt b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/grok-4.5.raw.txt
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt
+diff --git a/build-evidence/r-drs-role-split-1/grok-4.5.stderr.txt b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/grok-4.5.stderr.txt
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-1/manifest.json b/evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json
+similarity index 100%
+rename from build-evidence/r-drs-role-split-1/manifest.json
+rename to evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.junit.xml b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.junit.xml
+new file mode 100644
+index 0000000..882c30d
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.junit.xml
+@@ -0,0 +1 @@
++<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="3" tests="244" time="7.264" timestamp="2026-08-14T13:26:48.738410-05:00" hostname="Roderick-Clemente"><testcase classname="tests.test_chunk_close_banner" name="test_signal_present_when_token_verifies" time="0.004" /><testcase classname="tests.test_chunk_close_banner" name="test_signal_absent_when_token_refuses" time="0.002" /><testcase classname="tests.test_chunk_close_banner" name="test_absence_triggers_checklist_pointer_on_missing_token" time="0.001" /><testcase classname="tests.test_chunk_close_banner" name="test_signal_present_only_when_all_paths_executed" time="0.002" /><testcase classname="tests.test_chunk_close_banner" name="test_cli_emits_check_on_stdout" time="0.065" /><testcase classname="tests.test_chunk_close_banner" name="test_cli_emits_bang_on_refusal" time="0.060" /><testcase classname="tests.test_chunk_sequence_gate" name="test_prior_token_missing_refuses" time="0.001" /><testcase classname="tests.test_chunk_sequence_gate" name="test_prior_token_invalid_signature_refuses" time="0.002" /><testcase classname="tests.test_chunk_sequence_gate" name="test_prior_token_valid_proceeds" time="0.002" /><testcase classname="tests.test_chunk_sequence_gate" name="test_check_current_head_match_proceeds" time="0.239" /><testcase classname="tests.test_chunk_sequence_gate" name="test_check_current_head_mismatch_refuses" time="0.029" /><testcase classname="tests.test_chunk_sequence_gate" name="test_cli_exit_6_on_refusal" time="0.061" /><testcase classname="tests.test_chunk_sequence_gate" name="test_cli_exit_0_on_proceed" time="0.068" /><testcase classname="tests.test_cross_family_review" name="test_missing_reviewer_refuses" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_single_reviewer_refuses" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_same_family_refuses" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_unknown_family_refuses" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_implementer_unknown_refuses" time="0.002" /><testcase classname="tests.test_cross_family_review" name="test_non_accept_verdict_refuses" time="0.001" /><testcase classname="tests.test_cross_family_review" name="test_verdict_count_mismatch_refuses" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_dual_accept_emits_token" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_token_is_revocable_on_state_change" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_cli_refuses_unknown_family" time="0.091" /><testcase classname="tests.test_cross_family_review" name="test_cli_emits_token_on_dual_accept" time="0.128" /><testcase classname="tests.test_cross_family_review" name="test_envelope_is_placeholder_detects_homogeneous_leading_run" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_envelope_is_placeholder_detects_length_and_charset" time="0.001" /><testcase classname="tests.test_cross_family_review" name="test_envelope_is_placeholder_accepts_uniform_sha" time="0.000" /><testcase classname="tests.test_cross_family_review" name="test_placeholder_envelope_refuses_in_panel" time="0.001" /><testcase classname="tests.test_cross_family_review" name="test_real_envelope_sha_passes_panel_check" time="0.001" /><testcase classname="tests.test_cross_family_review" name="test_cli_refuses_placeholder_envelope" time="0.060" /><testcase classname="tests.test_evidence_consolidation_d2" name="test_top_level_source_is_absent_and_all_34_destinations_exist" time="0.001" /><testcase classname="tests.test_evidence_consolidation_d2" name="test_relocated_bytes_match_pre_move_sha256_inventory" time="0.014" /><testcase classname="tests.test_evidence_consolidation_d2" name="test_canonical_d1_tree_remains_byte_identical" time="0.005" /><testcase classname="tests.test_evidence_consolidation_d2" name="test_duplicate_index_names_existing_canonical_and_retained_paths" time="0.006" /><testcase classname="tests.test_evidence_consolidation_d2" name="test_d1_tokens_are_unchanged" time="0.013" /><testcase classname="tests.test_install_skill_phase5" name="test_canonical_skill_has_rule_nine_chunk_close_is_gated" time="0.002" /><testcase classname="tests.test_install_skill_phase5" name="test_install_skill_emits_rule_nine_to_factory_claude_cursors" time="0.155" /><testcase classname="tests.test_layout_paths" name="test_path_root_constants_have_expected_values_and_exist" time="0.000"><skipped type="pytest.skip" message="constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py">/Users/m3racbookpro/Work/adversarial-sprint/tests/test_layout_paths.py:56: constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py</skipped></testcase><testcase classname="tests.test_layout_paths" name="test_phase_path_helper_signature_and_composition" time="0.001"><skipped type="pytest.skip" message="constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py">/Users/m3racbookpro/Work/adversarial-sprint/tests/test_layout_paths.py:56: constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py</skipped></testcase><testcase classname="tests.test_layout_paths" name="test_no_residual_hardcoded_phase_paths_in_routed_code" time="0.000"><skipped type="pytest.skip" message="constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py">/Users/m3racbookpro/Work/adversarial-sprint/tests/test_layout_paths.py:56: constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py</skipped></testcase><testcase classname="tests.test_layout_paths_chunk2" name="test_chunk2_constants_have_flipped_values_and_resolve" time="0.000" /><testcase classname="tests.test_layout_paths_chunk2" name="test_chunk2_phase_path_composes_new_paths" time="0.001" /><testcase classname="tests.test_layout_paths_chunk2" name="test_chunk2_no_residual_paths_in_moved_code" time="0.159" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_evidence_roots_resolve_to_existing_dirs[tools/phase-3-gen/gen-telemetry.py]" time="0.004" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_evidence_roots_resolve_to_existing_dirs[tools/phase-3.1-gen/gen-telemetry.py]" time="0.002" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_evidence_roots_resolve_to_existing_dirs[tools/phase-4-gen/reconstruct-telemetry.py]" time="0.004" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_runs_path_is_the_real_sor" time="0.001" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_no_forked_telemetry_dir_on_disk" time="0.002" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_sor_is_not_empty" time="0.001" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_no_stale_phase_prefix_literals[tools/phase-3-gen/gen-telemetry.py]" time="0.002" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_no_stale_phase_prefix_literals[tools/phase-3.1-gen/gen-telemetry.py]" time="0.002" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_no_stale_phase_prefix_literals[tools/phase-4-gen/gen-findings.py]" time="0.005" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_no_stale_phase_prefix_literals[tools/phase-4-gen/reconstruct-telemetry.py]" time="0.003" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_emitted_envelope_paths_resolve[tools/phase-3-gen/gen-telemetry.py]" time="0.061" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_emitted_envelope_paths_resolve[tools/phase-3.1-gen/gen-telemetry.py]" time="0.063" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_emitted_envelope_paths_resolve[tools/phase-4-gen/reconstruct-telemetry.py]" time="0.066" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_probe_writes_land_only_on_the_sor[tools/phase-3-gen/gen-telemetry.py]" time="0.055" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_probe_writes_land_only_on_the_sor[tools/phase-3.1-gen/gen-telemetry.py]" time="0.054" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_probe_writes_land_only_on_the_sor[tools/phase-4-gen/reconstruct-telemetry.py]" time="0.058" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_gen_findings_has_no_cwd_relative_opens" time="0.005" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_gen_findings_runs_from_a_foreign_cwd" time="0.059" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_reconstruct_telemetry_dry_run_from_foreign_cwd" time="0.076" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_lock_py_default_locks_dir_is_locks_root" time="0.004" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_lock_tooling_has_no_stale_phase_literals[tools/phase-1-scripts/lock.py]" time="0.002" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_lock_tooling_has_no_stale_phase_literals[tools/phase-1-hooks/locked-test-guard.py]" time="0.003" /><testcase classname="tests.test_layout_paths_chunk2a" name="test_chunk2a_sprint_loop_fixture_uses_taxonomy_roots" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_surface_is_non_empty" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_no_dead_relative_links" time="0.010" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_readme_named_targets_resolve" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_readme_layout_block_is_current" time="0.000" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_path_redirects_exists" time="0.000" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_every_residual_token_is_accounted_for" time="0.011" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_no_stale_exception_rows" time="0.010" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_redirect_table_targets_resolve" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_ledger_moved_to_evidence_root" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_ledger_rename_carried_no_content_edit" time="0.196" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_ledger_history_is_preserved" time="0.142" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_existing_judges_byte_unchanged[tests/test_layout_paths.py-cb00dfac]" time="0.001" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_existing_judges_byte_unchanged[tests/test_layout_paths_chunk2.py-48a579f8]" time="0.000" /><testcase classname="tests.test_layout_paths_chunk3" name="test_chunk3_redirect_only_surfaces_untouched" time="0.032" /><testcase classname="tests.test_layout_paths_chunk4" name="test_chunk4_script_paths_resolve_to_existing_files" time="0.000" /><testcase classname="tests.test_layout_paths_chunk4" name="test_chunk4_subjects_cover_all_four_direct_invocations" time="0.000" /><testcase classname="tests.test_persistent_referee_stub" name="test_parse_steer_returns_empty_when_missing" time="0.002" /><testcase classname="tests.test_persistent_referee_stub" name="test_parse_steer_ignores_lines_before_last_complete" time="0.001" /><testcase classname="tests.test_persistent_referee_stub" name="test_parse_steer_handles_refused_marker_as_completion" time="0.001" /><testcase classname="tests.test_persistent_referee_stub" name="test_validate_request_refuses_missing_path" time="0.002" /><testcase classname="tests.test_persistent_referee_stub" name="test_validate_request_refuses_empty_paths" time="0.002" /><testcase classname="tests.test_persistent_referee_stub" name="test_validate_request_refuses_bad_commit_sha" time="0.002" /><testcase classname="tests.test_persistent_referee_stub" name="test_validate_request_accepts_real_envelope" time="0.001" /><testcase classname="tests.test_persistent_referee_stub" name="test_build_signed_token_uses_stub_key_isolates_build_key" time="0.002" /><testcase classname="tests.test_persistent_referee_stub" name="test_process_request_writes_completion_to_steer" time="0.003" /><testcase classname="tests.test_persistent_referee_stub" name="test_process_request_appends_refused_marker_on_missing_path" time="0.001" /><testcase classname="tests.test_persistent_referee_stub" name="test_one_shot_poll_processes_pending_requests" time="0.003" /><testcase classname="tests.test_persistent_referee_stub" name="test_one_shot_poll_no_pending_returns_zero" time="0.001" /><testcase classname="tests.test_persistent_referee_stub" name="test_cli_once_exit_code_zero_on_pending" time="0.069" /><testcase classname="tests.test_persistent_referee_stub" name="test_cli_requires_explicit_once_or_poll" time="0.062" /><testcase classname="tests.test_plan_lint.TestInterface" name="test_help_exits_0" time="0.076" /><testcase classname="tests.test_plan_lint.TestInterface" name="test_missing_plan_arg_exits_2" time="0.048" /><testcase classname="tests.test_plan_lint.TestInterface" name="test_nonexistent_plan_exits_2" time="0.051" /><testcase classname="tests.test_plan_lint.TestInterface" name="test_json_output_written_on_block" time="0.051" /><testcase classname="tests.test_plan_lint.TestFailClosed" name="test_missing_repo_root_exits_2" time="0.052" /><testcase classname="tests.test_plan_lint.TestFailClosed" name="test_missing_ground_truth_artifact_exits_2" time="0.058" /><testcase classname="tests.test_plan_lint.TestFailClosed" name="test_unreadable_artifact_exits_2" time="0.056" /><testcase classname="tests.test_plan_lint.TestGreenFixture" name="test_green_plan_passes" time="0.051" /><testcase classname="tests.test_plan_lint.TestRule1FieldPath" name="test_v3_blocks_on_schema_field" time="0.050" /><testcase classname="tests.test_plan_lint.TestRule1FieldPath" name="test_field_path_missing_in_artifact_blocks" time="0.072" /><testcase classname="tests.test_plan_lint.TestRule2CliFlags" name="test_nonexistent_flag_blocks" time="0.054" /><testcase classname="tests.test_plan_lint.TestRule2CliFlags" name="test_existing_flag_passes" time="0.056" /><testcase classname="tests.test_plan_lint.TestRule3ModelIds" name="test_family_label_as_model_id_blocks" time="0.066" /><testcase classname="tests.test_plan_lint.TestRule3ModelIds" name="test_valid_model_id_passes" time="0.052" /><testcase classname="tests.test_plan_lint.TestRule4InternalConsistency" name="test_v4_blocks_on_arity" time="0.076" /><testcase classname="tests.test_plan_lint.TestRule4InternalConsistency" name="test_v5_blocks_on_filename" time="0.052" /><testcase classname="tests.test_plan_lint.TestRule4InternalConsistency" name="test_inconsistent_naming_blocks" time="0.054" /><testcase classname="tests.test_plan_lint.TestRule5CallSignature" name="test_v6_blocks_on_call_signature" time="0.052" /><testcase classname="tests.test_plan_lint.TestRule5CallSignature" name="test_wrong_arity_blocks" time="0.063" /><testcase classname="tests.test_plan_lint.TestRule5CallSignature" name="test_wrong_param_name_blocks" time="0.050" /><testcase classname="tests.test_plan_lint.TestRule6RequiredAnchors" name="test_vague_gate_predicate_blocks" time="0.049" /><testcase classname="tests.test_plan_lint.TestRule6RequiredAnchors" name="test_resolvable_gate_predicate_passes" time="0.053" /><testcase classname="tests.test_plan_lint.TestRule7FilePaths" name="test_nonexistent_path_blocks" time="0.057" /><testcase classname="tests.test_plan_lint.TestRule7FilePaths" name="test_existing_path_passes" time="0.051" /><testcase classname="tests.test_plan_lint.TestRule7FilePaths" name="test_to_be_created_path_passes" time="0.050" /><testcase classname="tests.test_plan_lint.TestHeuristicMode" name="test_no_contract_never_blocks" time="0.049" /><testcase classname="tests.test_plan_lint.TestHeuristicMode" name="test_heuristic_mode_warns_not_blocks" time="0.050" /><testcase classname="tests.test_plan_lint.TestHeuristicRevisionHistoryExclusion" name="test_revision_history_excluded" time="0.058" /><testcase classname="tests.test_plan_lint.TestHeuristicRevisionHistoryExclusion" name="test_changelog_excluded" time="0.051" /><testcase classname="tests.test_plan_lint.TestHeuristicRecall" name="test_backticked_field_path_warns" time="0.069" /><testcase classname="tests.test_plan_lint.TestHeuristicRecall" name="test_backticked_model_id_warns_on_type_confusion" time="0.061" /><testcase classname="tests.test_plan_lint.TestHeuristicRecall" name="test_backticked_call_expression_warns_on_mismatch" time="0.053" /><testcase classname="tests.test_plan_lint.TestHeuristicFixtures" name="test_v3_without_sidecar_zero_blocks" time="0.068" /><testcase classname="tests.test_plan_lint.TestHeuristicFixtures" name="test_v4_without_sidecar_zero_blocks" time="0.072" /><testcase classname="tests.test_plan_lint.TestHeuristicFixtures" name="test_v5_without_sidecar_zero_blocks" time="0.108" /><testcase classname="tests.test_plan_lint.TestHeuristicFixtures" name="test_v6_without_sidecar_zero_blocks" time="0.079" /><testcase classname="tests.test_plan_lint.TestHeuristicFixtures" name="test_v6_without_sidecar_warns_on_call_signature" time="0.083" /><testcase classname="tests.test_plan_lint.TestNegativeFixture" name="test_negative_prose_zero_findings" time="0.049" /><testcase classname="tests.test_plan_lint.TestContractPrecedence" name="test_fenced_block_wins_over_contract_flag" time="0.053" /><testcase classname="tests.test_plan_lint.TestTelemetryShape" name="test_lint_writes_plan_lint_runs_not_runs" time="0.051" /><testcase classname="tests.test_plan_lint.TestHeadingDiscriminator" name="test_subheading_after_changelog_resets" time="0.065" /><testcase classname="tests.test_plan_lint.TestNegationScoping" name="test_positive_claim_checked_alongside_negated" time="0.053" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_companion_alone_loads_and_can_block" time="0.054" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_companion_alone_passes_when_claims_resolve" time="0.058" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_contract_flag_beats_companion" time="0.059" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_fence_beats_companion" time="0.052" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_companion_naming_strips_md_suffix" time="0.051" /><testcase classname="tests.test_plan_lint.TestCompanionTier" name="test_heuristic_fixtures_companion_free" time="0.002" /><testcase classname="tests.test_repo_layout" name="test_top_level_entries_are_allowlisted" time="0.062" /><testcase classname="tests.test_sign_chunk_token" name="test_canonical_json_is_key_sorted_and_dense" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_hmac_sha256_hex_uses_sort_keys" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_build_token_refuses_on_short_chunk_commit_sha" time="0.002" /><testcase classname="tests.test_sign_chunk_token" name="test_build_token_refuses_on_missing_reviewer_field" time="0.000" /><testcase classname="tests.test_sign_chunk_token" name="test_build_token_refuses_on_disallowed_verdict" time="0.000" /><testcase classname="tests.test_sign_chunk_token" name="test_build_token_refuses_when_signing_key_unset" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_round_trip_with_key" time="0.000" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_refuses_on_signature_tamper" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_refuses_on_algorithm_tamper" time="0.000" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_refuses_when_key_unset" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_refuses_on_unsigned" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_verify_token_refuses_on_non_dict" time="0.001" /><testcase classname="tests.test_sign_chunk_token" name="test_replay_chunk13_succeeds" time="0.082" /><testcase classname="tests.test_sign_chunk_token" name="test_cli_sign_then_verify_subprocess" time="0.112" /><testcase classname="tests.test_sign_chunk_token" name="test_cli_verify_refuses_tampered_token" time="0.122" /><testcase classname="tests.test_sprint_loop" name="test_role_enum_strings_are_stable_contract" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_separation_binding_roles_match_prd_17" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_default_enabled_tools_per_role_are_distinct" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_passes_for_separated_panel" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_catches_planner_reviewer1_collision_only_f1" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_catches_planner_reviewer_collision" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_catches_test_designer_executor_collision" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_catches_validator_executor_collision" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_requires_two_distinct_validator_families" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_test_designer_collide_allowed_with_override" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_known_model_lookups" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_unknown_model_resolves_to_unknown_family" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_family_guard_unknown_model_fails_separation" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_chunk_state_retry_count_increments_are_deterministic" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_runstate_serialises_and_restores_role_assignments" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_validate_run_id_rejects_unsafe" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_build_config_from_json_only" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_build_config_cli_overrides_json" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_build_config_validates_missing_framework_root" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_build_config_validates_missing_pilot" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_build_config_rejects_empty_validators" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_build_config_warns_on_unknown_json_keys" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_validators_string_parser" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_config_provider_family_lookup" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_config_default_locks_dir" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_config_default_evidence_dir" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_role_assignments_materialise_from_config" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_invoke_options_default_skip_run_with_model_disallowed_in_production" time="0.008" /><testcase classname="tests.test_sprint_loop" name="test_droid_dry_run_writes_synthetic_envelope" time="0.003" /><testcase classname="tests.test_sprint_loop" name="test_droid_live_record_preserves_curated_family_label" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_post_resolution_recheck_refuses_same_family_collision_from_live_record" time="0.043" /><testcase classname="tests.test_sprint_loop" name="test_post_resolution_recheck_refuses_unknown_family_from_live_record" time="0.033" /><testcase classname="tests.test_sprint_loop" name="test_chunk_loop_refuses_after_executor_family_collision" time="0.029" /><testcase classname="tests.test_sprint_loop" name="test_backends_local_dry_run_returns_accept" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_backends_local_refuses_missing_orchestrator" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_backends_local_refuses_missing_chunk_keys" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_backends_ci_stub_raises_with_actionable_message" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_backends_build_factory_rejects_unknown" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_backends_name_constants_are_stable" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_prompt_templates_exist_for_all_five_roles" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_prompt_templates_never_embed_the_implementation" time="0.000" /><testcase classname="tests.test_sprint_loop" name="test_prompt_renderer_substitutes_variables" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_prompt_renderer_to_file" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_prompt_renderer_rejects_missing_template" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_prompt_templates_render_against_minimal_context" time="0.003" /><testcase classname="tests.test_sprint_loop" name="test_validate_red_dry_run_returns_valid_envelope" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_produce_evidence_dry_run_roundtrip" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_verify_green_dry_run_returns_true" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_render_test_designer_prompt_substitutes" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_render_executor_prompt_substitutes" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_per_chunk_invoke_runs_dry_run_then_writes_envelope" time="0.003" /><testcase classname="tests.test_sprint_loop" name="test_per_chunk_local_backend_dry_run_propagates_gate" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_sprint_loop_dry_run_end_to_end" time="0.016" /><testcase classname="tests.test_sprint_loop" name="test_sprint_loop_dry_run_refuses_unknown_validator_family" time="0.007" /><testcase classname="tests.test_sprint_loop" name="test_run_with_model_refuses_mission_by_default" time="0.050" /><testcase classname="tests.test_sprint_loop" name="test_run_with_model_allows_mission_with_override" time="0.048" /><testcase classname="tests.test_sprint_loop" name="test_run_with_model_refuses_unset_droid_model_id" time="0.034" /><testcase classname="tests.test_sprint_loop" name="test_skill_md_carries_digest_inline" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_skill_md_indexes_full_rules_by_section" time="0.037" /><testcase classname="tests.test_sprint_loop" name="test_skill_md_documents_rehydration_for_long_jobs" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_skill_md_is_compact_well_under_index_content" time="0.056" /><testcase classname="tests.test_sprint_loop" name="test_local_backend_refuses_closed_when_signing_key_unset_f10" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_local_backend_dry_run_simulates_accept_regardless_of_key" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_enforce_5_3_preconditions_refuses_no_bound_approve_f7" time="0.032" /><testcase classname="tests.test_sprint_loop" name="test_enforce_5_3_preconditions_refuses_open_blocker_high_f7" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_enforce_5_3_preconditions_passes_with_bound_approve_and_clean_findings" time="0.027" /><testcase classname="tests.test_sprint_loop" name="test_no_recursion_in_droid_invoke_retry_loop_f8" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_install_paths_resolve_to_canonical_body" time="0.306" /><testcase classname="tests.test_sprint_loop" name="test_install_paths_commit_paths_exist" time="0.192" /><testcase classname="tests.test_sprint_loop" name="test_skills_have_yml_frontmatter" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_sprint_invocation_skill_is_small_and_trigger_focused" time="0.030" /><testcase classname="tests.test_sprint_loop" name="test_skill_distribution_convention_doc_exists" time="0.026" /><testcase classname="tests.test_sprint_loop" name="test_agents_md_cross_references_skill_canonical" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_commit_chunk_force_adds_evidence_g10" time="0.042" /><testcase classname="tests.test_sprint_loop" name="test_install_skill_sh_cursor_mdc_body_matches_canonical_g6" time="0.030" /><testcase classname="tests.test_sprint_loop" name="test_unattended_writes_checkpoint_on_refusal_g7" time="0.004" /><testcase classname="tests.test_sprint_loop" name="test_skip_reconcile_still_enforces_5_3_g8" time="0.002" /><testcase classname="tests.test_sprint_loop" name="test_no_dry_run_coercion_h2_h14" time="0.001" /><testcase classname="tests.test_sprint_loop" name="test_factory_skills_unignored_in_gitignore_g4" time="0.037" /><testcase classname="tests.test_sprint_loop" name="test_install_skill_sh_runs_without_bound_recursion_g5" time="0.028" /><testcase classname="tests.test_sprint_loop" name="test_meta_skill_no_invocation_block_g2" time="0.027" /><testcase classname="tests.test_sprint_loop" name="test_runner_help_exposes_unattended" time="0.092" /><testcase classname="tests.test_sprint_loop" name="test_run_sprint_overlay_template_exists_g3" time="0.038" /><testcase classname="tests.test_sprint_loop" name="test_overlay_replaces_examples" time="0.028" /></testsuite></testsuites>
+\ No newline at end of file
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.out b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.out
+new file mode 100644
+index 0000000..244bba4
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/full-suite.out
+@@ -0,0 +1,6 @@
++[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33ms[0m[33ms[0m[33ms[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m [ 29%]
++[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m [ 59%]
++[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m [ 88%]
++[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m                                             [100%][0m
++[36m[1m=========================== short test summary info ============================[0m
++[33mSKIPPED[0m [3] tests/test_layout_paths.py:56: constants flipped by chunk-D1-2; see test_layout_paths_chunk2.py
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/history-and-numstat.txt b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/history-and-numstat.txt
+new file mode 100644
+index 0000000..3284100
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/history-and-numstat.txt
+@@ -0,0 +1,14 @@
++history representatives:
++evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json
++844d0c8 chunk-D2-1: consolidate orphaned build evidence
++8f762df evidence: commit the attested role-split run trees; fix the mis-cited path
++evidence/phase-4.5/build-evidence/review-convention-gemini.json
++844d0c8 chunk-D2-1: consolidate orphaned build evidence
++cfb1a32 Commit orphaned Phase 1 build-evidence envelopes to main; remove stray plan-review.md
++evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md
++844d0c8 chunk-D2-1: consolidate orphaned build evidence
++8f762df evidence: commit the attested role-split run trees; fix the mis-cited path
++relocation_zero_numstat_entries= 34
++expected_relocation_entries=34
++relocation_numstat_zero= True
++new_additive_build_bundle_and_judge_are_allowed=true
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/plan-lint.out b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/plan-lint.out
+new file mode 100644
+index 0000000..1695fe8
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/plan-lint.out
+@@ -0,0 +1 @@
++PASS — source: none (heuristic mode)
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/post-move-verification.json b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/post-move-verification.json
+new file mode 100644
+index 0000000..7c43d08
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/post-move-verification.json
+@@ -0,0 +1,283 @@
++{
++  "source_root_absent": true,
++  "relocated": [
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md",
++      "exists": true,
++      "bytes": 5096,
++      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186",
++      "expected_sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
++      "exists": true,
++      "bytes": 127695,
++      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9",
++      "expected_sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt",
++      "exists": true,
++      "bytes": 26598,
++      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf",
++      "expected_sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json",
++      "exists": true,
++      "bytes": 1873,
++      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361",
++      "expected_sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
++      "exists": true,
++      "bytes": 28,
++      "sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd",
++      "expected_sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
++      "exists": true,
++      "bytes": 413124,
++      "sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d",
++      "expected_sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
++      "exists": true,
++      "bytes": 28,
++      "sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3",
++      "expected_sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
++      "exists": true,
++      "bytes": 112579,
++      "sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a",
++      "expected_sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
++      "exists": true,
++      "bytes": 28,
++      "sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1",
++      "expected_sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
++      "exists": true,
++      "bytes": 500124,
++      "sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c",
++      "expected_sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
++      "exists": true,
++      "bytes": 28,
++      "sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2",
++      "expected_sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
++      "exists": true,
++      "bytes": 193667,
++      "sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b",
++      "expected_sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-convention-gemini.json",
++      "exists": true,
++      "bytes": 2090,
++      "sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4",
++      "expected_sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-convention-grok.json",
++      "exists": true,
++      "bytes": 3997,
++      "sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81",
++      "expected_sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-gemini-envelope.json",
++      "exists": true,
++      "bytes": 445,
++      "sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf",
++      "expected_sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-gemini-round2.json",
++      "exists": true,
++      "bytes": 1714,
++      "sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25",
++      "expected_sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-gemini-stderr.log",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-gemini.json",
++      "exists": true,
++      "bytes": 2074,
++      "sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313",
++      "expected_sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-grok-round2.json",
++      "exists": true,
++      "bytes": 3595,
++      "sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a",
++      "expected_sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-grok-round3.json",
++      "exists": true,
++      "bytes": 3348,
++      "sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d",
++      "expected_sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/review-grok.json",
++      "exists": true,
++      "bytes": 3495,
++      "sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162",
++      "expected_sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json",
++      "exists": true,
++      "bytes": 727,
++      "sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99",
++      "expected_sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh",
++      "exists": true,
++      "bytes": 5071,
++      "sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a",
++      "expected_sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt",
++      "exists": true,
++      "bytes": 1661,
++      "sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117",
++      "expected_sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json",
++      "exists": true,
++      "bytes": 564,
++      "sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88",
++      "expected_sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
++      "exists": true,
++      "bytes": 489,
++      "sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4",
++      "expected_sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json",
++      "exists": true,
++      "bytes": 406,
++      "sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324",
++      "expected_sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
++      "exists": true,
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    }
++  ],
++  "canonical_d1_tree": [
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/MANIFEST.md",
++      "exists": true,
++      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186",
++      "expected_sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.raw.txt",
++      "exists": true,
++      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9",
++      "expected_sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.stderr.txt",
++      "exists": true,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt",
++      "exists": true,
++      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf",
++      "expected_sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.stderr.txt",
++      "exists": true,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
++      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/manifest.json",
++      "exists": true,
++      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361",
++      "expected_sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
++    }
++  ],
++  "all_relocated_match": true,
++  "canonical_match": true
++}
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json
+new file mode 100644
+index 0000000..d85a7b0
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json
+@@ -0,0 +1,294 @@
++{
++  "schema": "d2-evidence-inventory/v1",
++  "source_root": "build-evidence",
++  "source_file_count": 34,
++  "source_bytes": 1410544,
++  "relocated": [
++    {
++      "source": "build-evidence/r-drs-role-split-1/MANIFEST.md",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md",
++      "bytes": 5096,
++      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
++      "bytes": 127695,
++      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-1/grok-4.5.raw.txt",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt",
++      "bytes": 26598,
++      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-1/grok-4.5.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-1/manifest.json",
++      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json",
++      "bytes": 1873,
++      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
++      "bytes": 28,
++      "sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
++      "bytes": 413124,
++      "sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
++      "bytes": 28,
++      "sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
++      "bytes": 112579,
++      "sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
++      "bytes": 28,
++      "sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
++      "bytes": 500124,
++      "sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
++      "bytes": 28,
++      "sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2"
++    },
++    {
++      "source": "build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
++      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
++      "bytes": 193667,
++      "sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b"
++    },
++    {
++      "source": "build-evidence/review-convention-gemini-stderr.log",
++      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/review-convention-gemini.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini.json",
++      "bytes": 2090,
++      "sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4"
++    },
++    {
++      "source": "build-evidence/review-convention-grok-stderr.log",
++      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/review-convention-grok.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok.json",
++      "bytes": 3997,
++      "sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81"
++    },
++    {
++      "source": "build-evidence/review-gemini-envelope.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-gemini-envelope.json",
++      "bytes": 445,
++      "sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf"
++    },
++    {
++      "source": "build-evidence/review-gemini-round2.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-gemini-round2.json",
++      "bytes": 1714,
++      "sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25"
++    },
++    {
++      "source": "build-evidence/review-gemini-stderr.log",
++      "destination": "evidence/phase-4.5/build-evidence/review-gemini-stderr.log",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/review-gemini.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-gemini.json",
++      "bytes": 2074,
++      "sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313"
++    },
++    {
++      "source": "build-evidence/review-grok-round2.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-grok-round2.json",
++      "bytes": 3595,
++      "sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a"
++    },
++    {
++      "source": "build-evidence/review-grok-round3.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-grok-round3.json",
++      "bytes": 3348,
++      "sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d"
++    },
++    {
++      "source": "build-evidence/review-grok.json",
++      "destination": "evidence/phase-4.5/build-evidence/review-grok.json",
++      "bytes": 3495,
++      "sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162"
++    },
++    {
++      "source": "build-evidence/rung3-droid-exec-output.json",
++      "destination": "evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json",
++      "bytes": 727,
++      "sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99"
++    },
++    {
++      "source": "build-evidence/rung3-droid-exec-stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/rung3-extract-tool-calls.sh",
++      "destination": "evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh",
++      "bytes": 5071,
++      "sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a"
++    },
++    {
++      "source": "build-evidence/rung7/empty-diff-blind-prompt.txt",
++      "destination": "evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt",
++      "bytes": 1661,
++      "sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117"
++    },
++    {
++      "source": "build-evidence/rung7/rung7-droid-exec-output.json",
++      "destination": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json",
++      "bytes": 564,
++      "sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88"
++    },
++    {
++      "source": "build-evidence/rung7/rung7-droid-exec-stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "source": "build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
++      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
++      "bytes": 489,
++      "sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4"
++    },
++    {
++      "source": "build-evidence/rung7-configB/rung7B-droid-exec-output.json",
++      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json",
++      "bytes": 406,
++      "sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324"
++    },
++    {
++      "source": "build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
++      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    }
++  ],
++  "canonical_d1_tree": [
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/MANIFEST.md",
++      "bytes": 5096,
++      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.raw.txt",
++      "bytes": 127695,
++      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt",
++      "bytes": 26598,
++      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.stderr.txt",
++      "bytes": 0,
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/manifest.json",
++      "bytes": 1873,
++      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
++    }
++  ],
++  "tokens": [
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-5a.token.json",
++      "sha256": "e6cf0487bd79615d82cf972fb759adb040e01ef23c2448dc901cf2605820ee98"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-5b.token.json",
++      "sha256": "b8b034158b3ccfa3fb712e036b3afdbedfb6a7baf47ef88c850729741c08634d"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-5c.token.json",
++      "sha256": "b4fb55879748d0c9167c4c729fe2d4d8ad21a136805f41f70505ac3d62f25705"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-5d.token.json",
++      "sha256": "be6749c388cabd880ffb64fc8577529960737086a2e2fc33d4ed592205f282ad"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-5e.token.json",
++      "sha256": "7dcc2c930a7ec01d63e894a4c63c6a17e4836a2acff8fd332d2bee56957e59cb"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D1-1.token.json",
++      "sha256": "ca6cc284f5182b9ddca876cf49616ef574099be420a11cfb87928bd4f7bc5365"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D1-2.token.json",
++      "sha256": "3ee90b4e44234bcb7b188705603a6330dfb38cf397223adfc0007b86f3620155"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D1-2a.token.json",
++      "sha256": "6d553dd0126345bafe8e340df7ec0929b07e0a2bd830b7c4be377469fa301665"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D1-3.token.json",
++      "sha256": "a325a985876a31fc02b5dc78e20a61e98182e20741c1f8fca232c986f54875c6"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D1-4.token.json",
++      "sha256": "da0df3e698abe07185c2be8515d22cc8ac696c4179093eea3d489c6b5e84b8ad"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D2-1-spec.token.json",
++      "sha256": "1bbbf63551324a75974178bf6f15b721e91a67ecdf916d2d3c2a28b718a13701"
++    },
++    {
++      "path": "evidence/phase-4.5/tokens/chunk-D2-plan.token.json",
++      "sha256": "352195a91aa7fa90823c86fbf8aeb2c39968e1f6d67b52bf6d70f3f89b011af0"
++    }
++  ]
++}
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-diff-summary.txt b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-diff-summary.txt
+new file mode 100644
+index 0000000..504c101
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-diff-summary.txt
+@@ -0,0 +1,34 @@
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/MANIFEST.md (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/grok-4.5.raw.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/grok-4.5.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/manifest.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.stream.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.noexec.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.noexec.stream.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.stream.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-convention-gemini-stderr.log (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-convention-gemini.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-convention-grok-stderr.log (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-convention-grok.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-envelope.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-round2.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-stderr.log (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-gemini.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-grok-round2.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-grok-round3.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/review-grok.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung3-droid-exec-output.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung3-droid-exec-stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung3-extract-tool-calls.sh (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/blocked-tools-blind-prompt.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/rung7B-droid-exec-output.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/rung7B-droid-exec-stderr.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7/empty-diff-blind-prompt.txt (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7/rung7-droid-exec-output.json (100%)
++ rename {build-evidence => evidence/phase-4.5/build-evidence}/rung7/rung7-droid-exec-stderr.txt (100%)
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-numstat.txt b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-numstat.txt
+new file mode 100644
+index 0000000..756c903
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/staged-numstat.txt
+@@ -0,0 +1,34 @@
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/MANIFEST.md
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/grok-4.5.raw.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/grok-4.5.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence/legacy-duplicates}/r-drs-role-split-1/manifest.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/gemini-2.5-pro.stream.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.noexec.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.noexec.stream.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/r-drs-role-split-2/grok-4.5.stream.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-convention-gemini-stderr.log
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-convention-gemini.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-convention-grok-stderr.log
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-convention-grok.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-envelope.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-round2.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-gemini-stderr.log
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-gemini.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-grok-round2.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-grok-round3.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/review-grok.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung3-droid-exec-output.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung3-droid-exec-stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung3-extract-tool-calls.sh
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/blocked-tools-blind-prompt.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/rung7B-droid-exec-output.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7-configB/rung7B-droid-exec-stderr.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7/empty-diff-blind-prompt.txt
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7/rung7-droid-exec-output.json
++0	0	{build-evidence => evidence/phase-4.5/build-evidence}/rung7/rung7-droid-exec-stderr.txt
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/validation-status.txt b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/validation-status.txt
+new file mode 100644
+index 0000000..6cfeb5d
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/validation-status.txt
+@@ -0,0 +1,3 @@
++pytest_rc=0
++plan_lint_rc=0
++wiki_audit_rc=0
+diff --git a/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/wiki-link-audit.out b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/wiki-link-audit.out
+new file mode 100644
+index 0000000..7ec1740
+--- /dev/null
++++ b/evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/wiki-link-audit.out
+@@ -0,0 +1,2 @@
++61 pages · dead=0 anchor=0 absolute=0 escaping=0 skeleton=0
++clean
+diff --git a/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json
+diff --git a/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json
+diff --git a/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json
+diff --git a/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt
+diff --git a/build-evidence/r-drs-role-split-2/grok-4.5.stream.json b/evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json
+similarity index 100%
+rename from build-evidence/r-drs-role-split-2/grok-4.5.stream.json
+rename to evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json
+diff --git a/build-evidence/review-convention-gemini-stderr.log b/evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log
+similarity index 100%
+rename from build-evidence/review-convention-gemini-stderr.log
+rename to evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log
+diff --git a/build-evidence/review-convention-gemini.json b/evidence/phase-4.5/build-evidence/review-convention-gemini.json
+similarity index 100%
+rename from build-evidence/review-convention-gemini.json
+rename to evidence/phase-4.5/build-evidence/review-convention-gemini.json
+diff --git a/build-evidence/review-convention-grok-stderr.log b/evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log
+similarity index 100%
+rename from build-evidence/review-convention-grok-stderr.log
+rename to evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log
+diff --git a/build-evidence/review-convention-grok.json b/evidence/phase-4.5/build-evidence/review-convention-grok.json
+similarity index 100%
+rename from build-evidence/review-convention-grok.json
+rename to evidence/phase-4.5/build-evidence/review-convention-grok.json
+diff --git a/build-evidence/review-gemini-envelope.json b/evidence/phase-4.5/build-evidence/review-gemini-envelope.json
+similarity index 100%
+rename from build-evidence/review-gemini-envelope.json
+rename to evidence/phase-4.5/build-evidence/review-gemini-envelope.json
+diff --git a/build-evidence/review-gemini-round2.json b/evidence/phase-4.5/build-evidence/review-gemini-round2.json
+similarity index 100%
+rename from build-evidence/review-gemini-round2.json
+rename to evidence/phase-4.5/build-evidence/review-gemini-round2.json
+diff --git a/build-evidence/review-gemini-stderr.log b/evidence/phase-4.5/build-evidence/review-gemini-stderr.log
+similarity index 100%
+rename from build-evidence/review-gemini-stderr.log
+rename to evidence/phase-4.5/build-evidence/review-gemini-stderr.log
+diff --git a/build-evidence/review-gemini.json b/evidence/phase-4.5/build-evidence/review-gemini.json
+similarity index 100%
+rename from build-evidence/review-gemini.json
+rename to evidence/phase-4.5/build-evidence/review-gemini.json
+diff --git a/build-evidence/review-grok-round2.json b/evidence/phase-4.5/build-evidence/review-grok-round2.json
+similarity index 100%
+rename from build-evidence/review-grok-round2.json
+rename to evidence/phase-4.5/build-evidence/review-grok-round2.json
+diff --git a/build-evidence/review-grok-round3.json b/evidence/phase-4.5/build-evidence/review-grok-round3.json
+similarity index 100%
+rename from build-evidence/review-grok-round3.json
+rename to evidence/phase-4.5/build-evidence/review-grok-round3.json
+diff --git a/build-evidence/review-grok.json b/evidence/phase-4.5/build-evidence/review-grok.json
+similarity index 100%
+rename from build-evidence/review-grok.json
+rename to evidence/phase-4.5/build-evidence/review-grok.json
+diff --git a/build-evidence/rung3-droid-exec-output.json b/evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json
+similarity index 100%
+rename from build-evidence/rung3-droid-exec-output.json
+rename to evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json
+diff --git a/build-evidence/rung3-droid-exec-stderr.txt b/evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt
+similarity index 100%
+rename from build-evidence/rung3-droid-exec-stderr.txt
+rename to evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt
+diff --git a/build-evidence/rung3-extract-tool-calls.sh b/evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh
+similarity index 100%
+rename from build-evidence/rung3-extract-tool-calls.sh
+rename to evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh
+diff --git a/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt b/evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt
+similarity index 100%
+rename from build-evidence/rung7-configB/blocked-tools-blind-prompt.txt
+rename to evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt
+diff --git a/build-evidence/rung7-configB/rung7B-droid-exec-output.json b/evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json
+similarity index 100%
+rename from build-evidence/rung7-configB/rung7B-droid-exec-output.json
+rename to evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json
+diff --git a/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt b/evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt
+similarity index 100%
+rename from build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt
+rename to evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt
+diff --git a/build-evidence/rung7/empty-diff-blind-prompt.txt b/evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt
+similarity index 100%
+rename from build-evidence/rung7/empty-diff-blind-prompt.txt
+rename to evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt
+diff --git a/build-evidence/rung7/rung7-droid-exec-output.json b/evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json
+similarity index 100%
+rename from build-evidence/rung7/rung7-droid-exec-output.json
+rename to evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json
+diff --git a/build-evidence/rung7/rung7-droid-exec-stderr.txt b/evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt
+similarity index 100%
+rename from build-evidence/rung7/rung7-droid-exec-stderr.txt
+rename to evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt
+diff --git a/tests/test_evidence_consolidation_d2.py b/tests/test_evidence_consolidation_d2.py
+new file mode 100644
+index 0000000..4d2e667
+--- /dev/null
++++ b/tests/test_evidence_consolidation_d2.py
+@@ -0,0 +1,60 @@
++"""Filesystem assertions for D2-1 evidence consolidation."""
++
++import hashlib
++import json
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++BUNDLE = ROOT / "evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814"
++INVENTORY = BUNDLE / "pre-move-sha256.json"
++INDEX = ROOT / "planning/evidence-consolidation/D2-DUPLICATE-INDEX.md"
++
++
++def _sha256(path: Path) -> str:
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def _inventory() -> dict:
++    return json.loads(INVENTORY.read_text())
++
++
++def test_top_level_source_is_absent_and_all_34_destinations_exist():
++    inventory = _inventory()
++    assert inventory["source_file_count"] == 34
++    assert inventory["source_bytes"] == 1_410_544
++    assert not (ROOT / "build-evidence").exists()
++    assert len(inventory["relocated"]) == 34
++    assert all((ROOT / item["destination"]).is_file() for item in inventory["relocated"])
++    assert all(not (ROOT / item["source"]).exists() for item in inventory["relocated"])
++
++
++def test_relocated_bytes_match_pre_move_sha256_inventory():
++    for item in _inventory()["relocated"]:
++        destination = ROOT / item["destination"]
++        assert destination.stat().st_size == item["bytes"], item["destination"]
++        assert _sha256(destination) == item["sha256"], item["destination"]
++
++
++def test_canonical_d1_tree_remains_byte_identical():
++    for item in _inventory()["canonical_d1_tree"]:
++        path = ROOT / item["path"]
++        assert path.is_file(), item["path"]
++        assert path.stat().st_size == item["bytes"], item["path"]
++        assert _sha256(path) == item["sha256"], item["path"]
++
++
++def test_duplicate_index_names_existing_canonical_and_retained_paths():
++    text = INDEX.read_text()
++    assert "evidence/phase-4.5/build-evidence/r-drs-role-split-1/" in text
++    assert "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/" in text
++    for item in _inventory()["relocated"]:
++        if "/legacy-duplicates/" in item["destination"]:
++            assert (ROOT / item["destination"]).is_file()
++
++
++def test_d1_tokens_are_unchanged():
++    for item in _inventory()["tokens"]:
++        path = ROOT / item["path"]
++        assert path.is_file(), item["path"]
++        assert _sha256(path) == item["sha256"], item["path"]

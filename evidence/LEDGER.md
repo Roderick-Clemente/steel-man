@@ -45,6 +45,12 @@ reproducible if the bytes are identified independently of the path.
 | `evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/review-minimax-m3-envelope.json` | `8787963fa719bcc61c390d486ddff50c6011223220b3b934a233a7558dcd9d34` | ACCEPT-WITH-NITS |
 | `evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-kimi-k3-envelope.json` | `8a93ec28ec1b43e2976f183bba311d8f22c76b05edc1be82a0369737c13deed4` | ACCEPT-WITH-NITS |
 | `evidence/phase-4.5/build-evidence/r-chunk4-code-20260814-1449/code/review-minimax-m3-envelope.json` | `c553cd17c1b0b92887d6ab300e3ab3b641fee9b83ed4af6c8d182e1c3142492e` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-kimi-k3-envelope.json` | `934a4fa5d412c2c28e0fc6739303dbdb6d0de59828e70d94b0788ed5d858448d` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-minimax-m3-envelope.json` | `fa0857467578acc95917d419336384b3e2301842db7dc1ab6689b183f06bebc3` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-kimi-k3-envelope.json` | `5e9a69c1a85cdd40c46295f3c433ad11914a2c15168c3a6345b0b38803ceecdb` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-minimax-m3-envelope.json` | `f8661d19a0abd12cbc1b9903fbf591f2ab33e4a687167c580db63aeac742a427` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-kimi-k3-envelope.json` | `e4bd528111ff128a6349073c91759adf57161c2dd319b5aa2aafba9829671b71` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-minimax-m3-envelope.json` | `19f9a8efa019d84e7dcedede383ae4050917c8b366db2bd1abd95f685d8e80d4` | ACCEPT |
 
 ## Rows
 
@@ -1768,5 +1774,200 @@ them.
   chunk-D1-3-code:  0b5343d  (ACCEPT-WITH-NITS x2 — first clean close)
   chunk-D1-4-code:  20a3041  (ACCEPT-WITH-NITS x2)
   Tokens: evidence/phase-4.5/tokens/chunk-D1-{1,2,2a,3,4}.token.json
+  All signed under key_id=referee-deepseek-2026-08-14.
+```
+
+2026-08-14T17:21:02Z BUILDER: REVIEW REQUEST: chunk=chunk-D2-plan
+  commit=581bdd1 artifact=planning/evidence-consolidation/PLAN.md
+  artifact_sha256=f5ac16a6c407d137bf788137ba3e97d12fcb36f3e0082bed9becc36f49b37451 branch=factory/d2-evidence-consolidation
+  note=Referee fires the validators and signs; I do neither.
+
+2026-08-14T17:30:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D2-plan verdict=ACCEPT
+  artifact=planning/evidence-consolidation/PLAN.md
+  sha256=f5ac16a6c407d137bf788137ba3e97d12fcb36f3e0082bed9becc36f49b37451
+  AUDIT: PLAN is 116 lines, well-scoped. One chunk (D2-1), 34 files / 1,410,544 bytes
+  via git mv. No evidence bytes edited. No token/signing-key surface touched. Fences
+  are explicit: no touching phase-N taxonomy, no touching tokens, no wiki refresh.
+  Exit criteria are measurable: SHA-256 manifest, git diff --numstat, git log --follow,
+  full suite + plan-lint + wiki-link-audit. D1 precedent applied cleanly.
+  No findings. Builder proceeds to CHUNK-SPEC then build.
+
+### D2 plan spec gate (kimi-k3 + minimax-m3, sequential)
+
+```
+2026-08-14T18:10Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D2-plan
+  envelope=evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-kimi-k3-envelope.json
+  envelope_sha256=934a4fa5d412c2c28e0fc6739303dbdb6d0de59828e70d94b0788ed5d858448d
+  session_id=680c9da5-9aec-4367-b2ae-61e5867884ee verdict=ACCEPT-WITH-NITS turns=20
+  duration_ms=408316 stderr=empty
+  prompt_sha256=bc57fa0879fd18cf9cf0f2045e22508cbcf2062f30ba226acec31268a09760a6
+  artifact=planning/evidence-consolidation/PLAN.md artifact_sha256=f5ac16a6...
+  key_findings=nits about plan-text amendments needed before spec stage. Plan core
+  verified sound: scope measurements exact, duplicate classification byte-verified,
+  method sufficient, fences aligned, exit criteria achievable. No blockers.
+
+2026-08-14T18:17Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D2-plan
+  envelope=evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-minimax-m3-envelope.json
+  envelope_sha256=fa0857467578acc95917d419336384b3e2301842db7dc1ab6689b183f06bebc3
+  session_id=49655a9d-1cc3-4bc9-8a7d-757ab17ce0ef verdict=ACCEPT-WITH-NITS turns=33
+  duration_ms=223155 stderr=empty
+  prompt_sha256=bc57fa0879fd18cf9cf0f2045e22508cbcf2062f30ba226acec31268a09760a6
+  artifact=planning/evidence-consolidation/PLAN.md artifact_sha256=f5ac16a6...
+  key_findings=finding 1 (high) about plan-text amendment, findings 2-5 (medium)
+  one-line amendments or spec-stage obligations, findings 6-11 (low) hygiene.
+  No blockers. Plan core sound.
+
+2026-08-14T18:17Z PLANNER: REVIEW REQUEST: chunk=chunk-D2-plan commit=581bdd1
+  artifact=planning/evidence-consolidation/PLAN.md
+  artifact_sha256=f5ac16a6c407d137bf788137ba3e97d12fcb36f3e0082bed9becc36f49b37451
+  paths=evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-d2-plan-20260814/spec/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3)
+  branch=factory/d2-evidence-consolidation
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=bc57fa0879fd18cf9cf0f2045e22508cbcf2062f30ba226acec31268a09760a6
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired with --skip-permissions-unsafe. See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  GATE CLOSES: two ACCEPT-class verdicts from two distinct families per Ruling 4.
+
+2026-08-14T18:20:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D2-plan verdict=CLOSED
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=934a4fa5d412c2c28e0fc6739303dbdb6d0de59828e70d94b0788ed5d858448d
+  envelope_sha256_minimax=fa0857467578acc95917d419336384b3e2301842db7dc1ab6689b183f06bebc3
+  artifact=planning/evidence-consolidation/PLAN.md sha256=f5ac16a6...
+  prompt_sha256=bc57fa0879fd18cf9cf0f2045e22508cbcf2062f30ba226acec31268a09760a6
+  sha256s independently verified on disk. Ruling 4 satisfied.
+
+2026-08-14T18:20:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D2-plan
+  token=evidence/phase-4.5/tokens/chunk-D2-plan.token.json
+  build_commit=581bdd1 key_id=referee-deepseek-2026-08-14
+  verified=OK sha=581bdd1e3825205a48c41d29f44289bee347d0f0
+  Builder proceeds to CHUNK-SPEC then build.
+```
+
+2026-08-14T17:51:11Z BUILDER: REVIEW REQUEST: chunk=chunk-D2-1-spec
+  commit=ae5e5c5 artifact=planning/evidence-consolidation/CHUNK-D2-1-SPEC.md
+  artifact_sha256=bc963befb0b82610f12c03594332ce880b7672c0900b8a18be85d18d2cfa84e6 branch=factory/d2-evidence-consolidation
+  note=Referee fires the validators and signs; I do neither.
+
+### D2 chunk spec gate (kimi-k3 + minimax-m3, sequential)
+
+```
+2026-08-14T19:10Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D2-1-spec
+  envelope=evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-kimi-k3-envelope.json
+  envelope_sha256=5e9a69c1a85cdd40c46295f3c433ad11914a2c15168c3a6345b0b38803ceecdb
+  session_id=ed6c8443-76d1-4aef-b345-7f15ebfdca33 verdict=ACCEPT-WITH-NITS turns=21
+  duration_ms=564648 stderr=empty
+  prompt_sha256=6177686abe689c47856f3232a24b5642bee2ea3ed7b70425538f54baf29508ae
+  artifact=planning/evidence-consolidation/CHUNK-D2-1-SPEC.md
+  artifact_sha256=bc963befb0b82610f12c03594332ce880b7672c0900b8a18be85d18d2cfa84e6
+  key_findings=nits about SHA-256 manifest location and judge inventory. 34 files
+  verified, quarantine approach sound, exit criteria measurable. No blockers.
+
+2026-08-14T19:20Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D2-1-spec
+  envelope=evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-minimax-m3-envelope.json
+  envelope_sha256=f8661d19a0abd12cbc1b9903fbf591f2ab33e4a687167c580db63aeac742a427
+  session_id=904da1ce-603c-4877-b0d9-0ba925b9e4cf verdict=ACCEPT-WITH-NITS turns=31
+  duration_ms=197267 stderr=empty
+  prompt_sha256=6177686abe689c47856f3232a24b5642bee2ea3ed7b70425538f54baf29508ae
+  artifact=planning/evidence-consolidation/CHUNK-D2-1-SPEC.md
+  artifact_sha256=bc963befb0b82610f12c03594332ce880b7672c0900b8a18be85d18d2cfa84e6
+  key_findings=two §5 fences missing (lock manifests, additive-only on judge),
+  two §4 silent-greens (git log --follow needs positive pre-D1 assertion,
+  git diff --numstat doesn't bound non-evidence additions). None block; all
+  tightenable in a single revision without changing scope.
+
+2026-08-14T19:20Z PLANNER: REVIEW REQUEST: chunk=chunk-D2-1-spec commit=ae5e5c5
+  artifact=planning/evidence-consolidation/CHUNK-D2-1-SPEC.md
+  artifact_sha256=bc963befb0b82610f12c03594332ce880b7672c0900b8a18be85d18d2cfa84e6
+  paths=evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-d2-spec-20260814/spec/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT-WITH-NITS(minimax-m3)
+  branch=factory/d2-evidence-consolidation
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=6177686abe689c47856f3232a24b5642bee2ea3ed7b70425538f54baf29508ae
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired with --skip-permissions-unsafe. Prompt authored by planner.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  GATE CLOSES: two ACCEPT-class verdicts from two distinct families per Ruling 4.
+  Forwarded to referee for audit and token signing.
+
+2026-08-14T19:30:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D2-1-spec verdict=CLOSED
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=5e9a69c1a85cdd40c46295f3c433ad11914a2c15168c3a6345b0b38803ceecdb
+  envelope_sha256_minimax=f8661d19a0abd12cbc1b9903fbf591f2ab33e4a687167c580db63aeac742a427
+  artifact=planning/evidence-consolidation/CHUNK-D2-1-SPEC.md sha256=bc963bef...
+  prompt_sha256=6177686abe689c47856f3232a24b5642bee2ea3ed7b70425538f54baf29508ae
+  sha256s independently verified on disk. Ruling 4 satisfied.
+
+2026-08-14T19:30:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D2-1-spec
+  token=evidence/phase-4.5/tokens/chunk-D2-1-spec.token.json
+  commit=ae5e5c5 key_id=referee-deepseek-2026-08-14
+  verified=OK sha=ae5e5c50a719dae21aadfbb17f7bf293f6e86880
+  Builder proceeds to code.
+```
+
+2026-08-14T18:27:55Z BUILDER: REVIEW REQUEST: chunk=chunk-D2-1-code
+  commit=42aa9ca paths=evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/
+  branch=factory/d2-evidence-consolidation
+  note=Referee fires the validators and signs; I do neither.
+
+### D2-1 CODE gate (kimi-k3 + minimax-m3, sequential)
+
+```
+2026-08-14T20:39Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D2-1-code
+  envelope=evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-kimi-k3-envelope.json
+  envelope_sha256=e4bd528111ff128a6349073c91759adf57161c2dd319b5aa2aafba9829671b71
+  session_id=ad6c3b55-1a65-4e39-9bad-3c2c01efa127 verdict=ACCEPT-WITH-NITS turns=14
+  duration_ms=272120 stderr=empty
+  prompt_sha256=8c67886d69c5662a8acd908b1a798e79663a4cea5613c1d4fa120361b992dc7f
+  build_commit=42aa9ca
+  key_findings=nits. All 34 files verified R100 with 0 content change. build-evidence/
+  gone. Quarantine correct. D1 judges untouched. Suite 241+3 confirmed. No blockers.
+
+2026-08-14T20:45Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D2-1-code
+  envelope=evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-minimax-m3-envelope.json
+  envelope_sha256=19f9a8efa019d84e7dcedede383ae4050917c8b366db2bd1abd95f685d8e80d4
+  session_id=c9aced10-55bc-4a84-9f4f-32dd6a7bce1b verdict=ACCEPT turns=40
+  duration_ms=184743 stderr=empty
+  prompt_sha256=8c67886d69c5662a8acd908b1a798e79663a4cea5613c1d4fa120361b992dc7f
+  build_commit=42aa9ca
+  key_findings=all §4 exit criteria met. SHA-256 manifest matches all 34. D1
+  constants/tokens unchanged. build-evidence/ fully consolidated. No findings.
+
+2026-08-14T20:45Z PLANNER: REVIEW REQUEST: chunk=chunk-D2-1-code commit=42aa9ca
+  paths=evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-d2-code-20260814-2039/code/review-minimax-m3-envelope.json
+  verdict=ACCEPT-WITH-NITS(kimi-k3),ACCEPT(minimax-m3)
+  branch=factory/d2-evidence-consolidation
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=8c67886d69c5662a8acd908b1a798e79663a4cea5613c1d4fa120361b992dc7f
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired with --skip-permissions-unsafe. Prompt authored by planner.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  GATE CLOSES: two ACCEPT-class verdicts from two distinct families per Ruling 4.
+  Forwarded to referee for audit and token signing.
+
+2026-08-14T20:50:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D2-1-code verdict=CLOSED
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=e4bd528111ff128a6349073c91759adf57161c2dd319b5aa2aafba9829671b71
+  envelope_sha256_minimax=19f9a8efa019d84e7dcedede383ae4050917c8b366db2bd1abd95f685d8e80d4
+  build_commit=42aa9ca prompt_sha256=8c67886d69c5662a8acd908b1a798e79663a4cea5613c1d4fa120361b992dc7f
+  sha256s independently verified on disk. Ruling 4 satisfied.
+
+2026-08-14T20:50:00Z REFEREE: TOKEN SIGNED: chunk=chunk-D2-1-code
+  token=evidence/phase-4.5/tokens/chunk-D2-1.token.json
+  build_commit=42aa9ca key_id=referee-deepseek-2026-08-14
+  verified=OK sha=42aa9ca7a1f96c72b6eb63782b57d9dbedcd4795
+
+2026-08-14T20:50:00Z REFEREE: D2 COMPLETE — all 3 gates closed.
+  chunk-D2-plan:    581bdd1  (ACCEPT-WITH-NITS x2)
+  chunk-D2-1-spec:  ae5e5c5  (ACCEPT-WITH-NITS x2)
+  chunk-D2-1-code:  42aa9ca  (ACCEPT-WITH-NITS + ACCEPT)
+  Tokens: evidence/phase-4.5/tokens/chunk-D2-{plan,1-spec,1}.token.json
   All signed under key_id=referee-deepseek-2026-08-14.
 ```

@@ -1,0 +1,294 @@
+{
+  "schema": "d2-evidence-inventory/v1",
+  "source_root": "build-evidence",
+  "source_file_count": 34,
+  "source_bytes": 1410544,
+  "relocated": [
+    {
+      "source": "build-evidence/r-drs-role-split-1/MANIFEST.md",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/MANIFEST.md",
+      "bytes": 5096,
+      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.raw.txt",
+      "bytes": 127695,
+      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/gemini-3.1-pro-preview.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-1/grok-4.5.raw.txt",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.raw.txt",
+      "bytes": 26598,
+      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-1/grok-4.5.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/grok-4.5.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-1/manifest.json",
+      "destination": "evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/manifest.json",
+      "bytes": 1873,
+      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
+      "bytes": 28,
+      "sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
+      "bytes": 413124,
+      "sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
+      "bytes": 28,
+      "sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
+      "bytes": 112579,
+      "sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
+      "bytes": 28,
+      "sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
+      "bytes": 500124,
+      "sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
+      "bytes": 28,
+      "sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2"
+    },
+    {
+      "source": "build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
+      "bytes": 193667,
+      "sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b"
+    },
+    {
+      "source": "build-evidence/review-convention-gemini-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/review-convention-gemini.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini.json",
+      "bytes": 2090,
+      "sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4"
+    },
+    {
+      "source": "build-evidence/review-convention-grok-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/review-convention-grok.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok.json",
+      "bytes": 3997,
+      "sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81"
+    },
+    {
+      "source": "build-evidence/review-gemini-envelope.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-gemini-envelope.json",
+      "bytes": 445,
+      "sha256": "c74768cb71e6b88e303cf35cb843e09541a1cc3a3a7e6661b980ee8b049d13bf"
+    },
+    {
+      "source": "build-evidence/review-gemini-round2.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-gemini-round2.json",
+      "bytes": 1714,
+      "sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25"
+    },
+    {
+      "source": "build-evidence/review-gemini-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/review-gemini-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/review-gemini.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-gemini.json",
+      "bytes": 2074,
+      "sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313"
+    },
+    {
+      "source": "build-evidence/review-grok-round2.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-grok-round2.json",
+      "bytes": 3595,
+      "sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a"
+    },
+    {
+      "source": "build-evidence/review-grok-round3.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-grok-round3.json",
+      "bytes": 3348,
+      "sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d"
+    },
+    {
+      "source": "build-evidence/review-grok.json",
+      "destination": "evidence/phase-4.5/build-evidence/review-grok.json",
+      "bytes": 3495,
+      "sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162"
+    },
+    {
+      "source": "build-evidence/rung3-droid-exec-output.json",
+      "destination": "evidence/phase-4.5/build-evidence/rung3-droid-exec-output.json",
+      "bytes": 727,
+      "sha256": "05a230f95794349e173a8e6f0b460ee224d002a97be0f24161b08351bdd8ce99"
+    },
+    {
+      "source": "build-evidence/rung3-droid-exec-stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/rung3-extract-tool-calls.sh",
+      "destination": "evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh",
+      "bytes": 5071,
+      "sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a"
+    },
+    {
+      "source": "build-evidence/rung7/empty-diff-blind-prompt.txt",
+      "destination": "evidence/phase-4.5/build-evidence/rung7/empty-diff-blind-prompt.txt",
+      "bytes": 1661,
+      "sha256": "d915e43a561dec6583824a5dfdabaa47d470e836649fa2e21eb7b3c9c781b117"
+    },
+    {
+      "source": "build-evidence/rung7/rung7-droid-exec-output.json",
+      "destination": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-output.json",
+      "bytes": 564,
+      "sha256": "22b783e09504a4686ee72f7660218d0aeaace5dfcd15b96d24492c060b136a88"
+    },
+    {
+      "source": "build-evidence/rung7/rung7-droid-exec-stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/rung7/rung7-droid-exec-stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
+      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/blocked-tools-blind-prompt.txt",
+      "bytes": 489,
+      "sha256": "63964406dfc43e481602620c3510c8994faca70ccc625d2377225c6fea46c6d4"
+    },
+    {
+      "source": "build-evidence/rung7-configB/rung7B-droid-exec-output.json",
+      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-output.json",
+      "bytes": 406,
+      "sha256": "b0639dd86202ff8a027a3051968336bab57780f37d730d2c608b9872e18cd324"
+    },
+    {
+      "source": "build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/rung7-configB/rung7B-droid-exec-stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "canonical_d1_tree": [
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/MANIFEST.md",
+      "bytes": 5096,
+      "sha256": "fa79750baed75d7da78d022c721c8c663a8e1052f726b93209d91dc801976186"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.raw.txt",
+      "bytes": 127695,
+      "sha256": "4a2b3e31d727e006c692a16eb810754242745d19923beba38c5acab609357fd9"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/gemini-3.1-pro-preview.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt",
+      "bytes": 26598,
+      "sha256": "fa78989bd23607fa4e2a052e0df01a3e567070adadfb4a76c3b8c0928a1193bf"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/phase-4.5/build-evidence/r-drs-role-split-1/manifest.json",
+      "bytes": 1873,
+      "sha256": "c454ae04be453cc9399195990339bc006dbb111c5a3d8f118af1f87caea82361"
+    }
+  ],
+  "tokens": [
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+      "sha256": "e6cf0487bd79615d82cf972fb759adb040e01ef23c2448dc901cf2605820ee98"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-5b.token.json",
+      "sha256": "b8b034158b3ccfa3fb712e036b3afdbedfb6a7baf47ef88c850729741c08634d"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-5c.token.json",
+      "sha256": "b4fb55879748d0c9167c4c729fe2d4d8ad21a136805f41f70505ac3d62f25705"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-5d.token.json",
+      "sha256": "be6749c388cabd880ffb64fc8577529960737086a2e2fc33d4ed592205f282ad"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-5e.token.json",
+      "sha256": "7dcc2c930a7ec01d63e894a4c63c6a17e4836a2acff8fd332d2bee56957e59cb"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D1-1.token.json",
+      "sha256": "ca6cc284f5182b9ddca876cf49616ef574099be420a11cfb87928bd4f7bc5365"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D1-2.token.json",
+      "sha256": "3ee90b4e44234bcb7b188705603a6330dfb38cf397223adfc0007b86f3620155"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D1-2a.token.json",
+      "sha256": "6d553dd0126345bafe8e340df7ec0929b07e0a2bd830b7c4be377469fa301665"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D1-3.token.json",
+      "sha256": "a325a985876a31fc02b5dc78e20a61e98182e20741c1f8fca232c986f54875c6"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D1-4.token.json",
+      "sha256": "da0df3e698abe07185c2be8515d22cc8ac696c4179093eea3d489c6b5e84b8ad"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D2-1-spec.token.json",
+      "sha256": "1bbbf63551324a75974178bf6f15b721e91a67ecdf916d2d3c2a28b718a13701"
+    },
+    {
+      "path": "evidence/phase-4.5/tokens/chunk-D2-plan.token.json",
+      "sha256": "352195a91aa7fa90823c86fbf8aeb2c39968e1f6d67b52bf6d70f3f89b011af0"
+    }
+  ]
+}

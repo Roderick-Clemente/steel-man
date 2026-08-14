@@ -1,0 +1,28 @@
+{
+  "chunk_commit_sha": "581bdd1e3825205a48c41d29f44289bee347d0f0",
+  "chunk_id": "chunk-D2-plan",
+  "reviewers": [
+    {
+      "envelope_sha256": "934a4fa5d412c2c28e0fc6739303dbdb6d0de59828e70d94b0788ed5d858448d",
+      "family": "moonshot-family",
+      "model_id": "kimi-k3",
+      "provider": "",
+      "verdict": "ACCEPT-WITH-NITS"
+    },
+    {
+      "envelope_sha256": "fa0857467578acc95917d419336384b3e2301842db7dc1ab6689b183f06bebc3",
+      "family": "minimax-family",
+      "model_id": "minimax-m3",
+      "provider": "",
+      "verdict": "ACCEPT-WITH-NITS"
+    }
+  ],
+  "schema": "chunk-token/v1",
+  "signature": {
+    "algorithm": "HMAC-SHA256",
+    "key_id": "referee-deepseek-2026-08-14",
+    "value": "b2b38392732c197c371c52e531a02151e4c072d20a5a953352ff418107e837b7"
+  },
+  "signed_at": "2026-08-14T17:49:11Z",
+  "signed_by": "DeepSeek (deepseek-family)"
+}
