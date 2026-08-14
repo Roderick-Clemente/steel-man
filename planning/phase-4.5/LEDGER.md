@@ -1178,4 +1178,35 @@ them.
   DATA row). No code blockers. Confirmed: read/write paths land together, lock
   writer and reader agree, judges byte-unchanged, suite green, findings file
   byte-identical, errata appended, chunk 3 can land cleanly.
+
+2026-08-14T06:30:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-2a-code (re-fire round 2) verdict=SPLIT
+  kimi-k3=REJECT minimax-m3=ACCEPT
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=ed9a1e707a090e0b805befe3498c67ff0fae7232f2fd04bc7d7a358c7c7bfec5
+  envelope_sha256_minimax=d4b8f2a90009ccab245d75fccf03b20feefdb605ba396af9cae5551185999610
+  build_commit=da14ef5 prompt_sha256=d85edae7de00fe5198e0b17190da02febe757b38cf851447a080d2672025e629
+  sha256s independently verified on disk; both is_error=False.
+  SPLIT does not close on the two-family rule (Ruling 4).
+
+  PATTERN ACROSS THREE ROUNDS: six validator reviews (kimi x3, minimax x3), zero code
+  blockers against da14ef5. Every REJECT targets a planner-owned judge coverage gap.
+  Round 1: three AST/substring blind spots. Round 2 (amended): one new gap — lock READER
+  reversion passes 23/23 because the judge behaviourally evaluates only the WRITER. The
+  pattern is asymptotic convergence toward full coverage, not a build with real defects.
+
+  KIMI'S FINDING IS VALID AND NARROW: reverting locked-test-guard.py to its pre-fix
+  DEFAULT_LOCKS_DIR while keeping lock.py fixed passes 23/23. The judge tests the writer
+  (imports lock.py, evals argparse default) but only AST-scans the reader
+  (test_chunk2a_lock_tooling_has_no_stale_phase_literals). Demonstrated and reproducible.
+  Fix: extend the lock behavioral test to also import locked-test-guard.py and assert
+  its DEFAULT_LOCKS_DIR realpath equals REPO_ROOT/LOCKS_ROOT.
+
+  RECOMMENDATION: OPERATOR OVERRIDE under Ruling 4's escalation clause ("after 3
+  dual-family rounds... escalate as scope/architecture signal"). This is not 3 REJECT
+  rounds but 3 SPLIT rounds where the REJECT always targets the judge, never the code.
+  The builder code at da14ef5 has survived 6 validator reviews across 3 rounds. The
+  planner can fix the reader gap in the next judge amendment, but a fourth re-fire
+  round has diminishing returns. The referee recommends the operator close this gate
+  with an explicit §8 override, recording the known uncovered surface (lock READER
+  behavioral test) as a carried item for the chunk-3 judge.
 ```
