@@ -388,6 +388,31 @@ including committed envelope JSONs, manifests, `MANIFEST.md`,
 `raw`/`stream` outputs, and any file whose bytes are HMAC-signed
 or SHA-quoted somewhere else.
 
+**One rename, not a citation edit — `LEDGER.md` destination.** Chunk 2
+landed the ledger at `planning/phase-4.5/LEDGER.md` as a side effect of
+clearing the repo root. Wrong home: it is the sprint's general-purpose
+record — SHA MAP, rulings, errata, and chunk closes spanning every phase —
+not a phase-4.5 planning doc. It belongs at `evidence/LEDGER.md`,
+unpartitioned at the evidence root for the same reason
+`planning/ROADMAP-REVIEW.md` sits at the planning root: it spans phases.
+
+- `git mv planning/phase-4.5/LEDGER.md evidence/LEDGER.md` — rename only,
+  **zero content edits**. Append-only (§5) governs the bytes; a rename
+  preserves them and `git log --follow` proves it.
+- **Zero live editable citations.** A full audit
+  (`grep -rn 'LEDGER\.md'`, excluding `tools/RUN-LEDGER.md`) finds exactly
+  two, and neither may be edited:
+  1. `evidence/phase-4.5/build-evidence/r-chunk1-builder-verify-20260814/BUILDER-HANDOFF-chunk-D1-2.md:225`
+     — evidence, immutable per the block above.
+  2. `tests/test_layout_paths.py:571` — a **comment**, not an assertion, so
+     the rename breaks nothing; but the file is a judge locked at
+     `cb00dfac` and MUST NOT be touched.
+- Both are therefore redirects entries. (2) is the first case where the
+  redirects file covers a stale citation inside **live code** rather than
+  inside evidence, because the code is lock-frozen. Say that explicitly in
+  `PATH-REDIRECTS.md` — a future reader who greps the tests and finds an
+  old path needs to know it is intentional and where the file went.
+
 **`planning/PATH-REDIRECTS.md` shape:**
 
 - Table of old-prefix → new-prefix.
@@ -413,6 +438,15 @@ or SHA-quoted somewhere else.
   `planning/PATH-REDIRECTS.md` as a historical-narrative exception.
 - `planning/PATH-REDIRECTS.md` covers every old-prefix that still
   appears in any evidence file.
+- `evidence/LEDGER.md` exists, `planning/phase-4.5/LEDGER.md` does not,
+  `git log --follow evidence/LEDGER.md` reaches the pre-rename history,
+  and `git show --numstat HEAD -- evidence/LEDGER.md` reports the rename
+  with **zero** added or deleted lines. A non-zero line count means the
+  rename smuggled a content edit into an append-only file — treat as a
+  failed chunk, not a nit.
+- `tests/test_layout_paths.py` still hashes to `cb00dfac` and
+  `tests/test_layout_paths_chunk2.py` to `48a579f8`, both matching their
+  locks under `tools/phase-1-locks/tests/`.
 
 ### Chunk 4 — exit check: wiki-link-audit + full suite + REAL direct script invocations
 
