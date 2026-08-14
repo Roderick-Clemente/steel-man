@@ -39,6 +39,8 @@ reproducible if the bytes are identified independently of the path.
 | `phase-4.5/build-evidence/r-chunk1-spec-v5-20260813-2340/spec/grok-4.5.json` | `2dad5179756b2784fecabc1ce1b89612a5f9857e966a14d46fbd172eea0b2e79` | REJECT |
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-kimi-k3-envelope.json` | `985aab2f51274df88c9634dc18921c64c6ef829e22cd09df32dbb59837e4dc17` | REJECT |
 | `evidence/phase-4.5/build-evidence/r-chunk2a-code-20260814-0506/code/review-minimax-m3-envelope.json` | `9221eef14a5cfcaca54aca6a969838702c7c9e2607c9efd6d57113392777b8db` | ACCEPT-WITH-NITS |
+| `evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-kimi-k3-envelope.json` | `ed9a1e707a090e0b805befe3498c67ff0fae7232f2fd04bc7d7a358c7c7bfec5` | REJECT |
+| `evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-minimax-m3-envelope.json` | `d4b8f2a90009ccab245d75fccf03b20feefdb605ba396af9cae5551185999610` | ACCEPT |
 
 ## Rows
 
@@ -1129,4 +1131,51 @@ them.
   prior pipeline runs). The 54 old-prefix SoR paths that do not resolve are carried rows.
   The test correctly refuses to pass vacuously. Not a judge defect.
   Builder released for re-fire.
+```
+
+### chunk-D1-2a CODE gate re-fire (round 2, amended judge 7289ca09)
+
+```
+2026-08-14T06:07Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-2a-code commit=da14ef56f24ec3de82ea70b862f7346fae6aca67
+  judge_sha256=7289ca0967095fb4f9f2d45daf4637da77d556048e5a59664532d665fd89691c
+  paths=evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-kimi-k3-envelope.json,evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-minimax-m3-envelope.json
+  verdict=SPLIT(kimi-k3=REJECT,minimax-m3=ACCEPT) branch=factory/layout-refactor
+  remote=git@github.com:Roderick-Clemente/adversarial-sprint-dev.git
+  prompt_sha256=d85edae7de00fe5198e0b17190da02febe757b38cf851447a080d2672025e629
+  Build commit unchanged from round 1 (da14ef5). Judge amended from 3307020a (16 tests)
+  to 7289ca09 (23 tests) per planner's consolidated patch at a31cf75, re-ratified and
+  re-locked by referee. Prompt template updated at a31cf75 with new judge hash, counts,
+  and the three closed shapes named. <BUILD_COMMIT> -> da14ef5 (only substitution).
+  Validators fired SEQUENTIALLY (kimi-k3 first, minimax-m3 second) per hard requirement.
+  droid exec fired directly with --auto high. See COMMANDS.md.
+  Family-distinctness: kimi-k3=moonshot-family, minimax-m3=minimax-family. Both
+  distinct from planner, builder, and referee. §17.2 holds.
+  SPLIT does not close on the two-family rule (Ruling 4). Forwarded to referee.
+
+  SoR NOTE: telemetry/runs.jsonl was restored to 21 rows (from 59, polluted by prior
+  validator runs) before the suite run, so test_chunk2a_emitted_envelope_paths_resolve
+  could find new values to check. SoR is gitignored; pollution was a local artifact.
+
+2026-08-14T06:07Z PLANNER: VALIDATE COMPLETE: validator=kimi-k3 chunk=chunk-D1-2a-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-kimi-k3-envelope.json
+  envelope_sha256=ed9a1e707a090e0b805befe3498c67ff0fae7232f2fd04bc7d7a358c7c7bfec5
+  session_id=5685791d-9e98-49b2-bfae-41f543ff1219 verdict=REJECT turns=42
+  duration_ms=996412 stderr=empty
+  prompt_sha256=d85edae7de00fe5198e0b17190da02febe757b38cf851447a080d2672025e629
+  key_finding=NEW blind spot: reverting only the lock READER (locked-test-guard.py)
+  while keeping the lock WRITER correct passes 23/23. Writer and reader disagree
+  about lock location, silently disabling invariant 3. Confirmed the three round-1
+  blockers (F2, CWD-relative open, lock.py substring) are closed by the amendment.
+  REJECT targets judge coverage (planner surface), not builder code at da14ef5.
+
+2026-08-14T06:23Z PLANNER: VALIDATE COMPLETE: validator=minimax-m3 chunk=chunk-D1-2a-code
+  envelope=evidence/phase-4.5/build-evidence/r-chunk2a-code-r2-20260814-0607/code/review-minimax-m3-envelope.json
+  envelope_sha256=d4b8f2a90009ccab245d75fccf03b20feefdb605ba396af9cae5551185999610
+  session_id=1e75c4e2-8332-4ffa-8278-51c098002b19 verdict=ACCEPT turns=47
+  duration_ms=275672 stderr=empty
+  prompt_sha256=d85edae7de00fe5198e0b17190da02febe757b38cf851447a080d2672025e629
+  key_findings=all nits are spec prose issues ("all four" vs five, line numbers,
+  DATA row). No code blockers. Confirmed: read/write paths land together, lock
+  writer and reader agree, judges byte-unchanged, suite green, findings file
+  byte-identical, errata appended, chunk 3 can land cleanly.
 ```
