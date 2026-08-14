@@ -310,6 +310,12 @@ def test_chunk3_ledger_rename_carried_no_content_edit():
     The ledger is append-only (§5). A rename that smuggles a content edit
     into it is a failed chunk, not a nit — so this resolves the actual
     rename commit and reads its numstat rather than trusting HEAD.
+
+    The numstat query must NOT use a pathspec: ``git show --numstat --
+    <path>`` filters the tree diff before rename detection runs, so git
+    reports the destination as an ADD with the full file content as
+    additions. The unfiltered diff with ``-M`` detects the rename and
+    reports 0/0. Builder finding: BLOCKED on chunk-D1-3, raised correctly.
     """
     found = _git(
         "log", "--follow", "--diff-filter=R", "--format=%H", "--", _LEDGER_NEW
@@ -319,13 +325,24 @@ def test_chunk3_ledger_rename_carried_no_content_edit():
     assert shas, f"no rename commit found for {_LEDGER_NEW}; was it moved with git mv?"
 
     sha = shas[0]
-    stat = _git("show", "--numstat", "--format=", sha, "--", _LEDGER_NEW)
+    # No pathspec: -- <path> breaks rename detection by filtering before
+    # the similarity check runs. -M enables rename detection explicitly.
+    stat = _git("show", "--numstat", "--format=", "-M", sha)
     assert stat.returncode == 0, f"git show failed: {stat.stderr}"
 
-    rows = [ln.split("\t") for ln in stat.stdout.splitlines() if ln.strip()]
-    assert rows, f"no numstat rows for {_LEDGER_NEW} at {sha}"
-    for row in rows:
-        added, deleted = row[0], row[1]
+    # Filter for the LEDGER line (rename format: {old => new}/LEDGER.md)
+    ledger_rows = [
+        ln for ln in stat.stdout.splitlines()
+        if ln.strip() and "LEDGER.md" in ln
+    ]
+    assert ledger_rows, (
+        f"no numstat row for LEDGER.md at {sha}; the rename was not detected. "
+        f"Full numstat:\n{stat.stdout}"
+    )
+    for row in ledger_rows:
+        parts = row.split("\t")
+        assert len(parts) >= 2, f"unexpected numstat format: {row!r}"
+        added, deleted = parts[0], parts[1]
         assert added == "0" and deleted == "0", (
             f"rename commit {sha} changed {_LEDGER_NEW} content: "
             f"+{added}/-{deleted}. Append-only file, rename only."
