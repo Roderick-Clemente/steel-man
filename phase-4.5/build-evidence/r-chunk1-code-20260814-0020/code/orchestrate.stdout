@@ -1,0 +1,46 @@
+Cross-family check: 1 families ({'grok-family'}) — OK
+Evidence source: in-session | Treatment: False
+Enabled tools: Read,Glob,Grep,LS,Execute
+Validator CWD: /Users/factory/work/adversarial-sprint-dev
+
+STEP 1: Skipped (no --evidence-output)
+
+  Stray-write baseline: 1 pre-existing dirty path(s) (will be excluded)
+
+============================================================
+STEP 2: Run cross-family validators
+============================================================
+
+  [grok-4.5] Running grok-4.5 (grok-family)...
+    Transient failure (is_error=true), retry 1/2 after 5s...
+    turns=9 tokens_in=99339 tokens_out=31797 cache_read=310656 thinking=19562 error=False retries=1
+
+============================================================
+STEP 3: Check stray writes (KI-2 mitigation, baseline-aware)
+============================================================
+  grok-4.5: CLEAN
+
+============================================================
+STEP 4: Parse verdicts
+============================================================
+  grok-4.5: ACCEPT-WITH-NITS
+
+============================================================
+STEP 5: Append telemetry rows
+============================================================
+  Appended: grok-4.5 -> ACCEPT-WITH-NITS (retries=1)
+  Total rows appended: 1
+
+============================================================
+STEP 6: Gate decision
+============================================================
+  Validators: 1
+  ACCEPT: 1 | REJECT: 0 | HUMAN_DECISION: 0 | ERROR: 0 | UNKNOWN: 0
+
+  GATE: ACCEPT
+  REASON: All 1 validator(s) ACCEPT (1 with nits)
+
+============================================================
+SUMMARY written: phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-summary.json
+GATE: ACCEPT
+============================================================

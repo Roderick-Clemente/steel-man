@@ -1,0 +1,45 @@
+Cross-family check: 1 families ({'gemini-family'}) — OK
+Evidence source: in-session | Treatment: False
+Enabled tools: Read,Glob,Grep,LS
+Validator CWD: /Users/factory/work/adversarial-sprint-dev
+
+STEP 1: Skipped (no --evidence-output)
+
+  Stray-write baseline: 2 pre-existing dirty path(s) (will be excluded)
+
+============================================================
+STEP 2: Run cross-family validators
+============================================================
+
+  [gemini-3.1-pro-preview] Running gemini-3.1-pro-preview (gemini-family)...
+    turns=7 tokens_in=191936 tokens_out=18502 cache_read=76584 thinking=5141 error=False retries=0
+
+============================================================
+STEP 3: Check stray writes (KI-2 mitigation, baseline-aware)
+============================================================
+  gemini-3.1-pro-preview: CLEAN
+
+============================================================
+STEP 4: Parse verdicts
+============================================================
+  gemini-3.1-pro-preview: REJECT
+
+============================================================
+STEP 5: Append telemetry rows
+============================================================
+  Appended: gemini-3.1-pro-preview -> REJECT (retries=0)
+  Total rows appended: 1
+
+============================================================
+STEP 6: Gate decision
+============================================================
+  Validators: 1
+  ACCEPT: 0 | REJECT: 1 | HUMAN_DECISION: 0 | ERROR: 0 | UNKNOWN: 0
+
+  GATE: REJECT
+  REASON: 1 validator(s) returned REJECT
+
+============================================================
+SUMMARY written: phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-summary.json
+GATE: REJECT
+============================================================

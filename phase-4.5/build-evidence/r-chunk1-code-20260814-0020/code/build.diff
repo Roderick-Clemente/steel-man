@@ -1,0 +1,433 @@
+diff --git a/phase-3.2/evidence/local_backend.py b/phase-3.2/evidence/local_backend.py
+index 7bb51c4..6bfbab3 100644
+--- a/phase-3.2/evidence/local_backend.py
++++ b/phase-3.2/evidence/local_backend.py
+@@ -33,6 +33,31 @@ import subprocess
+ import sys
+ import uuid
+ 
++# ── layout-root bootstrap (CHUNK-1-SPEC §2.2) ────────────────────────────
++#
++# This module is invoked as a standalone script (from per_chunk.py and
++# orchestrate-review.py), so ``tools/`` is not on sys.path. Resolve it from
++# this file's own location and import the roots at module level.
++#
++# The import is UNGUARDED and NOT lazy on purpose: a try/except ImportError
++# fallback, or an import inside main(), would let ``--help`` exit 0 while
++# dying at sprint runtime — a §7 silent-green hole.
++#
++# The self-relative root below exists ONLY to locate ``tools/``. It MUST NOT
++# be used to compose the routed paths: those compose against the runtime
++# ``--framework-root`` argument, the only value that is correct when the
++# framework and pilot repos differ. The two are permitted to disagree.
++# The three-dirname depth is Chunk-2-safe (the target dir sits at the same
++# depth) and must not be "corrected".
++_SELF_RELATIVE_FRAMEWORK_ROOT = os.path.dirname(
++    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++)
++_TOOLS_DIR = os.path.join(_SELF_RELATIVE_FRAMEWORK_ROOT, "tools")
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import SCRIPTS_ROOT, phase_path  # noqa: E402
++
+ 
+ # ── helpers ──────────────────────────────────────────────────────────────
+ 
+@@ -73,7 +98,7 @@ def sign_bundle(bundle: dict, key: bytes, key_id: str) -> dict:
+ def run_verify_green(framework_root: str, pilot_root: str, lock_file: str,
+                      test_file: str, python: str) -> dict:
+     """Run verify-green.py and extract locked_test_sha_observed + pass/fail."""
+-    script = os.path.join(framework_root, "phase-1", "scripts", "verify-green.py")
++    script = phase_path(framework_root, "scripts", "verify-green.py")
+     cmd = [
+         python, script,
+         "--pilot-root", pilot_root,
+@@ -372,7 +397,7 @@ def main() -> int:
+     tool_versions = {
+         "python": get_tool_version([args.python], "--version"),
+         "pytest": get_tool_version([args.python, "-m", "pytest"], "--version"),
+-        "verify_green": "phase-1/scripts/verify-green.py",
++        "verify_green": os.path.join(SCRIPTS_ROOT, "verify-green.py"),
+     }
+     if args.security_scan:
+         tool_versions["bandit"] = get_tool_version([args.python, "-m", "bandit"], "--version")
+diff --git a/phase-5/scripts/fire-design-review.sh b/phase-5/scripts/fire-design-review.sh
+index 59eeacb..624652f 100755
+--- a/phase-5/scripts/fire-design-review.sh
++++ b/phase-5/scripts/fire-design-review.sh
+@@ -41,6 +41,12 @@ set -euo pipefail
+ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ cd "$REPO_ROOT"
+ 
++# Layout roots (CHUNK-1-SPEC §2.4). Anchored on REPO_ROOT, NOT on
++# $(dirname "$0")/../sprint_loop — this script lives two levels down, so that
++# form resolves to a path that does not exist and, under set -euo pipefail,
++# hard-fails at source time.
++. "$REPO_ROOT/tools/sprint_loop/paths.sh"
++
+ ARTIFACT=""; PROMPT=""; MODELS=""; RUN_ID=""; SHA=""
+ while [ "$#" -gt 0 ]; do
+     case "$1" in
+@@ -84,7 +90,10 @@ fi
+ ARTIFACT_SHA="$(git rev-parse "${SHA}:${ARTIFACT}")"
+ 
+ RUN_ID="${RUN_ID:-r-artifact-review-$(date +%s)}"
+-RUN_DIR="phase-4.5/build-evidence/${RUN_ID}"
++# EVIDENCE_ROOT is empty today, so RUN_DIR renders as before. After Chunk 2's
++# flip (EVIDENCE_ROOT="evidence") it renders under the new evidence root. The
++# :+ idiom avoids a leading slash in the empty case.
++RUN_DIR="${EVIDENCE_ROOT:+${EVIDENCE_ROOT}/}${BUILD_EVIDENCE_REL}/${RUN_ID}"
+ ENV_DIR="${RUN_DIR}/envelopes"
+ [ -e "$RUN_DIR" ] && die "run dir already exists: $RUN_DIR (pick a fresh --run-id)"
+ mkdir -p "$ENV_DIR"
+@@ -152,6 +161,6 @@ echo
+ echo "=== verdict-presence guard (§7: a digest is not a verdict) ==="
+ # This is the check that matters. It exits non-zero when any envelope carries no
+ # verdict, so a burned round cannot be reported as a completed review.
+-python3 phase-5/scripts/envelope-manifest.py "$RUN_DIR" \
++python3 "${PHASE5_SCRIPTS_ROOT}/envelope-manifest.py" "$RUN_DIR" \
+     --json "${RUN_DIR}/manifest.json" \
+     --markdown "${RUN_DIR}/manifest.md"
+diff --git a/tools/chunk_sequence_gate.py b/tools/chunk_sequence_gate.py
+index a704f42..7320313 100644
+--- a/tools/chunk_sequence_gate.py
++++ b/tools/chunk_sequence_gate.py
+@@ -6,7 +6,7 @@ Per OPERATING-RULES §20 and PRD §11 Phase 5 deliverable #3:
+ 
+   Phase 5 wires enforcement: ``chunk_sequence_gate --check chunk-N+1``
+   blocks the runner's chunk-close path when the prior chunk's
+-  ``phase-4.5/tokens/chunk-N.token.json`` does not verify. Exit 6 on
++  ``<TOKENS_ROOT>/chunk-N.token.json`` does not verify. Exit 6 on
+   refusal (the runner's refusal exit; matches ``sign_chunk_token verify``
+   refusal exit so a refused chunk leaves an observable artifact across
+   both surfaces).
+@@ -36,6 +36,7 @@ if _TOOLS_DIR not in sys.path:
+     sys.path.insert(0, _TOOLS_DIR)
+ 
+ import sign_chunk_token as sct  # noqa: E402
++from sprint_loop.config import TOKENS_ROOT  # noqa: E402
+ 
+ 
+ REFUSAL_EXIT = 6  # the runner's refusal exit; mirrored from sign_chunk_token verify
+@@ -116,7 +117,7 @@ def build_argparser() -> argparse.ArgumentParser:
+         description="Refuses chunk-N+1 from starting when chunk-N's token does not verify (§20 / PRD §11 Phase 5 #3).",
+     )
+     p.add_argument("--prior-token", required=True,
+-                   help="Path to phase-4.5/tokens/chunk-N.token.json (or any token path).")
++                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json (or any token path).")
+     p.add_argument("--next-chunk-id", required=True,
+                    help="The chunk-id the gate is being checked FOR (informational; helps the refusal log).")
+     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")
+diff --git a/tools/orchestrate-review.py b/tools/orchestrate-review.py
+index 1efb544..8bcf966 100755
+--- a/tools/orchestrate-review.py
++++ b/tools/orchestrate-review.py
+@@ -46,6 +46,14 @@ import subprocess
+ import sys
+ import time
+ 
++# Invoked as ``python3 tools/orchestrate-review.py``, so sys.path[0] is already
++# ``tools/`` and the layout roots (CHUNK-1-SPEC §2.1) import directly.
++_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
++if _TOOLS_DIR not in sys.path:
++    sys.path.insert(0, _TOOLS_DIR)
++
++from sprint_loop.config import phase_path  # noqa: E402
++
+ DROID_BIN = os.path.expanduser("~/.local/bin/droid")
+ 
+ 
+@@ -75,7 +83,7 @@ def step1_produce_evidence(args) -> dict:
+ 
+     cmd = [
+         args.pilot_python,
+-        os.path.join(args.framework_root, "phase-3.2", "evidence", "local_backend.py"),
++        phase_path(args.framework_root, "evidence-code", "local_backend.py"),
+         "--pilot-root", args.pilot_root,
+         "--framework-root", args.framework_root,
+         "--test-file", args.test_file,
+diff --git a/tools/sprint-loop.py b/tools/sprint-loop.py
+index 57d630d..7dbf445 100755
+--- a/tools/sprint-loop.py
++++ b/tools/sprint-loop.py
+@@ -70,7 +70,12 @@ if _TOOLS_DIR not in sys.path:
+ if _REPO_ROOT not in sys.path:
+     sys.path.insert(0, _REPO_ROOT)
+ 
+-from sprint_loop.config import Config, MODEL_FAMILY_MAP, build_config  # noqa: E402
++from sprint_loop.config import (  # noqa: E402
++    BUILD_EVIDENCE_REL,
++    Config,
++    MODEL_FAMILY_MAP,
++    build_config,
++)
+ from sprint_loop.state import (  # noqa: E402
+     ChunkState,
+     ChunkStatus,
+@@ -1113,9 +1118,9 @@ def _runner_argparser() -> argparse.ArgumentParser:
+                              "form on the CLI as the runner's expect: --resume-from <path>.")
+     parser.add_argument("--evidence-output-dir", default="",
+                         help="Override the per-run evidence tree location. By default the "
+-                             "runner stages at <framework-root>/phase-4.5/build-evidence/"
++                             f"runner stages at <framework-root>/{BUILD_EVIDENCE_REL}/"
+                              "<run-id>/. Set this for per-pilot overlays so the framework "
+-                             "repo's phase-4.5/build-evidence dir stays clean. "
++                             f"repo's {BUILD_EVIDENCE_REL} dir stays clean. "
+                              "WARNING (pass-r3 H-9): when used as the framework-side audit "
+                              "path, the runner cannot force-add the audit tree into the "
+                              "framework repo on commit; pilot repos are responsible for "
+diff --git a/tools/sprint_loop/backends.py b/tools/sprint_loop/backends.py
+index a45f3fd..62ec19f 100644
+--- a/tools/sprint_loop/backends.py
++++ b/tools/sprint_loop/backends.py
+@@ -25,6 +25,7 @@ import sys
+ from dataclasses import dataclass, field
+ from typing import Any, Protocol
+ 
++from sprint_loop.config import phase_path
+ from sprint_loop.state import GateDecision
+ 
+ 
+@@ -121,8 +122,8 @@ class LocalBackend:
+         # generic "orchestrator missing" message.
+         test_file = chunk.get("test_file", "")
+         lock_file = chunk.get("lock_file", "")
+-        review_output_dir = chunk.get("review_output_dir", "") or os.path.join(
+-            framework_root, "phase-4.5", "build-evidence",
++        review_output_dir = chunk.get("review_output_dir", "") or phase_path(
++            framework_root, "evidence", "phase-4.5", "build-evidence",
+             extra.get("run_id", run_label), "reviews"
+         )
+         if not test_file or not lock_file:
+diff --git a/tools/sprint_loop/chunk_close_banner.py b/tools/sprint_loop/chunk_close_banner.py
+index f4dc5c3..e46a11d 100644
+--- a/tools/sprint_loop/chunk_close_banner.py
++++ b/tools/sprint_loop/chunk_close_banner.py
+@@ -34,12 +34,13 @@ if _TOOLS_DIR not in sys.path:
+     sys.path.insert(0, _TOOLS_DIR)
+ 
+ import sign_chunk_token as sct  # noqa: E402
++from sprint_loop.config import BUILD_EVIDENCE_REL, TOKENS_ROOT  # noqa: E402
+ 
+ 
+ CHECKLIST_POINTER = (
+     "Operator-eye troubleshooting checklist for absent signal "
+     "(PRD §11 Phase 5 §5):\n"
+-    "  1. Read phase-4.5/tokens/chunk-N.token.json. If absent:\n"
++    f"  1. Read {TOKENS_ROOT}/chunk-N.token.json. If absent:\n"
+     "     cross_family_review.py refused.\n"
+     "  2. Verify signature. If signature bad: EVIDENCE_SIGNING_KEY\n"
+     "     mismatch. Check tools/run-with-model.sh for the key it\n"
+@@ -48,7 +49,7 @@ CHECKLIST_POINTER = (
+     "     --next-chunk-id N+1. Exit 6 means the prior chunk's\n"
+     "     token still doesn't verify; roll back.\n"
+     "  4. Check telemetry/runs.jsonl for the chunk's run_id.\n"
+-    "  5. Inspect phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json\n"
++    f"  5. Inspect {BUILD_EVIDENCE_REL}/<run-id>/<RUN_STATE>.json\n"
+     "     for the last-known step prior to the gap.\n"
+     "  6. Refresh tools/install-skill.sh — the canonical skill\n"
+     "     may not have been loaded into the agent's session context."
+@@ -96,7 +97,7 @@ def build_argparser() -> argparse.ArgumentParser:
+         description="Operator-eye visual signal at chunk close (PRD §11 Phase 5 #5).",
+     )
+     p.add_argument("--token-path", default="",
+-                   help="Path to phase-4.5/tokens/chunk-N.token.json")
++                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json")
+     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")
+     p.add_argument("--plan-review-rendered", action="store_true",
+                    help="Emit 🤺 for the adversarial-plan-render half of the four-tone signature.")
+diff --git a/tools/sprint_loop/config.py b/tools/sprint_loop/config.py
+index 8c0a280..a83ead8 100644
+--- a/tools/sprint_loop/config.py
++++ b/tools/sprint_loop/config.py
+@@ -61,6 +61,62 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
+ }
+ 
+ 
++# ── layout roots (CHUNK-1-SPEC §2.1) ─────────────────────────────────────
++#
++# Single source of truth for the phase-directory prefixes the runner, the
++# gates and the orchestrator seat compose paths from. Chunk 1 introduces
++# them pointing at today's homes, so behaviour is byte-identical and no
++# directory moves happen; Chunk 2 flips the values and the tree moves.
++#
++# These are RELATIVE SEGMENTS, never absolute paths. ``framework_root``
++# lives on the ``Config`` dataclass and is supplied per call — baking it in
++# here would make the constants unusable from the standalone scripts and
++# would break the forward invariant Chunk 2 relies on.
++
++EVIDENCE_ROOT = ""
++PLANNING_ROOT = ""
++TOKENS_ROOT = os.path.join("phase-4.5", "tokens")
++PROMPTS_ROOT = os.path.join("phase-4.5", "prompts")
++SCRIPTS_ROOT = os.path.join("phase-1", "scripts")
++LOCKS_ROOT = os.path.join("phase-1", "locks")
++EVIDENCE_CODE_ROOT = os.path.join("phase-3.2", "evidence")
++
++# Derived: the per-run build-evidence tree, relative to framework root.
++# ``EVIDENCE_ROOT`` is empty today, so an f-string would render a leading
++# slash and change ``--help`` bytes; ``os.path.join`` swallows the empty
++# component. Mirrors the same name in ``tools/sprint_loop/paths.sh``.
++BUILD_EVIDENCE_REL = os.path.join(EVIDENCE_ROOT, "phase-4.5", "build-evidence")
++
++PHASE_ROOTS: dict[str, str] = {
++    "evidence": EVIDENCE_ROOT,
++    "planning": PLANNING_ROOT,
++    "tokens": TOKENS_ROOT,
++    "prompts": PROMPTS_ROOT,
++    "scripts": SCRIPTS_ROOT,
++    "locks": LOCKS_ROOT,
++    "evidence-code": EVIDENCE_CODE_ROOT,
++}
++
++
++def phase_path(framework_root: str, kind: str, *parts: str) -> str:
++    """Compose a path under one of the §2.1 layout roots.
++
++    ``kind`` selects the root; ``parts`` are appended verbatim. There is
++    deliberately no ``phase=`` parameter — the phase segment is embedded in
++    the constant, which is the whole point of the indirection. A caller that
++    could pass its own phase segment would reintroduce the hardcoding Chunk 1
++    exists to remove.
++
++    Raises ``ValueError`` on an unknown ``kind`` rather than silently
++    composing against the framework root (§7: fail loudly, never plausibly).
++    """
++    if kind not in PHASE_ROOTS:
++        raise ValueError(
++            f"unknown layout kind {kind!r}; expected one of {sorted(PHASE_ROOTS)}"
++        )
++    return os.path.join(framework_root, PHASE_ROOTS[kind], *parts)
++
++
+ @dataclass
+ class Config:
+     """All configurable knobs of the loop runner.
+@@ -154,12 +210,14 @@ class Config:
+     def default_locks_dir(self) -> str:
+         if self.locked_test_locks_dir:
+             return self.locked_test_locks_dir
+-        return os.path.join(self.framework_root, "phase-1", "locks")
++        return phase_path(self.framework_root, "locks")
+ 
+     def default_evidence_dir(self, run_id: str) -> str:
+         if self.evidence_output_dir:
+             return self.evidence_output_dir
+-        return os.path.join(self.framework_root, "phase-4.5", "build-evidence", run_id)
++        return phase_path(
++            self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id
++        )
+ 
+     def to_role_assignments(self) -> list[RoleAssignment]:
+         """Materialise Config into the ``RoleAssignment`` shapes ``state.RunState`` stores."""
+@@ -272,9 +330,9 @@ def build_config(argv: list[str] | None = None,
+ 
+     parser.add_argument("--evidence-output-dir", default="",
+                         help="Per-run evidence tree root. Defaults to "
+-                             "<framework-root>/phase-4.5/build-evidence/<run-id>/. "
++                             f"<framework-root>/{BUILD_EVIDENCE_REL}/<run-id>/. "
+                              "Set this for per-pilot overlays so the framework repo's "
+-                             "phase-4.5/build-evidence dir stays clean.")
++                             f"{BUILD_EVIDENCE_REL} dir stays clean.")
+ 
+     parser.add_argument("--pilot-spec-file", default="",
+                         help="Path to the pilot spec the planner reads (free-form markdown).")
+diff --git a/tools/sprint_loop/paths.sh b/tools/sprint_loop/paths.sh
+new file mode 100644
+index 0000000..59a8218
+--- /dev/null
++++ b/tools/sprint_loop/paths.sh
+@@ -0,0 +1,17 @@
++# tools/sprint_loop/paths.sh — sourced by fire-design-review.sh
++#
++# Shell mirror of the layout roots (CHUNK-1-SPEC §2.1/§2.4). Sourced, never
++# executed, so it sets variables and does nothing else.
++#
++# Deliberately NOT a 1:1 mirror of the seven Python constants: only
++# EVIDENCE_ROOT is one of them. BUILD_EVIDENCE_REL mirrors the derived Python
++# constant of the same name, and PHASE5_SCRIPTS_ROOT has no Python consumer.
++# This file carries exactly what fire-design-review.sh composes with, no more.
++#
++# Today's layout (Chunk 1 defaults). Chunk 2 flips these.
++
++EVIDENCE_ROOT=""                                # → "evidence" in Chunk 2
++BUILD_EVIDENCE_REL="phase-4.5/build-evidence"   # segment; unchanged by Chunk 2
++PHASE5_SCRIPTS_ROOT="phase-5/scripts"           # → "tools/phase-5-scripts" in Chunk 2
++
++export EVIDENCE_ROOT BUILD_EVIDENCE_REL PHASE5_SCRIPTS_ROOT
+diff --git a/tools/sprint_loop/per_chunk.py b/tools/sprint_loop/per_chunk.py
+index 0d6da54..f4af1e1 100644
+--- a/tools/sprint_loop/per_chunk.py
++++ b/tools/sprint_loop/per_chunk.py
+@@ -70,6 +70,7 @@ from sprint_loop.state import (  # noqa: E402
+     RunState,
+     hash_text,
+ )
++from sprint_loop.config import phase_path  # noqa: E402
+ from sprint_loop.droid import InvokeOptions, invoke_droid  # noqa: E402
+ from sprint_loop.backends import LocalBackend, BackendResult  # noqa: E402
+ from sprint_loop.prompts.render import render_to_file  # noqa: E402
+@@ -105,11 +106,11 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+     """
+     cmd = [
+         pilot_python,
+-        os.path.join(framework_root, "phase-1", "scripts", "lock.py"),
++        phase_path(framework_root, "scripts", "lock.py"),
+         chunk.locked_test_files[0],  # primary locked test (PRD §5.4)
+         accepted_assertion,
+         "--pilot-root", pilot_root,
+-        "--locks-dir", os.path.join(framework_root, "phase-1", "locks"),
++        "--locks-dir", phase_path(framework_root, "locks"),
+     ]
+     if dry_run:
+         # Synthesize a manifest that mirrors lock.py's output shape so
+@@ -121,8 +122,8 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+             "accepted_at": "1970-01-01T00:00:00+00:00",
+             "accepted_assertion": accepted_assertion,
+         }
+-        lock_path = os.path.join(framework_root, "phase-1", "locks",
+-                                 f"{chunk.locked_test_files[0]}.lock.json")
++        lock_path = phase_path(framework_root, "locks",
++                               f"{chunk.locked_test_files[0]}.lock.json")
+         chunk.lock_manifest_path = lock_path
+         chunk.locked_test_sha = synth_sha
+         return manifest
+@@ -133,8 +134,8 @@ def lock_test(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+             f"{r.stderr[:500]!r}"
+         )
+     # Find the lock file (lock.py writes to phase-1/locks/<test_file>.lock.json)
+-    lock_path = os.path.join(framework_root, "phase-1", "locks",
+-                             f"{chunk.locked_test_files[0]}.lock.json")
++    lock_path = phase_path(framework_root, "locks",
++                           f"{chunk.locked_test_files[0]}.lock.json")
+     if not os.path.isfile(lock_path):
+         raise RuntimeError(
+             f"lock.py reported success but manifest missing at {lock_path}"
+@@ -161,7 +162,7 @@ def validate_red(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+     """
+     cmd = [
+         pilot_python,
+-        os.path.join(framework_root, "phase-1", "scripts", "valid-red.py"),
++        phase_path(framework_root, "scripts", "valid-red.py"),
+         "--pilot-root", pilot_root,
+         "--test-file", chunk.locked_test_files[0],
+         "--accepted-assertion", chunk.accepted_assertion,
+@@ -210,7 +211,7 @@ def verify_green(chunk: ChunkState, *, framework_root: str, pilot_root: str,
+     """
+     cmd = [
+         pilot_python,
+-        os.path.join(framework_root, "phase-1", "scripts", "verify-green.py"),
++        phase_path(framework_root, "scripts", "verify-green.py"),
+         "--pilot-root", pilot_root,
+         "--lock-file", chunk.lock_manifest_path,
+         "--test-file", chunk.locked_test_files[0],
+@@ -276,7 +277,7 @@ def produce_evidence(chunk: ChunkState, *, framework_root: str,
+         return bundle
+     cmd = [
+         pilot_python,
+-        os.path.join(framework_root, "phase-3.2", "evidence", "local_backend.py"),
++        phase_path(framework_root, "evidence-code", "local_backend.py"),
+         "--pilot-root", pilot_root,
+         "--framework-root", framework_root,
+         "--test-file", chunk.locked_test_files[0],

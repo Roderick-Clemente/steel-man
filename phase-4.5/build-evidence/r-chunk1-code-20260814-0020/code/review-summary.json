@@ -1,0 +1,23 @@
+{
+  "ts": "2026-08-13T23:58:14Z",
+  "branch": "factory/layout-refactor",
+  "evidence_source": "in-session",
+  "treatment": false,
+  "run_label": null,
+  "validators": [
+    {
+      "label": "gemini-3.1-pro-preview",
+      "model": "gemini-3.1-pro-preview",
+      "family": "gemini-family",
+      "verdict": "REJECT",
+      "ok": true,
+      "tokens_in": 191936,
+      "tokens_out": 18502,
+      "cache_read": 76584,
+      "thinking": 5141,
+      "retry_count": 0,
+      "stray_writes": null
+    }
+  ],
+  "gate": "REJECT"
+}

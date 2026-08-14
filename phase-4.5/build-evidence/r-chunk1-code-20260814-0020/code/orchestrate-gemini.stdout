@@ -1,0 +1,51 @@
+Cross-family check: 1 families ({'gemini-family'}) — OK
+Evidence source: in-session | Treatment: False
+Enabled tools: Read,Glob,Grep,LS,Execute
+Validator CWD: /Users/factory/work/adversarial-sprint-dev
+
+STEP 1: Skipped (no --evidence-output)
+
+  Stray-write baseline: 1 pre-existing dirty path(s) (will be excluded)
+
+============================================================
+STEP 2: Run cross-family validators
+============================================================
+
+  [gemini-3.1-pro-preview] Running gemini-3.1-pro-preview (gemini-family)...
+    Transient failure (is_error=true), retry 1/2 after 5s...
+    Transient failure (is_error=true), retry 2/2 after 5s...
+    turns=0 tokens_in=11220 tokens_out=876 cache_read=7817 thinking=134 error=True retries=2
+
+============================================================
+STEP 3: Check stray writes (KI-2 mitigation, baseline-aware)
+============================================================
+    WARNING: stray writes detected after gemini-3.1-pro-preview:
+    build.diff.out
+  gemini-3.1-pro-preview: STRAY WRITES
+
+============================================================
+STEP 4: Parse verdicts
+============================================================
+  WARNING: no verdict found in gemini-3.1-pro-preview output
+  gemini-3.1-pro-preview: UNKNOWN
+
+============================================================
+STEP 5: Append telemetry rows
+============================================================
+  Appended: gemini-3.1-pro-preview -> UNKNOWN (retries=2)
+  Total rows appended: 1
+
+============================================================
+STEP 6: Gate decision
+============================================================
+  Validators: 1
+  ACCEPT: 0 | REJECT: 0 | HUMAN_DECISION: 0 | ERROR: 1 | UNKNOWN: 1
+  Stray writes: 1 (KI-2 violation)
+
+  GATE: STOP
+  REASON: 1 validator(s) failed to run
+
+============================================================
+SUMMARY written: phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-summary.json
+GATE: STOP
+============================================================

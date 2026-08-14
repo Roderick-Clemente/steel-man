@@ -30,6 +30,8 @@ reproducible if the bytes are identified independently of the path.
 | `phase-4.5/build-evidence/r-chunk1-spec-20260813-2101/spec/minimax-m3.json` | `90cdb1b47943c5ebaefd6609edc3c4dcdeb47c15d09e3fab35bb2a2ecd06f1c2` | ACCEPT-WITH-NITS |
 | `phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/grok-4.5.json` | `acf05dbd0d9b09cfeaba13cbb1202495e030ddd86156019fe5b5a439177b38f7` | REJECT |
 | `phase-4.5/build-evidence/r-chunk1-spec-gate-20260814-0000/spec/gemini-3.1-pro-preview.json` | `60ddbe11d7bbcff15ea88ab66405278bb89b8252053284ef1b90977809168b2b` | REJECT |
+| `phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-grok-4.5-envelope.json` | `6e374bd3df15cd4886f907008f83bddee5910fca2086964800fcc54b564a27b8` | ACCEPT-WITH-NITS |
+| `phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-gemini-3.1-pro-preview-envelope.json` | `a4d1d66224830c3de4f808c24f2b127e206a97d0adce5332f08f3d044d5ebdf4` | REJECT |
 
 ## Rows
 
@@ -185,3 +187,40 @@ not fire, does not post those row types, and does not sign.
   scoped to the SPEC while this is the judge. Judge re-locked
   82035450 -> 233eee9d. Operator may overrule; nothing else was touched.
 ```
+
+### chunk-D1-1 CODE gate (build commit d5db8ff)
+
+```
+2026-08-14T01:05Z PLANNER: VALIDATE COMPLETE: validator=grok-4.5 chunk=chunk-D1-1-code envelope=phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-grok-4.5-envelope.json session_id=71171f91-8cc3-4369-b5d0-6df69da70f9a verdict=ACCEPT-WITH-NITS turns=9 prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+2026-08-14T01:05Z PLANNER: VALIDATE COMPLETE: validator=gemini-3.1-pro-preview chunk=chunk-D1-1-code envelope=phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-gemini-3.1-pro-preview-envelope.json session_id=35a1370d-3fc1-4011-b392-468fc7d128d4 verdict=REJECT turns=7 prompt_sha256=867f54ba54ad0da4ddadb93ff705f78d90ca914f5de295e91a8be3837ea371ef
+2026-08-14T01:05Z PLANNER: BLOCKED: chunk=chunk-D1-1-code reason=reviewer-burn validator=gemini-3.1-pro-preview detail=attempt 1 is_error/turns=0 "Exec failed" x3 at --auto-level medium; refired clean at --auto-level low; envelope preserved as gemini-BURNED-attempt1-execfailed.json; not an attestation
+2026-08-14T01:05Z PLANNER: REVIEW REQUEST: chunk=chunk-D1-1-code commit=d5db8ff4ee939f199c40c60427a7b54a7b8abdc8 judge_sha256=233eee9d0589d024e30dbe5c9fe02028ba358eeb732c0a83927c780748dec4a2 paths=phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-grok-4.5-envelope.json,phase-4.5/build-evidence/r-chunk1-code-20260814-0020/code/review-gemini-3.1-pro-preview-envelope.json verdict=SPLIT(grok=ACCEPT-WITH-NITS,gemini=REJECT) branch=factory/layout-refactor note=SEE-ADJUDICATION.md-seats-contradicted-on-fstrings-settled-by-measurement
+```
+
+**Seat-independence caveat the referee must weigh.** The artifact under review
+is the builder's code (`d5db8ff`), so the planner firing it is a legitimate
+independent orchestration. But `tests/test_layout_paths.py` is
+**planner-authored**, and both seats directed most of their findings at it
+(grok: 4 of 9; gemini: 2 of 5, including its only `high`). For the judge
+portion this is partial self-review, and the planner's seat is compromised
+there. The planner did not sign and holds no key.
+
+**Seats contradicted each other on a matter of fact.** grok's probe reported
+static f-strings flagged; gemini's `high` asserted `ast.JoinedStr`, `%`,
+`.format()` and `ast.Add` are all blind. Settled by measurement, not by
+preferring a reviewer: `residual-scan-probe.py` runs twelve synthetic idioms
+through the judge's own matcher. Result: gemini is directionally right that
+blind spots exist but wrong on four of six named idioms; the real blind spots
+are five different ones (f-string with split segments, concat of bare
+segments, segment held in a variable, `os.sep.join`, `PurePath`). None
+corresponds to a site in `d5db8ff` — the routed code uses only flagged idioms
+— so no real defect passed the gate. See `ADJUDICATION.md`.
+
+**Finding ownership, for the referee's disposition:**
+
+| owner | findings |
+|-------|----------|
+| **builder** | gemini medium: `BUILD_EVIDENCE_REL` composed with `EVIDENCE_ROOT` becomes `evidence/phase-4.5/build-evidence` at the Chunk-2 flip while the shell constant of the same name stays `phase-4.5/build-evidence` — divergent semantics + double-apply trap (`config.py:78`). gemini medium: `os.path.join(SCRIPTS_ROOT,"verify-green.py")` serializes `\` into evidence JSON on Windows (`local_backend.py:397`). |
+| **planner (judge, FROZEN)** | grok medium x2: shell values only non-empty-checked, `BUILD_EVIDENCE_REL` never value-asserted. grok medium + gemini high: residual-scan blind spots (five, per ADJUDICATION.md). |
+| **planner (CHUNK-2-SPEC)** | grok **high**: CHUNK-2-SPEC §2.2 still drafts `SCRIPTS_ROOT = os.path.join(framework_root, ...)` at module level — `NameError` at import, or doubled roots through `phase_path`. Independent confirmation of the amendment already listed as a chunk-D1-2 precondition. Hard stop before Chunk 2 opens. |
+| **spec-mandated, not a defect** | grok low: `phase_path(fw,"evidence","phase-4.5","build-evidence",run_id)` keeps segments at the call site. §2.2 requires segment-preserving form; verified byte-identical today. |

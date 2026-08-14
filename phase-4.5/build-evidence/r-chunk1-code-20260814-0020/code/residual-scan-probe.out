@@ -1,0 +1,13 @@
+case                         flagged?   detail
+A os.path.join bare segs     YES        ["line 2: bare segment 'phase-1' in path composition"]
+B joined literal             YES        ["line 1: 'phase-1/scripts/x.py'"]
+C static f-string            YES        ["line 1: '/phase-1/scripts/x.py'"]
+D f-string split segs        *** NO *** []
+E str concat (ast.Add)       YES        ["line 1: '/phase-1/scripts'"]
+F concat bare seg            *** NO *** []
+G percent format             YES        ["line 1: '%s/phase-1/scripts'"]
+H .format()                  YES        ["line 1: '{}/phase-1/scripts'"]
+I variable holds segment     *** NO *** []
+J os.sep.join                *** NO *** []
+K pathlib /                  YES        ["line 2: bare segment 'phase-1' in path composition"]
+L PurePath                   *** NO *** []
