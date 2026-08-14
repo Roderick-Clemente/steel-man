@@ -689,4 +689,23 @@ NOT FIRED: chunk=chunk-D1-2 close gate. No reviewer envelope exists on disk, so
   session_id=f4cece0d-8e8b-46b0-b97a-6ccd41b761d4 verdict=ACCEPT-WITH-NITS turns=80
   duration_ms=400608 stderr=empty
   prompt_sha256=14506835429cc3db27ff754acc7f5638617c09d8fd393b9a68a7d5722ef69726
+
+2026-08-14T05:40:00Z REFEREE: REVIEW COMPLETE: chunk=chunk-D1-2-code
+  kimi-k3=ACCEPT-WITH-NITS minimax-m3=ACCEPT-WITH-NITS
+  families=moonshot-family,minimax-family sessions_distinct=true
+  envelope_sha256_kimi=8b503d93290bd56fbb03cc323ce3129dbe5b3aa7cb91414ff9a342d3d1383e46
+  envelope_sha256_minimax=f496c1d4389b725897f492b4290f1cdea80d2e475d43cd5184b3005d13088c8e
+  build_commit=ee90061 judge_sha256_chunk1=cb00dfac judge_sha256_chunk2=48a579f8
+  prompt_sha256=14506835429cc3db27ff754acc7f5638617c09d8fd393b9a68a7d5722ef69726
+  AUDIT: envelopes on disk match LEDGER sha256s. Both is_error=False, real verdicts.
+  Sequential firing confirmed (kimi 651s first, minimax 401s second). Families distinct
+  from each other and from planner/builder/referee. §17.2 and Ruling 4 satisfied: two
+  ACCEPT-class verdicts from two distinct families on the same bytes. GATE CLOSES.
+  TOKEN SIGNING: deferred. EVIDENCE_SIGNING_KEY is unset. Invocation once key is set:
+    python3 tools/sign_chunk_token.py sign \
+      --chunk-id chunk-D1-2-code \
+      --chunk-commit-sha ee90061673ea88e6e80fe22a42d6e06bdc9fd7e7 \
+      --reviewers-json '[{"family":"moonshot-family","model_id":"kimi-k3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"8b503d93290bd56fbb03cc323ce3129dbe5b3aa7cb91414ff9a342d3d1383e46"},{"family":"minimax-family","model_id":"minimax-m3","verdict":"ACCEPT-WITH-NITS","envelope_sha256":"f496c1d4389b725897f492b4290f1cdea80d2e475d43cd5184b3005d13088c8e"}]' \
+      --signed-by "DeepSeek (deepseek-family)" \
+      --out evidence/phase-4.5/tokens/chunk-D1-2-code.token.json
 ```
