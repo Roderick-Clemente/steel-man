@@ -1,0 +1,6 @@
+{
+  "file": "tests/test_layout_paths_chunk3.py",
+  "sha256": "5c66bcfc1b42c6fe1d07376ee899f4fd9d98f4909acce761710f3bd3e1ad3362",
+  "accepted_at": "2026-08-14T12:24:59.171760+00:00",
+  "accepted_assertion": "assert not dead"
+}

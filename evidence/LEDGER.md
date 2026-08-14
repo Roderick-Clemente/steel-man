@@ -1310,4 +1310,18 @@ them.
         the commit, so this seat cannot reproduce or close it.
   Not this seat's to do (§22, §24): I hold no EVIDENCE_SIGNING_KEY, wrote no
   token, fired no reviewer, and did not run the chunk sequence gate.
+
+2026-08-14T12:30:00Z REFEREE: JUDGE RATIFIED: chunk=chunk-D1-3
+  file=tests/test_layout_paths_chunk3.py
+  sha256=5c66bcfc1b42c6fe1d07376ee899f4fd9d98f4909acce761710f3bd3e1ad3362
+  lock=tools/phase-1-locks/tests/test_layout_paths_chunk3.py.lock.json
+  suite=14-passed-0-failed (full suite: 234 passed, 3 skipped)
+  hash independently verified; lock manifest at tools/phase-1-locks/ alongside existing
+  manifests; tools/locks not created.
+  Audit: 14 tests covering dead relative links, stale phase-N prefix residuals,
+  PATH-REDIRECTS.md integrity (no stale rows, no missing entries), LEDGER rename,
+  and untouched-surface guard. Judge is side-effect free (read-only filesystem and
+  git queries). All tests trace to numbered spec sections. Valid GREEN on the built
+  tree at 0b5343d (the judge asserts the build's correctness, not pre-fix RED).
+  Builder released for close gate.
 ```
