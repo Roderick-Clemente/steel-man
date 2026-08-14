@@ -397,7 +397,14 @@ def main() -> int:
     tool_versions = {
         "python": get_tool_version([args.python], "--version"),
         "pytest": get_tool_version([args.python, "-m", "pytest"], "--version"),
-        "verify_green": os.path.join(SCRIPTS_ROOT, "verify-green.py"),
+        # Evidence label, not a filesystem path: this string is serialised
+        # into the bundle JSON, so it must render identically on every
+        # platform. os.path.join would emit "phase-1\\scripts\\..." on
+        # Windows and change an evidence byte. posixpath.join alone is NOT
+        # enough either — SCRIPTS_ROOT is itself os.path.join'd, so it
+        # already carries a backslash there. Re-split on os.sep and rejoin
+        # with "/" so the separator cannot leak in from either source.
+        "verify_green": "/".join((*SCRIPTS_ROOT.split(os.sep), "verify-green.py")),
     }
     if args.security_scan:
         tool_versions["bandit"] = get_tool_version([args.python, "-m", "bandit"], "--version")

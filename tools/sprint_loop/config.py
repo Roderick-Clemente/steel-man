@@ -81,11 +81,21 @@ SCRIPTS_ROOT = os.path.join("phase-1", "scripts")
 LOCKS_ROOT = os.path.join("phase-1", "locks")
 EVIDENCE_CODE_ROOT = os.path.join("phase-3.2", "evidence")
 
-# Derived: the per-run build-evidence tree, relative to framework root.
-# ``EVIDENCE_ROOT`` is empty today, so an f-string would render a leading
-# slash and change ``--help`` bytes; ``os.path.join`` swallows the empty
-# component. Mirrors the same name in ``tools/sprint_loop/paths.sh``.
-BUILD_EVIDENCE_REL = os.path.join(EVIDENCE_ROOT, "phase-4.5", "build-evidence")
+# Derived. TWO names, because the segment and the root-composed path are
+# different things and giving them one name is a Chunk-2 trap.
+#
+# ``BUILD_EVIDENCE_REL`` is the bare segment and mirrors the shell variable of
+# the same name in ``tools/sprint_loop/paths.sh`` EXACTLY — same value in both
+# languages, in Chunk 1 and after Chunk 2's flip. Composing it against
+# ``EVIDENCE_ROOT`` a second time is what double-applies the root.
+#
+# ``BUILD_EVIDENCE_DIR`` is that segment under the evidence root: it is what
+# prose means by "the build-evidence dir", and it grows the ``evidence/``
+# prefix at the Chunk-2 flip. ``os.path.join`` swallows the empty component,
+# so it renders without a leading slash while ``EVIDENCE_ROOT`` is still "" —
+# an f-string on ``EVIDENCE_ROOT`` would not, and would change --help bytes.
+BUILD_EVIDENCE_REL = os.path.join("phase-4.5", "build-evidence")
+BUILD_EVIDENCE_DIR = os.path.join(EVIDENCE_ROOT, BUILD_EVIDENCE_REL)
 
 PHASE_ROOTS: dict[str, str] = {
     "evidence": EVIDENCE_ROOT,
@@ -330,9 +340,9 @@ def build_config(argv: list[str] | None = None,
 
     parser.add_argument("--evidence-output-dir", default="",
                         help="Per-run evidence tree root. Defaults to "
-                             f"<framework-root>/{BUILD_EVIDENCE_REL}/<run-id>/. "
+                             f"<framework-root>/{BUILD_EVIDENCE_DIR}/<run-id>/. "
                              "Set this for per-pilot overlays so the framework repo's "
-                             f"{BUILD_EVIDENCE_REL} dir stays clean.")
+                             f"{BUILD_EVIDENCE_DIR} dir stays clean.")
 
     parser.add_argument("--pilot-spec-file", default="",
                         help="Path to the pilot spec the planner reads (free-form markdown).")

@@ -34,7 +34,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import sign_chunk_token as sct  # noqa: E402
-from sprint_loop.config import BUILD_EVIDENCE_REL, TOKENS_ROOT  # noqa: E402
+from sprint_loop.config import BUILD_EVIDENCE_DIR, TOKENS_ROOT  # noqa: E402
 
 
 CHECKLIST_POINTER = (
@@ -49,7 +49,7 @@ CHECKLIST_POINTER = (
     "     --next-chunk-id N+1. Exit 6 means the prior chunk's\n"
     "     token still doesn't verify; roll back.\n"
     "  4. Check telemetry/runs.jsonl for the chunk's run_id.\n"
-    f"  5. Inspect {BUILD_EVIDENCE_REL}/<run-id>/<RUN_STATE>.json\n"
+    f"  5. Inspect {BUILD_EVIDENCE_DIR}/<run-id>/<RUN_STATE>.json\n"
     "     for the last-known step prior to the gap.\n"
     "  6. Refresh tools/install-skill.sh — the canonical skill\n"
     "     may not have been loaded into the agent's session context."
