@@ -1,2 +1,3 @@
 pytest>=9.0
 pytest-cov
+pygments>=2.20.0

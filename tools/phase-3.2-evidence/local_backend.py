@@ -196,8 +196,8 @@ def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:
         m = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", output)
         if m:
             return {"lines_pct": float(m.group(1))}
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"  coverage: skipped ({exc})", file=sys.stderr)
     return None
 
 

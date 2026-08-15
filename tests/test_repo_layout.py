@@ -10,6 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 ALLOWED_TOP_LEVEL = frozenset({
+    ".bandit",
     ".claude",
     ".cursor",
     ".factory",

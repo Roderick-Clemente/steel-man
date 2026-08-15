@@ -604,7 +604,7 @@ def test_chunk2a_lock_py_default_locks_dir_is_locks_root():
     src = ast.unparse(default)
     module = _load(rel)
     try:
-        value = eval(src, dict(vars(module)))  # noqa: S307 — see above
+        value = eval(src, dict(vars(module)))  # noqa: S307 — see above  # nosec B307 — controlled test eval of argparse default
     except Exception as exc:  # pragma: no cover - a default that cannot be built
         pytest.fail(f"{rel}: --locks-dir default {src!r} did not evaluate: {exc}")
     assert isinstance(value, str) and value, (

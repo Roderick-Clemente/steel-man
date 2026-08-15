@@ -1,0 +1,34 @@
+[bandit]
+# Secops sprint: suppress genuine false positives and exclude non-production
+# code from Bandit SAST scanning.
+#
+# Excluded directories contain test fixtures, evidence scripts, and self-runner
+# tests that intentionally use patterns Bandit flags (hardcoded /tmp paths,
+# subprocess calls, assert statements).
+exclude_dirs = ./tests/fixtures/*,./evidence/*,./.pytest_cache/*,./tools/fixtures/*,./tools/phase-5-scripts/*
+
+# Skipped tests (global) — justified per-test rationale below:
+#
+# B101 (assert_used): Standard Python testing pattern. pytest assertions
+#   are the intended way to write tests. Not a security issue.
+#
+# B105 (hardcoded_password_string): Both occurrences are false positives —
+#   TOKEN_SCHEMA is a token format marker string ("**************"), not a
+#   password. The second occurrence is a copy in tests/fixtures.
+#
+# B108 (hardcoded_tmp_directory): All 54 occurrences are in evidence scripts
+#   and test files that use /tmp paths by design (probe scripts, fixtures).
+#   No production code uses hardcoded tmp paths.
+#
+# B404 (blacklist subprocess import): Tools in this repo intentionally
+#   import subprocess to run CLI commands (git, python, droid). The import
+#   itself is not a vulnerability.
+#
+# B603 (subprocess_without_shell_equals_true): This flags subprocess calls
+#   that do NOT use shell=True — which is actually the safer pattern.
+#   The tools use controlled, non-user-input command arguments.
+#
+# B607 (start_process_with_partial_path): Tools use commands like "python",
+#   "git" without full paths. This is safe in the CI/runner context where
+#   PATH is controlled.
+skips = B101,B105,B108,B404,B603,B607

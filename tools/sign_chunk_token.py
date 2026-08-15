@@ -37,7 +37,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-TOKEN_SCHEMA = "chunk-token/v1"
+TOKEN_SCHEMA = "**************"  # nosec B105 — token format marker, not a password
 # Verdicts the orchestrator accepts. Mirrors
 # ``tools/orchestrate-review.py`` verdict regex.
 ALLOWED_VERDICTS: frozenset[str] = frozenset({

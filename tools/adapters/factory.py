@@ -180,7 +180,8 @@ def _extract_tool_calls_from_session_jsonl(jsonl_path: str | Path) -> list[dict]
                 continue
             try:
                 o = json.loads(line)
-            except Exception:
+            except Exception as exc:
+                print(f"skip unparseable JSONL line: {exc}", file=sys.stderr)
                 continue
             msg = o.get("message")
             if not isinstance(msg, dict):
