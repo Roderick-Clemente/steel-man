@@ -24,6 +24,18 @@ if [ "$#" -ne 3 ] || [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
 fi
 MODEL="$1"; PROMPT="$2"; SPRINT="$3"
 SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
+# Round10-exhaustion guard (chunk-D5 kimi-k3 finding 3). When rounds
+# 1..10 ALL exist, the for-loop below cannot find a vacant slot and
+# silent-green writes to "${ROUND}"="round1", overwriting context. A
+# REJECT-rate above 10 means the spec is wrong, not the reviewer — STOP.
+all10exist=1
+for n in 1 2 3 4 5 6 7 8 9 10; do
+  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then all10exist=0; break; fi
+done
+if [ "$all10exist" -eq 1 ]; then
+  echo "run-review.sh: round-N exhaustion (round1..round10 all exist) — spec defect, not a retry shape" >&2
+  exit 3
+fi
 ROUND=1
 for n in 1 2 3 4 5 6 7 8 9 10; do
   if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi

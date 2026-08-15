@@ -14,7 +14,7 @@ no two-family gate.
 
 ## 1. Problem statement (§13)
 
-Two `evidence/phase-4.5/build-evidence/` cleanup items remain after
+Two `evidence/reviews/` cleanup items remain after
 `chunk-D3-1`'s merge. One was *explicitly deferred* by
 `planning/evidence-hygiene/ARCHIVE-INDEX.md` (the 13 entries D2-1's
 inventory still asserts as flat paths); the other was *uncovered by
@@ -57,8 +57,8 @@ LEDGER/tests/tools-only rule." This chunk takes the inventory-update
 route — explicit, idempotent, and surface-minimal.
 
 `git mv` every file under each of the 13 entries from
-`evidence/phase-4.5/build-evidence/<entry>/...` to
-`evidence/phase-4.5/build-evidence/archive/<entry>/...`:
+`evidence/reviews/<entry>/...` to
+`evidence/reviews/archive/<entry>/...`:
 
 | entry | files |
 |---|---|
@@ -78,17 +78,17 @@ route — explicit, idempotent, and surface-minimal.
 
 Total: 20 file moves (~1.24 MB / 1,244,990 bytes per the D2 inventory).
 By-file SHA-256: byte-identical to the D2 inventory's recorded
-values. After move the `evidence/phase-4.5/build-evidence/archive/`
+values. After move the `evidence/reviews/archive/`
 directory contains **27 entries** (14 from chunk-D3-1 + 13 from this
 chunk).
 
 ### 2.3 D2 inventory destination-field update
 
-`evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`
+`evidence/reviews/d2-1-builder/pre-move-sha256.json`
 gets a destinations-only update: every one of the 13 (now 20)
 inventory rows has its `destination` field rewritten from
-`evidence/phase-4.5/build-evidence/<entry>/<file>` to
-`evidence/phase-4.5/build-evidence/archive/<entry>/<file>`. **No
+`evidence/reviews/<entry>/<file>` to
+`evidence/reviews/archive/<entry>/<file>`. **No
 other field changes**: `source`, `source_file_count` (34),
 `source_bytes` (1,410,544), per-row `bytes`, per-row `sha256`, and
 the `canonical_d1_tree` and `tokens` arrays are all byte-identical.
@@ -114,7 +114,7 @@ The non-editable citations (in `droid-wiki/overview/{architecture,
 by-the-numbers,index,...}.md`, `README.md`,
 `planning/layout-refactor/{CHUNK-3-SPEC.md,PLAN.md}`,
 `tools/wiki-link-audit.py`, build-evidence under
-`evidence/phase-4.5/build-evidence/r-chunk3-code-20260814-1228/code/build.diff`)
+`evidence/reviews/chunk3-code/code/build.diff`)
 are *historical* and become `PATH-REDIRECTS.md` rows, not editable
 code, per D1 §3 hard fence.
 
@@ -127,7 +127,7 @@ Append one row to the prefix table:
 ```
 
 (The 13 archive entries' move is *intra-tree* under the same
-`evidence/phase-4.5/build-evidence/` prefix, so `PATH-REDIRECTS.md`
+`evidence/reviews/` prefix, so `PATH-REDIRECTS.md`
 does not need a row for it — the D2 inventory is the redirect for
 those 20 files.)
 
@@ -139,7 +139,7 @@ note explaining the deferred→archived transition: the rule chosen
 (inventory-update, not rule re-scope), one sentence on why inventory
 update is preferred (the inventory was always meant to assert current
 disk-state, not be a permanent map to the immediate-post-D2 paths),
-and a pointer at `evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`
+and a pointer at `evidence/reviews/d2-1-builder/pre-move-sha256.json`
 as the load-bearing artifact.
 
 The "Notes" section's last bullet (*"A few planning documents cite
@@ -160,7 +160,7 @@ need test coverage because the audit primitives are
 The chunk is complete only when **all** of these hold, measured on
 disk and in git:
 
-1. Top-level `pilots/` is gone; `evidence/phase-4.5/build-evidence/<entry>/`
+1. Top-level `pilots/` is gone; `evidence/reviews/<entry>/`
    has zero hits for the 13 deferred `<entry>` names; the archive
    contains 27 entries.
 2. `python3 -m pytest -q` reports `241 passed, 3 skipped, 0 failed`
@@ -174,7 +174,7 @@ disk and in git:
    is green.
 5. `git diff --find-renames --summary` shows **only** the planned moves:
    4 from `pilots/ → planning/pilots/`, 20 from
-   `evidence/phase-4.5/build-evidence/ → evidence/phase-4.5/build-evidence/archive/`,
+   `evidence/reviews/ → evidence/reviews/archive/`,
    plus four non-move edits: `ARCHIVE-INDEX.md`,
    `PATH-REDIRECTS.md` (+1 row), the D2 inventory
    `pre-move-sha256.json` (destination fields only), and the
@@ -241,6 +241,6 @@ the operator reviews and merges.
 
 If the reviewer is REJECT, the executor stops, audits the reviewer's
 findings, files `F-*`/`G-*` rows in
-`evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-<ts>/SUMMARY.md`
+`evidence/reviews/r-chunk-d4-1-review-<ts>/SUMMARY.md`
 identical in shape to chunk-D3-1's, and re-fires. After at most two
 reviewer rounds, BLOCKED is filed and the operator decides.

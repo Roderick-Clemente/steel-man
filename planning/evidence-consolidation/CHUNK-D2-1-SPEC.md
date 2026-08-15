@@ -43,13 +43,13 @@ any evidence byte.
 All source files under `build-evidence/` are moved with `git mv`:
 
 - 28 files move to the same relative path below
-  `evidence/phase-4.5/build-evidence/`.
+  `evidence/reviews/`.
 - The 6 files under `build-evidence/r-drs-role-split-1/` move to
-  `evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/`.
+  `evidence/reviews/legacy-duplicates/r-drs-role-split-1/`.
   This quarantine avoids overwriting the canonical D1 run tree, whose raw
   captures are under its `envelopes/` directory.
 - No file under the canonical
-  `evidence/phase-4.5/build-evidence/r-drs-role-split-1/` tree is moved or
+  `evidence/reviews/drs-role-split-1/` tree is moved or
   edited.
 - No file under `evidence/phase-4.5/tokens/` is created or modified.
 

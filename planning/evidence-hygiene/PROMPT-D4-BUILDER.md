@@ -23,11 +23,11 @@ Two mechanical, fenced relocations:
    new path.
 
 2. **Deferred 13 entries** — every file under each of 13 entries in
-   `evidence/phase-4.5/build-evidence/<entry>/...` (20 files, ~1.24 MB
+   `evidence/reviews/<entry>/...` (20 files, ~1.24 MB
    / 1,244,990 bytes per the D2 inventory) →
-   `evidence/phase-4.5/build-evidence/archive/<entry>/...`. The D2
+   `evidence/reviews/archive/<entry>/...`. The D2
    inventory at
-   `evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`
+   `evidence/reviews/d2-1-builder/pre-move-sha256.json`
    gets a destinations-only update.
 
 Both moves are pure renames. You do not edit any evidence byte.
@@ -59,11 +59,11 @@ operator decides at that point.
 
 ### 1. Verify the inventory surface
 
-`python3 -c "import json; inv=json.load(open('evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json')); print('relocated:', len(inv['relocated'])); print('totals:', inv['source_file_count'], inv['source_bytes'])"`
+`python3 -c "import json; inv=json.load(open('evidence/reviews/d2-1-builder/pre-move-sha256.json')); print('relocated:', len(inv['relocated'])); print('totals:', inv['source_file_count'], inv['source_bytes'])"`
 
 Expected: `relocated: 34`, `totals: 34 1410544`. If different, STOP
 and report. The 20 rows you'll touch are those whose
-`destination` starts with `evidence/phase-4.5/build-evidence/`
+`destination` starts with `evidence/reviews/`
 and whose `<entry>/<file>` path appears in the §2.2 table of CHUNK-D4-SPEC.
 
 `for f in $(<list of 20 file paths>); do test -f "$f" || { echo "missing: $f"; exit 1; }; done`
@@ -73,7 +73,7 @@ and whose `<entry>/<file>` path appears in the §2.2 table of CHUNK-D4-SPEC.
 ```
 python3 - <<'EOF' > /tmp/d4-pre-sha256.txt
 import hashlib, json, io
-inv = json.load(open('evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json'))
+inv = json.load(open('evidence/reviews/d2-1-builder/pre-move-sha256.json'))
 for r in inv['relocated']:  # all 34; matches the inventory
     p = r['destination']
     with open(p, 'rb') as fh:
@@ -81,7 +81,7 @@ for r in inv['relocated']:  # all 34; matches the inventory
     print(f"{sha}  {p}  expected={r['sha256']}")
 EOF
 diff <(awk '{print $1, $2}' /tmp/d4-pre-sha256.txt | sort) \
-     <(python3 -c "import json; inv=json.load(open('evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json')); [print(r['sha256'], r['destination']) for r in inv['relocated']]" | sort) \
+     <(python3 -c "import json; inv=json.load(open('evidence/reviews/d2-1-builder/pre-move-sha256.json')); [print(r['sha256'], r['destination']) for r in inv['relocated']]" | sort) \
 && echo PRE-MOVE-SHA-MATCH
 ```
 
@@ -93,10 +93,10 @@ be. That's a defect outside this chunk's scope.
 python3 - <<'EOF' > /tmp/d4-pre-sha256-deferred.txt
 # Same shape, restricted to the 20 rows we'll move
 import hashlib, json
-inv = json.load(open('evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json'))
+inv = json.load(open('evidence/reviews/d2-1-builder/pre-move-sha256.json'))
 DEFERRED = {"r-drs-role-split-2","review-convention-gemini-stderr.log","review-convention-gemini.json","review-convention-grok-stderr.log","review-convention-grok.json","review-gemini-round2.json","review-gemini-stderr.log","review-gemini.json","review-grok-round2.json","review-grok-round3.json","review-grok.json","rung3-droid-exec-stderr.txt","rung3-extract-tool-calls.sh"}
 for r in inv['relocated']:
-    if r['destination'].split('evidence/phase-4.5/build-evidence/')[1].split('/')[0] in DEFERRED:
+    if r['destination'].split('evidence/reviews/')[1].split('/')[0] in DEFERRED:
         with open(r['destination'],'rb') as fh:
             sha = hashlib.sha256(fh.read()).hexdigest()
         print(f"{sha}  {r['destination']}")
@@ -106,7 +106,7 @@ wc -l /tmp/d4-pre-sha256-deferred.txt  # expected 20
 ```
 
 Keep `/tmp/d4-pre-sha256-deferred.txt` to the chunk's build-evidence
-bundle (`evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-<ts>/`).
+bundle (`evidence/reviews/r-chunk-d4-1-builder-<ts>/`).
 
 ### 3. Run the chunk-D3-1 exclusion scan (no exclusions changed)
 
@@ -118,7 +118,7 @@ two `phase-4.5/build-evidence/<entry>` forms.
 For each of the 13 entry names, run:
 ```
 for e in r-drs-role-split-2 review-convention-gemini-stderr.log review-convention-gemini.json review-convention-grok-stderr.log review-convention-grok.json review-gemini-round2.json review-gemini-stderr.log review-gemini.json review-grok-round2.json review-grok-round3.json review-grok.json rung3-droid-exec-stderr.txt rung3-extract-tool-calls.sh; do
-  grep -rl -- "$e\|phase-4.5/build-evidence/$e\|evidence/phase-4.5/build-evidence/$e" evidence/LEDGER.md tests/ tools/ 2>/dev/null
+  grep -rl -- "$e\|phase-4.5/build-evidence/$e\|evidence/reviews/$e" evidence/LEDGER.md tests/ tools/ 2>/dev/null
 done | sort -u
 ```
 
@@ -179,11 +179,11 @@ ls "$ARCHIVE/archive/" | wc -l   # expected 27 (14 + 13)
 ```
 python3 - <<'EOF'
 import json, sys
-INV = "evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json"
+INV = "evidence/reviews/d2-1-builder/pre-move-sha256.json"
 inv = json.load(open(INV))
 for r in inv["relocated"]:
     d = r["destination"]
-    PREFIX = "evidence/phase-4.5/build-evidence/"
+    PREFIX = "evidence/reviews/"
     if d.startswith(PREFIX):
         rest = d[len(PREFIX):]
         # only rewrite for the 13 deferred entries
@@ -203,7 +203,7 @@ EOF
 ```
 
 The 20 rows for the 13 deferred entries now point to
-`evidence/phase-4.5/build-evidence/archive/<entry>/<file>`. The 14
+`evidence/reviews/archive/<entry>/<file>`. The 14
 rows for the other entries are unchanged. `source_file_count`,
 `source_bytes`, every `source`, every `bytes`, every `sha256`, the
 `canonical_d1_tree` array, and the `tokens` array are all
@@ -263,7 +263,7 @@ git diff --find-renames --numstat HEAD~1 HEAD
 # Verify SHA-256 byte-identity for the 20 archive files:
 python3 - <<'EOF'
 import hashlib, json
-inv = json.load(open('evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json'))
+inv = json.load(open('evidence/reviews/d2-1-builder/pre-move-sha256.json'))
 mismatches = 0
 for r in inv["relocated"]:
     p = r["destination"]
@@ -277,9 +277,9 @@ EOF
 
 # Verify git log --follow reaches immediate-post-D2 commit for
 # representatives from each category
-git log --follow evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.stream.json | grep -q 4965f1e && echo OK-1
-git log --follow evidence/phase-4.5/build-evidence/archive/review-convention-gemini.json | grep -q 4965f1e && echo OK-2
-git log --follow evidence/phase-4.5/build-evidence/archive/rung3-extract-tool-calls.sh | grep -q 4965f1e && echo OK-3
+git log --follow evidence/reviews/archive/drs-role-split-2/gemini-2.5-pro.stream.json | grep -q 4965f1e && echo OK-1
+git log --follow evidence/reviews/archive/review-convention-gemini.json | grep -q 4965f1e && echo OK-2
+git log --follow evidence/reviews/archive/rung3-extract-tool-calls.sh | grep -q 4965f1e && echo OK-3
 # expected: OK-1 OK-2 OK-3 all print
 ```
 
@@ -288,18 +288,18 @@ Capture every command and its output in the build-evidence bundle.
 ### 10. Build-evidence bundle
 
 ```
-mkdir -p evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)
+mkdir -p evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)
 # Move the snapshotted files into the bundle
-mv /tmp/d4-pre-sha256.txt       evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pre-move-sha256-all-34.txt
-mv /tmp/d4-pre-sha256-deferred.txt   evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pre-move-sha256-deferred-20.txt
+mv /tmp/d4-pre-sha256.txt       evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pre-move-sha256-all-34.txt
+mv /tmp/d4-pre-sha256-deferred.txt   evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pre-move-sha256-deferred-20.txt
 # Save this prompt and the spec; save executor + verifier envelopes when they fire
-cp PROMPT-D4-BUILDER.md        evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/PROMPT-D4-BUILDER.md
-cp CHUNK-D4-SPEC.md            evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/CHUNK-D4-SPEC.md
+cp PROMPT-D4-BUILDER.md        evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/PROMPT-D4-BUILDER.md
+cp CHUNK-D4-SPEC.md            evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/CHUNK-D4-SPEC.md
 # Run the §9 verifies and capture outputs:
-python3 -m pytest -q    > evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pytest.txt 2>&1
-python3 tools/wiki-link-audit.py > evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/wiki-link-audit.txt 2>&1
-python3 tools/plan-lint.py planning/evidence-hygiene/CHUNK-D4-SPEC.md > evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/plan-lint.txt 2>&1
-git diff --find-renames --numstat HEAD~1 HEAD   > evidence/phase-4.5/build-evidence/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/diff-numstat.txt 2>&1
+python3 -m pytest -q    > evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/pytest.txt 2>&1
+python3 tools/wiki-link-audit.py > evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/wiki-link-audit.txt 2>&1
+python3 tools/plan-lint.py planning/evidence-hygiene/CHUNK-D4-SPEC.md > evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/plan-lint.txt 2>&1
+git diff --find-renames --numstat HEAD~1 HEAD   > evidence/reviews/r-chunk-d4-1-builder-$(date +%Y%m%d-%H%M)/diff-numstat.txt 2>&1
 ```
 
 The bundle must exist BEFORE commit. The verifier (§11) inspects
@@ -311,19 +311,19 @@ After the moves and content edits, fire the dossier's verifier via
 the project standard:
 
 ```
-$EDITOR evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M)/PROMPT-REVIEWER-D4.md
+$EDITOR evidence/reviews/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M)/PROMPT-REVIEWER-D4.md
 # Write a reviewer prompt that asks for the same checks chunk-D3-1's
 # verifier used (kimi-k3 + minimax-m3 cross-family OR single-reviewer
 # dossier §5 form), with diff --summary + numstat + SHA-recompute +
 # pytest result as scope.
 
 bash tools/run-with-model.sh droid exec --model <reviewer-id> \
-  --workspace evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M) \
+  --workspace evidence/reviews/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M) \
   --prompt-file PROMPT-REVIEWER-D4.md
 ```
 
 Capture the model envelope JSON. Save it under
-`evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M)/<model>.json`.
+`evidence/reviews/r-chunk-d4-1-review-$(date +%Y%m%d-%H%M)/<model>.json`.
 
 ### 12. Commit
 
@@ -336,10 +336,10 @@ chunk-D4-1: archive deferred 13 entries + relocate pilots/ → planning/
 Body:
 
 ```
-* 20 evidence bytes archived under evidence/phase-4.5/build-evidence/archive/
+* 20 evidence bytes archived under evidence/reviews/archive/
   (14 already-archived entries from chunk-D3-1 + 13 entries just archived).
   By-file SHA-256 byte-identical to D2 inventory record
-  (evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json).
+  (evidence/reviews/d2-1-builder/pre-move-sha256.json).
   D2 inventory: 20 destination fields updated, all other fields
   unchanged (source, source_file_count=34, source_bytes=1410544,
   per-row sha256, canonical_d1_tree, tokens).
@@ -387,6 +387,6 @@ your earlier ask.
   reviewer argues the name should move, that is a separate operator
   decision; the executor does not rename the dossier in this chunk.
 - Do not remove any untracked file. `r-f10/` residue at
-  `evidence/phase-4.5/build-evidence/r-f10/` is out of scope; the
+  `evidence/reviews/r-f10/` is out of scope; the
   move-then-restore step is not in this chunk.
 - Do not push to `main`. One push to `dev`, no force-push.

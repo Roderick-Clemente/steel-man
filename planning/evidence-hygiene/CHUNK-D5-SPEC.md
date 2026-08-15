@@ -6,8 +6,8 @@ merge commit `fdfbbc2` on `origin/main`; the chunk's own commit is
 `0663444` on `origin/factory/d4-final-cleanup`, retrievable via
 `git show 0663444`). Chunk-D4-1 spec at
 `planning/evidence-hygiene/CHUNK-D4-SPEC.md`; review verdict at
-`evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-20260815-1423/SUMMARY.md`
-(retrievable at `git show 0663444:evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-20260815-1423/SUMMARY.md`).
+`evidence/reviews/chunk-d4-1-review/SUMMARY.md`
+(retrievable at `git show 0663444:evidence/reviews/chunk-d4-1-review/SUMMARY.md`).
 
 **Branch:** `factory/d5-tooling-docs`
 **Chunk ID:** `chunk-D5-1` (initial) → `chunk-D5-1b` (this follow-on)
@@ -32,7 +32,7 @@ via their commits:
 ## 1. Problem statement (§13)
 
 `chunk-D3-1` and `chunk-D4-1` write review bundles at
-`evidence/phase-4.5/build-evidence/r-chunk-d3-1-review-20260814-2152/`
+`evidence/reviews/chunk-d3-1-review/`
 and `…/r-chunk-d4-1-review-20260815-1423/`. Both bundles share the
 shape `round{N}/review-{model}-envelope.json` + `SUMMARY.md`. Their
 SUMMARY.md files cite "per `planning/evidence-hygiene/PLAN.md §5`"
@@ -64,13 +64,13 @@ across the repo.
 
 ### 2.1 `tools/conventions/review-bundle.md` — NEW FILE (~55 LOC)
 
-Canonical convention for `evidence/phase-4.5/build-evidence/r-chunk-N-review-<ts>/`
+Canonical convention for `evidence/reviews/r-chunk-N-review-<ts>/`
 directories. Plagiarism is fine — the **exemplars** cited here are
 the canonical artifacts whose bytes this chunk's doc formalises:
 
-- `evidence/phase-4.5/build-evidence/r-chunk-d3-1-review-20260814-2152/SUMMARY.md`
+- `evidence/reviews/chunk-d3-1-review/SUMMARY.md`
   — judgment-call precedent (2-round: REJECT → ACCEPT-WITH-NITS).
-- `evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-20260815-1423/SUMMARY.md`
+- `evidence/reviews/chunk-d4-1-review/SUMMARY.md`
   — audit-script-only precedent (single round, dual cross-family
   ACCEPT-WITH-NITS).
 
@@ -120,7 +120,11 @@ during the inner invocation continues to come from
 **Output directory derivation (chunk-D5-1b):**
 
 ```
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Tool's actual derivation uses ${BASH_SOURCE[0]} via `dirname` —
+# more robust across non-git checkouts than `git rev-parse` and
+# avoids a git-binary dependency for the wrapper. Spec text
+# mirrors the code's semantics (chunk-D5 kimi-k3 finding 4):
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
 ROUND=1
 for n in 1 2 3 4 5 6 7 8 9 10; do
@@ -194,11 +198,11 @@ The chunk is complete only when **all** hold, measured on disk and
 in git:
 
 1. `tools/conventions/review-bundle.md` exists, and §1 splits into
-   "1.Historical (frozen)" — the existing `evidence/phase-4.5/build-evidence/`
+   "1.Historical (frozen)" — the existing `evidence/reviews/`
    paths including the two canonical exemplars — and "1.Current
    (sprint-keyed)" — the canonical
    `${REPO_ROOT}/evidence/reviews/<sprint-name>/round{N}/` shape
-   for new chunks. §5 ("Exemplars") is unchanged and points at the
+   for new chunks. §6 ("Exemplars") is unchanged and points at the
    historical paths as canonical-format references. Both legacy
    citations `r-chunk-d3-1-review-20260814-2152` and
    `r-chunk-d4-1-review-20260815-1423` remain ≥ 2 hits each
@@ -287,7 +291,7 @@ ACCEPT-class verdict).
   and explicitly out of scope per the user's prompt.
 - Do not push to `main`. One push to `dev` per chunk.
 - **Do not move, rename, restructure, or modify committed
-  evidence bytes under `evidence/phase-4.5/build-evidence/...`.**
+  evidence bytes under `evidence/reviews/...`.**
   chunk-D5-1b introduces a sprint-keyed canonical root
   (`evidence/reviews/<sprint>/round{N}/`) for **new** bundles; the
   existing historical artifacts under `phase-4.5/build-evidence/`
@@ -318,7 +322,7 @@ build commit, returns ACCEPT-WITH-NITS or REJECT per
 `tools/conventions/review-bundle.md` (this chunk) shape.
 Per dossier §5 lighter-gating rule: operator reviews,
 signs-or-skips, and merges. The build-evidence bundle lives at
-`evidence/phase-4.5/build-evidence/r-chunk-d5-1-review-<ts>/`
+`evidence/reviews/r-chunk-d5-1-review-<ts>/`
 with `round1/review-kimi-k3-envelope.json` + `SUMMARY.md`. If
 REJECT, executor re-fires at most once after bounded correction
 (file-shape nitfix); after the second REJECT, BLOCKED.

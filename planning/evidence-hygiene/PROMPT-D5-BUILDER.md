@@ -78,7 +78,7 @@ zero non-spec/prose files.
 cat > tools/conventions/review-bundle.md <<'BUNDLE_EOF'
 # tools/conventions/review-bundle.md
 
-Canonical bundle shape for `evidence/phase-4.5/build-evidence/r-chunk-N-review-<ts>/`
+Canonical bundle shape for `evidence/reviews/r-chunk-N-review-<ts>/`
 directories. Future chunks' verdicts and a future `wiki-link-audit`
 reader expect this layout. The two canonical **exemplars** cited
 below are the artefacts this document formalises; plagiarism of
@@ -150,7 +150,7 @@ Sanity-check the written content:
 ```
 wc -l tools/conventions/review-bundle.md  # expect ≤65
 grep -cE 'r-chunk-d3-1-review-20260814-2152|r-chunk-d4-1-review-20260815-1423' tools/conventions/review-bundle.md
-# expect ≥ 4 (header + heading + exemplar)
+# expect ≥ 2 (≥ 2 floor per CHUNK-D5-SPEC §3 item 1; measured count varies)
 ```
 
 ### 4. Write `tools/run-review.sh`
@@ -354,7 +354,10 @@ grep -E 'audit-script-only|judgment-call|spec-level' planning/evidence-hygiene/P
 grep -E '0663444|58c11d3|42aa9ca' planning/evidence-hygiene/PLAN.md | wc -l                       # expect 3
 
 # §3 item 5/6: pytest + wiki-link-audit + plan-lint
-python3 -m pytest -q                              # expect 241 passed, 3 skipped
+# Capture pytest stdout to a file first; `| tail` drops the
+# `passed/failed` summary line (silent-green shape — chunk-D5
+# kimi-k3 finding 5). Grep the file:
+python3 -m pytest -q > /tmp/pytest.out 2>&1 && grep -E 'passed|failed' /tmp/pytest.out
 python3 tools/wiki-link-audit.py                 # expect clean
 python3 tools/plan-lint.py planning/evidence-hygiene/CHUNK-D5-SPEC.md   # expect PASS
 ```
@@ -364,8 +367,8 @@ If any check fails, STOP per spec §3.
 ### 8. Build-evidence bundle
 
 ```
-mkdir -p evidence/phase-4.5/build-evidence/r-chunk-d5-1-builder-$(date +%Y%m%d-%H%M)
-BUNDLE="evidence/phase-4.5/build-evidence/r-chunk-d5-1-builder-$(date +%Y%m%d-%H%M)"
+mkdir -p evidence/reviews/r-chunk-d5-1-builder-$(date +%Y%m%d-%H%M)
+BUNDLE="evidence/reviews/r-chunk-d5-1-builder-$(date +%Y%m%d-%H%M)"
 cp planning/evidence-hygiene/CHUNK-D5-SPEC.md      "$BUNDLE/CHUNK-D5-SPEC.md"
 cp planning/evidence-hygiene/PROMPT-D5-BUILDER.md  "$BUNDLE/PROMPT-D5-BUILDER.md"
 python3 -m pytest -q                              > "$BUNDLE/pytest.txt"                  2>&1
@@ -475,7 +478,7 @@ git status   # confirm only those 4 + the 2 spec/prose files + the bundle (which
 git commit -m "chunk-D5-1: codify review-bundle convention + run-review.sh wrapper
 
 * tools/conventions/review-bundle.md — canonical convention for
-  evidence/phase-4.5/build-evidence/r-chunk-N-review-<ts>/ bundles.
+  evidence/reviews/r-chunk-N-review-<ts>/ bundles.
   Direct citations of r-chunk-d3-1-review-20260814-2152 and
   r-chunk-d4-1-review-20260815-1423 as exemplars.
 
@@ -496,7 +499,7 @@ git commit -m "chunk-D5-1: codify review-bundle convention + run-review.sh wrapp
   precedents (0663444 / 58c11d3 / 42aa9ca).
 
 * Total non-blank LOC across four surfaces — see
-  evidence/phase-4.5/build-evidence/r-chunk-d5-1-builder-$TS/loc-cap.txt.
+  evidence/reviews/r-chunk-d5-1-builder-$TS/loc-cap.txt.
 
 Model: <your-modelId> (providerLock: <provider>, apiProviderLock: <provider>)
 Role: executor
@@ -527,6 +530,6 @@ git push -u origin factory/d5-tooling-docs
   would breach, tighten doc-text or split into chunk-D5-1 + chunk-D5-2
   (operator decides; executor does not silently resize).
 - Do not fix the trailing-newline nit on
-  `evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`
+  `evidence/reviews/d2-1-builder/pre-move-sha256.json`
   flagged in chunk-D4-1's review. That is cosmetic + out of scope.
 - Do not remove untracked files. `r-f10/` residue remains.

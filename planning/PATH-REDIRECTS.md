@@ -42,7 +42,7 @@ Carried from `planning/layout-refactor/PLAN.md`:
 The mapping is **segment-preserving**: everything after the matched prefix is
 copied through unchanged, so
 `phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt` →
-`evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt`.
+`evidence/reviews/drs-role-split-1/envelopes/grok-4.5.raw.txt`.
 
 ## Prefix table — 45 rows (44 from `ee90061`, 1 added by chunk-D4-1)
 
@@ -85,7 +85,7 @@ files moved under that prefix.
 | `phase-3/reviews/` → `evidence/phase-3/reviews/` | 1 |
 | `phase-4.5/` → `planning/phase-4.5/` | 19 |
 | `phase-4.5/adversarial_review/` → `planning/phase-4.5/adversarial_review/` | 11 |
-| `phase-4.5/build-evidence/` → `evidence/phase-4.5/build-evidence/` | 158 |
+| `phase-4.5/build-evidence/` → `evidence/reviews/` | 158 |
 | `phase-4.5/prompts/` → `planning/phase-4.5/prompts/` | 3 |
 | `phase-4.5/tokens/` → `evidence/phase-4.5/tokens/` | 5 |
 | `phase-4/` → `evidence/phase-4/` | 4 |
@@ -182,7 +182,7 @@ missed sweep. `tests/test_layout_paths_chunk3.py` asserts this list in both
 directions: no unlisted residual, and no listed row that is no longer residual.
 
 Line numbers are exact as of the commit that lands this file. They are
-regenerable — see `evidence/phase-4.5/build-evidence/r-chunk3-nits-20260814/`
+regenerable — see `evidence/reviews/chunk3-nits/`
 — and the judge fails loudly rather than quietly if they rot.
 
 ### `droid-wiki/by-the-numbers.md` — 33 residual tokens

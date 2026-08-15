@@ -721,7 +721,7 @@ runs this check, in order:
    `note` field for the refusal reason.
 5. **Diagnose** zero telemetry rows: `commit_chunk_change` was not
    called — the chunk's inner loop did not reach the close. Inspect
-   `evidence/phase-4.5/build-evidence/<run-id>/<RUN_STATE>.json` for the
+   `evidence/reviews/<run-id>/<RUN_STATE>.json` for the
    last-known step; that step is the failure point. Likely a
    subagent unpinned its `--model` (KN-A-3 first-class step) or the
    family guard refused (KN-A-4 live-path preconditions).

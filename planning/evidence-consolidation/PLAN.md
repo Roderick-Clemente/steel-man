@@ -25,7 +25,7 @@ and 3 matching wiki/planning records.
 The outlier is not one homogeneous run. It contains:
 
 - `r-drs-role-split-1/`: 6 files, 161,262 bytes, with an already-canonical
-  D1 copy represented under `evidence/phase-4.5/build-evidence/r-drs-role-split-1/`
+  D1 copy represented under `evidence/reviews/drs-role-split-1/`
   (the canonical copy stores raw captures under `envelopes/`). The top-level
   copy is burned review evidence, not a second valid attestation.
 - `r-drs-role-split-2/`: 8 files, 1,219,606 bytes, a separate burned stream
@@ -48,14 +48,14 @@ existing phase-4.5 evidence home.**
 
 - Use `git mv` for all 34 source files. No evidence file contents change.
 - Move the 28 non-duplicate files to the corresponding paths below
-  `evidence/phase-4.5/build-evidence/`.
+  `evidence/reviews/`.
 - Move the six `r-drs-role-split-1` files into
-  `evidence/phase-4.5/build-evidence/legacy-duplicates/r-drs-role-split-1/`.
+  `evidence/reviews/legacy-duplicates/r-drs-role-split-1/`.
   This is a location-only quarantine for bytes that duplicate the logical D1
   run record; filenames and contents remain unchanged. Add a living index in
   `planning/evidence-consolidation/` naming the canonical run and the retained
   duplicate paths. The index is not evidence and may explain the relationship.
-- Preserve the existing `evidence/phase-4.5/build-evidence/r-drs-role-split-1/`
+- Preserve the existing `evidence/reviews/drs-role-split-1/`
   canonical tree. Do not merge, overwrite, or normalize its files.
 - Update only living path references required by the move, bounded to the
   D2 plan's explicit reference allowlist and the new consolidation index.
