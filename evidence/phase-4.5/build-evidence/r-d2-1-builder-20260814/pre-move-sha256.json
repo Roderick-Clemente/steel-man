@@ -42,73 +42,73 @@
     },
     {
       "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt",
       "bytes": 28,
       "sha256": "e562580bd5f31e51e671b69e62d2d403289c6b263578df0d17aeadb2e12935cd"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json",
       "bytes": 413124,
       "sha256": "c3ee37bf4c63ce4983e5984ffa8bc947730c8682137be94a720f0f8a0b7c307d"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.stderr.txt",
       "bytes": 28,
       "sha256": "81decfe690f48e9a758ced99e32fb68038c78cd97f039aed25c0c1aa5efa7ed3"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/gemini-2.5-pro.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.stream.json",
       "bytes": 112579,
       "sha256": "17a10436f8c9a23496777746edcfca7feafafa9b408f7410f4ed4bc94bf2432a"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/grok-4.5.noexec.stderr.txt",
       "bytes": 28,
       "sha256": "bcfcb6bf7d0ee85966fc943550f3669005b47f790b30688a5e2dfc68241af2e1"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.noexec.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/grok-4.5.noexec.stream.json",
       "bytes": 500124,
       "sha256": "588440040084d245e7a4c4bdba610548aa9df1d3e7778bd8eb26fa2b9a7e527c"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/grok-4.5.stderr.txt",
       "bytes": 28,
       "sha256": "2453bfd853ce5036d2f407ab25caae053cce6c2289ea37937fbb75853149a5c2"
     },
     {
       "source": "build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
-      "destination": "evidence/phase-4.5/build-evidence/r-drs-role-split-2/grok-4.5.stream.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/grok-4.5.stream.json",
       "bytes": 193667,
       "sha256": "7885eaa92504c8062475f0368f6825f410c1854e79a96f80314c050669d6db9b"
     },
     {
       "source": "build-evidence/review-convention-gemini-stderr.log",
-      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-convention-gemini-stderr.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "source": "build-evidence/review-convention-gemini.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-convention-gemini.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-convention-gemini.json",
       "bytes": 2090,
       "sha256": "47398ceca76eee7a76d8a57f7dac90397429300a884008ad5cc167f64b0d2df4"
     },
     {
       "source": "build-evidence/review-convention-grok-stderr.log",
-      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-convention-grok-stderr.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "source": "build-evidence/review-convention-grok.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-convention-grok.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-convention-grok.json",
       "bytes": 3997,
       "sha256": "a576b53992c092a3f6452b81e9c762cd4b515d4c7cda8073b7fffe984e840d81"
     },
@@ -120,37 +120,37 @@
     },
     {
       "source": "build-evidence/review-gemini-round2.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-gemini-round2.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-gemini-round2.json",
       "bytes": 1714,
       "sha256": "2cbdc526821a5673ef75bd619500238120d9742dd1e0a279c0490ab75e0bcb25"
     },
     {
       "source": "build-evidence/review-gemini-stderr.log",
-      "destination": "evidence/phase-4.5/build-evidence/review-gemini-stderr.log",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-gemini-stderr.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "source": "build-evidence/review-gemini.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-gemini.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-gemini.json",
       "bytes": 2074,
       "sha256": "a0a7e16ddf9df144bf835a0a2ec93855ef9d15fe914f0bc46261a1f1a4a0f313"
     },
     {
       "source": "build-evidence/review-grok-round2.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-grok-round2.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-grok-round2.json",
       "bytes": 3595,
       "sha256": "d0ad4bf12cf79bf9fe389aa3b9e2474c19e78a54c43e69ae6c1668d9025c599a"
     },
     {
       "source": "build-evidence/review-grok-round3.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-grok-round3.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-grok-round3.json",
       "bytes": 3348,
       "sha256": "9eca72043299275a9b1659797e0a7e4e2666586c10e1058883001b78f87a7b7d"
     },
     {
       "source": "build-evidence/review-grok.json",
-      "destination": "evidence/phase-4.5/build-evidence/review-grok.json",
+      "destination": "evidence/phase-4.5/build-evidence/archive/review-grok.json",
       "bytes": 3495,
       "sha256": "3c741f4d7617d5252825497f97bbd7d76b9dd40d8c6bb304e8ca785529c59162"
     },
@@ -162,13 +162,13 @@
     },
     {
       "source": "build-evidence/rung3-droid-exec-stderr.txt",
-      "destination": "evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt",
+      "destination": "evidence/phase-4.5/build-evidence/archive/rung3-droid-exec-stderr.txt",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "source": "build-evidence/rung3-extract-tool-calls.sh",
-      "destination": "evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh",
+      "destination": "evidence/phase-4.5/build-evidence/archive/rung3-extract-tool-calls.sh",
       "bytes": 5071,
       "sha256": "8e01a882a824719168c11eba6c140e1a8afe8462eff5c29d9393721eea5abb3a"
     },

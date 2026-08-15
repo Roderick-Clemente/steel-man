@@ -1,0 +1,28 @@
+3	3	droid-wiki/findings/first-h1-evidence.md
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/gemini-2.5-pro.noexec.stderr.txt
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/gemini-2.5-pro.noexec.stream.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/gemini-2.5-pro.stderr.txt
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/gemini-2.5-pro.stream.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/grok-4.5.noexec.stderr.txt
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/grok-4.5.noexec.stream.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/grok-4.5.stderr.txt
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/r-drs-role-split-2/grok-4.5.stream.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-convention-gemini-stderr.log
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-convention-gemini.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-convention-grok-stderr.log
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-convention-grok.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-gemini-round2.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-gemini-stderr.log
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-gemini.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-grok-round2.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-grok-round3.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/review-grok.json
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/rung3-droid-exec-stderr.txt
+0	0	evidence/phase-4.5/build-evidence/{ => archive}/rung3-extract-tool-calls.sh
+21	21	evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json
+2	1	planning/PATH-REDIRECTS.md
+40	36	planning/evidence-hygiene/ARCHIVE-INDEX.md
+0	0	{pilots => planning/pilots}/ai-discovery/README.md
+0	0	{pilots => planning/pilots}/ai-discovery/validator-outputs/grok-ai-discovery-review.md
+0	0	{pilots => planning/pilots}/ai-discovery/validator-outputs/kimi-nits-and-charset.md
+0	0	{pilots => planning/pilots}/ai-discovery/validator-outputs/sitemap-unit4-validation.md

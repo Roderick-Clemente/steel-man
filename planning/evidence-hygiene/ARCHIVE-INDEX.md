@@ -1,6 +1,7 @@
-# Archive Index — chunk-D3-1
+# Archive Index — chunk-D3-1 + chunk-D4-1
 
-Moved entries under `evidence/phase-4.5/build-evidence/archive/` with original path and reason.
+Moved entries under `evidence/phase-4.5/build-evidence/archive/` with
+original path and reason.
 
 | Original path | Reason |
 |---|---|
@@ -18,48 +19,51 @@ Moved entries under `evidence/phase-4.5/build-evidence/archive/` with original p
 | `evidence/phase-4.5/build-evidence/r-phase45-20260809-171030` | bootstrap probe |
 | `evidence/phase-4.5/build-evidence/r-phase45-20260809-171034` | bootstrap probe |
 | `evidence/phase-4.5/build-evidence/r-phase45-20260809-171041` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/r-drs-role-split-2` | BURNED, multiple stream/stderr shape |
+| `evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-convention-gemini.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-convention-grok.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-gemini-round2.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-gemini-stderr.log` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-gemini.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-grok-round2.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-grok-round3.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/review-grok.json` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt` | bootstrap probe |
+| `evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh` | bootstrap probe |
 
-## Deferred entries (kept flat in this chunk)
-
-The following 13 entries have zero references under the sanctioned three-form
-scan against `evidence/LEDGER.md`, `tests/`, and `tools/`, but they are listed
-in the D2 production inventory (`evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`).
-Moving them would break the D2-1 evidence-consolidation tests, which verify that
-the 34 D2-relocated files remain at their recorded destinations. They are
-therefore deferred to a future chunk that can update the D2 inventory or
-re-scope the move under a LEDGER/tests/tools-only rule.
-
-| Path | D2 inventory references |
-|---|---|
-| `evidence/phase-4.5/build-evidence/r-drs-role-split-2` | 8 files |
-| `evidence/phase-4.5/build-evidence/review-convention-gemini-stderr.log` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-convention-gemini.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-convention-grok-stderr.log` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-convention-grok.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-gemini-round2.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-gemini-stderr.log` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-gemini.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-grok-round2.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-grok-round3.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/review-grok.json` | 1 file |
-| `evidence/phase-4.5/build-evidence/rung3-droid-exec-stderr.txt` | 1 file |
-| `evidence/phase-4.5/build-evidence/rung3-extract-tool-calls.sh` | 1 file |
+Total: 27 entries — 14 from chunk-D3-1 + 13 from chunk-D4-1.
 
 ## Notes
 
-- All 14 archived entries were verified zero-reference under the three
+- All 27 archived entries were verified zero-reference under the three
   sanctioned forms (bare name, `phase-4.5/build-evidence/<entry>`, and
   `evidence/phase-4.5/build-evidence/<entry>`) against `evidence/LEDGER.md`,
   `tests/`, and `tools/` before being moved.
 - `r-chunk1-spec-v2-20260813-2114` was restored rather than archived because
   it rests on a single LEDGER attestation row; that single line still counts
   under the brief's explicit three-form criterion, so it stays flat.
-- The D2 production inventory was used only as a supplemental cross-check for
-  entries that already cleared the LEDGER/tests/tools scan; it did not add any
-  exclusion authority on its own. For the 13 deferred entries, however, the D2
-  inventory is load-bearing (its tests assert the files still exist at their
-  flat paths), so they cannot be archived in this chunk without updating that
-  historical artifact.
+- **Archive rule for the 13 chunk-D4-1 entries.** These cleared the
+  LEDGER/tests/tools scan but were *load-bearing* in the D2 production
+  inventory at
+  `evidence/phase-4.5/build-evidence/r-d2-1-builder-20260814/pre-move-sha256.json`.
+  chunk-D3-1's round-2 review deferred the move so D2-1's tests
+  (`tests/test_evidence_consolidation_d2.py`) would keep passing. chunk-D4-1
+  relaxed this by **destinations-only rewriting** of the inventory: every
+  affected row's `destination` field was updated from
+  `evidence/phase-4.5/build-evidence/<entry>/<file>` to
+  `evidence/phase-4.5/build-evidence/archive/<entry>/<file>`. The other
+  fields (`source`, `source_file_count=34`, `source_bytes=1410544`,
+  per-row `bytes` and `sha256`, `canonical_d1_tree`, `tokens`) are
+  byte-identical to pre-chunk-D4-1 state — the inventory remains the
+  byte-identity contract for the move.
 - A few planning documents cite now-archived paths; those citations are
-  historical and expected to be stale after the move (see `evidence/LEDGER.md`
-  append-only policy).
+  historical (recorded under the pre-archive path) and remain in place
+  per `evidence/LEDGER.md`'s append-only policy. The single chunk-D4-1
+  *living-doc* citation (in `droid-wiki/findings/first-h1-evidence.md`)
+  was edited to the new path; everything else (overview/architecture.md,
+  overview/by-the-numbers.md, README.md, layout-refactor's CHUNK-3-SPEC.md
+  and PLAN.md, `tools/wiki-link-audit.py`'s reads of them) is historical
+  and is now covered in `planning/PATH-REDIRECTS.md` only when the
+  redirect applies, not when the file itself was rewritten.

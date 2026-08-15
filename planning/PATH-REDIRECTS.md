@@ -44,7 +44,7 @@ copied through unchanged, so
 `phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt` →
 `evidence/phase-4.5/build-evidence/r-drs-role-split-1/envelopes/grok-4.5.raw.txt`.
 
-## Prefix table — 44 rows, derived from `ee90061`
+## Prefix table — 45 rows (44 from `ee90061`, 1 added by chunk-D4-1)
 
 Generated from the move commit's own rename records
 (`git show --name-status --find-renames`), not hand-transcribed, and every
@@ -97,6 +97,7 @@ files moved under that prefix.
 | `phase-5/` → `planning/phase-5/` | 3 |
 | `phase-5/prompts/` → `planning/phase-5/prompts/` | 2 |
 | `phase-5/scripts/` → `tools/phase-5-scripts/` | 3 |
+| `pilots/` → `planning/pilots/` | 4 |
 
 ### Prefixes that fan out to more than one root
 

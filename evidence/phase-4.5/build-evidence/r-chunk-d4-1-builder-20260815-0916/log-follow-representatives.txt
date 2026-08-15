@@ -1,0 +1,15 @@
+### evidence/phase-4.5/build-evidence/archive/r-drs-role-split-2/gemini-2.5-pro.stream.json
+1d65e24 chunk-D4-1: archive deferred 13 entries + relocate pilots/ → planning/
+4965f1e D2: consolidate orphaned build evidence (#5)
+8f762df evidence: commit the attested role-split run trees; fix the mis-cited path
+
+### evidence/phase-4.5/build-evidence/archive/review-convention-gemini.json
+1d65e24 chunk-D4-1: archive deferred 13 entries + relocate pilots/ → planning/
+4965f1e D2: consolidate orphaned build evidence (#5)
+cfb1a32 Commit orphaned Phase 1 build-evidence envelopes to main; remove stray plan-review.md
+
+### evidence/phase-4.5/build-evidence/archive/rung3-extract-tool-calls.sh
+1d65e24 chunk-D4-1: archive deferred 13 entries + relocate pilots/ → planning/
+4965f1e D2: consolidate orphaned build evidence (#5)
+cfb1a32 Commit orphaned Phase 1 build-evidence envelopes to main; remove stray plan-review.md
+

@@ -1,6 +1,6 @@
 # First H1 observation — a pilot run
 
-Executor `droid` **0.180.0**; validators Grok and Kimi in fresh sessions; orchestration Claude Opus 4.8. Run 2026-08-03 / 2026-08-04. Evidence in `pilots/ai-discovery/`.
+Executor `droid` **0.180.0**; validators Grok and Kimi in fresh sessions; orchestration Claude Opus 4.8. Run 2026-08-03 / 2026-08-04. Evidence in `planning/pilots/ai-discovery/`.
 
 Every other page in [Findings](./index.md) is scoped to Phase 0, and Phase 0 was explicit about its ceiling: it answered whether the platform **can** enforce the invariants, not whether the method **works**. That second question is the [H1/H2/H3 evaluation](../background/index.md#the-three-hypotheses) in PRD §13, and it belongs to a later phase.
 
@@ -12,7 +12,7 @@ Read it as **signal, not proof.** Four units, one pilot, one operator, one sitti
 
 The pilot target is QuantumBank, a small Flask demo bank already named across `PRD.md`, `README.md`, and the pilot spec in `tools/`. Four bounded units added machine-readable surface to the site — a short AI manifest, an expanded manifest, a `robots.txt`, and a sitemap. Each unit ran plan → implementation of a single reviewable chunk → validation, and ended in a human-reviewed merge to `main` (Unit 1 direct; Units 2–3 via PR #9; Unit 4 via PR #10; merge commits tabulated in the evidence README).
 
-One model planned and orchestrated. Two models from different families, Grok and Kimi, validated. The validators ran in **fresh contexts** and never saw the executor's reasoning, build log, or completion report — the isolation invariant [#2](../method/invariants.md) protects, enforced here by convention rather than a guard, because there is no plugin yet. The Grok review carries an explicit isolation attestation naming the files it did not read; the other two outputs do not attest it in their own text. Captures in `pilots/ai-discovery/validator-outputs/`.
+One model planned and orchestrated. Two models from different families, Grok and Kimi, validated. The validators ran in **fresh contexts** and never saw the executor's reasoning, build log, or completion report — the isolation invariant [#2](../method/invariants.md) protects, enforced here by convention rather than a guard, because there is no plugin yet. The Grok review carries an explicit isolation attestation naming the files it did not read; the other two outputs do not attest it in their own text. Captures in `planning/pilots/ai-discovery/validator-outputs/`.
 
 ## The finding
 
@@ -53,7 +53,7 @@ It is recorded because it is the same class of false-green the method exists to 
 
 ## Related
 
-- `pilots/ai-discovery/` — the primary artifacts this page reads
+- `planning/pilots/ai-discovery/` — the primary artifacts this page reads
 - [Background — the three hypotheses](../background/index.md#the-three-hypotheses) — what H1 predicts and how it is measured
 - [Findings](./index.md) — the Phase 0 conclusions this sits after, not among
 - [Open questions](../background/open-questions.md) — the Phase 0.5 baseline and the confounds this run leaves open
