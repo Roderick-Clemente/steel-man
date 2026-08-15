@@ -266,6 +266,16 @@ when the validator is the actual culprit, or vice versa.
 - `OPERATING-RULES.md` / `wake-loop.md` / `wiki-link-audit.py` —
   pre-existing scaffolding.
 
+## When to use which review tool
+
+This repo has four review-firing surfaces. Pick by chunk tier (`planning/evidence-hygiene/PLAN.md §2`).
+
+**Composition primitives.** `tools/run-with-model.sh` — the refusal layer; every `droid exec` routes through it (`$DROID_MODEL_ID` must be set, `--mission` gated). Use: always, as the inner wrapper. `tools/cross_family_review.py` — the dual-ACCEPT cross-family gate; consumes envelope SHAs + verdicts, refuses at parse. Use: when you need a deterministic gate over reviewer output. `tools/orchestrate-review.py` — the cross-family reviewer pipeline; fires N reviewers across N families and aggregates verdicts into a chunk-close token (composes `tools/sign_chunk_token.py`). Use: spec-level full-panel runs.
+
+**Operator-facing wrapper.** `tools/run-review.sh` — thin composing wrapper around `run-with-model.sh` that adds `review-<model>-envelope.json` + `review-<model>-stderr.log` capture. Use: ad-hoc single-reviewer fires (e.g., audit-script-only chunks).
+
+**When to use which.** Spec-level (taxonomy/dossier edits) → `cross_family_review.py` + `orchestrate-review.py` (full panel). Judgment-call (two defensible answers) → `cross_family_review.py` (2 reviewers cross-family). Audit-script-only (text-and-grep verification) → `run-review.sh` (1 reviewer, no token). Bundle shape per `tools/conventions/review-bundle.md`.
+
 ## Closing note
 
 This page is the audit trail. Each rung's verdict is in the
