@@ -1,28 +1,38 @@
 #!/usr/bin/env bash
-# tools/run-review.sh — fire one reviewer; capture envelope + stderr.
+# tools/run-review.sh — fire one reviewer; steer envelope + stderr
+# to a sprint-keyed canonical directory (NOT cwd, NOT phase-4.5).
 #
-# Thin composing wrapper around tools/run-with-model.sh. Refuses exit 2
-# on missing/empty positional args; does NOT re-check $DROID_MODEL_ID
-# (run-with-model.sh owns that gate — §17.1 single source of truth).
+# Composing wrapper around tools/run-with-model.sh. Refuses:
+#   exit 2 — missing or empty positional args
+#   exit 3 — sprint-keyed canonical dir cannot be created (mkdir -p fail)
 #
-# Self-anchoring: derives the sibling's absolute path from
-# ${BASH_SOURCE[0]} so callers can run this script from any cwd.
-# chunk-D5-1's executor caught this via exit 127 when invoked from
-# inside a build-evidence bundle subdirectory; the fix lands here so
-# off-root invocations resolve the inner `bash tools/run-with-model.sh`
-# call against the wrapper's true location, not caller-cwd.
+# Self-anchored via ${BASH_SOURCE[0]} (chunk-D5-1a) so callers can
+# run this script from any cwd.
 #
-# Usage: DROID_MODEL_ID=<modelId> bash tools/run-review.sh <modelId> <prompt-file>
-# Writes: ./review-<modelId>-envelope.json + ./review-<modelId>-stderr.log
-# Exit:   0 on success; 2 on bad args (mirrors run-with-model.sh exit 2).
+# Usage: DROID_MODEL_ID=<modelId> bash tools/run-review.sh \
+#        <modelId> <prompt-file> <sprint-name>
+# Writes: ${REPO}/evidence/reviews/<sprint-name>/round{N}/\
+#         review-<modelId>-envelope.json + review-<modelId>-stderr.log
+# Exit:   0 on success; 2 on bad args; 3 on mkdir failure.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_WITH_MODEL="${SCRIPT_DIR}/run-with-model.sh"
-if [ "$#" -ne 2 ] || [ -z "$1" ] || [ -z "$2" ]; then
-  echo "run-review.sh: expected 2 non-empty args (<modelId> <prompt-file>)" >&2
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+if [ "$#" -ne 3 ] || [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "run-review.sh: expected 3 non-empty args (<modelId> <prompt-file> <sprint-name>)" >&2
   exit 2
 fi
-MODEL="$1"; PROMPT="$2"
+MODEL="$1"; PROMPT="$2"; SPRINT="$3"
+SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
+ROUND=1
+for n in 1 2 3 4 5 6 7 8 9 10; do
+  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi
+done
+mkdir -p "${SPRINT_DIR}/${ROUND}" || {
+  echo "run-review.sh: could not mkdir '${SPRINT_DIR}/${ROUND}'" >&2
+  exit 3
+}
 DROID_MODEL_ID="$MODEL" bash "$RUN_WITH_MODEL" \
   droid exec --model "$MODEL" -f "$PROMPT" --auto medium --cwd "$PWD" --output-format json \
-    > "review-${MODEL}-envelope.json" 2> "review-${MODEL}-stderr.log"
+    > "${SPRINT_DIR}/${ROUND}/review-${MODEL}-envelope.json" \
+    2> "${SPRINT_DIR}/${ROUND}/review-${MODEL}-stderr.log"

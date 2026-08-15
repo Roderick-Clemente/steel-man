@@ -155,40 +155,72 @@ grep -cE 'r-chunk-d3-1-review-20260814-2152|r-chunk-d4-1-review-20260815-1423' t
 
 ### 4. Write `tools/run-review.sh`
 
+Sprint-keyed output (chunk-D5-1b). The wrapper takes a third
+positional `<sprint-name>`, derives the canonical output directory
+from `${REPO_ROOT}/evidence/reviews/<sprint-name>/round{N}/`, and
+auto-increments `N` from existing `round{N}/` dirs under the sprint
+so REJECT retries land parallel to round1 rather than overwriting.
+
 ```
 cat > tools/run-review.sh <<'WRAPPER_EOF'
 #!/usr/bin/env bash
-# tools/run-review.sh — fire one reviewer; capture envelope + stderr.
+# tools/run-review.sh — fire one reviewer; steer envelope + stderr
+# to a sprint-keyed canonical directory (NOT cwd, NOT phase-4.5).
 #
-# Thin composing wrapper around tools/run-with-model.sh. Refuses
-# exit 2 on missing or empty positional args; does NOT re-check
-# $DROID_MODEL_ID (run-with-model.sh owns that gate; §17.1 rule
-# surface preserved as a single source of truth).
+# Composing wrapper around tools/run-with-model.sh. Refuses:
+#   exit 2 — missing or empty positional args
+#   exit 3 — sprint-keyed canonical dir cannot be created (mkdir -p fail)
 #
-# Usage: DROID_MODEL_ID=<modelId> bash tools/run-review.sh <modelId> <prompt-file>
-# Writes:  ./review-<modelId>-envelope.json + ./review-<modelId>-stderr.log
-# Exit:    0 on success; 2 on bad args (mirrors run-with-model.sh exit 2).
+# Self-anchored via ${BASH_SOURCE[0]} (chunk-D5-1a) so callers can
+# run this script from any cwd.
+#
+# Usage: DROID_MODEL_ID=<modelId> bash tools/run-review.sh \
+#        <modelId> <prompt-file> <sprint-name>
+# Writes: ${REPO}/evidence/reviews/<sprint-name>/round{N}/\
+#         review-<modelId>-envelope.json + review-<modelId>-stderr.log
+# Exit:   0 on success; 2 on bad args; 3 on mkdir failure.
 set -euo pipefail
-if [ "$#" -ne 2 ] || [ -z "$1" ] || [ -z "$2" ]; then
-  echo "run-review.sh: expected 2 non-empty args (<modelId> <prompt-file>)" >&2
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN_WITH_MODEL="${SCRIPT_DIR}/run-with-model.sh"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ "$#" -ne 3 ] || [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "run-review.sh: expected 3 non-empty args (<modelId> <prompt-file> <sprint-name>)" >&2
   exit 2
 fi
-MODEL="$1"; PROMPT="$2"
-DROID_MODEL_ID="$MODEL" bash tools/run-with-model.sh \
+MODEL="$1"; PROMPT="$2"; SPRINT="$3"
+SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
+ROUND=1
+for n in 1 2 3 4 5 6 7 8 9 10; do
+  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi
+done
+mkdir -p "${SPRINT_DIR}/${ROUND}" || {
+  echo "run-review.sh: could not mkdir '${SPRINT_DIR}/${ROUND}'" >&2
+  exit 3
+}
+DROID_MODEL_ID="$MODEL" bash "$RUN_WITH_MODEL" \
   droid exec --model "$MODEL" -f "$PROMPT" --auto medium --cwd "$PWD" --output-format json \
-    > "review-${MODEL}-envelope.json" 2> "review-${MODEL}-stderr.log"
+    > "${SPRINT_DIR}/${ROUND}/review-${MODEL}-envelope.json" \
+    2> "${SPRINT_DIR}/${ROUND}/review-${MODEL}-stderr.log"
 WRAPPER_EOF
 chmod +x tools/run-review.sh
 ```
 
-Sanity-check:
+Sanity-check (all must exit per spec §3 item 2):
 
 ```
 test -x tools/run-review.sh && echo OK-exec
-wc -l tools/run-review.sh  # expect ≤20
-bash tools/run-review.sh                  # → exit 2
-bash tools/run-review.sh "" foo           # → exit 2
-bash tools/run-review.sh kimi-k3 ""       # → exit 2
+wc -l tools/run-review.sh  # expect ~40-50 raw; code-only non-blank ≤ 30
+bash tools/run-review.sh                                # → exit 2
+bash tools/run-review.sh "" foo bar                     # → exit 2
+bash tools/run-review.sh kimi-k3 "" foo                 # → exit 2
+bash tools/run-review.sh kimi-k3 /tmp/somefile ""       # → exit 2
+# Confirm cwd writes are impossible:
+mkdir -p /tmp/d5-cwd-check && cd /tmp/d5-cwd-check
+bash /Users/factory/work/adversarial-sprint-dev/tools/run-review.sh kimi-k3 /tmp/somefile chunk-D5-1b-test
+ls /tmp/d5-cwd-check 2>&1  # expect empty (no review-*.json created in cwd)
+ls /Users/factory/work/adversarial-sprint-dev/evidence/reviews/chunk-D5-1b-test/round1/ 2>&1 \
+  | head -5  # expect review-kimi-k3-envelope.json + review-kimi-k3-stderr.log
+rm -rf /tmp/d5-cwd-check
 ```
 
 ### 5. Append `## When to use which review tool` to `tools/README.md`
@@ -362,25 +394,24 @@ The bundle must exist BEFORE commit (verifier inspects it).
 ### 9. Fire the verifier (single reviewer via `tools/run-review.sh`)
 
 ```
-TS=$(date +%Y%m%d-%H%M)
-REV_DIR="evidence/phase-4.5/build-evidence/r-chunk-d5-1-review-$TS"
-mkdir -p "$REV_DIR/round1"
+SPRINT="r-chunk-d5-1-review-$(date +%Y%m%d-%H%M)"
+# The wrapper auto-creates evidence/reviews/$SPRINT/round{N}/ ; no mkdir needed.
 
-# Write a verifier prompt that asks for the §3 six checks + the LOC cap.
-cat > "$REV_DIR/round1/verifier-prompt.md" <<'VR_EOF'
+# Write a verifier prompt that asks for the §3 checks + the LOC cap.
+cat > "/tmp/d5-verifier-prompt.md" <<'VR_EOF'
 # Chunk-D5-1 audit-script-only verifier prompt
 
 You are validating chunk-D5-1. Author spec at
 `planning/evidence-hygiene/CHUNK-D5-SPEC.md`; builder prompt at
-`planning/evidence-hygiene/PROMPT-D5-BUILDER.md`. Build bundle at
-`evidence/phase-4.5/build-evidence/r-chunk-d5-1-builder-$TS/`. You are
-firing via `tools/run-review.sh` (this chunk's surface §2.2); cross-
-family distinctness is preserved because your model family must not
-collide with the implementer's family (`OPERATING-RULES §17.2`).
+`planning/evidence-hygiene/PROMPT-D5-BUILDER.md`. Build bundle under
+`evidence/reviews/<sprint>/round1/` (sprint-keyed canonical root).
+You are firing via `tools/run-review.sh` (this chunk's surface §2.2);
+cross-family distinctness is preserved because your model family must
+not collide with the implementer's family (`OPERATING-RULES §17.2`).
 
 Re-derive every §3 floor check from disk state. Capture every
 command + exit code; cite file:line. Use exactly the envelope shape
-in `tools/conventions/review-bundle.md` §2 for your output: a single
+in `tools/conventions/review-bundle.md §2` for your output: a single
 markdown `result` body with sections Header / Round-by-round /
 Findings (TAML) / Verdict. The trailing `VERDICT:` line is the only
 field the operator parses.
@@ -389,15 +420,20 @@ Do NOT hand-paraphrase counts or paths. If a count or path disagrees,
 STOP and report.
 VR_EOF
 
-# Fire via the chunk's own wrapper
-bash tools/run-review.sh kimi-k3 "$REV_DIR/round1/verifier-prompt.md"
-# Capture the envelope (the wrapper wrote it under cwd):
-mv review-kimi-k3-envelope.json "$REV_DIR/round1/review-kimi-k3-envelope.json"
-mv review-kimi-k3-stderr.log    "$REV_DIR/round1/review-kimi-k3-stderr.log"
+# Fire via the chunk's own wrapper. The 3rd arg <sprint-name> is the
+# canonical bucket; the wrapper auto-derives round1/ under it.
+bash tools/run-review.sh kimi-k3 /tmp/d5-verifier-prompt.md "$SPRINT"
+# Wrapper wrote envelope + stderr-log directly into
+# evidence/reviews/<sprint>/round1/ — no `mv` needed.
 ```
 
 If envelope `/stderr.log` is non-empty, capture it inline in SUMMARY
-process notes per `tools/conventions/review-bundle.md §4`.
+process notes per `tools/conventions/review-bundle.md §4`. The
+canonical REVIEW paths are now
+`evidence/reviews/<sprint-name>/round1/review-<model>-envelope.json`
++ `…/review-<model>-stderr.log` + `…/SUMMARY.md` — the legacy
+`phase-4.5/build-evidence/` paths are kept ONLY for the historical
+exemplars cited in `tools/conventions/review-bundle.md §5`.
 
 ### 10. Write `SUMMARY.md` for the bundle
 

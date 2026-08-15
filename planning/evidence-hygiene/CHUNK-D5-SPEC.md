@@ -10,7 +10,7 @@ merge commit `fdfbbc2` on `origin/main`; the chunk's own commit is
 (retrievable at `git show 0663444:evidence/phase-4.5/build-evidence/r-chunk-d4-1-review-20260815-1423/SUMMARY.md`).
 
 **Branch:** `factory/d5-tooling-docs`
-**Chunk ID:** `chunk-D5-1`
+**Chunk ID:** `chunk-D5-1` (initial) → `chunk-D5-1b` (this follow-on)
 **Process:** audit-script-only per `planning/evidence-hygiene/PLAN.md §2`
 (1 reviewer; default `kimi-k3` — operator may swap to `minimax-m3` at
 execution time). No referee token. Same shape as chunk-D4-1 per its
@@ -18,6 +18,16 @@ review SUMMARY ("Per `planning/evidence-hygiene/PLAN.md §5`: lighter
 one-reviewer gating"). Reviewer fires via `tools/run-review.sh` (this
 chunk's surface §2.2); bundle layout per `tools/conventions/review-bundle.md`
 (this chunk's surface §2.1).
+
+**Revision history.** The wrapper's signature has evolved through
+three landed increments; this spec captures the **current** state at
+the chunk-D5-1b evolution. Earlier increments remain retrievable
+via their commits:
+
+- `chunk-D5-1` @ `5848a35` — initial 2-arg wrapper, cwd-output semantics.
+- `chunk-D5-1a` @ `77a316c` — self-anchored via `${BASH_SOURCE[0]}`.
+- `chunk-D5-1b` (this follow-on) — sprint-keyed, round-auto-derived,
+  no cwd writes.
 
 ## 1. Problem statement (§13)
 
@@ -85,33 +95,53 @@ Must cover:
 - **Exemplars table** — both canonical paths with one-line "what
   this exemplar teaches".
 
-### 2.2 `tools/run-review.sh` — NEW EXECUTABLE (~15 LOC)
+### 2.2 `tools/run-review.sh` — NEW EXECUTABLE (~25 LOC code-only)
 
 ```
-DROID_MODEL_ID=<modelId> bash tools/run-review.sh <modelId> <prompt-file>
+DROID_MODEL_ID=<modelId> bash tools/run-review.sh \
+    <modelId> <prompt-file> <sprint-name>
 ```
 
 Compositional wrapper around `tools/run-with-model.sh` that adds
 the `review-<model>-envelope.json` + `review-<model>-stderr.log`
-capture convention. Refuses **exit 2** on (a) `$# != 2`, or (b)
-empty `$1` / `$2`. Does NOT re-check `$DROID_MODEL_ID` — that
-gate is `run-with-model.sh`'s single source of truth and is the
-multi-line §17.1 reminder surface the prompt's wrapping convention
-already chose. `--mission` refusal continues to come from
+capture convention AND enforces a sprint-keyed canonical output
+directory. Refuses:
+
+- **exit 2** — missing/empty positional args (`$#` != 3, or
+  any of `$1`/`$2`/`$3` empty).
+- **exit 3** — sprint-keyed canonical dir cannot be created via
+  `mkdir -p`.
+
+`$DROID_MODEL_ID` is **not** re-checked at this layer — `run-with-model.sh`
+owns that gate (§17.1 single source of truth). `--mission` refusal
+during the inner invocation continues to come from
 `run-with-model.sh` (exit 3 propagate).
 
-Invocation shape (matches the prompt's example wrapper verbatim):
+**Output directory derivation (chunk-D5-1b):**
 
 ```
-DROID_MODEL_ID="$1" bash tools/run-with-model.sh \
-    droid exec --model "$1" -f "$2" --auto medium --cwd "$PWD" --output-format json \
-    > "review-${1}-envelope.json" \
-    2> "review-${1}-stderr.log"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
+ROUND=1
+for n in 1 2 3 4 5 6 7 8 9 10; do
+  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi
+done
+mkdir -p "${SPRINT_DIR}/${ROUND}"
 ```
 
-Side effects: writes `review-<1>-envelope.json` + `review-<1>-stderr.log`
-in the cwd. The latter is **empty on success** — a non-empty log is
-a defect signal captured in the chunk's SUMMARY process notes.
+Side effects: writes `review-<model>-envelope.json` +
+`review-<model>-stderr.log` under
+`${REPO_ROOT}/evidence/reviews/${SPRINT_NAME}/round{N}/`. Never
+the cwd (cwd-scattering was the **nonsense** the previous
+semantics produced). The round number is auto-derived from the
+existing `round{N}/` directories under the sprint — `round1/`
+is the default for a fresh sprint; the second invocation
+(if round1 was REJECT) automatically lands in `round2/`. The
+loop scans up to `round10/` (REJECT-rate higher than that
+suggests the spec itself is wrong, not the reviewers; it
+becomes a STOP per §4 below). The latter (`stderr.log`) is
+**empty on success** — a non-empty log is a defect signal
+captured in the chunk's SUMMARY process notes.
 
 ### 2.3 `tools/README.md` — APPEND NEW SECTION (~25 LOC)
 
@@ -163,40 +193,69 @@ sections, which existed because D2 was multi-chunk in design):
 The chunk is complete only when **all** hold, measured on disk and
 in git:
 
-1. `tools/conventions/review-bundle.md` exists, ≤55 LOC, and
-   contains both canonical artifact citations, character-precise,
-   in §5 ("Exemplars" or equivalent) AND at least once inline in
-   the body prose. `grep -cE 'r-chunk-d3-1-review-20260814-2152'`
-   on the file ≥ 2 (header citation + exemplar listing); same for
-   `r-chunk-d4-1-review-20260815-1423`.
+1. `tools/conventions/review-bundle.md` exists, and §1 splits into
+   "1.Historical (frozen)" — the existing `evidence/phase-4.5/build-evidence/`
+   paths including the two canonical exemplars — and "1.Current
+   (sprint-keyed)" — the canonical
+   `${REPO_ROOT}/evidence/reviews/<sprint-name>/round{N}/` shape
+   for new chunks. §5 ("Exemplars") is unchanged and points at the
+   historical paths as canonical-format references. Both legacy
+   citations `r-chunk-d3-1-review-20260814-2152` and
+   `r-chunk-d4-1-review-20260815-1423` remain ≥ 2 hits each
+   (`grep -cE` ≥ 2) on the file.
+
 2. `tools/run-review.sh` exists, executable bit set
-   (`test -x tools/run-review.sh` returns 0), §2.2 invocation shape
-   matches verbatim, refuses on zero args (`bash tools/run-review.sh`
-   → exit 2; `bash tools/run-review.sh "" foo` → exit 2), and
-   `$DROID_MODEL_ID` is propagated to the inner invocation BUT NOT
-   re-checked at the wrapper layer.
+   (`test -x tools/run-review.sh` returns 0), and the §2.2 (current
+   shape) contract is satisfied:
+   - 3 positional args required (`$#` == 3); refuses exit 2 on
+     fewer args (`bash tools/run-review.sh` → exit 2),
+     refuses exit 2 on any empty arg
+     (`bash tools/run-review.sh "" foo bar` → exit 2,
+     `bash tools/run-review.sh kimi-k3 "" foo` → exit 2,
+     `bash tools/run-review.sh kimi-k3 /tmp/prompt ""` → exit 2),
+     refuses exit 3 on `mkdir -p` failure of the canonical
+     `evidence/reviews/<sprint-name>/round{N}/` directory.
+   - The round-derive loop scans `round1..round10/` and lands in
+     the lowest-numbered vacant dir.
+   - `$DROID_MODEL_ID` is propagated to the inner invocation
+     (`DROID_MODEL_ID="$MODEL" bash "$RUN_WITH_MODEL" …`) BUT NOT
+     re-checked at the wrapper layer (single source of truth at
+     `run-with-model.sh`).
+   - **`cwd` writes are impossible:** every output path goes
+     through `${SPRINT_DIR}/${ROUND}/`; no `${PWD}`-relative
+     paths in the redirect clause. A reviewer fired with
+     `./review-<model>-envelope.json` appearing in the cwd is
+     a contract violation.
+
 3. `tools/README.md` gained the §2.3 section. Every script under
    `tools/` that touches review process is listed
    (`cross_family_review.py`, `orchestrate-review.py`,
    `run-with-model.sh`, `run-review.sh`) with one-line "what it
    does" + one-line "when to use it" each.
+
 4. `planning/evidence-hygiene/PLAN.md` exists, contains §2 with the
    3-tier table **verbatim** (§2's `Tier | Trigger | Reviewers |
    Token | Cost` column headers matching; `audit-script-only` /
    `judgment-call` / `spec-level` rows with the exact trigger
    sentences in the user's prompt), and uses `0663444` / `58c11d3` /
-   `42aa9ca` as the precedent SHAs (or the operator-approved
-   sub-bullet aliases `685e379` / `58c11d3` for chunk-D3-1).
+   `42aa9ca` as the precedent SHAs.
+
 5. `python3 -m pytest -q` reports `241 passed, 3 skipped, 0 failed`
-   (same baseline as chunk-D4-1 @ `0663444`'s close — no test-tree
-   additions).
+   (same baseline as chunk-D4-1 close — no test-tree additions).
+
 6. `python3 tools/wiki-link-audit.py` returns no dead links
    (chunk-D4-1 baseline: zero).
    `python3 tools/plan-lint.py planning/evidence-hygiene/CHUNK-D5-SPEC.md`
    is green.
-7. **Total of all four new surfaces ≤100 LOC.** Hard ceiling — if
-   `wc -l` on the four files (excluding blank lines) exceeds 100,
-   STOP.
+
+7. **Total non-blank LOC cap.** For chunk-D5-1b, the cap is on the
+   two surfaces that changed shape:
+   - `tools/conventions/review-bundle.md` ≤ 55 non-blank
+     (excluding shell comments; markdown tables don't load-count).
+   - `tools/run-review.sh` ≤ 30 code-only non-blank
+     (excluding `#` comment lines).
+   - If either file exceeds its hard ceiling, tighten the prose,
+     not the contract.
 
 One commit, subject line:
 
@@ -227,6 +286,17 @@ ACCEPT-class verdict).
   review (the `pre-move-sha256.json` EOF line). That is cosmetic
   and explicitly out of scope per the user's prompt.
 - Do not push to `main`. One push to `dev` per chunk.
+- **Do not move, rename, restructure, or modify committed
+  evidence bytes under `evidence/phase-4.5/build-evidence/...`.**
+  chunk-D5-1b introduces a sprint-keyed canonical root
+  (`evidence/reviews/<sprint>/round{N}/`) for **new** bundles; the
+  existing historical artifacts under `phase-4.5/build-evidence/`
+  (including the canonical exemplars cited in
+  `tools/conventions/review-bundle.md §5`) are **frozen** at
+  their current paths. Lifting the cleanup to flatten the
+  existing `phase-4.5` tree out of `phase-4.5/` is queued as a
+  separate roadmap item (chunk-D5a or chunk-D6) — explicitly out
+  of scope here.
 - Do not remove any untracked file, edit `evidence/`,
   `telemetry/runs.jsonl`, `evidence/LEDGER.md`, or any
   `evidence/phase-4.5/tokens/*` file.
