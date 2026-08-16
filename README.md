@@ -58,11 +58,16 @@ skills/                    agent-facing skill assets (digest + index + rehydrati
 planning/                  per-phase plans, prompts and run records + the roadmap review
 evidence/                  the build record: probes, envelopes, findings, signed chunk tokens
 tests/                     239 tests over the gates, runner, plan lint, and repo layout
-pilots/                    the method run against external tasks, validator outputs included
+planning/pilots/           the method run against external tasks, validator outputs included
 droid-wiki/                curated wiki: findings, method, probes, how to contribute
 ```
 
 ## Running it
+
+**Requires Python 3.10+.** `pytest>=9.0` does not resolve on stock macOS
+`python3` (3.9.6) and fails with a confusing resolver error rather than a
+version message.
+
 
 The runner is invoked through the per-pilot overlay (`.adversarial-sprint/bin/run-sprint` in a pilot repo), not the framework CLI. `tools/sprint-loop.py --help` is the debugging surface. See [`skills/adversarial-sprint/SKILL.md`](./skills/adversarial-sprint/SKILL.md) for the agent-facing rules digest.
 
