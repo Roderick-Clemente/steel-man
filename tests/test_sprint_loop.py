@@ -2123,7 +2123,32 @@ def test_ki4_parser_no_double_count_from_nested_finding_id_f_d4e5f6():
         f"{[(f.finding_id, f.claim) for f in findings]}"
     )
     assert findings[0].finding_id == "F-aaa111"
-    assert findings[0].claim == "outer"  # nearest-enclosing = outer first
+    # First text occurrence wins after nearest-object resolve; here the
+    # outer finding_id key precedes the child's, so outer is kept.
+    assert findings[0].claim == "outer"
+
+
+def test_ki4_parser_nested_duplicate_child_key_first_keeps_inner_f_c0ffee():
+    """Review finding F-c0ffee: the dedupe policy is first-TEXT-
+    occurrence-wins, not outer-wins. When the child dict is written
+    before the parent's own finding_id key, the child's occurrence
+    resolves first and its row is the one kept. Severity gating is
+    unaffected either way (same id, one row); this pins which claim
+    text reaches the ledger."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"child": {"finding_id": "F-aaa111", "severity": "high",'
+        ' "claim": "inner"},'
+        ' "finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "semantic", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r"}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert len(findings) == 1
+    assert findings[0].finding_id == "F-aaa111"
+    assert findings[0].severity == "high"  # gate input identical
+    assert findings[0].claim == "inner"    # first occurrence in text
 
 
 def test_ki4_parser_distinct_nested_ids_both_survive():
