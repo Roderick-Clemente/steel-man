@@ -338,10 +338,17 @@ def _parse_finding_block(reviewer_label: str, result_text: str,
     literal quoted in an evidence entry) — grok's HIGH F-3a91c2 was
     silently lost this way, letting §5.3 pass vacuously. raw_decode
     is string-aware, so braces inside JSON strings cannot desync it.
+
+    Extraction policy (review finding F-d4e5f6): each "finding_id"
+    occurrence anchors its NEAREST enclosing parseable object, and
+    results dedupe by finding_id string (first occurrence wins). A
+    wrapper object that repeats a child's finding_id therefore cannot
+    double-count severity into the §5.3 ledger.
     """
     findings: list[Finding] = []
     decoder = json.JSONDecoder()
     seen_starts: set[int] = set()
+    seen_ids: set[str] = set()
     for match in _FINDING_ID_RE.finditer(result_text):
         # Walk back through candidate opening braces until one parses
         # as a JSON object that spans this "finding_id" occurrence.
@@ -359,7 +366,12 @@ def _parse_finding_block(reviewer_label: str, result_text: str,
             start = result_text.rfind("{", 0, start)
         if obj is None or start in seen_starts:
             continue
+        fid = obj.get("finding_id")
+        if isinstance(fid, str) and fid in seen_ids:
+            continue
         seen_starts.add(start)
+        if isinstance(fid, str):
+            seen_ids.add(fid)
         f = Finding(
             finding_id=obj.get("finding_id", f"F-unlabeled-{reviewer_label}"),
             severity=(obj.get("severity") or "medium").lower(),

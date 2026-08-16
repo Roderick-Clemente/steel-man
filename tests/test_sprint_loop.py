@@ -2079,3 +2079,77 @@ def test_ki4_parser_survives_unbalanced_braces_inside_strings():
         "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
     got = {(f.finding_id, f.severity) for f in findings}
     assert got == {("F-aaa111", "high"), ("F-bbb222", "low")}
+
+
+def test_ki4_parser_extracts_findings_from_json_array_f_a1b2c3():
+    """Review finding F-a1b2c3: a reviewer that wraps its findings in
+    a `findings: [...]` array must still yield every element — the
+    array wrapper itself carries no finding_id and must not appear."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"findings": ['
+        '{"finding_id": "F-bbb222", "severity": "high",'
+        ' "category": "semantic", "claim": "a", "evidence": [],'
+        ' "recommended_change": "r1"},'
+        '{"finding_id": "F-ccc333", "severity": "low",'
+        ' "category": "nit", "claim": "b", "evidence": [],'
+        ' "recommended_change": "r2"}'
+        ']}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-bbb222", "high"), ("F-ccc333", "low")}
+
+
+def test_ki4_parser_no_double_count_from_nested_finding_id_f_d4e5f6():
+    """Review finding F-d4e5f6: a wrapper object that embeds a child
+    dict repeating the same finding_id must yield exactly ONE ledger
+    row — double-counting a HIGH would distort the §5.3 gate just as
+    dropping one did. Policy: nearest enclosing object per occurrence,
+    dedupe by finding_id, first wins."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "semantic", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r",'
+        ' "child": {"finding_id": "F-aaa111", "severity": "high",'
+        ' "claim": "inner"}}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert len(findings) == 1, (
+        f"F-d4e5f6: nested duplicate double-counted: "
+        f"{[(f.finding_id, f.claim) for f in findings]}"
+    )
+    assert findings[0].finding_id == "F-aaa111"
+    assert findings[0].claim == "outer"  # nearest-enclosing = outer first
+
+
+def test_ki4_parser_distinct_nested_ids_both_survive():
+    """Counterpart to F-d4e5f6: dedupe is by finding_id, so an outer
+    and a nested child with DIFFERENT ids are two real findings — the
+    dedupe must not swallow a distinct nested HIGH."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"finding_id": "F-aaa111", "severity": "low",'
+        ' "category": "nit", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r",'
+        ' "related": {"finding_id": "F-bbb222", "severity": "high",'
+        ' "claim": "inner"}}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-aaa111", "low"), ("F-bbb222", "high")}
+
+
+def test_ki4_parser_prose_finding_id_without_object_yields_nothing_f_a1b2c3():
+    """Review finding F-a1b2c3: a finding_id quoted in prose with no
+    enclosing JSON object must not fabricate a ledger row."""
+    mod = _load_sprint_loop_module()
+    text = ('the reviewer discussed "finding_id": "F-ddd444" in prose '
+            'without emitting any JSON object')
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert findings == []
