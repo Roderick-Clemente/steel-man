@@ -2007,3 +2007,76 @@ def test_overlay_replaces_examples():
         assert not os.path.exists(path), (
             f"G-3: examples/{fn} still exists; should be in templates/overlay/"
         )
+
+
+# ── KI-3 regression: audit commit with evidence outside framework ──────
+
+
+def test_ki3_commit_chunk_skips_commit_when_nothing_staged(monkeypatch, capsys):
+    """KI-3 regression: with evidence_output_dir OUTSIDE framework_root
+    (the supported [H-9] per-pilot overlay pattern) nothing is staged,
+    and the old unconditional `git commit` crashed with "nothing to
+    commit" after the whole loop had already succeeded. The runner must
+    skip the audit commit instead of firing it empty."""
+    mod = _load_sprint_loop_module()
+    from sprint_loop.state import ChunkState, GateDecision
+
+    git_calls: list[tuple] = []
+
+    def fake_git(*args, cwd=None):
+        git_calls.append(args)
+        return ""
+
+    monkeypatch.setattr(mod, "_git", fake_git)
+
+    rs = _make_run_state()
+    rs.dry_run = False
+    rs.output_branch = "factory/sprint-r-test-ki3"  # pre-set: no checkout -b
+    chunk = ChunkState(chunk_id="c1", scope="x",
+                       gate_decision=GateDecision.ACCEPT)
+
+    # evidence dir OUTSIDE _REPO_ROOT — relpath starts with ".."
+    mod.commit_chunk_change(rs, chunk,
+                            evidence_output_dir="/tmp/outside-pilot/evidence",
+                            run_evidence_dir=None)
+
+    committed = [c for c in git_calls if c and c[0] == "commit"]
+    added = [c for c in git_calls if c and c[0] == "add"]
+    assert not committed, (
+        f"KI-3 regression: empty audit commit fired anyway: {committed}"
+    )
+    assert not added, f"nothing should be staged, got: {added}"
+    assert rs.commit_count == 0
+    err = capsys.readouterr().err
+    assert "[H-9]" in err  # operator told the pilot repo owns archival
+    assert "skipping audit commit" in err
+
+
+def test_ki3_commit_chunk_still_commits_when_evidence_inside_root(monkeypatch):
+    """The fix must not over-skip: evidence INSIDE framework_root still
+    stages and commits exactly as before."""
+    mod = _load_sprint_loop_module()
+    from sprint_loop.state import ChunkState, GateDecision
+
+    git_calls: list[tuple] = []
+
+    def fake_git(*args, cwd=None):
+        git_calls.append(args)
+        return ""
+
+    monkeypatch.setattr(mod, "_git", fake_git)
+
+    rs = _make_run_state()
+    rs.dry_run = False
+    rs.output_branch = "factory/sprint-r-test-ki3"
+    chunk = ChunkState(chunk_id="c1", scope="x",
+                       gate_decision=GateDecision.ACCEPT)
+
+    inside = os.path.join(mod._REPO_ROOT, "evidence", "phase-4.5",
+                          "build-evidence", "r-test-ki3")
+    mod.commit_chunk_change(rs, chunk, evidence_output_dir=inside,
+                            run_evidence_dir=None)
+
+    assert any(c and c[0] == "add" for c in git_calls)
+    assert any(c and c[0] == "commit" for c in git_calls)
+    assert rs.commit_count == 1

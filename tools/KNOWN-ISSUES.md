@@ -287,7 +287,7 @@ registry. Narrowed to the valid set; this pilot installs no locked-test guard ho
 
 ## Issue KI-3: Audit commit crashes when evidence_output_dir is outside framework_root
 
-- **Status:** OPEN. Severity: run-blocking for split-repo layouts.
+- **Status:** FIXED 2026-08-16 (`factory/ki3-empty-stage-commit`). Severity: run-blocking for split-repo layouts.
 - **Surface:** `tools/sprint-loop.py` `commit_chunk_change` (the `[H-9]` branch).
 - **Filed:** 2026-08-16.
 
@@ -302,9 +302,12 @@ ACCEPT-WITH-NITS); only this final bookkeeping step crashed.
 Set `evidence_output_dir` outside `framework_root`; run to chunk commit. `_git("commit",
 ...)` raises `RuntimeError: git ('commit', ...) failed:` with empty stderr.
 
-### Fix direction (not applied)
-Either (a) point `evidence_output_dir` inside `framework_root`, or (b) skip the commit
-when `stage_paths` is empty instead of calling `git commit` unconditionally.
+### Fix
+Direction (b): skip the audit commit when `stage_paths` is empty, with a loud stderr
+notice pointing at the `[H-9]` warning. Direction (a) (move the evidence dir inside
+`framework_root`) was rejected — it papers over the crash and breaks the supported
+`[H-9]` per-pilot overlay pattern. Regression tests pin both sides: outside-root skips
+without any `git commit`, inside-root still stages and commits.
 
 ## Issue KI-4: Gate drops a HIGH plan-review finding from its own ledger
 
