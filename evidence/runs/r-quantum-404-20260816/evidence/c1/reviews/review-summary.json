@@ -1,0 +1,36 @@
+{
+  "ts": "2026-08-16T04:32:27Z",
+  "branch": "factory/phase-4.5-loop-runner",
+  "evidence_source": "bundle",
+  "treatment": false,
+  "run_label": "r-phase45-20260815-230258-c1",
+  "validators": [
+    {
+      "label": "grok-4.5",
+      "model": "grok-4.5",
+      "family": "grok-family",
+      "verdict": "ACCEPT-WITH-NITS",
+      "ok": true,
+      "tokens_in": 91906,
+      "tokens_out": 15471,
+      "cache_read": 969856,
+      "thinking": 8220,
+      "retry_count": 0,
+      "stray_writes": null
+    },
+    {
+      "label": "kimi-k3",
+      "model": "kimi-k3",
+      "family": "kimi-family",
+      "verdict": "ACCEPT-WITH-NITS",
+      "ok": true,
+      "tokens_in": 76152,
+      "tokens_out": 23685,
+      "cache_read": 1318424,
+      "thinking": 0,
+      "retry_count": 0,
+      "stray_writes": null
+    }
+  ],
+  "gate": "ACCEPT"
+}

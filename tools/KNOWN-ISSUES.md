@@ -235,3 +235,129 @@ Add new issues under this file with the schema:
 
 and a **Repro / Root cause / Candidate fixes / Why OUT OF SCOPE now**
 block. Do not auto-fix; rung-X+ work needs orchestrator sign-off.
+
+---
+
+# Run r-quantum-404 (2026-08-16) — first live end-to-end sprint-loop run
+
+Five defects surfaced by the first real `sprint-loop.py` run (pilot:
+QuantumBank content-negotiated 404). Evidence: `evidence/runs/r-quantum-404-20260816/`.
+
+## Issue KI-1: Planner per-call 600s timeout when no pilot spec is wired
+
+- **Status:** FIXED (this run). Was: run-blocking.
+- **Surface:** `tools/sprint-loop.py` `run_planner`; `sprint_loop/droid.py` `invoke_droid` 600s per-call cap.
+- **Filed:** 2026-08-16.
+
+### Symptom
+With `pilot_spec_file` unset, the planner prompt carried `(no --pilot-spec-file)` as
+its truth source. Under `--auto medium` with `Execute` on the large framework repo the
+planner explored for context and exceeded the 600s cap; the run aborted with
+`subprocess.TimeoutExpired` before writing `plan.md`.
+
+### Repro
+Run with `config.json` `pilot_spec_file: ""`; the `claude-opus-5` planner call exceeds
+599.99s and raises `TimeoutExpired`.
+
+### Fix
+Wrote an implementation-free `pilot-spec.md` and set `pilot_spec_file`. Planner then
+completed in ~330s. Root cause is the missing spec, not the cap.
+
+## Issue KI-2: Executor tool allowlist names tools absent from droid 0.180
+
+- **Status:** FIXED (commit `34b3272`). Was: run-blocking.
+- **Surface:** `tools/sprint-loop.py` `main()` role assembly (executor + test-designer `enabled_tools`).
+- **Filed:** 2026-08-16.
+
+### Symptom
+`enabled_tools` was `Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute`. droid
+0.180's registry has no `ApplyPatch` or `MultiEdit`; `droid exec` rejected the list with
+`Unknown tool identifier(s)` and wrote a 0-byte envelope, which then cascaded into the
+§17.2 family guard reporting `family='unknown'` post-resolution.
+
+### Repro
+`droid exec --model glm-5.2 --list-tools` — `ApplyPatch`/`MultiEdit` absent;
+`Read,Glob,Grep,LS,Edit,Create,Execute` present. Passing the missing ids reproduces the
+empty envelope.
+
+### Root cause
+The framework hard-codes an editor set (PRD §1054 + a unit test) assuming an older tool
+registry. Narrowed to the valid set; this pilot installs no locked-test guard hook, so
+`Edit,Create,Execute` suffice.
+
+## Issue KI-3: Audit commit crashes when evidence_output_dir is outside framework_root
+
+- **Status:** OPEN. Severity: run-blocking for split-repo layouts.
+- **Surface:** `tools/sprint-loop.py` `commit_chunk_change` (the `[H-9]` branch).
+- **Filed:** 2026-08-16.
+
+### Symptom
+`commit_chunk_change` commits only into `framework_root` and stages the evidence tree.
+With `evidence_output_dir` outside the framework repo (the supported `[H-9]` per-pilot
+overlay pattern) nothing is staged, so `git commit` fails with empty stderr ("nothing to
+commit"). The full loop had already succeeded (executor GREEN, both validators
+ACCEPT-WITH-NITS); only this final bookkeeping step crashed.
+
+### Repro
+Set `evidence_output_dir` outside `framework_root`; run to chunk commit. `_git("commit",
+...)` raises `RuntimeError: git ('commit', ...) failed:` with empty stderr.
+
+### Fix direction (not applied)
+Either (a) point `evidence_output_dir` inside `framework_root`, or (b) skip the commit
+when `stage_paths` is empty instead of calling `git commit` unconditionally.
+
+## Issue KI-4: Gate drops a HIGH plan-review finding from its own ledger
+
+- **Status:** OPEN. Severity: silent-green class (defeats the §5.3 precondition).
+- **Surface:** plan-review finding aggregation -> `findings.jsonl` + reconcile packet; §5.3 check.
+- **Filed:** 2026-08-16.
+
+### Symptom
+Plan reviewer grok-4.5 returned REJECT with a HIGH finding (F-3a91c2: hard constraints
+promoted in the plan never reach `chunks.json`, the only doc the runner feeds
+executor/validator). That HIGH finding appears in neither `findings.jsonl` (only
+medium/low rows) nor the reconcile packet. The §5.3 auto-accept precondition (">=1
+APPROVE bound + no open blocker/high") therefore passed vacuously and the plan
+auto-accepted on 1/2 APPROVE. The framework built to catch silent-green silently dropped
+its own reviewer's most severe silent-green objection.
+
+### Repro
+Compare grok's raw envelope (`evidence/plan-reviewer-1-envelope.json`, 6 findings incl.
+F-3a91c2 severity=high) against `telemetry/findings.jsonl` (5 grok rows, all medium/low;
+F-3a91c2 absent) and `evidence/reconcile-packet.txt` (no HIGH). The dropped block is the
+first JSON object in the envelope, preceded by a prose preamble and a `---` rule.
+
+### Root cause (suspected)
+The finding parser misses the first fenced JSON block when it follows prose/heading and a
+horizontal rule. Net effect: severity that should gate the run never enters the ledger the
+gate reads.
+
+## Issue KI-5: Plans leak implementation, defeating independent-executor claims (§13)
+
+- **Status:** OPEN. Severity: invariant erosion (third recorded instance).
+- **Surface:** planning stage (`plan.md` authored by the planner seat); `plan-lint.py` coverage gap.
+- **Filed:** 2026-08-16.
+
+### Symptom
+`plan.md` named both the discriminator (`startswith('/api/')`) and the response helper
+(`jsonify`) — implementation choices, not observable behaviour — despite asserting it "does
+not prescribe how the branch is implemented." The executor's fix reproduces exactly those
+choices, so this run cannot support an independent-implementation (H3) claim. Filed against
+the planning stage, not the executor: the executor did what it was told; the plan told it
+too much.
+
+### Repro
+`grep -niE 'startswith|jsonify|request\.path' evidence/plan.md` -> §7 C6 names the
+`startswith('/api/')` boundary and the `jsonify({"error": ...})` convention.
+
+### Root cause
+Writing a plan naturally pulls the author toward the solution already in mind; this is a
+systemic property, not carelessness. Phase 4 records the same §13 failure for Phases 1 and
+3 — three instances now. Per OPERATING-RULES, a rule that relies on remembering is not a
+rule.
+
+### Recommendation (deterministic-tier fix; not applied here)
+Extend `plan-lint.py` to flag implementation-prescriptive language in chunk specs and plan
+behavioural criteria: method names, library/helper calls, and function names appearing
+where only observable outcomes belong are a smell. A mechanical check catches a class the
+human + panel have now missed three runs running.
