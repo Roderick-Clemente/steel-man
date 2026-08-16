@@ -1061,6 +1061,20 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         )
         return
 
+    # Review finding F-7c8d9e: stage_paths being non-empty does not
+    # guarantee the index changed — `git add -f` of paths identical to
+    # HEAD stages nothing, and the unconditional commit dies on
+    # "nothing to commit" exactly like the empty-stage_paths case.
+    # Ask the index, not the path list.
+    staged = _git("diff", "--cached", "--name-only", cwd=_REPO_ROOT)
+    if not staged.strip():
+        print(
+            f"  chunk {chunk.chunk_id}: staged paths are identical to "
+            f"HEAD; nothing to commit, skipping audit commit.",
+            file=sys.stderr,
+        )
+        return
+
     body = (
         f"Phase 4.5 chunk '{chunk.chunk_id}' accepted\n\n"
         f"Model: {rs.executor.resolved_model_id or rs.executor.pinned_model_id} "

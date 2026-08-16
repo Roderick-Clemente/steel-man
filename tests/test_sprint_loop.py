@@ -2052,6 +2052,17 @@ def test_ki3_commit_chunk_skips_commit_when_nothing_staged(monkeypatch, capsys):
     assert "skipping audit commit" in err
 
 
+def _fake_git_with_staged_content(git_calls):
+    """fake_git that reports staged content for `diff --cached` so the
+    F-7c8d9e clean-index guard sees a dirty index."""
+    def fake_git(*args, cwd=None):
+        git_calls.append(args)
+        if args[:2] == ("diff", "--cached"):
+            return "evidence/some-staged-file.json"
+        return ""
+    return fake_git
+
+
 def test_ki3_commit_chunk_still_commits_when_evidence_inside_root(monkeypatch):
     """The fix must not over-skip: evidence INSIDE framework_root still
     stages and commits exactly as before."""
@@ -2059,12 +2070,7 @@ def test_ki3_commit_chunk_still_commits_when_evidence_inside_root(monkeypatch):
     from sprint_loop.state import ChunkState, GateDecision
 
     git_calls: list[tuple] = []
-
-    def fake_git(*args, cwd=None):
-        git_calls.append(args)
-        return ""
-
-    monkeypatch.setattr(mod, "_git", fake_git)
+    monkeypatch.setattr(mod, "_git", _fake_git_with_staged_content(git_calls))
 
     rs = _make_run_state()
     rs.dry_run = False
@@ -2080,3 +2086,96 @@ def test_ki3_commit_chunk_still_commits_when_evidence_inside_root(monkeypatch):
     assert any(c and c[0] == "add" for c in git_calls)
     assert any(c and c[0] == "commit" for c in git_calls)
     assert rs.commit_count == 1
+
+
+def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(
+        monkeypatch, tmp_path):
+    """Review finding F-1a2b3c: the mixed H-9/H-10 path — evidence dir
+    OUTSIDE framework_root but run_evidence_dir INSIDE with a
+    checkpoint.json present — must still stage the checkpoint and
+    commit. The KI-3 skip must not swallow the H-10 contract
+    ('the checkpoint is committed to the audit branch')."""
+    mod = _load_sprint_loop_module()
+    from sprint_loop.state import ChunkState, GateDecision
+
+    git_calls: list[tuple] = []
+    monkeypatch.setattr(mod, "_git", _fake_git_with_staged_content(git_calls))
+
+    run_evidence_dir = os.path.join(mod._REPO_ROOT, "evidence",
+                                    "phase-4.5", "build-evidence",
+                                    "r-test-ki3-mixed")
+    os.makedirs(run_evidence_dir, exist_ok=True)
+    cp = os.path.join(run_evidence_dir, "checkpoint.json")
+    try:
+        with open(cp, "w") as fh:
+            fh.write("{}")
+
+        rs = _make_run_state()
+        rs.dry_run = False
+        rs.output_branch = "factory/sprint-r-test-ki3"
+        chunk = ChunkState(chunk_id="c1", scope="x",
+                           gate_decision=GateDecision.ACCEPT)
+
+        mod.commit_chunk_change(
+            rs, chunk,
+            evidence_output_dir=str(tmp_path / "outside-evidence"),
+            run_evidence_dir=run_evidence_dir)
+    finally:
+        os.remove(cp)
+        os.removedirs(run_evidence_dir)
+
+    added = [c for c in git_calls if c and c[0] == "add"]
+    assert any("checkpoint.json" in " ".join(c) for c in added), (
+        f"F-1a2b3c: H-10 checkpoint not staged; adds: {added}"
+    )
+    assert any(c and c[0] == "commit" for c in git_calls)
+    assert rs.commit_count == 1
+
+
+def test_ki3_clean_index_after_add_skips_commit_real_git_f_7c8d9e(
+        monkeypatch, tmp_path, capsys):
+    """Review finding F-7c8d9e: stage_paths non-empty but the staged
+    paths are byte-identical to HEAD — `git add -f` stages nothing and
+    the old unconditional commit crashed with 'nothing to commit'.
+    Real git in a temp repo, not fake_git, because fake_git cannot
+    express an unchanged index."""
+    mod = _load_sprint_loop_module()
+    from sprint_loop.state import ChunkState, GateDecision
+
+    repo = tmp_path / "fw"
+    evidence = repo / "evidence" / "r-test"
+    evidence.mkdir(parents=True)
+    (evidence / "bundle.json").write_text("{}")
+    for args in (("init", "-q"),
+                 ("config", "user.email", "t@t"),
+                 ("config", "user.name", "t"),
+                 ("add", "-A"),
+                 ("commit", "-q", "-m", "seed")):
+        subprocess.run(["git", *args], cwd=str(repo), check=True,
+                       capture_output=True)
+
+    monkeypatch.setattr(mod, "_REPO_ROOT", str(repo))
+
+    rs = _make_run_state()
+    rs.dry_run = False
+    rs.output_branch = "factory/sprint-r-test-ki3"
+    chunk = ChunkState(chunk_id="c1", scope="x",
+                       gate_decision=GateDecision.ACCEPT)
+
+    head_before = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(repo),
+        capture_output=True, text=True, check=True).stdout.strip()
+
+    # evidence dir inside repo but already committed unchanged:
+    # add -f stages nothing; must skip, not crash.
+    mod.commit_chunk_change(rs, chunk,
+                            evidence_output_dir=str(evidence),
+                            run_evidence_dir=None)
+
+    head_after = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(repo),
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert head_after == head_before, "no commit should have been created"
+    assert rs.commit_count == 0
+    err = capsys.readouterr().err
+    assert "nothing to commit, skipping audit commit" in err
