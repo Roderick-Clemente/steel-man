@@ -105,7 +105,8 @@ def _load(rel: str):
     assert os.path.isfile(abs_path), f"missing subject: {abs_path}"
     name = "judge2a_" + rel.replace("/", "_").replace(".", "_").replace("-", "_")
     spec = importlib.util.spec_from_file_location(name, abs_path)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None, f"could not build an import spec for {rel}"
+    assert spec.loader is not None, f"import spec for {rel} has no loader"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

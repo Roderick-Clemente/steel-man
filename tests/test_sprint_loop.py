@@ -395,18 +395,39 @@ def test_build_config_warns_on_unknown_json_keys(tmp_path, capsys):
     assert "unknown keys (ignored)" in captured.err
 
 
-def test_validators_string_parser():
-    from sprint_loop.config import _parse_validators
-    assert _parse_validators(" a , b ,c ") == ["a", "b", "c"]
-    assert _parse_validators("") == []
+def test_validators_flag_splits_and_trims_the_panel(tmp_path):
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(json.dumps(_example_config_dict()))
+
+    cfg = build_config([
+        "--config", str(cfg_path),
+        "--validators", " grok-4.5 , gemini-3.1-pro-preview ,claude-opus-5 ",
+    ])
+
+    assert cfg.validators == ["grok-4.5", "gemini-3.1-pro-preview", "claude-opus-5"]
 
 
-def test_config_provider_family_lookup():
+def test_empty_validators_flag_leaves_the_configured_panel_intact(tmp_path):
+    # An unset flag is "no override", not "clear the panel" — otherwise a
+    # bare --validators would trip the §17.2 empty-panel guard.
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(json.dumps(_example_config_dict()))
+
+    cfg = build_config(["--config", str(cfg_path), "--validators", ""])
+
+    assert cfg.validators == ["grok-4.5", "gemini-3.1-pro-preview"]
+
+
+def test_known_model_resolves_to_its_provider_and_family():
     cfg = Config()
-    p, f = cfg.provider_family("grok-4.5")
-    assert (p, f) == ("xai", "grok-family")
-    p, f = cfg.provider_family("totally-fake-model-xyz")
-    assert (p, f) == ("unknown", "unknown")
+
+    assert cfg.provider_family("grok-4.5") == ("xai", "grok-family")
+
+
+def test_unknown_model_resolves_to_the_unknown_family():
+    cfg = Config()
+
+    assert cfg.provider_family("totally-fake-model-xyz") == ("unknown", "unknown")
 
 
 def test_config_default_locks_dir():
@@ -805,31 +826,29 @@ def test_prompt_templates_exist_for_all_five_roles():
         f"missing roles: {expected - set(roles)}; have: {roles}"
 
 
-def test_prompt_templates_never_embed_the_implementation():
-    # PRD §13 — the executor template must describe the problem without
-    # giving the fix. Sanity check: the executor template must not
-    # contain code-like patterns that suggest *the* implementation.
-    from sprint_loop.prompts.render import _PROMPT_DIR
-    executor_template_path = os.path.join(_PROMPT_DIR, "executor.md")
-    text = open(executor_template_path).read()
-    # The template SHOULD mention that the executor must not implement;
-    # it SHOULD NOT contain `os.environ.get(...)` style fixes or any
-    # other one-line silver-bullet patterns. (Mock heuristic — real
-    # anti-patterns are usually implicit.)
+@pytest.mark.parametrize("role", ["executor", "test-designer"])
+def test_role_prompts_never_embed_the_implementation(tmp_path, role):
+    # PRD §13 — a role prompt must describe the problem without giving the
+    # fix. Rendered through the public renderer rather than read off disk,
+    # so the test asserts on what the role actually receives and does not
+    # pin where templates happen to live. An empty context leaves unknown
+    # {{placeholders}} intact, which is what we want to scan.
+    from sprint_loop.prompts.render import render_to_file
+
+    rendered = Path(render_to_file(role, {}, str(tmp_path / f"{role}.md"))).read_text()
+
+    # Silver-bullet patterns from the pilot's /llms.txt slice: if the
+    # answer ever leaks into a prompt, it shows up as one of these.
     MUST_NOT_APPEAR = [
         "os.environ.get",
         "mimetype=",
         "Response(body, mimetype=",
     ]
     for pat in MUST_NOT_APPEAR:
-        assert pat not in text, (
-            f"executor template must not embed implementation pattern {pat!r} "
-            f"(PRD §13 — don't give the executor the answer)"
+        assert pat not in rendered, (
+            f"{role} template must not embed implementation pattern {pat!r} "
+            f"(PRD §13 — don't give the role the answer)"
         )
-    # And the test-designer template likewise — it must not contain the
-    # implementation. The pilot's /llms.txt slice has a known
-    # implementation signal we'd catch if it slipped in:
-    assert "Response(body, mimetype=" not in open(os.path.join(_PROMPT_DIR, "test-designer.md")).read()
 
 
 def test_prompt_renderer_substitutes_variables(tmp_path):
