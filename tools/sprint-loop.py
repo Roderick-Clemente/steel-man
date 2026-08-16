@@ -319,8 +319,8 @@ def run_planner(rs: RunState, *, pilot_spec_text: str,
 # ── steps: plan reviewer ─────────────────────────────────────────────────
 
 _VERDICT_RE = re.compile(r"\bVERDICT:\s*(APPROVE|APPROVE-WITH-NITS|REJECT)\b", re.IGNORECASE)
-_FINDING_RE = re.compile(
-    r'\{[\s\S]*?"finding_id":\s*"F-[a-z0-9]+"[\s\S]*?\}',
+_FINDING_ID_RE = re.compile(
+    r'"finding_id"\s*:\s*"F-[a-z0-9]+"',
     re.IGNORECASE,
 )
 
@@ -332,27 +332,34 @@ def _parse_finding_block(reviewer_label: str, result_text: str,
     natural-language result text. The reviewer prompt asks for a
     structured JSON output; the parser is lenient so missing/extra
     brackets do not break the runner.
+
+    KI-4: a naive brace counter drops any finding whose string values
+    contain unbalanced braces (e.g. a ``{{chunk_spec}`` template
+    literal quoted in an evidence entry) — grok's HIGH F-3a91c2 was
+    silently lost this way, letting §5.3 pass vacuously. raw_decode
+    is string-aware, so braces inside JSON strings cannot desync it.
     """
     findings: list[Finding] = []
-    for match in _FINDING_RE.finditer(result_text):
-        snippet = match.group(0)
-        # Find balanced-ish JSON by trimming trailing junk
-        depth = 0
-        end = 0
-        for i, ch in enumerate(snippet):
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-        if end == 0:
+    decoder = json.JSONDecoder()
+    seen_starts: set[int] = set()
+    for match in _FINDING_ID_RE.finditer(result_text):
+        # Walk back through candidate opening braces until one parses
+        # as a JSON object that spans this "finding_id" occurrence.
+        start = result_text.rfind("{", 0, match.start())
+        obj = None
+        while start >= 0:
+            try:
+                candidate, end = decoder.raw_decode(result_text, start)
+            except json.JSONDecodeError:
+                candidate, end = None, -1
+            if isinstance(candidate, dict) and end > match.end() \
+                    and "finding_id" in candidate:
+                obj = candidate
+                break
+            start = result_text.rfind("{", 0, start)
+        if obj is None or start in seen_starts:
             continue
-        try:
-            obj = json.loads(snippet[:end])
-        except json.JSONDecodeError:
-            continue
+        seen_starts.add(start)
         f = Finding(
             finding_id=obj.get("finding_id", f"F-unlabeled-{reviewer_label}"),
             severity=(obj.get("severity") or "medium").lower(),

@@ -2007,3 +2007,75 @@ def test_overlay_replaces_examples():
         assert not os.path.exists(path), (
             f"G-3: examples/{fn} still exists; should be in templates/overlay/"
         )
+
+
+# ── KI-4 regression: dropped HIGH plan-review finding ───────────────────
+
+
+def _ki4_fixture_result_text() -> str:
+    """grok-4.5's real plan-reviewer envelope from the first live run
+    (r-quantum-404-20260816), committed verbatim as a fixture — same
+    pattern as rung7b-fakepass. Its first fenced JSON block follows
+    prose and a `---` rule and quotes a `{{chunk_spec}` template
+    literal in an evidence string, which desynced the old
+    brace-counting parser."""
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+    ).decode().strip()
+    path = os.path.join(repo, "tools", "fixtures", "ki4-dropped-high",
+                        "plan-reviewer-1-envelope.json")
+    assert os.path.isfile(path), f"KI-4 fixture missing: {path}"
+    env = json.loads(open(path).read())
+    return env["result"]
+
+
+def test_ki4_all_six_findings_parse_from_real_envelope():
+    """KI-4 regression: the parser must recover ALL findings from
+    grok's real envelope. The old parser returned 5 of 6, silently
+    dropping the only HIGH."""
+    mod = _load_sprint_loop_module()
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", _ki4_fixture_result_text(),
+        "r-quantum-404", "grok-4.5", "grok-family", 1)
+    ids = {f.finding_id for f in findings}
+    assert len(findings) == 6, (
+        f"KI-4 regression: expected 6 findings, got {len(findings)}: {ids}"
+    )
+    assert ids == {"F-3a91c2", "F-8c2e14", "F-b7d401",
+                   "F-51e0aa", "F-c0f3a9", "F-2d9b17"}
+
+
+def test_ki4_dropped_high_finding_is_present_with_high_severity():
+    """The specific silent-green shape: F-3a91c2 (severity=high) never
+    reached findings.jsonl or the reconcile packet, so the §5.3
+    'no open blocker|high' precondition passed vacuously and the plan
+    auto-accepted on 1/2 APPROVE."""
+    mod = _load_sprint_loop_module()
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", _ki4_fixture_result_text(),
+        "r-quantum-404", "grok-4.5", "grok-family", 1)
+    high = [f for f in findings if f.finding_id == "F-3a91c2"]
+    assert high, "KI-4 regression: F-3a91c2 dropped from the ledger again"
+    assert high[0].severity == "high"
+    assert high[0].status == "open"
+
+
+def test_ki4_parser_survives_unbalanced_braces_inside_strings():
+    """Synthetic minimal repro: a finding whose string value contains
+    an unbalanced `{` (e.g. a quoted template literal) must still
+    parse, and must not swallow the finding that follows it."""
+    mod = _load_sprint_loop_module()
+    text = (
+        'prose preamble\n\n---\n\n```json\n'
+        '{"finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "operability",'
+        ' "claim": "x", "evidence": ["validator receives {{chunk_spec}"],'
+        ' "recommended_change": "y"}\n```\n\nmore prose\n\n'
+        '{"finding_id": "F-bbb222", "severity": "low",'
+        ' "category": "spec-deviation", "claim": "z",'
+        ' "evidence": [], "recommended_change": "w"}\n'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-aaa111", "high"), ("F-bbb222", "low")}
