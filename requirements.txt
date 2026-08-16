@@ -1,3 +1,5 @@
 pytest>=9.0
 pytest-cov
 pygments>=2.20.0
+ruff>=0.6.0
+mypy>=1.10.0

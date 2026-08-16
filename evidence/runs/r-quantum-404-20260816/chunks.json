@@ -1,0 +1,28 @@
+{
+  "chunks": [
+    {
+      "chunk_id": "c1",
+      "scope": "Make 404 responses content-negotiated: requests under /api/* must receive a parseable JSON error body with Content-Type application/json, while non-API paths keep the existing HTML 404. Only the 404 handling changes; all other routes and status codes are unaffected.",
+      "observable_criteria": [
+        "GET a nonexistent /api/* path returns HTTP 404",
+        "That 404 response Content-Type starts with application/json",
+        "That 404 response body parses as JSON and contains an 'error' key",
+        "GET a nonexistent non-API path still returns HTTP 404 with Content-Type text/html",
+        "The full existing test suite still passes"
+      ],
+      "allowed_files": [
+        "api/four_o_four.py",
+        "app.py"
+      ],
+      "locked_test_files": [
+        "test/test_api_routes.py"
+      ],
+      "commands": [
+        "/Users/factory/work/quantum-404-lab/quantum-bank/.venv/bin/python -m pytest test/test_api_routes.py -v",
+        "/Users/factory/work/quantum-404-lab/quantum-bank/.venv/bin/python -m pytest -q"
+      ],
+      "rollback": "git checkout HEAD -- api/four_o_four.py app.py",
+      "accepted_assertion": "application/json"
+    }
+  ]
+}

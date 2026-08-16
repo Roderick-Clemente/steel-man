@@ -1328,10 +1328,10 @@ def main(argv: list[str] | None = None) -> int:
                           if cfg.plan_reviewer_2_model else None),
         test_designer=_make_role(Role.TEST_DESIGNER, cfg.test_designer_model,
                                   cfg.test_designer_auto_level,
-                                  "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute"),
+                                  "Read,Glob,Grep,LS,Edit,Create,Execute"),
         executor=_make_role(Role.EXECUTOR, cfg.executor_model,
                             cfg.executor_auto_level,
-                            "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute"),
+                            "Read,Glob,Grep,LS,Edit,Create,Execute"),
         validators=[
             RoleAssignment(
                 role=Role.VALIDATOR,

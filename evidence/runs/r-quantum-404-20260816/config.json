@@ -1,0 +1,29 @@
+{
+  "_comment": "quantum-404 pilot. Roster C: glm-5.2 builder; grok-4.5 + kimi-k3 validators; claude-opus-5 planner. Evidence lands in ../sprint/evidence (outside framework -> H-9 warning is expected and desired). Telemetry runs.jsonl lands in framework_root/telemetry.",
+  "framework_root": "/Users/factory/work/quantum-404-lab/framework",
+  "pilot_root": "/Users/factory/work/quantum-404-lab/quantum-bank",
+  "pilot_python": "/Users/factory/work/quantum-404-lab/quantum-bank/.venv/bin/python",
+  "pilot_spec_file": "/Users/factory/work/quantum-404-lab/sprint/pilot-spec.md",
+  "evidence_output_dir": "/Users/factory/work/quantum-404-lab/sprint/evidence",
+  "max_review_rounds": 2,
+  "retry_threshold": 1,
+  "max_auto_retries": 2,
+  "retry_delay_seconds": 5,
+  "planner_model": "claude-opus-5",
+  "plan_reviewer_model": "grok-4.5",
+  "plan_reviewer_2_model": "gemini-3.1-pro-preview",
+  "test_designer_model": "claude-opus-5",
+  "executor_model": "glm-5.2",
+  "validators": [
+    "grok-4.5:xai:grok-family:grok-4.5",
+    "kimi-k3:moonshot:kimi-family:kimi-k3"
+  ],
+  "validation_backend": "local",
+  "signing_key_env": "EVIDENCE_SIGNING_KEY",
+  "fail_closed": true,
+  "allow_test_author_collide": false,
+  "allow_single_family": false,
+  "dry_run": false,
+  "skip_reconcile": false,
+  "create_pr": false
+}
