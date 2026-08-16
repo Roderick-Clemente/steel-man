@@ -1,169 +1,106 @@
 # Architecture
 
-Two architectures matter in this repository, and confusing them is the most common way to misread it.
-
-1. **The repository's own structure** — a spec, a method template, and probe evidence. This is what exists today.
-2. **The system the spec describes** — the Adversarial Sprint plugin. This does not exist yet; Phase 0 was the gate deciding whether it can.
+The repo is organized by **kind**, not by phase. Each phase's plans and prompts live under `planning/`, its committed evidence under `evidence/`, its scripts under `tools/`. This is deliberate: `planning/phase-3.2/` and `evidence/phase-3.2/` are two halves of one phase's record, and a reader can trace a finding from the plan that produced it to the evidence that backs it.
 
 ## Repository structure
 
 ```text
 adversarial-sprint/
-├── README.md                              entry point and one-page pitch
-├── AGENTS.md                              conventions for every agent working here
-├── PRD.md                                 full spec: problem, invariants, phases, evaluation
-├── templates/
-│   └── SPRINT-PLANNING-TEMPLATE.md        canonical GROK/CHUNK/EXECUTE method
-├── tools/                                 operating discipline, tracked so it travels
-│   ├── OPERATING-RULES.md                 multi-agent, multi-machine rules
-│   ├── wake-loop.md                       orchestrator/worker async pattern
-│   └── pilot-llms-txt-spec.md             spec for the first hand-run pilot
-├── phase-0/
-│   ├── README.md                          the eight probes and their verdicts
-│   ├── GO-NO-GO.md                        Phase 0 decision
-│   └── evidence/
-│       ├── README.md                      what a probe record must contain
-│       ├── probe-1/ … probe-8/            one directory per probe
-│       │   ├── README.md                  the finding, with reasoning
-│       │   ├── raw/                       captured stdout, exit codes, hook logs
-│       │   ├── rig/                       the hook scripts and configs under test
-│       │   └── run.sh                     re-runs every measurement
-│       └── canary-0.180.0/                the same primitives on an older CLI
-└── pilots/
-    └── ai-discovery/                      first hand-run pilot, the H1 observation
-        ├── README.md                      units, merge commits, what it does not support
-        └── validator-outputs/             the reviewers' own text, verbatim where noted
+├── PRD.md                     full spec: problem, invariants, phases, evaluation design
+├── AGENTS.md                  conventions for every agent working here
+├── tools/                     the code
+│   ├── OPERATING-RULES.md     operating discipline §1-§24, each rule with the incident behind it
+│   ├── sprint-loop.py         Phase 4.5 loop runner entry point (1,544 lines)
+│   ├── sprint_loop/           the runner package
+│   │   ├── config.py          Config dataclass, model family map, layout roots
+│   │   ├── state.py           pure-data state machine, family guard
+│   │   ├── droid.py           droid exec wrapper, envelope parsing, telemetry
+│   │   ├── backends.py        validation backend abstraction (local + CI stub)
+│   │   ├── per_chunk.py       per-chunk inner loop: lock, RED, GREEN, evidence, validate
+│   │   ├── chunk_close_banner.py  operator-eye visual signal (✅/⛔)
+│   │   └── prompts/           pluggable role-prompt templates
+│   ├── orchestrate-review.py  mechanical review pipeline
+│   ├── plan-lint.py           deterministic pre-review tier (1,470 lines, 7 rules)
+│   ├── cross_family_review.py refusal-at-parse cross-family gate
+│   ├── chunk_sequence_gate.py refuses next chunk when prior token is missing
+│   ├── sign_chunk_token.py    HMAC-SHA256 chunk-completion tokens
+│   ├── run-with-model.sh      model-pinning enforcement wrapper
+│   ├── run-review.sh          per-chunk review wrapper
+│   ├── adapters/              vendor-neutral seam (Factory adapter today)
+│   ├── conventions/           model discipline, skill distribution, review bundle
+│   ├── phase-1-scripts/       lock.py, valid-red.py, verify-green.py
+│   ├── phase-3.2-evidence/    local_backend.py, EvidenceBundle producer
+│   ├── phase-5-scripts/       fire-design-review.sh, envelope-manifest.py
+│   ├── fixtures/              probe rigs and forged-input test fixtures
+│   └── KNOWN-ISSUES.md        what is broken, what is deferred, what is open
+├── templates/                 canonical GROK → CHUNK → EXECUTE method + per-pilot overlay
+├── skills/                    agent-facing skill assets (digest + index + rehydration)
+├── planning/                  per-phase plans, prompts, run records, roadmap review
+│   ├── phase-0/ through phase-5/
+│   ├── layout-refactor/       the D1-D5A reorg that restructured the tree
+│   └── evidence-hygiene/      evidence consolidation and cleanup
+├── evidence/                  the build record: probes, envelopes, findings, signed tokens
+│   ├── LEDGER.md              append-only review ledger
+│   ├── phase-0/               probe evidence
+│   ├── phase-4.5/             chunk tokens and build evidence
+│   └── reviews/               per-chunk review bundles (sprint-keyed)
+├── tests/                     233 tests over gates, runner, plan lint, repo layout
+├── telemetry/                 runs.jsonl, findings.jsonl, SCHEMA.md (gitignored data)
+└── .github/workflows/         CI: adversarial-sprint-ci.yml
 ```
 
-There is no build, no dependency manifest, and no test suite in the conventional sense. The executable artifacts are the probe rigs: Python hook scripts and `run.sh` reproduction scripts. See [Getting started](./getting-started.md).
+## How the pieces connect
 
-`tools/` is tracked deliberately. Sessions are machine-scoped and `STEER.md` is gitignored, so the git repository is the only channel that reaches a second machine — anything a future agent must know has to be committed or it does not travel. `tools/OPERATING-RULES.md` is the operating discipline that sits on top of `AGENTS.md`.
-
-`pilots/` is separate from `phase-0/` on purpose. Phase 0 evidence answers whether the platform *can* enforce the invariants and is scoped to a CLI version. A pilot is a hand-run of the method against a live target, and it is deliberately **not** filed under `phase-0.5/`, because PRD §11 reserves Phase 0.5 for the manual baseline arm — the same change done a second way for comparison — which has not been run. See [First H1 observation](../findings/first-h1-evidence.md).
-
-### Evidence lives in the repo, not in `.factory/`
-
-PRD §9 nominates `.factory/adversarial-sprints/<run-id>/` as the default artifact path, but `.factory/` is gitignored here as local tool state, so evidence written there would be invisible to git. Phase 0's exit criteria require a *captured* run artifact, and §9 permits "another configured artifact path". `phase-0/evidence/` is that path. The reasoning is recorded in `phase-0/evidence/README.md`.
-
-### One consolidated branch, recorded per probe
-
-Each probe was recorded on its own `factory/<topic>` branch while it was being run, and later probes were chained onto earlier ones so results could accumulate and cite each other. Those branches have since been merged into a single line:
-
-```mermaid
-graph LR
-    main["main<br/>spec, template, conventions"] --> P1["factory/probe-1-evidence"]
-    main --> P3["factory/probe-3-context-isolation"]
-    main --> STEER["factory/steer-channel"]
-    main --> P4["factory/probe-4-hook-blocking"]
-    P4 --> P8["factory/probe-8-self-declared-risk"]
-    P8 --> P2["factory/probe-2-fallback-safety"]
-    P2 --> P6["factory/probe-6-plugin-boundary"]
-    P6 --> GNG["factory/phase-0-go-no-go"]
-    P1 -.merged.-> GNG
-    P3 -.merged.-> GNG
-    STEER -.merged.-> GNG
-```
-
-**`factory/phase-0-go-no-go` now carries the complete record**: all six probe evidence directories, the go/no-go, the spec, and this wiki. Every other branch is fully contained in it. They were kept rather than deleted, so the per-commit history of each probe stays readable on the branch that produced it.
-
-Consolidation was done as merges rather than a squash, deliberately. The commit-by-commit baton between agents is itself evidence that the handoff method described in [Development workflow](../how-to-contribute/development-workflow.md) worked, and squashing would have destroyed it.
-
-Nothing has landed on `main` beyond the initial commits, because `AGENTS.md` requires review before merge. So `main` is still the spec and the conventions only, and the Phase 0 branch is where the evidence is.
-
-## The system the spec describes
-
-The plugin composes existing Factory surfaces around a workflow gap. It does not replace Missions, Spec Mode, custom Droids, hooks, or CI.
+Four layers: entry point calls the core package, the core package composes the primitives, infrastructure wraps everything. Dashed lines are "used by" rather than "calls." The detailed flow of one chunk through these pieces is in [features](../features/index.md).
 
 ```mermaid
 graph TD
-    INTAKE[Intake / preflight] --> GROK[GROK: planner drafts<br/>analysis, criteria, risks, test strategy]
-    GROK --> REVIEW[Blind review:<br/>different-family reviewer]
-    REVIEW --> RECONCILE{Converged?}
-    RECONCILE -->|unresolved risk| GROK
-    RECONCILE -->|approved against plan hash| TESTS[Test design:<br/>independent behavioral tests]
-    TESTS --> LOCK[Chunk and lock:<br/>dependency graph, test hashes]
-    LOCK --> EXEC[Execute per chunk:<br/>verify RED, implement GREEN, refactor]
-    EXEC --> VALIDATE[Validate:<br/>different-family validator]
-    VALIDATE -->|reject| RETRY{Bounded retry}
-    RETRY --> EXEC
-    RETRY -->|exhausted| GROK
-    VALIDATE -->|accept| REPORT[Report and PR:<br/>audit bundle, human merge]
-```
-
-Each stage is detailed in [Workflow](../method/workflow.md); the role and model policy is in [Roles and models](../method/roles-and-models.md).
-
-### Enforcement, not suggestion
-
-The distinguishing claim is that independence and evidence are **structural properties of the run**, not prompt instructions. Phase 0 tested whether the platform can actually deliver that, and the answer shaped the architecture significantly.
-
-```mermaid
-graph TD
-    subgraph guard["One reference guard (PreToolUse hook)"]
-        READ[Read transcript_path<br/>inspect what actually happened]
-        FAILCLOSED[Fail closed on any<br/>payload it cannot interpret]
-        EMIT[Emit contract on stderr,<br/>exit 2 → agent receives it, run continues]
+    subgraph "Entry point"
+        SL["sprint-loop.py<br/>orchestrates all five roles"]
     end
-    READ --> FAILCLOSED --> EMIT
-    EMIT --> POL1[Locked-test guard<br/>invariant 3]
-    EMIT --> POL2[Isolation guard<br/>invariant 2]
-    EMIT --> POL3[Family gate<br/>invariants 1 and 7]
+
+    subgraph "Core package — tools/sprint_loop/"
+        SC["config · state · droid<br/>per_chunk · backends"]
+    end
+
+    subgraph "Primitives — composed, not reimplemented"
+        LB["local_backend.py<br/>signed EvidenceBundle"]
+        OR["orchestrate-review.py<br/>validator panel + gate"]
+        PL["plan-lint.py<br/>pre-review tier"]
+        CF["cross_family_review.py<br/>family separation gate"]
+        ST["sign_chunk_token.py<br/>HMAC-SHA256 tokens"]
+        CS["chunk_sequence_gate.py<br/>next-chunk enforcement"]
+    end
+
+    subgraph "Infrastructure"
+        RW["run-with-model.sh<br/>model-pinning wrapper"]
+        AD["adapters/factory.py<br/>vendor-neutral envelope parser"]
+        SK["skills/<br/>agent-facing rules digest"]
+        CI[".github/workflows/<br/>CI gate on every PR"]
+    end
+
+    SL --> SC
+    SC --> LB
+    SC --> OR
+    SL --> PL
+    SL --> CF
+    CF --> ST
+    ST --> CS
+    SC -.-> RW
+    OR -.-> AD
+    CI --> OR
 ```
 
-One primitive, three policies. This is the central architectural conclusion of Phase 0 and is documented in [The reference guard](../findings/reference-guard.md).
+## The vendor seam
 
-### What changed because of Phase 0
+The adapter in `tools/adapters/factory.py` is the single place where Factory's envelope format is translated into a vendor-neutral shape. Gates assert on the neutral shape, not on Factory's field names. Swapping in another CLI (Codex, Claude Code, Ollama) is a new adapter file, not a rewrite of the gates. See `tools/adapters/README.md` for the contract.
 
-| Spec assumption | Phase 0 result | Architectural consequence |
-|---|---|---|
-| Missions orchestrate worker and validator stages | `droid exec --mission` performs no work ([Probe 1](../probes/probe-1-model-pinning.md)) | Command-orchestrated state machine instead; the §8 contingency |
-| Mission flags pin per-role models | Flags exist but are `--mission`-only | One `droid exec --model <id>` per role ([Probe 2](../probes/probe-2-fallback-safety.md)) |
-| Hooks block locked-test edits | True, but only via specific registration channels ([Probe 4](../probes/probe-4-hook-blocking.md)) | Guard must live in `settings.json` or a plugin, match `Execute`, and fail closed |
-| Custom Droids give isolated context | True at the agent channel, false at the storage layer ([Probe 3](../probes/probe-3-context-isolation.md)) | Isolation needs an active guard, not just a Droid definition |
-| Per-role cost attribution needs Missions | `usage.factory_credits` is per run | One invocation per role attributes cost directly |
+## Evidence lives in the repo, not in `.factory/`
 
-## Trust boundaries
+`.factory/` is gitignored as local tool state. Evidence written there would be invisible to git and would not travel between machines. The repo's own thesis - "assert on reality, not self-assessment" - requires the reality to be committed. `evidence/` is where it lives.
 
-The system runs untrusted-ish model output against a real repository, so the boundaries matter. They are covered in [Security](../security.md), but in summary:
+## The layout refactor
 
-- **Model output is not trusted** to respect a policy stated in a prompt. [Probe 3](../probes/probe-3-context-isolation.md) and [Probe 4](../probes/probe-4-hook-blocking.md) both show cases where a model complied out of good manners, which is not enforcement.
-- **The autonomy tier is not a security boundary** for an untrusted role, because it gates partly on a label the model supplies about its own command ([Probe 8](../probes/probe-8-self-declared-risk.md)).
-- **Tool restriction is not path protection.** Disabling the `Edit` tool did not protect a file; the agent used a shell instead.
-- **The session store is a shared surface.** Any agent with `Grep` can read a prior agent's transcript from `~/.factory/sessions/`.
+The repo was reorganized in chunks D1 through D5A. Phase directories that used to sit at the root (`phase-0/`, `phase-1/`, etc.) were moved to their taxonomy homes: plans under `planning/`, evidence under `evidence/`, scripts under `tools/`. A 45-row prefix table in `planning/PATH-REDIRECTS.md` maps every old path to its new location. The refactor was itself run through the adversarial sprint method - each chunk was spec'd, reviewed, and gated.
 
-## The evidence tier (Phase 3.2)
-
-Phase 3.2 externalized the deterministic evidence layer so validators consume a compact structured bundle instead of re-running pytest in-session. The components:
-
-```mermaid
-graph LR
-    LB["Local backend<br/>(pytest + verify-green + bandit)"] -->|produces| EB["EvidenceBundle<br/>(919 bytes, signed)"]
-    EB -->|consumed by| VC["Validator consumer<br/>(ACCEPT/REJECT, no pytest)"]
-    EB -->|consumed by| OG["Orchestrator gate<br/>(locked-sha cross-check)"]
-    TA["Token accounting<br/>(fairness rule)"] -->|measures| EB
-    TA -->|measures| RO["Raw pytest output<br/>(replaced)"]
-```
-
-The local backend runs the deterministic tier once (pytest, verify-green.py for the locked-hash check, Bandit for security) and normalizes the results into a signed JSON bundle. Validators read the bundle instead of re-running tests. The orchestrator cross-checks the bundle's `locked_test_sha_observed` against the lock manifest before trusting it.
-
-The orchestration script (`tools/orchestrate-review.py`) wires the full review cycle: produce evidence, call N validators via `droid exec`, check for stray writes, parse verdicts, append telemetry, and report the gate decision. It stops only on error.
-
-See [Evidence provider](../features/evidence-provider.md) and [Orchestration](../features/orchestration.md) for details.
-
-## Key source files
-
-| File | Purpose |
-|---|---|
-| `PRD.md` | Full specification: problem, hypotheses, invariants, workflow, phases, evaluation design |
-| `README.md` | Project entry point and summary of the four core properties |
-| `AGENTS.md` | Conventions binding every agent that works in the repo |
-| `templates/SPRINT-PLANNING-TEMPLATE.md` | Canonical GROK → CHUNK → EXECUTE method, 666 lines |
-| `phase-0/README.md` | The eight probes, their questions, and recorded verdicts |
-| `phase-0/GO-NO-GO.md` | Phase 0 decision, invariant scorecard, build order |
-| `phase-0/evidence/README.md` | Standard every probe record must meet |
-| `phase-0/evidence/probe-4/reverify/rig/hook-protect2.py` | The fail-closed guard that holds against a shell bypass |
-| `phase-0/evidence/probe-2/rig/hook-family-gate.py` | The family gate that aborts a wrong-model run before any tool acts |
-| `phase-3.2/evidence/local_backend.py` | Local evidence producer: runs pytest + verify-green + Bandit, emits signed bundle |
-| `phase-3.2/evidence/consumer.py` | Validator + orchestrator consumers: read bundle, verify signature, cross-check locked-sha |
-| `tools/orchestrate-review.py` | Mechanical review pipeline: produce evidence, call validators, check stray writes, report gate |
-| `tools/adapters/factory.py` | Vendor shim: normalizes droid exec output into vendor-neutral envelope shape |
-| `telemetry/SCHEMA.md` | Data schema for the evaluation's telemetry (v2: test-designer role, MCP token fields) |
+See [lore](../lore.md) for the full timeline and [patterns and conventions](../how-to-contribute/patterns-and-conventions.md) for the operating rules.

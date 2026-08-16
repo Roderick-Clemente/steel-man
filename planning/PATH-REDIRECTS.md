@@ -176,77 +176,18 @@ file by file.
 
 Spec §2.3 keeps historical narrative out of the rewrite: a sentence about what
 was built, or a measurement of a past tree, is a record rather than a pointer.
-Every surviving residual on the §2.1a surface is listed here — **49**
-tokens in 2 files — so that a residual is an accounted-for decision and never a
-missed sweep. `tests/test_layout_paths_chunk3.py` asserts this list in both
-directions: no unlisted residual, and no listed row that is no longer residual.
+Every surviving residual on the §2.1a surface is listed here — **0**
+tokens after the wiki regeneration — so that a residual is an accounted-for
+decision and never a missed sweep. `tests/test_layout_paths_chunk3.py` asserts
+this list in both directions: no unlisted residual, and no listed row that is
+no longer residual.
 
-Line numbers are exact as of the commit that lands this file. They are
-regenerable — see `evidence/reviews/chunk3-nits/`
-— and the judge fails loudly rather than quietly if they rot.
-
-### `droid-wiki/by-the-numbers.md` — 33 residual tokens
-
-Measurement snapshot. Every row is a count taken against one commit — files, lines, mean line length per directory. Re-rooting the directory name falsifies the number beside it: `phase-3.2/` counted 21 files as one silo, and no directory holds those 21 files today (they are split across `planning/phase-3.2/`, `evidence/phase-3.2/` and `tools/phase-3.2-evidence/`). A measurement is only true of the tree it was taken on.
-
-| citation | token | line |
-|---|---|---|
-| `droid-wiki/by-the-numbers.md:41` | `phase-0/` | \| `phase-0/` \| 106 \| 5,243 \| 49 \| |
-| `droid-wiki/by-the-numbers.md:43` | `phase-3.2/` | \| `phase-3.2/` \| 21 \| 8,681 \| 413 \| |
-| `droid-wiki/by-the-numbers.md:44` | `phase-3.1/` | \| `phase-3.1/` \| 38 \| 1,547 \| 41 \| |
-| `droid-wiki/by-the-numbers.md:45` | `phase-3/` | \| `phase-3/` \| 27 \| 1,484 \| 55 \| |
-| `droid-wiki/by-the-numbers.md:46` | `phase-2/` | \| `phase-2/` \| 13 \| 1,158 \| 89 \| |
-| `droid-wiki/by-the-numbers.md:47` | `phase-1/` | \| `phase-1/` \| 17 \| 941 \| 55 \| |
-| `droid-wiki/by-the-numbers.md:52` | `phase-3.3/` | \| `phase-3.3/` \| 1 \| 130 \| 130 \| |
-| `droid-wiki/by-the-numbers.md:55` | `phase-3.2/` | `phase-3.2/` has the highest average file size by far. Its evidence scripts, SPIKE do… |
-| `droid-wiki/by-the-numbers.md:88` | `phase-0/` | \| `phase-0/README.md` \| 12 \| |
-| `droid-wiki/by-the-numbers.md:90` | `phase-3.2/` | \| `phase-3.2/evidence/consumer.py` \| 5 \| |
-| `droid-wiki/by-the-numbers.md:92` | `phase-3.1/` | \| `phase-3.1/SPIKE.md` \| 4 \| |
-| `droid-wiki/by-the-numbers.md:93` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 4 \| |
-| `droid-wiki/by-the-numbers.md:94` | `phase-0/` | \| `phase-0/evidence/probe-1/README.md` \| 4 \| |
-| `droid-wiki/by-the-numbers.md:96` | `phase-3.2/` | The top two are the project overview and the product spec, which makes sense: as the … |
-| `droid-wiki/by-the-numbers.md:116` | `phase-2/` | \| `phase-2/README.md` \| 559 \| Markdown \| |
-| `droid-wiki/by-the-numbers.md:118` | `phase-3.2/` | \| `phase-3.2/evidence/local_backend.py` \| 441 \| Python \| |
-| `droid-wiki/by-the-numbers.md:119` | `phase-3.2/` | \| `phase-3.2/SPIKE.md` \| 405 \| Markdown \| |
-| `droid-wiki/by-the-numbers.md:122` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 276 \| Python \| |
-| `droid-wiki/by-the-numbers.md:125` | `phase-3.2/` | The largest executable file is `tools/orchestrate-review.py`, which runs the multi-mo… |
-| `droid-wiki/by-the-numbers.md:132` | `phase-3.2/` | \| `phase-3.2/evidence/local_backend.py` \| 441 \| |
-| `droid-wiki/by-the-numbers.md:134` | `phase-1/` | \| `phase-1/hooks/locked-test-guard.py` \| 276 \| |
-| `droid-wiki/by-the-numbers.md:136` | `phase-3.2/` | \| `phase-3.2/evidence/consumer.py` \| 222 \| |
-| `droid-wiki/by-the-numbers.md:137` | `phase-1/` | \| `phase-1/scripts/valid-red.py` \| 159 \| |
-| `droid-wiki/by-the-numbers.md:140` | `phase-3.2/` | \| `phase-3.2/evidence/single-round-report.py` \| 121 \| |
-| `droid-wiki/by-the-numbers.md:147` | `phase-3.2/` | \| `phase-3.2/` \| 413 \| |
-| `droid-wiki/by-the-numbers.md:150` | `phase-2/` | \| `phase-2/` \| 89 \| |
-| `droid-wiki/by-the-numbers.md:152` | `phase-1/` | \| `phase-1/` \| 55 \| |
-| `droid-wiki/by-the-numbers.md:153` | `phase-3/` | \| `phase-3/` \| 55 \| |
-| `droid-wiki/by-the-numbers.md:154` | `phase-0/` | \| `phase-0/` \| 49 \| |
-| `droid-wiki/by-the-numbers.md:155` | `phase-3.1/` | \| `phase-3.1/` \| 41 \| |
-| `droid-wiki/by-the-numbers.md:157` | `phase-3.3/` | \| `phase-3.3/` \| 130 \| |
-| `droid-wiki/by-the-numbers.md:159` | `phase-3.3/` | Single-file directories (`templates/`, `phase-3.3/`) naturally inflate the average. A… |
-| `droid-wiki/by-the-numbers.md:159` | `phase-3.2/` | Single-file directories (`templates/`, `phase-3.3/`) naturally inflate the average. A… |
-
-### `droid-wiki/lore.md` — 16 residual tokens
-
-Build history. The `Key files created:` lines record what each phase created **at the path it created it at** — that is the record. Spec §2.3 names this case exactly ("Phase 1 built `phase-1/scripts/lock.py`") and rules it out of the rewrite.
-
-| citation | token | line |
-|---|---|---|
-| `droid-wiki/lore.md:18` | `phase-0/` | **Key files created:** `PRD.md`, `phase-0/`, `tools/fixtures/rung*-gate.py`, `tools/a… |
-| `droid-wiki/lore.md:25` | `phase-1/` | - `phase-1/scripts/lock.py` — hash-lock a test file so it cannot be modified |
-| `droid-wiki/lore.md:26` | `phase-1/` | - `phase-1/scripts/valid-red.py` — verify tests fail for the right reason (not a synt… |
-| `droid-wiki/lore.md:27` | `phase-1/` | - `phase-1/scripts/verify-green.py` — re-check the hash, run pytest, refuse GREEN on … |
-| `droid-wiki/lore.md:31` | `phase-1/` | **Key files created:** `phase-1/scripts/`, `phase-1/locks/`, `tools/run-with-model.sh` |
-| `droid-wiki/lore.md:31` | `phase-1/` | **Key files created:** `phase-1/scripts/`, `phase-1/locks/`, `tools/run-with-model.sh` |
-| `droid-wiki/lore.md:52` | `phase-2/` | **Key files created:** `phase-2/APPROVAL.md`, `phase-2/brief-v2.md` |
-| `droid-wiki/lore.md:52` | `phase-2/` | **Key files created:** `phase-2/APPROVAL.md`, `phase-2/brief-v2.md` |
-| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
-| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
-| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
-| `droid-wiki/lore.md:66` | `phase-3/` | **Key files created:** `phase-3/`, `phase-3/prompts/`, `phase-3/RUN-COMMANDS.md`, `ph… |
-| `droid-wiki/lore.md:80` | `phase-3.1/` | **Key files created:** `phase-3.1/RESULTS.md`, `phase-3.1/SPIKE.md`, PRD §17.6 amendment |
-| `droid-wiki/lore.md:80` | `phase-3.1/` | **Key files created:** `phase-3.1/RESULTS.md`, `phase-3.1/SPIKE.md`, PRD §17.6 amendment |
-| `droid-wiki/lore.md:108` | `phase-3.2/` | **Key files created:** `phase-3.2/evidence/`, `tools/orchestrate-review.py`, `tools/O… |
-| `droid-wiki/lore.md:112` | `phase-1/` | - **`phase-1/scripts/verify-green.py`** — created Aug 5, still the locked-hash gate f… |
+The previous wiki carried 49 residual tokens across `droid-wiki/by-the-numbers.md`
+(33) and `droid-wiki/lore.md` (16). The lean wiki regeneration rewrote both
+files with updated paths, leaving zero residuals. Line numbers are exact as of
+the commit that lands this file. They are regenerable — see
+`evidence/reviews/chunk3-nits/` — and the judge fails loudly rather than
+quietly if they rot.
 
 ## Stale citations inside lock-frozen live code
 

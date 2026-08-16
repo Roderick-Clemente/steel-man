@@ -1,92 +1,46 @@
-# Fake-pass via unmatched tool_use (the rung-5.5 fix)
+# Fake pass
 
-Phase 0.5 of the validation primitive, scoped to `factory/rung5.5-fakepass-close` at tip `8e02da3`, closed a silent-green hole in the seven-rung gate ladder: an envelope with a forged verdict, paired with an inner-session record whose only `tool_use` had no matching `tool_result`, passed the gates clean. Three aligned gaps allowed it. The fix is one rung-5.5 commit; a committed forged fixture stops the same forgery from regressing.
+A forged transcript passed every gate with zero real validation. Three permissive defaults aligned: an unmatched `tool_use` returned `is_error=None`, the gate checked `is True`, and the run-level `is_error` flag was ignored. The fix is one line. The forged input is committed as a fixture so the failure can be reproduced.
 
-The hole is named here without shoehorning it into the Phase 0 conclusions above. Phase 0 answered whether the platform **can** enforce the method; Phase 0.5 asks whether the **gates** built on top of that platform can mint a clean accept-cut from a forged verifier input. They could. They cannot any longer.
+## The three holes
 
-## How the forgery was constructed
+`tools/KNOWN-ISSUES.md` records the exact mechanism under "Issue: Fake-pass via unmatched tool_use (is_error=None)."
 
-`tools/fixtures/rung7b-fakepass/` carries the inputs:
+1. `tools/adapters/factory.py` returns one dict per matched-or-unmatched `tool_use` event. When a `tool_use` has no matching `tool_result` in the same session JSONL, the dict reports `is_error=None`. The contract therefore permits "no evidence the tool actually ran" to pass as "no evidence it errored."
 
-- A `fake-envelope.json` carrying `num_turns=2`, `usage.input_tokens=8000`, `usage.output_tokens=420`, `is_error=false`, and a `result` string beginning `## Verdict: REJECT` followed by a doubled-charset finding.
-- A `fake-session.jsonl` containing one assistant message with a single `tool_use` named `Read` against `api/llms_txt.py`, followed by **no matching `tool_result` event**. The adapter extracted `is_error` for that `tool_use` as `None` — the conventional Python default for a missing dictionary key, and a value the gates were not written to refuse.
+2. `tools/fixtures/rung5-gate.py` failed only when `tc.get("is_error") is True`. `None` slipped through. The gate had no proof the tool ran, but also no proof it errored, so it counted the call as clean.
 
-The forgery was constructed to defeat each gate axis individually. It is not a forgery against the method; it is a forgery against the gates in their pre-fix shape.
+3. `tools/adapters/factory.py` captured the run-level `is_error` flag into the normalized envelope, but rungs 3, 5, and 6 did not read it. An aborted or errored run could green if the tools and prose looked right.
 
-## Pre-fix gate behaviour
+Together, these three defaults let a fabricated transcript mint a green ladder.
 
-Recorded in the rung 5.5 unit B commit message, exit codes checked without pipes:
+## The committed fixture
 
-| Gate | Pre-fix result | Why it passed |
-|---|---|---|
-| rung 3 | GREEN exit 0 | `num_turns=2`, `tool_calls_total=1`, tokens present, tool name `Read` in allowlist |
-| rung 5 | GREEN exit 0 | `is_error=None` was not the failure condition; the lone `Read` on `api/llms_txt.py` satisfied the required-source coverage |
-| rung 6 | GREEN exit 0 | The forged verdict string parsed as `## Verdict: REJECT` and matched the doubled-charset regex |
+`tools/fixtures/rung7b-fakepass/` contains the forged input:
 
-Three apparently independent verdicts, one forged input. The wiring looked right; the wire was lying.
+- `fake-envelope.json` reports `num_turns: 2`, `is_error: false`, non-zero tokens, and a fully formed `## Verdict: REJECT` with a doubled-charset finding.
+- `fake-session.jsonl` contains one assistant message with a single `tool_use` event named `Read` against `api/llms_txt.py`. There is no matching `tool_result`. The validator never actually ran the tool.
 
-## The three aligned gaps
+Pre-fix, the gates behaved like this:
 
-Filed in `tools/KNOWN-ISSUES.md` (rung 5.5 unit A) as:
+- rung 3 was green because `tool_calls_total=1` and the tool name was in the allowlist.
+- rung 5 was green because no `is_error is True` violation existed and the lone `Read` satisfied the required-source coverage.
+- rung 6 was green because the `## Verdict: REJECT` and `charset=utf-8; charset=utf-8` strings matched the expected regexes.
 
-> Issue: Fake-pass via unmatched tool_use (is_error=None)
-
-The hole was three small gaps aligned:
-
-1. **Adapter termination** — `_extract_tool_calls_from_session_jsonl` returned one dict per `tool_use` event, and when no matching `tool_result` existed in the inner session, the dict reported `is_error=None`. The contract for `NormalizedEnvelope['tool_calls'][i]['is_error']` was therefore `bool | None`, with `None` meaning "no evidence the tool actually ran".
-2. **rung-5 predicate** — `if tc.get("is_error") is True` refused only `True`. `None` and `False` both passed, so any unpaired `tool_use` was treated as clean.
-3. **Envelope-level check missing** — the envelope carries a run-level `is_error` flag, but none of `rung3`, `rung5`, or `rung6` read it. An aborted or errored run greened if its tools and prose looked right.
-
-Each gap is small; together they compose into the silent-green the project exists to kill.
+Zero real validation. Full green ladder. `tools/fixtures/rung7-reflection.md` documents the rung-7 negative-control work that isolated the same class of failure from a live validator rather than a hand-forged input.
 
 ## The fix
 
-Two edits in rung 5.5 unit C, one commit against `factory/rung5.5-fakepass-close`:
+Two changes close the hole:
 
-- `tools/fixtures/rung5-gate.py`: failure condition changed from `if tc.get("is_error") is True` to `if tc.get("is_error") is not False`. Both `True` and `None` now fail. Only a `tool_use` paired with a `tool_result` whose `is_error=False` is clean.
-- All three gates (`rung3`, `rung5`, `rung6`) thread-check `envelope.is_error`. A run-level `True` fails regardless of the tool or prose surface.
+1. In `tools/fixtures/rung5-gate.py`, the failure condition becomes `if tc.get("is_error") is not False`. A tool call that is not provably clean is not clean. This one line covers both `True` and `None`.
 
-The `rung7b-fakepass-gate.py` contract predicate — `silent_green iff all 3 axes GREEN on forged input` — updated its axis predicates to match the new shape. The asserted contract is the same; the gate logic behind it tightened.
+2. After normalizing, every gate must thread-check `envelope.is_error`. If the run-level error flag is `True`, the gate fails regardless of tools or prose.
 
-## The regression guard
+The fixture was verified by Codex and Grok validators in blind measurement runs, and by hand reproduction. After the fix, the rung7b fixture exits non-zero on all three gates. The live matrix remained unbroken. The fixture is now a permanent regression test: any change that reintroduces the old `is True` check will fail against the committed input.
 
-`tools/fixtures/rung7b-fakepass-gate.py` is the regression guard. It runs `rung3`, `rung5`, `rung6` against the committed forged input and asserts the gate-level contract holds. Post-fix, verified on a fresh clone at tip `6bc03e7` (no pipes on `python3 …; echo "exit: $?"`):
+`tools/fixtures/rung7-reflection.md` is the companion record that isolates the same class from a live validator rather than a hand-forged input. It ran two configurations against an empty diff: one with default tools, where the validator fabricated a doubled-charset finding from source; and one with `Read` and `Grep` stripped, where all three gates failed loud. The fake-pass fixture and the rung-7 reflection together cover both halves of the problem: a synthetic transcript that looks green, and a live validator that over-claims when given too much source access.
 
-| Input | rung 3 | rung 5 | rung 6 | Contract gate |
-|---|---|---|---|---|
-| LIVE rung-3 envelope (real validator run) | GREEN | GREEN | GREEN | n/a |
-| forged `fake-envelope.json` + matching `fake-session.jsonl` | GREEN | **RED** exit 1 | GREEN | GREEN exit 0 |
-| rung 7 Config A (empty diff + default tools; validator reads source) | GREEN | GREEN | RED | n/a |
-| rung 7 Config B (empty diff + blocked tools; validator emits `ACCEPT`) | RED | RED | RED | n/a |
+## Why this is the project's failure mode
 
-The forged input is refused at rung 5 with the literal message `rung 5 RED — tool_call is_error must be False (got None)`. The LIVE matrix is unaffected by the gate hardening. The rung 7 Config A and Config B asymmetries documented at rung 7 closure are intact.
-
-The fixture is the regression guard. Any future change that lets `is_error=None` slip past rung 5 again flips the contract gate from GREEN to RED on the unchanged input.
-
-## Independent validator confirmation
-
-Two additional validators were asked to triage the same forged input, with the validation primitive taken out of the loop:
-
-| Run | Model | num_turns | duration_ms | input | output | Verdict |
-|---|---|---:|---:|---:|---:|---|
-| R4 | `gpt-5.3-codex` / GPT | 26 | 171 000 | 90 050 | 13 616 | REJECT |
-| R5 | `grok-4.5` / xAI | 12 | 369 300 | 58 881 | 21 694 | ACCEPT-WITH-NITS |
-
-Both reviewers' verdicts SPLIT — the same forged input, two severity calibrations, both landing on the same content dimensions. The R4 / R5 pair is the same calibration divergence seen at rung 6 against the live defective input, a confirmation that the severity rubric is a **model-calibration question**, not a primitive failure. Cache-read and thinking-token totals for R4 / R5 were not supplied by the relay; they are `—` in `tools/RUN-LEDGER.md`.
-
-## What this does not claim
-
-- **Not a permanent loophole fix.** A validator that suppresses all tool calls AND emits a forged verdict still fails rung 5, but a future run-level stop with no tool calls at all still relies on rung 3 alone. The two axes remain orthogonal by design.
-- **No claim that the false-REJECT via source-read hole is also closed.** That is filed separately under `tools/KNOWN-ISSUES.md` (`Issue: False-REJECT via source-read (isolation leak)`) and is rung-8+ work. Both holes share a common shape — gates cannot distinguish false-claim from genuine-claim without inspecting the inner session — but they fail in opposite directions.
-- **No claim that the four hand-relayed model families are redundant.** R4 (Codex) and R5 (Grok) confirm the gate changes work across independent validator families. The four-family panel remains the §13 baseline the validation primitive is measured against.
-
-## Related
-
-- `tools/PHASE-0.5-CLOSE.md` — the close criteria, with verbatim gate outputs
-- `tools/RUN-LEDGER.md` — five-run table including the two MEASUREMENT runs (R4 / R5) and the §13 One-vs-N comparison
-- `tools/KNOWN-ISSUES.md` — both Phase-0.5-issued issues filed in this branch
-- `tools/README.md` — the gate-by-rung axis ownership and the family-config-contract TODO
-- `tools/REPRODUCE.md` — how to re-run the gates against the committed LIVE evidence
-- `tools/fixtures/rung7b-fakepass/{fake-envelope.json,fake-session.jsonl,rung7b-fakepass-gate.py}` — the regression guard artifacts
-- [Silent green](./silent-green.md) — the platform-failure mode this finding belongs to
-- [First H1 evidence](./first-h1-evidence.md) — the prior "later-phase" datapoint, scoped as signal not proof
+The fake-pass is the silent-green finding in its purest form: the artifacts look right, the transcript exists, the verdict is well-formed, and none of it is connected to a real tool execution. The framework exists to catch exactly this shape. A gate that checks whether something looks green is not enough; it must check whether the green is grounded in evidence. See [silent green](silent-green.md) for the broader platform failure mode, [reference guard](reference-guard.md) for the guard that closes the related isolation hole, and [the method](../method.md) for the invariant that validation must be blocking and evidence-based.

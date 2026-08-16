@@ -1,100 +1,66 @@
 # Getting started
 
-There is nothing to build or install. This repository holds a specification and executed probe evidence. "Running" it means **re-running a probe and checking whether its recorded verdict still holds**.
-
 ## Prerequisites
 
-| Requirement | Notes |
+- Python 3.10+
+- `pytest>=9.0` and `pytest-cov` (install via `pip install -r requirements.txt`)
+- Git
+- A Factory `droid` CLI install (only needed for live sprint runs, not for tests) — the only working adapter today
+  - Factory works today; the adapter seam in `tools/adapters/` exists so others can follow without rewriting the gates
+  - If you want to wire up Codex, Claude Code, or Ollama, reach out — happy to help
+
+## Clone and test
+
+```bash
+git clone https://github.com/Roderick-Clemente/adversarial-sprint.git
+cd adversarial-sprint
+pip install -r requirements.txt
+python3 -m pytest -q
+```
+
+Expected: **233 passed, 3 skipped**. The skips are honest: `telemetry/runs.jsonl` is the system-of-record and is gitignored, so tests that assert on its contents have nothing to assert against outside a real run.
+
+## Run a sprint (adopt the method on your own project)
+
+The runner is invoked through a per-pilot overlay, not the framework CLI directly. See [adopting the method](../how-to-contribute/adopting-the-method.md) for the full setup guide. Quick version:
+
+```bash
+# 1. Install the overlay into your pilot repo
+mkdir -p <PILOT_REPO>/.adversarial-sprint/bin
+cp templates/overlay/sprint-loop-config.template.json \
+   <PILOT_REPO>/.adversarial-sprint/sprint-loop-config.json
+cp templates/overlay/sprint-loop-chunks-example.template.json \
+   <PILOT_REPO>/.adversarial-sprint/chunks.json
+cp templates/overlay/bin/run-sprint \
+   <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+chmod +x <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+
+# 2. Edit the config: set framework_root, pilot_root, validators, API keys
+
+# 3. Dry-run wiring test
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --dry-run --non-interactive
+
+# 4. Real run (you stay in the seat)
+<PILOT_REPO>/.adversarial-sprint/bin/run-sprint
+```
+
+You need: a pilot repo with tests, Factory API keys (or model API keys for each family in your panel), and an `EVIDENCE_SIGNING_KEY` environment variable. See [adopting the method](../how-to-contribute/adopting-the-method.md) for details.
+
+## Key entry points
+
+| What | Where |
 |---|---|
-| `droid` CLI | The probes were recorded against **0.186.0**. Check with `droid --version`. A different version invalidates the recorded verdicts until you re-run. |
-| Python 3 | Hook scripts are plain `python3`, no packages required |
-| `git` | Probe rigs create throwaway repositories |
-| A POSIX shell | `run.sh` scripts are bash |
-| macOS or Linux | Probes were recorded on macOS (darwin 24.6.0); Probe 4's superseded record was taken on Linux |
+| Full spec (problem, invariants, phases) | `PRD.md` |
+| Operating discipline (§1-§24, each with the incident behind it) | `tools/OPERATING-RULES.md` |
+| Sprint loop runner | `tools/sprint-loop.py` |
+| Runner package | `tools/sprint_loop/` |
+| Agent-facing skill | `skills/adversarial-sprint/SKILL.md` |
+| Sprint invocation skill | `skills/sprint-invocation/SKILL.md` |
+| CI workflow | `.github/workflows/adversarial-sprint-ci.yml` |
 
-No package manager, lockfile, or dependency install step exists. See [Dependencies](../reference/dependencies.md).
+## Where to read next
 
-## Reading the repository
-
-Start here, in this order:
-
-```bash
-cat README.md            # the pitch and the four core properties
-cat PRD.md               # full spec — invariants in §4, workflow in §5
-cat phase-0/README.md    # the eight probes and their verdicts
-cat phase-0/GO-NO-GO.md  # the Phase 0 decision
-```
-
-## Re-running a probe
-
-Every probe directory carries a `run.sh` that reproduces every measurement in its record. This is the repository's equivalent of a test suite.
-
-```bash
-bash phase-0/evidence/probe-4/reverify/run.sh   # hook blocking: 11 droid exec runs
-bash phase-0/evidence/probe-8/run.sh            # self-declared risk: 7 runs
-bash phase-0/evidence/probe-2/run.sh            # fallback safety: 9 runs
-bash phase-0/evidence/probe-6/run.sh            # plugin distribution: 4 runs
-```
-
-Each script prints its `droid --version` first, then an expected-shape summary at the end so you can tell at a glance whether the verdict still holds.
-
-### Before you run anything
-
-**These scripts cost real model credits.** Probe 4's rig makes 11 `droid exec` calls at `--auto high`. Probe 2 makes 9. Budget accordingly.
-
-**They write outside the repository.** All rigs build throwaway fixtures under `/tmp/probe-<n>/`, which they delete and recreate on each run.
-
-**Probe 6 mutates user-level configuration.** It registers a plugin marketplace and installs a plugin, which writes to `~/.factory/settings.json` and `~/.factory/plugins/cache/`. The script backs the settings file up first and restores it byte-identical at the end, but read the cleanup section before running it on a machine you care about. Uninstall does not fully clean up after itself — see [Probe 6](../probes/probe-6-plugin-boundary.md).
-
-### Finding the evidence for a probe
-
-All six probe evidence directories are on `factory/phase-0-go-no-go`, alongside the go/no-go and this wiki:
-
-```bash
-git checkout factory/phase-0-go-no-go
-ls phase-0/evidence/          # probe-1 … probe-8
-```
-
-They have not been merged to `main`, which still carries only the spec, the template and the conventions. Each probe also keeps its own original `factory/<topic>` branch, retained after consolidation so the per-commit history of a single probe stays readable in isolation. The layout is explained in [Architecture](./architecture.md#one-consolidated-branch-recorded-per-probe).
-
-## Reading a probe record
-
-Each record follows the same shape, defined in `phase-0/evidence/README.md`:
-
-| Element | Why it is required |
-|---|---|
-| Verdict and date | The claim being made |
-| `droid --version` | A "no" recorded against no version cannot be rechecked later |
-| Resolved model IDs | Where the probe touches model selection, the *resolved* ID matters, not the requested one |
-| Exact commands and exit codes | So the reasoning can be contested |
-| `raw/` | Captured stdout, hook logs, secret-filtered |
-| `rig/` | The scripts and configs actually under test |
-| `run.sh` | If a probe cannot be re-run from its own directory, it is a claim rather than evidence |
-
-## Interpreting results — read this before trusting a green run
-
-The most important operational lesson from Phase 0 is that **an exit code of 0 means very little on this platform**. Four separate probes produced runs that looked successful and were not. See [Silent green](../findings/silent-green.md) and [Debugging](../how-to-contribute/debugging.md).
-
-When re-running a probe, assert on:
-
-- the **hook's own log**, not the agent's summary
-- **per-tool `is_error`** inside the session transcript
-- the **observed effect** — did the file actually change? compare hashes
-- **never** the process exit code alone
-
-A concrete example: in Probe 2's test T5 the family gate denied every single tool call, and the run still exited 0, `is_error: false`, with a correct-looking answer that the model produced from its startup context.
-
-## Verifying a resolved model
-
-The `droid exec -o json` result envelope does **not** contain the model that ran. To find it, read the session transcript:
-
-```bash
-SESSION=$(python3 -c "import json;print(json.load(open('run.json'))['session_id'])")
-grep -o '"modelId":"[^"]*"' ~/.factory/sessions/*/$SESSION.jsonl | sort -u
-```
-
-This method came out of Probe 3's addendum and is used by every probe from 3 onward. Details in [Probe 2](../probes/probe-2-fallback-safety.md).
-
-## Contributing a change
-
-Read `AGENTS.md` first — it binds humans and agents equally, and it has a hard rule about what must never be committed here. Then see [How to contribute](../how-to-contribute/index.md).
+- [The method](../method.md) - the GROK, CHUNK, EXECUTE workflow
+- [Features](../features/index.md) - the code: sprint loop runner, token gates, plan-lint, evidence provider, CI
+- [Findings](../findings/index.md) - what the live runs discovered
+- [How to contribute](../how-to-contribute/index.md) - how to jump in

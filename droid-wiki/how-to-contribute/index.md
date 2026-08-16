@@ -1,36 +1,27 @@
 # How to contribute
 
-Contributing here is not writing features. There is no application to extend. Work in this repository takes one of three shapes:
+There are two ways to engage with this repo, and they suit different people. You can help build the framework itself, or you can take the method home and run it against your own project. Both are welcome, and neither requires permission to start.
 
-- **Record probe evidence** — run a controlled experiment against the `droid` CLI and commit the record under `phase-0/evidence/`, meeting the standard in `phase-0/evidence/README.md`.
-- **Extend the spec** — change `PRD.md` or `templates/SPRINT-PLANNING-TEMPLATE.md`, with the reasoning for the change written down.
-- **Re-verify a verdict** — re-run a probe against a newer CLI version and record whether its recorded verdict still holds. Probe verdicts are pinned to `droid` 0.186.0; a different version invalidates them until re-run.
+This is a multi-model adversarial coding framework. The interesting part is not the code, it is the discipline: independent model families review each other's work, every chunk close is gated by a signed token, and a clean run is treated as data rather than proof. If that sounds like something you want to poke at, read on.
 
-## Read this first: treat this repository as public
+## Contribute to the framework
 
-`AGENTS.md` is binding on every agent and human working here. Its first rule is that anything committed **will be read by outside parties**, including the vendors whose products the probes evaluate. There is no "it's private for now" state to rely on.
+The framework lives at `/Users/factory/work/adversarial-sprint-dev`. It is a normal Python repo with a test suite, a runner, and a set of gates. If you can write Python and read a spec, you can work here.
 
-**Never write here:**
+Start with [getting started](../overview/getting-started.md) to clone and run the suite. Then read [development workflow](development-workflow.md) for the branch-by-author convention, the commit body recipe, and how the three agents hand work off to each other. The [testing](testing.md) page explains what the 233 tests actually cover and how to run them.
 
-- Personal or confidential context of any kind — private conversations, negotiations, process notes about people
-- Names of individuals at vendors or target companies, or anything traceable to a private conversation with them
-- Competitive or negotiating strategy
-- Secrets, credentials, tokens, internal customer names, or employer-confidential material
+The repo is organized by kind, not by phase. Code is in `tools/`, plans in `planning/`, evidence in `evidence/`. The [architecture](../overview/architecture.md) page has the full tree. Before you change a gate or a path constant, read [patterns and conventions](patterns-and-conventions.md), which summarizes the operating rules and the commit-body format every model-carrying commit needs.
 
-That material lives in a separate private repository, and the fence includes not referencing the private side by path.
+Good first contributions: a new adapter in `tools/adapters/` for a CLI other than Factory, a plan-lint rule in `tools/plan-lint.py`, or a test that pins a behavior you found surprising. The [findings](../findings/index.md) pages are full of behaviors worth pinning.
 
-Honest technical criticism is *not* on the never-write list. Recording that a platform capability is immature, undocumented, or broken is legitimate engineering work and belongs in the record. The line is "keep it technical, sourced, and fair", not "avoid criticism".
+## Adopt the method on your own project
 
-Because git history travels with the repository, scrub before the first push rather than adding a follow-up commit. See [Development workflow](./development-workflow.md#history-hygiene).
+You do not need to modify this repo to use it. The framework ships a per-pilot overlay you drop into your own repo, and from there one command fires the runner.
 
-## Pages in this section
+Read [adopting the method](adopting-the-method.md) for the full setup: copying the overlay templates, editing the config, setting your signing key, and choosing a run mode. You need a pilot repo with its own tests, API keys for the model families in your panel, and the `droid` CLI installed. A dry-run wiring test costs no model credits and is the recommended first step.
 
-| Page | What it covers |
-|---|---|
-| [Patterns and conventions](./patterns-and-conventions.md) | Evidence standards, controlled comparison, forcing the bypass, how records are corrected |
-| [Development workflow](./development-workflow.md) | Branch-per-author, commits as the handoff baton, review gate, history hygiene |
-| [Testing](./testing.md) | The probes are the tests: how to re-run one, what a `run.sh` must do, what to assert on |
-| [Debugging](./debugging.md) | The traps this repository actually hit, and how to get out of them |
-| [Tooling](./tooling.md) | The `droid` CLI, `python3` hooks, bash, `git`, `jq`, and where Factory config lives |
+If you want to understand what the runner is doing before you point it at your code, read [the sprint loop runner](../features/sprint-loop-runner.md) and the operating rules in `tools/OPERATING-RULES.md`.
 
-New to the repository? Start at [Getting started](../overview/getting-started.md), then [Architecture](../overview/architecture.md). Unfamiliar terms are in the [Glossary](../overview/glossary.md).
+## The short version
+
+Clone, run `python3 -m pytest -q`, pick a path above, and jump in. The repo's thesis is that independent reviewers catch what a single reviewer misses, so the bar for a contribution is not perfection, it is that the work survives review by a different model family than the one that wrote it.
