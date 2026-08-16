@@ -30,6 +30,8 @@ ALLOWED_TOP_LEVEL = frozenset({
     "evidence",
     "pilots",
     "planning",
+    "Makefile",          # readiness tooling entrypoint (PR #12)
+    "pyproject.toml",    # ruff/black/mypy config (PR #12)
     "pytest.ini",
     "requirements.txt",
     "skills",
