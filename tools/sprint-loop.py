@@ -1046,6 +1046,35 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         # test in tests/test_sprint_loop.py::test_commit_chunk_force_adds_evidence.
         _git("add", "-f", p, cwd=_REPO_ROOT)
 
+    # KI-3: with evidence_output_dir outside framework_root (the
+    # supported [H-9] per-pilot overlay pattern) nothing is staged,
+    # and an unconditional `git commit` dies on "nothing to commit"
+    # AFTER the whole loop has already succeeded. Skip the audit
+    # commit instead; the [H-9] warning above already told the
+    # operator the pilot repo owns archival in this layout.
+    if not stage_paths:
+        print(
+            f"  chunk {chunk.chunk_id}: nothing staged in framework_root; "
+            f"skipping audit commit (evidence lives outside the framework "
+            f"repo — see [H-9] warning above).",
+            file=sys.stderr,
+        )
+        return
+
+    # Review finding F-7c8d9e: stage_paths being non-empty does not
+    # guarantee the index changed — `git add -f` of paths identical to
+    # HEAD stages nothing, and the unconditional commit dies on
+    # "nothing to commit" exactly like the empty-stage_paths case.
+    # Ask the index, not the path list.
+    staged = _git("diff", "--cached", "--name-only", cwd=_REPO_ROOT)
+    if not staged.strip():
+        print(
+            f"  chunk {chunk.chunk_id}: staged paths are identical to "
+            f"HEAD; nothing to commit, skipping audit commit.",
+            file=sys.stderr,
+        )
+        return
+
     body = (
         f"Phase 4.5 chunk '{chunk.chunk_id}' accepted\n\n"
         f"Model: {rs.executor.resolved_model_id or rs.executor.pinned_model_id} "
