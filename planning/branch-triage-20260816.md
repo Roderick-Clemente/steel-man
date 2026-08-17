@@ -11,7 +11,7 @@ flagged uncertainty.
 | branch | ahead | disposition | evidence |
 |---|---|---|---|
 | `factory/readme-ci-onboarding-fixes` | 1 | READY — held for Monday (merge = publish) | README pilots/ path + Python 3.10 floor; verified clean 2026-08-16 |
-| `factory/readme-accuracy` | 1 | LIVE — overlaps the branch above | same README region (test counts, pilots/ path, 3.10 note); reconcile the two before merging either |
+| `factory/readme-accuracy` | 1 | LIVE — overlaps the branch above | same README region (test counts, pilots/ path, 3.10 note); reconcile the two before merging either. Was LOCAL-ONLY until late 2026-08-16 (working-rule-1 violation, caught in cross-review when Max could not see it on origin); pushed since |
 | `fix/chunk13-shallow-clone-skip` | 0 | ALREADY ON MAIN — safe to delete | `git cherry` = patch-equivalent; skip logic present at `tests/test_sign_chunk_token.py:195-201` |
 | `agent/referee/phase-5-chunkadherence` | 1 | PARTIALLY MERGED — do not delete | c0ba01c (token signing) patch-equivalent on main; e813e12 (referee review summary, verdict matrix for 5a-5e) is NOT on main and the file exists nowhere in main's tree — unmerged evidence |
 | `factory/chunk-14-kn-J-fixes` | 1 | LIVE (deliberately paused) | PHASE-5-LAUNCH-PROMPTS.md cites 623e024 as the phase-4.5 resume point; J-7 BLK + J-8/9/10/11/15/16 still open |
