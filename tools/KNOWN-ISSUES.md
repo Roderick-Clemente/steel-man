@@ -346,32 +346,60 @@ pattern as `rung7b-fakepass`): all 6 findings parse, F-3a91c2 present with sever
 plus a synthetic unbalanced-brace repro. Fixed by hand, not through the loop: the loop's
 auto-accept precondition was the thing broken.
 
-## Issue KI-5: Plans leak implementation, defeating independent-executor claims (§13)
+## Issue KI-5: Specs and plans leak implementation, defeating independent-executor claims (§13)
 
 - **Status:** OPEN. Severity: invariant erosion (third recorded instance).
-- **Surface:** planning stage (`plan.md` authored by the planner seat); `plan-lint.py` coverage gap.
+  Rewritten 2026-08-16: originally filed against the planning stage alone; this run
+  leaked at two layers with distinct authorship (spec-originated `jsonify`,
+  plan-originated `startswith`).
+- **Surface:** pilot-spec authorship (`pilot-spec.md`) AND plan authorship
+  (`plan.md`), both propagating to the executor; `plan-lint.py` coverage gap at
+  BOTH layers.
 - **Filed:** 2026-08-16.
 
 ### Symptom
-`plan.md` named both the discriminator (`startswith('/api/')`) and the response helper
-(`jsonify`) — implementation choices, not observable behaviour — despite asserting it "does
-not prescribe how the branch is implemented." The executor's fix reproduces exactly those
-choices, so this run cannot support an independent-implementation (H3) claim. Filed against
-the planning stage, not the executor: the executor did what it was told; the plan told it
-too much.
+Two leaks with two distinct roots, both reproduced verbatim by the executor
+(`jsonify({"error": "Not found"}), 404`), so this run cannot support an
+independent-implementation (H3) claim:
+
+1. **`jsonify` — spec-originated.** The chain is **spec -> plan -> executor**.
+   `pilot-spec.md` line 8 reads "see `api/api_endpoints.py`, which returns
+   `jsonify({"error": ...}), <code>` for its own error cases"; `plan.md` line 95
+   reproduces that helper. The planner did what the spec primed it to do.
+2. **`startswith('/api/')` — plan-originated.** The chain is **plan -> executor**.
+   The spec states the `/api/*` boundary only observably; constraint C6
+   (`plan.md` line 147, promoted from review-round-1 finding `F-b19c55`) both
+   states the binding rule ("a request is 'API' iff its path begins with `/api/`",
+   which is observable) and then proves it with a string-method diagnostic
+   (`'/apiary'.startswith('/api')` is True while `'/apiary'.startswith('/api/')`
+   is False) — naming the implementation the executor then used.
+
+In both cases the leaking document asserts it "does not prescribe how the branch is
+implemented." The executor did what the plan told it; the plan leaked at two layers
+with different authorship.
 
 ### Repro
-`grep -niE 'startswith|jsonify|request\.path' evidence/plan.md` -> §7 C6 names the
-`startswith('/api/')` boundary and the `jsonify({"error": ...})` convention.
+`grep -niE 'jsonify|api_endpoints' pilot-spec.md` -> line 8 names the
+`jsonify({"error": ...}), <code>` convention (spec-originated leak).
+`grep -niE 'startswith|jsonify|request\.path' evidence/plan.md` -> line 95 repeats
+the `jsonify` convention (propagated from spec); line 147 (constraint C6) adds the
+`startswith('/api/')` diagnostic (plan-originated leak; absent from the spec).
 
 ### Root cause
-Writing a plan naturally pulls the author toward the solution already in mind; this is a
-systemic property, not carelessness. Phase 4 records the same §13 failure for Phases 1 and
-3 — three instances now. Per OPERATING-RULES, a rule that relies on remembering is not a
-rule.
+Writing a spec or plan naturally pulls the author toward the solution already in mind;
+this is a systemic property, not carelessness. Phase 4 records the same §13 failure for
+Phases 1 and 3 — three instances now. Per OPERATING-RULES, a rule that relies on
+remembering is not a rule. The original filing repeated the same mistake at the meta
+level: it blamed the layer nearest the symptom (the plan) for the `jsonify` leak that
+the spec authored, and its proposed `plan-lint` rule scanned only chunk specs — it
+would not have caught either leak. The `startswith` leak, by contrast, genuinely is
+plan-authored: attributing both to the spec would overclaim, and each layer needs its
+own guard.
 
 ### Recommendation (deterministic-tier fix; not applied here)
-Extend `plan-lint.py` to flag implementation-prescriptive language in chunk specs and plan
-behavioural criteria: method names, library/helper calls, and function names appearing
-where only observable outcomes belong are a smell. A mechanical check catches a class the
-human + panel have now missed three runs running.
+Extend `plan-lint.py` to flag implementation-prescriptive language in **pilot specs AND
+plans** (both layers, not chunk specs alone): method names, library/helper calls
+(`jsonify`), string-method discriminators (`startswith`), and function/file references
+appearing where only observable outcomes belong are a smell. A mechanical check catches
+a class the human + panel have now missed three runs running — and the lint must run at
+spec-intake time, before the leak can propagate down the chain.
