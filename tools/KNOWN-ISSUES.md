@@ -311,7 +311,7 @@ without any `git commit`, inside-root still stages and commits.
 
 ## Issue KI-4: Gate drops a HIGH plan-review finding from its own ledger
 
-- **Status:** OPEN. Severity: silent-green class (defeats the §5.3 precondition).
+- **Status:** FIXED 2026-08-16 (`factory/ki4-finding-parser`). Severity: silent-green class (defeats the §5.3 precondition).
 - **Surface:** plan-review finding aggregation -> `findings.jsonl` + reconcile packet; §5.3 check.
 - **Filed:** 2026-08-16.
 
@@ -330,10 +330,21 @@ F-3a91c2 severity=high) against `telemetry/findings.jsonl` (5 grok rows, all med
 F-3a91c2 absent) and `evidence/reconcile-packet.txt` (no HIGH). The dropped block is the
 first JSON object in the envelope, preceded by a prose preamble and a `---` rule.
 
-### Root cause (suspected)
-The finding parser misses the first fenced JSON block when it follows prose/heading and a
-horizontal rule. Net effect: severity that should gate the run never enters the ledger the
-gate reads.
+### Root cause (confirmed)
+Not the prose/`---` preamble as first suspected. `_parse_finding_block`'s regex DID match
+all 6 blocks; the naive brace counter that followed desynced on an unbalanced `{` inside a
+JSON string value — F-3a91c2's evidence array quotes the template literal
+`validator receives {{chunk_spec}` — so the balance never returned to zero and the block
+was silently skipped. Net effect: severity that should gate the run never entered the
+ledger the gate reads.
+
+### Fix
+Replaced the brace counter with string-aware `json.JSONDecoder.raw_decode`, anchored on
+each `"finding_id"` occurrence (walking back to the enclosing `{`). Regression tests pin
+grok's real envelope as a committed fixture (`tools/fixtures/ki4-dropped-high/`, same
+pattern as `rung7b-fakepass`): all 6 findings parse, F-3a91c2 present with severity=high,
+plus a synthetic unbalanced-brace repro. Fixed by hand, not through the loop: the loop's
+auto-accept precondition was the thing broken.
 
 ## Issue KI-5: Plans leak implementation, defeating independent-executor claims (§13)
 

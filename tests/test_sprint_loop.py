@@ -2179,3 +2179,173 @@ def test_ki3_clean_index_after_add_skips_commit_real_git_f_7c8d9e(
     assert rs.commit_count == 0
     err = capsys.readouterr().err
     assert "nothing to commit, skipping audit commit" in err
+
+# ── KI-4 regression: dropped HIGH plan-review finding ───────────────────
+
+
+def _ki4_fixture_result_text() -> str:
+    """grok-4.5's real plan-reviewer envelope from the first live run
+    (r-quantum-404-20260816), committed verbatim as a fixture — same
+    pattern as rung7b-fakepass. Its first fenced JSON block follows
+    prose and a `---` rule and quotes a `{{chunk_spec}` template
+    literal in an evidence string, which desynced the old
+    brace-counting parser."""
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+    ).decode().strip()
+    path = os.path.join(repo, "tools", "fixtures", "ki4-dropped-high",
+                        "plan-reviewer-1-envelope.json")
+    assert os.path.isfile(path), f"KI-4 fixture missing: {path}"
+    env = json.loads(open(path).read())
+    return env["result"]
+
+
+def test_ki4_all_six_findings_parse_from_real_envelope():
+    """KI-4 regression: the parser must recover ALL findings from
+    grok's real envelope. The old parser returned 5 of 6, silently
+    dropping the only HIGH."""
+    mod = _load_sprint_loop_module()
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", _ki4_fixture_result_text(),
+        "r-quantum-404", "grok-4.5", "grok-family", 1)
+    ids = {f.finding_id for f in findings}
+    assert len(findings) == 6, (
+        f"KI-4 regression: expected 6 findings, got {len(findings)}: {ids}"
+    )
+    assert ids == {"F-3a91c2", "F-8c2e14", "F-b7d401",
+                   "F-51e0aa", "F-c0f3a9", "F-2d9b17"}
+
+
+def test_ki4_dropped_high_finding_is_present_with_high_severity():
+    """The specific silent-green shape: F-3a91c2 (severity=high) never
+    reached findings.jsonl or the reconcile packet, so the §5.3
+    'no open blocker|high' precondition passed vacuously and the plan
+    auto-accepted on 1/2 APPROVE."""
+    mod = _load_sprint_loop_module()
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", _ki4_fixture_result_text(),
+        "r-quantum-404", "grok-4.5", "grok-family", 1)
+    high = [f for f in findings if f.finding_id == "F-3a91c2"]
+    assert high, "KI-4 regression: F-3a91c2 dropped from the ledger again"
+    assert high[0].severity == "high"
+    assert high[0].status == "open"
+
+
+def test_ki4_parser_survives_unbalanced_braces_inside_strings():
+    """Synthetic minimal repro: a finding whose string value contains
+    an unbalanced `{` (e.g. a quoted template literal) must still
+    parse, and must not swallow the finding that follows it."""
+    mod = _load_sprint_loop_module()
+    text = (
+        'prose preamble\n\n---\n\n```json\n'
+        '{"finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "operability",'
+        ' "claim": "x", "evidence": ["validator receives {{chunk_spec}"],'
+        ' "recommended_change": "y"}\n```\n\nmore prose\n\n'
+        '{"finding_id": "F-bbb222", "severity": "low",'
+        ' "category": "spec-deviation", "claim": "z",'
+        ' "evidence": [], "recommended_change": "w"}\n'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-aaa111", "high"), ("F-bbb222", "low")}
+
+
+def test_ki4_parser_extracts_findings_from_json_array_f_a1b2c3():
+    """Review finding F-a1b2c3: a reviewer that wraps its findings in
+    a `findings: [...]` array must still yield every element — the
+    array wrapper itself carries no finding_id and must not appear."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"findings": ['
+        '{"finding_id": "F-bbb222", "severity": "high",'
+        ' "category": "semantic", "claim": "a", "evidence": [],'
+        ' "recommended_change": "r1"},'
+        '{"finding_id": "F-ccc333", "severity": "low",'
+        ' "category": "nit", "claim": "b", "evidence": [],'
+        ' "recommended_change": "r2"}'
+        ']}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-bbb222", "high"), ("F-ccc333", "low")}
+
+
+def test_ki4_parser_no_double_count_from_nested_finding_id_f_d4e5f6():
+    """Review finding F-d4e5f6: a wrapper object that embeds a child
+    dict repeating the same finding_id must yield exactly ONE ledger
+    row — double-counting a HIGH would distort the §5.3 gate just as
+    dropping one did. Policy: nearest enclosing object per occurrence,
+    dedupe by finding_id, first wins."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "semantic", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r",'
+        ' "child": {"finding_id": "F-aaa111", "severity": "high",'
+        ' "claim": "inner"}}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert len(findings) == 1, (
+        f"F-d4e5f6: nested duplicate double-counted: "
+        f"{[(f.finding_id, f.claim) for f in findings]}"
+    )
+    assert findings[0].finding_id == "F-aaa111"
+    # First text occurrence wins after nearest-object resolve; here the
+    # outer finding_id key precedes the child's, so outer is kept.
+    assert findings[0].claim == "outer"
+
+
+def test_ki4_parser_nested_duplicate_child_key_first_keeps_inner_f_c0ffee():
+    """Review finding F-c0ffee: the dedupe policy is first-TEXT-
+    occurrence-wins, not outer-wins. When the child dict is written
+    before the parent's own finding_id key, the child's occurrence
+    resolves first and its row is the one kept. Severity gating is
+    unaffected either way (same id, one row); this pins which claim
+    text reaches the ledger."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"child": {"finding_id": "F-aaa111", "severity": "high",'
+        ' "claim": "inner"},'
+        ' "finding_id": "F-aaa111", "severity": "high",'
+        ' "category": "semantic", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r"}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert len(findings) == 1
+    assert findings[0].finding_id == "F-aaa111"
+    assert findings[0].severity == "high"  # gate input identical
+    assert findings[0].claim == "inner"    # first occurrence in text
+
+
+def test_ki4_parser_distinct_nested_ids_both_survive():
+    """Counterpart to F-d4e5f6: dedupe is by finding_id, so an outer
+    and a nested child with DIFFERENT ids are two real findings — the
+    dedupe must not swallow a distinct nested HIGH."""
+    mod = _load_sprint_loop_module()
+    text = (
+        '{"finding_id": "F-aaa111", "severity": "low",'
+        ' "category": "nit", "claim": "outer", "evidence": [],'
+        ' "recommended_change": "r",'
+        ' "related": {"finding_id": "F-bbb222", "severity": "high",'
+        ' "claim": "inner"}}'
+    )
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    got = {(f.finding_id, f.severity) for f in findings}
+    assert got == {("F-aaa111", "low"), ("F-bbb222", "high")}
+
+
+def test_ki4_parser_prose_finding_id_without_object_yields_nothing_f_a1b2c3():
+    """Review finding F-a1b2c3: a finding_id quoted in prose with no
+    enclosing JSON object must not fabricate a ledger row."""
+    mod = _load_sprint_loop_module()
+    text = ('the reviewer discussed "finding_id": "F-ddd444" in prose '
+            'without emitting any JSON object')
+    findings = mod._parse_finding_block(
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+    assert findings == []
