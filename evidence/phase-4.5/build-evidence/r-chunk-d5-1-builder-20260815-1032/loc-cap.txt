@@ -1,5 +1,0 @@
-tools/conventions/review-bundle.md: 50 non-blank LOC
-tools/run-review.sh: 9 non-blank/non-comment LOC
-planning/evidence-hygiene/PLAN.md: 21 non-blank LOC
-tools/README.md (appended-section delta): 5 non-blank LOC
-TOTAL: 85 (cap 100, status: OK)
