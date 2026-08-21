@@ -1,0 +1,27 @@
+# Pre-commit hooks for adversarial-sprint-dev
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(tools|tests)/
+      - id: ruff-format
+        files: ^(tools|tests)/
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+        args: [--config, .gitleaks.toml]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: [--configfile, .bandit, -r]
+        files: ^tools/
+        exclude: ^tools/fixtures/

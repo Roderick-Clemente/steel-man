@@ -1,0 +1,60 @@
+name: Bug Report
+description: Report a defect in the runner, gates, adapters, or tooling
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Please include a repro —
+        adversarial-sprint records findings with committed evidence, so
+        a command + observed output is the fastest path to a fix.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One paragraph describing the defect
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Commands and observed output
+      value: |
+        ```
+        $ <command>
+
+        <output>
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA
+      description: The commit the defect was observed on
+      placeholder: abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - sprint-loop runner
+        - gates (cross-family review / chunk-sequence / RED-GREEN)
+        - adapters (factory.py / vendor abstraction)
+        - plan-lint
+        - evidence provider (local_backend.py)
+        - orchestrate-review.py
+        - CI / Harness pipeline
+        - other
+    validations:
+      required: true

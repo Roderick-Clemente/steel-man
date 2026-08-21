@@ -1,0 +1,59 @@
+# Label definitions — synced by .github/workflows/label-sync.yml
+# Tool: crazy-max/ghaction-github-labeler
+
+labels:
+  - name: bug
+    color: d73a4a
+    description: Something is not working
+
+  - name: enhancement
+    color: a2eeef
+    description: New feature or improvement
+
+  - name: dependencies
+    color: 0366d6
+    description: Dependency updates (Dependabot)
+
+  - name: python
+    color: 3572a5
+    description: Python dependency or tooling
+
+  - name: github-actions
+    color: 2088ff
+    description: GitHub Actions workflow or CI config
+
+  - name: triage
+    color: fbca04
+    description: Needs initial review / categorization
+
+  - name: security
+    color: b60205
+    description: Security-related finding or fix
+
+  - name: documentation
+    color: 0075ca
+    description: Documentation, wiki, or skill asset
+
+  - name: gates
+    color: 6e4a8e
+    description: Validation gates (RED-GREEN, chunk-sequence, cross-family)
+
+  - name: runner
+    color: 0e8a16
+    description: sprint-loop.py runner or orchestration
+
+  - name: adapters
+    color: c5def5
+    description: Vendor adapter layer (tools/adapters/)
+
+  - name: plan-lint
+    color: bfd4f2
+    description: Plan linter (tools/plan-lint.py)
+
+  - name: evidence
+    color: d4c5f9
+    description: Evidence provider, bundles, signing tokens
+
+  - name: ci
+    color: e99695
+    description: CI pipeline (GitHub Actions or Harness)

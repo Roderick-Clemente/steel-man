@@ -1,0 +1,23 @@
+# Gitleaks configuration — extends the default rule set.
+# https://github.com/gitleaks/gitleaks#configuration
+
+[extend]
+useDefault = true
+
+# The EVIDENCE_SIGNING_KEY is a workflow secret, never committed.
+# This rule catches accidental commits of the key value or similar
+# HMAC signing keys.
+[[rules]]
+id = "hmac-signing-key"
+description = "HMAC signing key or evidence signing secret"
+regex = '''EVIDENCE_SIGNING_KEY\s*=\s*['"]?[A-Za-z0-9+/=]{20,}['"]?'''
+tags = ["key", "HMAC"]
+
+# Allow test fixtures that intentionally contain token-shaped strings.
+[allowlist]
+description = "Test fixtures and evidence artifacts with intentional token-shaped strings"
+paths = [
+  '''tools/fixtures/.*''',
+  '''tests/fixtures/.*''',
+  '''evidence/.*''',
+]
