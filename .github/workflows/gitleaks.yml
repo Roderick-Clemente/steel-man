@@ -6,14 +6,22 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# Least privilege, and it is the fix. With no permissions block the default
-# GITHUB_TOKEN cannot post PR comments, so gitleaks-action@v2 threw a
-# RequestError and exited BEFORE scanning — a red check that meant "could not
-# run", not "found a secret". Comments are off rather than granting
-# pull-requests:write: the check status is what gates the PR, and a secret
-# scanner has no business holding a write token.
+# Least privilege, arrived at in two steps because the first one was wrong.
+#
+# Originally there was no permissions block, so the default GITHUB_TOKEN could
+# not post PR comments and gitleaks-action@v2 threw a RequestError and exited
+# BEFORE scanning. Red check meaning "could not run", not "found a secret".
+#
+# The first fix set `contents: read` and turned comments off. That still failed,
+# because an explicit permissions block zeroes every scope you do not name, and
+# the action needs `pull-requests: read` to list the PR's commits and work out
+# what range to scan. Same red X, same RequestError, different cause.
+#
+# read on both, comments off. Write is never granted: the check status is what
+# gates the PR, and a secret scanner has no business holding a write token.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   gitleaks:
