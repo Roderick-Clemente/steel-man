@@ -6,6 +6,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Least privilege, and it is the fix. With no permissions block the default
+# GITHUB_TOKEN cannot post PR comments, so gitleaks-action@v2 threw a
+# RequestError and exited BEFORE scanning — a red check that meant "could not
+# run", not "found a secret". Comments are off rather than granting
+# pull-requests:write: the check status is what gates the PR, and a secret
+# scanner has no business holding a write token.
+permissions:
+  contents: read
+
 jobs:
   gitleaks:
     runs-on: ubuntu-latest
@@ -16,6 +25,6 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: true
+          GITLEAKS_ENABLE_COMMENTS: false
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
           GITLEAKS_CONFIG: .gitleaks.toml
