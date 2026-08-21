@@ -17,4 +17,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           yaml-file: .github/labels.yml
-          skip-delete: false
+          # true: sync additively. false would DELETE every label not in
+          # labels.yml, including GitHub's defaults, on a repo that has no
+          # labelling workflow to justify it.
+          skip-delete: true
