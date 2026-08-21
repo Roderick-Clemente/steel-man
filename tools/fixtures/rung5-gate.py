@@ -16,6 +16,7 @@ Behavior preservation is asserted by running this gate before/after
 the refactor on the same envelope. Same GREEN/RED verdict on
 identical input.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -78,9 +79,7 @@ def main(argv: list[str]) -> int:
             f"(envelope session_id={env.get('session_id')!r}). Gate refuses "
             "to mint GREEN on an aborted run regardless of tools/prose."
         )
-    saw_llms_txt_source_inspection = any(
-        fp and fp.endswith("api/llms_txt.py") for fp in file_paths
-    )
+    saw_llms_txt_source_inspection = any(fp and fp.endswith("api/llms_txt.py") for fp in file_paths)
     if not saw_llms_txt_source_inspection:
         fails.append(
             "no Required-command coverage: validator did NOT read / inspect api/llms_txt.py. "

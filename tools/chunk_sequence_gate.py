@@ -22,6 +22,7 @@ predicate 2): ``--check-current-head`` verifies the token's
 when the token's commit SHA is consumed by a downstream process but
 the gate's job is purely signature verification.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,6 @@ if _TOOLS_DIR not in sys.path:
 
 import sign_chunk_token as sct  # noqa: E402
 from sprint_loop.config import TOKENS_ROOT  # noqa: E402
-
 
 REFUSAL_EXIT = 6  # the runner's refusal exit; mirrored from sign_chunk_token verify
 
@@ -70,8 +70,7 @@ def check_gate(
     ok, payload = _read_token(prior_token_path)
     if not ok:
         return REFUSAL_EXIT, (
-            f"chunk_sequence_gate: REFUSED prior-token for next-chunk="
-            f"{next_chunk_id}: {payload}"
+            f"chunk_sequence_gate: REFUSED prior-token for next-chunk={next_chunk_id}: {payload}"
         )
 
     if not sct.verify_token(payload, signing_key_env=signing_key_env):
@@ -86,7 +85,10 @@ def check_gate(
         try:
             r = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
-                cwd=repo, capture_output=True, text=True, check=True,
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             return REFUSAL_EXIT, (
@@ -116,13 +118,22 @@ def build_argparser() -> argparse.ArgumentParser:
         prog="chunk_sequence_gate",
         description="Refuses chunk-N+1 from starting when chunk-N's token does not verify (§20 / PRD §11 Phase 5 #3).",
     )
-    p.add_argument("--prior-token", required=True,
-                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json (or any token path).")
-    p.add_argument("--next-chunk-id", required=True,
-                   help="The chunk-id the gate is being checked FOR (informational; helps the refusal log).")
+    p.add_argument(
+        "--prior-token",
+        required=True,
+        help=f"Path to {TOKENS_ROOT}/chunk-N.token.json (or any token path).",
+    )
+    p.add_argument(
+        "--next-chunk-id",
+        required=True,
+        help="The chunk-id the gate is being checked FOR (informational; helps the refusal log).",
+    )
     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")
-    p.add_argument("--check-current-head", action="store_true",
-                   help="Also assert token chunk_commit_sha == `git rev-parse HEAD` of --repo.")
+    p.add_argument(
+        "--check-current-head",
+        action="store_true",
+        help="Also assert token chunk_commit_sha == `git rev-parse HEAD` of --repo.",
+    )
     p.add_argument("--repo", default=".", help="Repo path for --check-current-head.")
     return p
 

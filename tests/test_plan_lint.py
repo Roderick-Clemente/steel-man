@@ -10,6 +10,7 @@ Exit codes (per spec v1.1):
   2 = usage / internal error / fail-closed (missing ground-truth)
   3 = BLOCK (findings on stdout + --json) — declared-contract mode only
 """
+
 from __future__ import annotations
 
 import json
@@ -18,8 +19,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-import pytest
 
 # Repo root for locating tools/plan-lint.py and fixtures.
 _REPO = Path(__file__).resolve().parent.parent
@@ -64,7 +63,9 @@ class TestInterface:
     def test_help_exits_0(self):
         r = subprocess.run(
             [sys.executable, str(_PLAN_LINT), "--help"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         assert r.returncode == 0
         assert "plan-lint" in r.stdout.lower() or "plan-lint" in r.stderr.lower()
@@ -72,7 +73,9 @@ class TestInterface:
     def test_missing_plan_arg_exits_2(self):
         r = subprocess.run(
             [sys.executable, str(_PLAN_LINT)],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         assert r.returncode == 2
 
@@ -122,18 +125,22 @@ class TestFailClosed:
         plan = tmp_path / "no-embed.md"
         plan.write_text("# Plan\n\nA simple plan.\n")
         contract = tmp_path / "bad.contract.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "verdict",
-                    "artifact": "does/not/exist.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "verdict",
+                            "artifact": "does/not/exist.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             plan,
             repo_root=_REPO_ROOT,
@@ -144,24 +151,26 @@ class TestFailClosed:
 
     def test_unreadable_artifact_exits_2(self, tmp_path):
         """An artifact that exists but is unreadable → exit 2."""
-        bad_json = (
-            _REPO_ROOT / "evidence" / "phase-4.5" / "tokens" / "bad.token.json"
-        )
+        bad_json = _REPO_ROOT / "evidence" / "phase-4.5" / "tokens" / "bad.token.json"
         bad_json.write_text("{not valid json}")
         try:
             contract = tmp_path / "bad.contract.json"
-            contract.write_text(json.dumps({
-                "claims": [
+            contract.write_text(
+                json.dumps(
                     {
-                        "rule": 1,
-                        "line": 1,
-                        "claim": "field exists",
-                        "field_path": "verdict",
-                        "artifact": "evidence/phase-4.5/tokens/bad.token.json",
-                        "expect": "exists",
+                        "claims": [
+                            {
+                                "rule": 1,
+                                "line": 1,
+                                "claim": "field exists",
+                                "field_path": "verdict",
+                                "artifact": "evidence/phase-4.5/tokens/bad.token.json",
+                                "expect": "exists",
+                            }
+                        ]
                     }
-                ]
-            }))
+                )
+            )
             r = _run_plan_lint(
                 _BARE_PLAN,
                 repo_root=_REPO_ROOT,
@@ -213,18 +222,22 @@ class TestRule1FieldPath:
         doesn't, blocks (rule 1).
         """
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 10,
-                    "claim": "Token has top-level verdict",
-                    "field_path": "verdict",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 10,
+                            "claim": "Token has top-level verdict",
+                            "field_path": "verdict",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -239,18 +252,22 @@ class TestRule2CliFlags:
 
     def test_nonexistent_flag_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 2,
-                    "line": 5,
-                    "claim": "chunk_sequence_gate accepts --nonexistent-flag",
-                    "artifact": "tools/chunk_sequence_gate.py",
-                    "field_path": "--nonexistent-flag",
-                    "expect": "flag_exists",
+                    "claims": [
+                        {
+                            "rule": 2,
+                            "line": 5,
+                            "claim": "chunk_sequence_gate accepts --nonexistent-flag",
+                            "artifact": "tools/chunk_sequence_gate.py",
+                            "field_path": "--nonexistent-flag",
+                            "expect": "flag_exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -261,18 +278,22 @@ class TestRule2CliFlags:
 
     def test_existing_flag_passes(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 2,
-                    "line": 5,
-                    "claim": "chunk_sequence_gate accepts --prior-token",
-                    "artifact": "tools/chunk_sequence_gate.py",
-                    "field_path": "--prior-token",
-                    "expect": "flag_exists",
+                    "claims": [
+                        {
+                            "rule": 2,
+                            "line": 5,
+                            "claim": "chunk_sequence_gate accepts --prior-token",
+                            "artifact": "tools/chunk_sequence_gate.py",
+                            "field_path": "--prior-token",
+                            "expect": "flag_exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -288,18 +309,22 @@ class TestRule3ModelIds:
 
     def test_family_label_as_model_id_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 3,
-                    "line": 5,
-                    "claim": "grok-family is a model id",
-                    "artifact": "tools/sprint_loop/config.py",
-                    "field_path": "MODEL_FAMILY_MAP.grok-family",
-                    "expect": "model_id",
+                    "claims": [
+                        {
+                            "rule": 3,
+                            "line": 5,
+                            "claim": "grok-family is a model id",
+                            "artifact": "tools/sprint_loop/config.py",
+                            "field_path": "MODEL_FAMILY_MAP.grok-family",
+                            "expect": "model_id",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -310,18 +335,22 @@ class TestRule3ModelIds:
 
     def test_valid_model_id_passes(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 3,
-                    "line": 5,
-                    "claim": "grok-4.5 is a valid model id",
-                    "artifact": "tools/sprint_loop/config.py",
-                    "field_path": "MODEL_FAMILY_MAP.grok-4.5",
-                    "expect": "model_id",
+                    "claims": [
+                        {
+                            "rule": 3,
+                            "line": 5,
+                            "claim": "grok-4.5 is a valid model id",
+                            "artifact": "tools/sprint_loop/config.py",
+                            "field_path": "MODEL_FAMILY_MAP.grok-4.5",
+                            "expect": "model_id",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -359,26 +388,30 @@ class TestRule4InternalConsistency:
 
     def test_inconsistent_naming_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 4,
-                    "line": 10,
-                    "claim": "Token filename pattern chunk-{chunk_id}.token.json",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "field_path": "filename",
-                    "expect": "pattern:chunk-{chunk_id}.token.json"
-                },
-                {
-                    "rule": 4,
-                    "line": 20,
-                    "claim": "Stub output path: {chunk_id}.token.json",
-                    "artifact": "tools/persistent_referee_stub.py",
-                    "field_path": "build_signed_token.output_path",
-                    "expect": "pattern:{chunk_id}.token.json"
+                    "claims": [
+                        {
+                            "rule": 4,
+                            "line": 10,
+                            "claim": "Token filename pattern chunk-{chunk_id}.token.json",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "field_path": "filename",
+                            "expect": "pattern:chunk-{chunk_id}.token.json",
+                        },
+                        {
+                            "rule": 4,
+                            "line": 20,
+                            "claim": "Stub output path: {chunk_id}.token.json",
+                            "artifact": "tools/persistent_referee_stub.py",
+                            "field_path": "build_signed_token.output_path",
+                            "expect": "pattern:{chunk_id}.token.json",
+                        },
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -402,23 +435,31 @@ class TestRule5CallSignature:
             contract_path=_FIXTURES / "PLAN-5.1-v6.contract.json",
         )
         assert r.returncode == 3
-        assert "implementer" in r.stdout.lower() or "model_id" in r.stdout.lower() or "family" in r.stdout.lower()
+        assert (
+            "implementer" in r.stdout.lower()
+            or "model_id" in r.stdout.lower()
+            or "family" in r.stdout.lower()
+        )
 
     def test_wrong_arity_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 5,
-                    "line": 10,
-                    "claim": "close_chunk(chunk_id, commit_sha, extra) signature",
-                    "artifact": "tools/sprint_loop/per_chunk.py",
-                    "field_path": "close_chunk",
-                    "expect": "arity:3",
-                    "params": ["chunk_id", "commit_sha", "extra"]
+                    "claims": [
+                        {
+                            "rule": 5,
+                            "line": 10,
+                            "claim": "close_chunk(chunk_id, commit_sha, extra) signature",
+                            "artifact": "tools/sprint_loop/per_chunk.py",
+                            "field_path": "close_chunk",
+                            "expect": "arity:3",
+                            "params": ["chunk_id", "commit_sha", "extra"],
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -428,26 +469,32 @@ class TestRule5CallSignature:
 
     def test_wrong_param_name_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 5,
-                    "line": 10,
-                    "claim": "check_reviewer_panel(implementer_family, ...) ",
-                    "artifact": "tools/cross_family_review.py",
-                    "field_path": "check_reviewer_panel",
-                    "expect": "param:implementer_family",
-                    "params": ["implementer_family", "reviewer_model_ids"]
+                    "claims": [
+                        {
+                            "rule": 5,
+                            "line": 10,
+                            "claim": "check_reviewer_panel(implementer_family, ...) ",
+                            "artifact": "tools/cross_family_review.py",
+                            "field_path": "check_reviewer_panel",
+                            "expect": "param:implementer_family",
+                            "params": ["implementer_family", "reviewer_model_ids"],
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
         assert r.returncode == 3
-        assert "implementer_family" in r.stdout.lower() or "implementer_model_id" in r.stdout.lower()
+        assert (
+            "implementer_family" in r.stdout.lower() or "implementer_model_id" in r.stdout.lower()
+        )
 
 
 class TestRule6RequiredAnchors:
@@ -457,40 +504,52 @@ class TestRule6RequiredAnchors:
 
     def test_vague_gate_predicate_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 6,
-                    "line": 10,
-                    "claim": "The gate checks the token is valid",
-                    "artifact": "",
-                    "field_path": "",
-                    "expect": "resolvable"
+                    "claims": [
+                        {
+                            "rule": 6,
+                            "line": 10,
+                            "claim": "The gate checks the token is valid",
+                            "artifact": "",
+                            "field_path": "",
+                            "expect": "resolvable",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
             contract_path=contract,
         )
         assert r.returncode == 3
-        assert "gate" in r.stdout.lower() or "anchor" in r.stdout.lower() or "vague" in r.stdout.lower()
+        assert (
+            "gate" in r.stdout.lower()
+            or "anchor" in r.stdout.lower()
+            or "vague" in r.stdout.lower()
+        )
 
     def test_resolvable_gate_predicate_passes(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 6,
-                    "line": 10,
-                    "claim": "Gate: token file exists with reviewers[*].verdict in ACCEPT_CLASS",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "field_path": "reviewers[*].verdict",
-                    "expect": "resolvable"
+                    "claims": [
+                        {
+                            "rule": 6,
+                            "line": 10,
+                            "claim": "Gate: token file exists with reviewers[*].verdict in ACCEPT_CLASS",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "field_path": "reviewers[*].verdict",
+                            "expect": "resolvable",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -506,17 +565,21 @@ class TestRule7FilePaths:
 
     def test_nonexistent_path_blocks(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 10,
-                    "claim": "tools/nonexistent.py exists",
-                    "path": "tools/nonexistent.py",
-                    "expect": "exists"
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 10,
+                            "claim": "tools/nonexistent.py exists",
+                            "path": "tools/nonexistent.py",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -527,17 +590,21 @@ class TestRule7FilePaths:
 
     def test_existing_path_passes(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 10,
-                    "claim": "tools/sign_chunk_token.py exists",
-                    "path": "tools/sign_chunk_token.py",
-                    "expect": "exists"
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 10,
+                            "claim": "tools/sign_chunk_token.py exists",
+                            "path": "tools/sign_chunk_token.py",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -547,17 +614,21 @@ class TestRule7FilePaths:
 
     def test_to_be_created_path_passes(self, tmp_path):
         contract = tmp_path / "c.json"
-        contract.write_text(json.dumps({
-            "claims": [
+        contract.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 10,
-                    "claim": "tools/new_script.py (to-be-created)",
-                    "path": "tools/new_script.py",
-                    "expect": "to_be_created"
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 10,
+                            "claim": "tools/new_script.py (to-be-created)",
+                            "path": "tools/new_script.py",
+                            "expect": "to_be_created",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _BARE_PLAN,
             repo_root=_REPO_ROOT,
@@ -590,10 +661,7 @@ class TestHeuristicMode:
         The output should say PASS with warnings, not BLOCK.
         """
         plan = tmp_path / "warn-plan.md"
-        plan.write_text(
-            "# Plan\n\n"
-            "The `verdict` field is checked by the gate.\n"
-        )
+        plan.write_text("# Plan\n\nThe `verdict` field is checked by the gate.\n")
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0
         # May have warnings but must not say BLOCK.
@@ -665,10 +733,7 @@ class TestHeuristicRecall:
         heuristic warning.
         """
         plan = tmp_path / "model.md"
-        plan.write_text(
-            "# Plan\n\n"
-            "The validator uses `grok-family` as the implementer model.\n"
-        )
+        plan.write_text("# Plan\n\nThe validator uses `grok-family` as the implementer model.\n")
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0
         # Should warn about type confusion.
@@ -701,6 +766,7 @@ class TestHeuristicFixtures:
 
     def _run_without_sidecar(self, fixture_name: str) -> subprocess.CompletedProcess[str]:
         import shutil
+
         src = _FIXTURES / fixture_name
         dst = Path(tempfile.mkdtemp()) / fixture_name
         shutil.copy2(src, dst)
@@ -729,7 +795,12 @@ class TestHeuristicFixtures:
         r = self._run_without_sidecar("PLAN-5.1-v6.md")
         assert r.returncode == 0
         # Must contain a warning about the call-signature / type-confusion.
-        assert "implementer" in r.stdout.lower() or "model_id" in r.stdout.lower() or "family" in r.stdout.lower() or "call" in r.stdout.lower()
+        assert (
+            "implementer" in r.stdout.lower()
+            or "model_id" in r.stdout.lower()
+            or "family" in r.stdout.lower()
+            or "call" in r.stdout.lower()
+        )
 
 
 class TestNegativeFixture:
@@ -766,18 +837,22 @@ class TestContractPrecedence:
         # The green plan has an embedded contract that passes.
         # Create a sidecar that would block (references a nonexistent field).
         sidecar = tmp_path / "sidecar.contract.json"
-        sidecar.write_text(json.dumps({
-            "claims": [
+        sidecar.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "nonexistent_field_xyz",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "nonexistent_field_xyz",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(
             _FIXTURES / "green-plan.md",
             repo_root=_REPO_ROOT,
@@ -800,7 +875,6 @@ class TestTelemetryShape:
         """A lint invocation writes zero bytes to runs.jsonl and one
         well-formed row to plan_lint_runs.jsonl.
         """
-        import tempfile, shutil
         telemetry_dir = tmp_path / "telemetry"
         telemetry_dir.mkdir()
         runs_jsonl = telemetry_dir / "runs.jsonl"
@@ -809,8 +883,13 @@ class TestTelemetryShape:
         env = dict(os.environ)
         env["TELEMETRY_DATA_DIR"] = str(telemetry_dir)
 
-        cmd = [sys.executable, str(_PLAN_LINT), str(_FIXTURES / "green-plan.md"),
-               "--repo-root", str(_REPO_ROOT)]
+        cmd = [
+            sys.executable,
+            str(_PLAN_LINT),
+            str(_FIXTURES / "green-plan.md"),
+            "--repo-root",
+            str(_REPO_ROOT),
+        ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
 
         # runs.jsonl must have zero bytes.
@@ -911,18 +990,22 @@ class TestCompanionTier:
         plan = tmp_path / "my-plan.md"
         plan.write_text("# Plan\n\nA simple plan with no fence.\n")
         companion = tmp_path / "my-plan.contract.json"
-        companion.write_text(json.dumps({
-            "claims": [
+        companion.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "nonexistent_field_xyz",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "nonexistent_field_xyz",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 3, f"Expected BLOCK, got {r.returncode}\n{r.stdout}"
         assert "companion my-plan.contract.json" in r.stdout
@@ -933,17 +1016,21 @@ class TestCompanionTier:
         plan = tmp_path / "good-plan.md"
         plan.write_text("# Plan\n\nA simple plan.\n")
         companion = tmp_path / "good-plan.contract.json"
-        companion.write_text(json.dumps({
-            "claims": [
+        companion.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 1,
-                    "claim": "tools/sign_chunk_token.py exists",
-                    "path": "tools/sign_chunk_token.py",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 1,
+                            "claim": "tools/sign_chunk_token.py exists",
+                            "path": "tools/sign_chunk_token.py",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0, f"Expected PASS, got {r.returncode}\n{r.stdout}"
         assert "companion good-plan.contract.json" in r.stdout
@@ -958,32 +1045,40 @@ class TestCompanionTier:
 
         # Companion would BLOCK.
         companion = tmp_path / "dual.contract.json"
-        companion.write_text(json.dumps({
-            "claims": [
+        companion.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "nonexistent_field_xyz",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "nonexistent_field_xyz",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         # Flag sidecar PASSES.
         flag_sidecar = tmp_path / "flag.contract.json"
-        flag_sidecar.write_text(json.dumps({
-            "claims": [
+        flag_sidecar.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 1,
-                    "claim": "tools/sign_chunk_token.py exists",
-                    "path": "tools/sign_chunk_token.py",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 1,
+                            "claim": "tools/sign_chunk_token.py exists",
+                            "path": "tools/sign_chunk_token.py",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT, contract_path=flag_sidecar)
         assert r.returncode == 0, f"Expected PASS (flag wins), got {r.returncode}\n{r.stdout}"
@@ -995,39 +1090,40 @@ class TestCompanionTier:
         The companion has a blocking claim; the fence has a passing claim.
         The tool must PASS (fence governs), not BLOCK.
         """
-        fence_contract = json.dumps({
-            "claims": [
-                {
-                    "rule": 7,
-                    "line": 1,
-                    "claim": "tools/sign_chunk_token.py exists",
-                    "path": "tools/sign_chunk_token.py",
-                    "expect": "exists",
-                }
-            ]
-        })
-        plan = tmp_path / "fenced.md"
-        plan.write_text(
-            "# Plan\n\n"
-            "```contract\n"
-            + fence_contract
-            + "\n```\n"
+        fence_contract = json.dumps(
+            {
+                "claims": [
+                    {
+                        "rule": 7,
+                        "line": 1,
+                        "claim": "tools/sign_chunk_token.py exists",
+                        "path": "tools/sign_chunk_token.py",
+                        "expect": "exists",
+                    }
+                ]
+            }
         )
+        plan = tmp_path / "fenced.md"
+        plan.write_text("# Plan\n\n```contract\n" + fence_contract + "\n```\n")
 
         # Companion would BLOCK.
         companion = tmp_path / "fenced.contract.json"
-        companion.write_text(json.dumps({
-            "claims": [
+        companion.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "nonexistent_field_xyz",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "nonexistent_field_xyz",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         assert r.returncode == 0, f"Expected PASS (fence wins), got {r.returncode}\n{r.stdout}"
@@ -1042,31 +1138,39 @@ class TestCompanionTier:
         plan.write_text("# Plan\n\nA simple plan.\n")
         # Correct companion name.
         companion = tmp_path / "test.contract.json"
-        companion.write_text(json.dumps({
-            "claims": [
+        companion.write_text(
+            json.dumps(
                 {
-                    "rule": 7,
-                    "line": 1,
-                    "claim": "tools/sign_chunk_token.py exists",
-                    "path": "tools/sign_chunk_token.py",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 7,
+                            "line": 1,
+                            "claim": "tools/sign_chunk_token.py exists",
+                            "path": "tools/sign_chunk_token.py",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
         # Wrong companion name (should NOT be discovered).
         wrong_companion = tmp_path / "test.md.contract.json"
-        wrong_companion.write_text(json.dumps({
-            "claims": [
+        wrong_companion.write_text(
+            json.dumps(
                 {
-                    "rule": 1,
-                    "line": 1,
-                    "claim": "field exists",
-                    "field_path": "nonexistent_field_xyz",
-                    "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
-                    "expect": "exists",
+                    "claims": [
+                        {
+                            "rule": 1,
+                            "line": 1,
+                            "claim": "field exists",
+                            "field_path": "nonexistent_field_xyz",
+                            "artifact": "evidence/phase-4.5/tokens/chunk-5a.token.json",
+                            "expect": "exists",
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         r = _run_plan_lint(plan, repo_root=_REPO_ROOT)
         # The correct companion (test.contract.json) loads and passes.
@@ -1085,6 +1189,7 @@ class TestCompanionTier:
         # copies the fixture to a temp dir. Verify that the copy
         # destination does not have a companion .contract.json.
         import shutil
+
         src = _FIXTURES / "PLAN-5.1-v3.md"
         dst_dir = Path(tempfile.mkdtemp())
         dst = dst_dir / "PLAN-5.1-v3.md"

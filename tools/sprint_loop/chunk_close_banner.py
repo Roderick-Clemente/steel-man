@@ -21,21 +21,21 @@ adapter points; if you wire a new one, mirror the same
 "verify-then-emit" gate so emojis cannot render without a verified
 condition behind them.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 import sys
-from typing import Any
 
 _TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import sign_chunk_token as sct  # noqa: E402
-from sprint_loop.config import BUILD_EVIDENCE_DIR, TOKENS_ROOT  # noqa: E402
 
+from sprint_loop.config import BUILD_EVIDENCE_DIR, TOKENS_ROOT  # noqa: E402
 
 CHECKLIST_POINTER = (
     "Operator-eye troubleshooting checklist for absent signal "
@@ -56,10 +56,14 @@ CHECKLIST_POINTER = (
 )
 
 
-def render(token_path: str | None, *, signing_key_env: str = "EVIDENCE_SIGNING_KEY",
-           checklist_path: str | None = None,
-           plan_review_rendered: bool = False,
-           validation_gate_executed: bool = False) -> tuple[str, str]:
+def render(
+    token_path: str | None,
+    *,
+    signing_key_env: str = "EVIDENCE_SIGNING_KEY",
+    checklist_path: str | None = None,
+    plan_review_rendered: bool = False,
+    validation_gate_executed: bool = False,
+) -> tuple[str, str]:
     """Return (stdout_line, stderr_text).
 
     stdout_line: the single-line chunk-close signal.
@@ -96,16 +100,23 @@ def build_argparser() -> argparse.ArgumentParser:
         prog="chunk_close_banner",
         description="Operator-eye visual signal at chunk close (PRD §11 Phase 5 #5).",
     )
-    p.add_argument("--token-path", default="",
-                   help=f"Path to {TOKENS_ROOT}/chunk-N.token.json")
+    p.add_argument("--token-path", default="", help=f"Path to {TOKENS_ROOT}/chunk-N.token.json")
     p.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY")
-    p.add_argument("--plan-review-rendered", action="store_true",
-                   help="Emit 🤺 for the adversarial-plan-render half of the four-tone signature.")
-    p.add_argument("--validation-gate-executed", action="store_true",
-                   help="Emit 👀 for the validation-gate-executed half.")
-    p.add_argument("--checklist-to-stderr", action="store_true",
-                   help="(default: always on refusal; ignored on accept) Keep checklist pointer "
-                        "on stderr.")
+    p.add_argument(
+        "--plan-review-rendered",
+        action="store_true",
+        help="Emit 🤺 for the adversarial-plan-render half of the four-tone signature.",
+    )
+    p.add_argument(
+        "--validation-gate-executed",
+        action="store_true",
+        help="Emit 👀 for the validation-gate-executed half.",
+    )
+    p.add_argument(
+        "--checklist-to-stderr",
+        action="store_true",
+        help="(default: always on refusal; ignored on accept) Keep checklist pointer on stderr.",
+    )
     return p
 
 

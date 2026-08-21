@@ -15,6 +15,7 @@ Behavior preservation is asserted by running this gate before/after
 the refactor on the same envelope. Same GREEN/RED verdict on
 identical input.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from adapters.factory import to_envelope  # noqa: E402
-
 
 DECISION_RE = re.compile(
     r"\b(?:Verdict|Decision)\b\s*[:=]\s*(ACCEPT(?:-WITH-NITS)?|REJECT)\b",
@@ -132,9 +132,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     print()
-    print(
-        "GREEN — rung 6 gate: decision %r + doubled-charset finding present." % dec
-    )
+    print(f"GREEN — rung 6 gate: decision {dec!r} + doubled-charset finding present.")
     return 0
 
 

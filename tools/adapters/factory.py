@@ -29,6 +29,7 @@ What this module MOVES into the seam:
   - the inner-session jsonl's `tool_use` / `tool_result` walk
     (paired `tool_use_id` lookup)
 """
+
 from __future__ import annotations
 
 import json
@@ -36,8 +37,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 # ---------- public function: to_envelope ----------
+
 
 def to_envelope(
     *,
@@ -97,7 +98,7 @@ def to_envelope(
         "cache_read": int(usage_block.get("cache_read_input_tokens") or 0),
         "thinking": int(usage_block.get("thinking_tokens") or 0),
     }
-    result_text = (envelope.get("result") or "")
+    result_text = envelope.get("result") or ""
     tool_calls = (
         _extract_tool_calls_from_session_jsonl(session_jsonl_path)
         if session_jsonl_path is not None
@@ -123,6 +124,7 @@ def to_envelope(
 
 
 # ---------- the Factory-specific helpers MOVED INTO this seam ----------
+
 
 def locate_sibling_files(envelope_path: str | Path) -> dict[str, Path | None]:
     """Locate sibling jsonl + settings.jsonl under ~/.factory/sessions/.
@@ -246,6 +248,7 @@ def _resolve_family_from_settings(settings: dict) -> tuple[str | None, str | Non
 
 # ---------- legacy hand-rolled digest emission (for backward compat) ----------
 
+
 def to_digest_shape(envelope: dict[str, Any]) -> dict[str, Any]:
     """Re-emit a digest matching the historical `rung3-tool-call-digest.json`.
 
@@ -273,8 +276,7 @@ def to_digest_shape(envelope: dict[str, Any]) -> dict[str, Any]:
         },
         "tool_calls_total": len(envelope["tool_calls"]),
         "tool_use_events": [
-            {"name": tc.get("name"), "args": tc.get("args") or {}}
-            for tc in envelope["tool_calls"]
+            {"name": tc.get("name"), "args": tc.get("args") or {}} for tc in envelope["tool_calls"]
         ],
         "verdict_text_first_240chars": envelope["result_text_first_240chars"],
         "session_id": envelope["session_id"],
@@ -282,6 +284,7 @@ def to_digest_shape(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------- minimal CLI for manual re-extraction ----------
+
 
 def _cli(argv: list[str]) -> int:
     """Tiny shell-style driver: `python3 factory.py <envelope> [<session_jsonl>] [<settings>]`."""

@@ -15,18 +15,19 @@ The state model is intentionally narrow:
 Other modules may serialise ``RunState`` to JSON for pause/resume, but only
 this module owns the schema.
 """
+
 from __future__ import annotations
 
 import enum
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-
 # ── roles ────────────────────────────────────────────────────────────────
+
 
 class Role(str, enum.Enum):
     """The five roles the loop coordinates. Mirrors PRD §7.
@@ -35,6 +36,7 @@ class Role(str, enum.Enum):
     ``telemetry/runs.jsonl:role`` (see ``telemetry/SCHEMA.md``). Do not
     rename without bumping the schema version.
     """
+
     PLANNER = "planner"
     PLAN_REVIEWER = "reviewer"
     TEST_DESIGNER = "test-designer"
@@ -46,23 +48,26 @@ class Role(str, enum.Enum):
 # --auto (record resolved model + family); the reviewer and validator MUST
 # be pinned to enforce the family invariant. Test-designer's seat
 # separation is invariant #1 with executor per PRD §17.6.
-SEPARATION_BINDING_ROLES: frozenset[Role] = frozenset({
-    Role.PLAN_REVIEWER,
-    Role.TEST_DESIGNER,
-    Role.VALIDATOR,
-})
+SEPARATION_BINDING_ROLES: frozenset[Role] = frozenset(
+    {
+        Role.PLAN_REVIEWER,
+        Role.TEST_DESIGNER,
+        Role.VALIDATOR,
+    }
+)
 
 # Per-role default --enabled-tools allowlists (PRD §17.5).
 DEFAULT_ENABLED_TOOLS: dict[Role, str] = {
-    Role.PLANNER:         "Read,Glob,Grep,LS,Execute",
-    Role.PLAN_REVIEWER:   "Read,Glob,Grep,LS,Execute",
-    Role.TEST_DESIGNER:   "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
-    Role.EXECUTOR:        "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
-    Role.VALIDATOR:       "Read,Glob,Grep,LS,Execute",
+    Role.PLANNER: "Read,Glob,Grep,LS,Execute",
+    Role.PLAN_REVIEWER: "Read,Glob,Grep,LS,Execute",
+    Role.TEST_DESIGNER: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
+    Role.EXECUTOR: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
+    Role.VALIDATOR: "Read,Glob,Grep,LS,Execute",
 }
 
 
 # ── run-level status ─────────────────────────────────────────────────────
+
 
 class RunStatus(str, enum.Enum):
     """The run-level status field.
@@ -70,10 +75,11 @@ class RunStatus(str, enum.Enum):
     Status is what the operator sees on stdout; the per-chunk
     ``ChunkStatus`` is what controls flow control.
     """
+
     PENDING = "PENDING"
     PLANNING = "PLANNING"
     PLAN_REVIEWING = "PLAN_REVIEWING"
-    AWAITING_RECONCILIATION = "AWAITING_RECONCILIATION"   # human gate
+    AWAITING_RECONCILIATION = "AWAITING_RECONCILIATION"  # human gate
     CHUNKING = "CHUNKING"
     CHUNKING_DONE = "CHUNKING_DONE"
     RUNNING_CHUNKS = "RUNNING_CHUNKS"
@@ -92,6 +98,7 @@ class ReconcileDecision(str, enum.Enum):
 
 class GateDecision(str, enum.Enum):
     """Per-chunk gate verdict — mirrors ``tools/orchestrate-review.py:step6_gate_decision``."""
+
     ACCEPT = "ACCEPT"
     ACCEPT_WITH_NITS = "ACCEPT-WITH-NITS"
     REJECT = "REJECT"
@@ -101,6 +108,7 @@ class GateDecision(str, enum.Enum):
 
 
 # ── chunk-level status ───────────────────────────────────────────────────
+
 
 class ChunkStatus(str, enum.Enum):
     PENDING = "PENDING"
@@ -120,23 +128,25 @@ class ChunkStatus(str, enum.Enum):
 
 # ── chunk state ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class Finding:
     """One finding row from a review pass. Mirrors telemetry schema's
     findings.jsonl row shape (subset — schema is the source of truth for
     the on-disk format; this is the in-memory shape)."""
+
     finding_id: str
-    severity: str               # blocker|high|medium|low
-    category: str               # semantic|factual|test-gap|scope|operability|style
+    severity: str  # blocker|high|medium|low
+    category: str  # semantic|factual|test-gap|scope|operability|style
     claim: str
     evidence: list[str]
     recommended_change: str
-    source_role: str            # validator|reviewer
+    source_role: str  # validator|reviewer
     source_run_id: str
     source_model_id: str
     source_family: str
     first_seen_in_panel_position: int = 1
-    status: str = "open"        # open|accepted|rejected|superseded
+    status: str = "open"  # open|accepted|rejected|superseded
     disposition_rationale: str = ""
 
     def to_jsonl(self) -> str:
@@ -151,6 +161,7 @@ class ChunkState:
     run-level STOP doesn't preempt an in-progress chunk — the chunk
     handles STOP at the next gate decision propagation step.
     """
+
     chunk_id: str
     scope: str
     observable_criteria: list[str] = field(default_factory=list)
@@ -185,6 +196,7 @@ class ChunkState:
 
 # ── run-level state ──────────────────────────────────────────────────────
 
+
 @dataclass
 class RoleAssignment:
     """One role's model + family + provider discipline.
@@ -196,15 +208,16 @@ class RoleAssignment:
     Factory auto-router picked something — the collision guard then
     swaps a colliding reviewer per §17.1 rule 3).
     """
+
     role: Role
     pinned_model_id: str = ""
     pinned_family: str = ""
     pinned_provider: str = ""
     auto_level: str = "medium"
     enabled_tools: str = ""
-    fallback_model_id: str = ""          # §17.1 collision-guard fallback
+    fallback_model_id: str = ""  # §17.1 collision-guard fallback
     fallback_family: str = ""
-    resolved_model_id: str = ""          # populated post-run from envelope
+    resolved_model_id: str = ""  # populated post-run from envelope
     resolved_family: str = ""
     resolved_provider: str = ""
     num_turns: int = 0
@@ -225,39 +238,47 @@ class RunState:
     """Top-level run state. Serialised to JSON for pause/resume."""
 
     run_id: str
-    started_at: str                       # ISO-8601 UTC
+    started_at: str  # ISO-8601 UTC
     framework_root: str
     pilot_root: str
     pilot_python: str
 
     # Configured models (from --config or defaults)
-    planner: RoleAssignment = field(default_factory=lambda: RoleAssignment(
-        role=Role.PLANNER,
-        auto_level="medium",
-        enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLANNER],
-    ))
-    plan_reviewer: RoleAssignment = field(default_factory=lambda: RoleAssignment(
-        role=Role.PLAN_REVIEWER,
-        auto_level="high",
-        enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
-    ))
+    planner: RoleAssignment = field(
+        default_factory=lambda: RoleAssignment(
+            role=Role.PLANNER,
+            auto_level="medium",
+            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLANNER],
+        )
+    )
+    plan_reviewer: RoleAssignment = field(
+        default_factory=lambda: RoleAssignment(
+            role=Role.PLAN_REVIEWER,
+            auto_level="high",
+            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
+        )
+    )
     plan_reviewer_2: RoleAssignment | None = None  # optional 2nd reviewer
-    test_designer: RoleAssignment = field(default_factory=lambda: RoleAssignment(
-        role=Role.TEST_DESIGNER,
-        auto_level="medium",
-        enabled_tools=DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER],
-    ))
-    executor: RoleAssignment = field(default_factory=lambda: RoleAssignment(
-        role=Role.EXECUTOR,
-        auto_level="medium",
-        enabled_tools=DEFAULT_ENABLED_TOOLS[Role.EXECUTOR],
-    ))
+    test_designer: RoleAssignment = field(
+        default_factory=lambda: RoleAssignment(
+            role=Role.TEST_DESIGNER,
+            auto_level="medium",
+            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER],
+        )
+    )
+    executor: RoleAssignment = field(
+        default_factory=lambda: RoleAssignment(
+            role=Role.EXECUTOR,
+            auto_level="medium",
+            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.EXECUTOR],
+        )
+    )
     validators: list[RoleAssignment] = field(default_factory=list)  # cross-family panel
 
     # Tuning
-    max_review_rounds: int = 2           # PRD §5.3 default
-    retry_threshold: int = 1             # PRD §5.7 cap for executor reject
-    max_auto_retries: int = 2            # transient API failure retries
+    max_review_rounds: int = 2  # PRD §5.3 default
+    retry_threshold: int = 1  # PRD §5.7 cap for executor reject
+    max_auto_retries: int = 2  # transient API failure retries
     retry_delay_seconds: int = 5
 
     # Status flow
@@ -290,7 +311,7 @@ class RunState:
     dry_run: bool = False
     skip_reconcile: bool = False
     create_pr: bool = False
-    validation_backend: str = "local"    # local|ci (Track B)
+    validation_backend: str = "local"  # local|ci (Track B)
     signing_key_env: str = "EVIDENCE_SIGNING_KEY"
 
     # Inputs the runner reads across pauses
@@ -338,6 +359,7 @@ class RunState:
 
 # ── family guard ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class FamilyGuardOutcome:
     """Result of the §17.2 family-separation check.
@@ -347,6 +369,7 @@ class FamilyGuardOutcome:
     we did not pin). Structural enforcement — never assume the operator
     remembered the rule.
     """
+
     ok: bool
     violations: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -505,8 +528,7 @@ def validate_run_id(rid: str) -> str:
         return ""
     if not _ID_RE.match(rid):
         raise ValueError(
-            f"run_id {rid!r} contains unsafe characters (must be "
-            f"[A-Za-z0-9._-] and 1-80 chars)"
+            f"run_id {rid!r} contains unsafe characters (must be [A-Za-z0-9._-] and 1-80 chars)"
         )
     return rid
 

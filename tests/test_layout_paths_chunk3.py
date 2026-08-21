@@ -99,9 +99,7 @@ def _read(rel: str) -> str:
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ("git",) + args, cwd=REPO_ROOT, capture_output=True, text=True
-    )
+    return subprocess.run(("git",) + args, cwd=REPO_ROOT, capture_output=True, text=True)
 
 
 def _residual_tokens() -> list[tuple[str, int, str]]:
@@ -164,9 +162,8 @@ def test_chunk3_no_dead_relative_links():
                 dead.append(f"{rel}:{lineno} -> {target}")
 
     assert checked > 0, "no relative links checked; the link regex found nothing"
-    assert not dead, (
-        f"{len(dead)} dead relative link(s) of {checked} checked:\n  "
-        + "\n  ".join(dead)
+    assert not dead, f"{len(dead)} dead relative link(s) of {checked} checked:\n  " + "\n  ".join(
+        dead
     )
 
 
@@ -181,15 +178,12 @@ def test_chunk3_readme_named_targets_resolve():
         "planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md",
         "planning/phase-1/KNOWN-ISSUES.md",
     ):
-        assert os.path.isfile(
-            os.path.join(REPO_ROOT, rel)
-        ), f"pinned README destination missing: {rel}"
+        assert os.path.isfile(os.path.join(REPO_ROOT, rel)), (
+            f"pinned README destination missing: {rel}"
+        )
 
     readme = _read("README.md")
-    stale = [
-        m.group(0)
-        for m in re.finditer(r"\]\(\./phase-[0-9]+(?:\.[0-9]+)?/[^)]*\)", readme)
-    ]
+    stale = [m.group(0) for m in re.finditer(r"\]\(\./phase-[0-9]+(?:\.[0-9]+)?/[^)]*\)", readme)]
     assert not stale, f"README still links bare phase-N paths: {stale}"
 
 
@@ -202,13 +196,13 @@ def test_chunk3_readme_layout_block_is_current():
     the failure this chunk exists to prevent.
     """
     readme = _read("README.md")
-    assert (
-        "phase-0 … phase-5/" not in readme and "phase-0 ... phase-5/" not in readme
-    ), "README Layout block still lists phase-0 … phase-5/ as the build record"
+    assert "phase-0 … phase-5/" not in readme and "phase-0 ... phase-5/" not in readme, (
+        "README Layout block still lists phase-0 … phase-5/ as the build record"
+    )
     assert "194 tests" not in readme, "README still claims 194 tests"
-    assert re.search(
-        r"^evidence/\s", readme, re.MULTILINE
-    ), "README Layout block does not list evidence/, now a top-level build-record home"
+    assert re.search(r"^evidence/\s", readme, re.MULTILINE), (
+        "README Layout block does not list evidence/, now a top-level build-record home"
+    )
 
 
 # ── §3.2 / §3.3 — PATH-REDIRECTS is complete and truthful ────────────────
@@ -216,9 +210,9 @@ def test_chunk3_readme_layout_block_is_current():
 
 def test_chunk3_path_redirects_exists():
     """§2.2 — the redirects file is the mechanism the hard stop depends on."""
-    assert os.path.isfile(
-        os.path.join(REPO_ROOT, _REDIRECTS_REL)
-    ), f"missing {_REDIRECTS_REL}; §2.1b's 683 redirect-only tokens have nowhere to go"
+    assert os.path.isfile(os.path.join(REPO_ROOT, _REDIRECTS_REL)), (
+        f"missing {_REDIRECTS_REL}; §2.1b's 683 redirect-only tokens have nowhere to go"
+    )
 
 
 def test_chunk3_every_residual_token_is_accounted_for():
@@ -296,12 +290,10 @@ def test_chunk3_redirect_table_targets_resolve():
 
 def test_chunk3_ledger_moved_to_evidence_root():
     """§2.4 — the ledger lands at the evidence root, old path gone."""
-    assert os.path.isfile(
-        os.path.join(REPO_ROOT, _LEDGER_NEW)
-    ), f"missing {_LEDGER_NEW}"
-    assert not os.path.exists(
-        os.path.join(REPO_ROOT, _LEDGER_OLD)
-    ), f"{_LEDGER_OLD} still present; the move left a copy behind"
+    assert os.path.isfile(os.path.join(REPO_ROOT, _LEDGER_NEW)), f"missing {_LEDGER_NEW}"
+    assert not os.path.exists(os.path.join(REPO_ROOT, _LEDGER_OLD)), (
+        f"{_LEDGER_OLD} still present; the move left a copy behind"
+    )
 
 
 def test_chunk3_ledger_rename_carried_no_content_edit():
@@ -317,9 +309,7 @@ def test_chunk3_ledger_rename_carried_no_content_edit():
     additions. The unfiltered diff with ``-M`` detects the rename and
     reports 0/0. Builder finding: BLOCKED on chunk-D1-3, raised correctly.
     """
-    found = _git(
-        "log", "--follow", "--diff-filter=R", "--format=%H", "--", _LEDGER_NEW
-    )
+    found = _git("log", "--follow", "--diff-filter=R", "--format=%H", "--", _LEDGER_NEW)
     assert found.returncode == 0, f"git log failed: {found.stderr}"
     shas = [ln.strip() for ln in found.stdout.splitlines() if ln.strip()]
     assert shas, f"no rename commit found for {_LEDGER_NEW}; was it moved with git mv?"
@@ -331,10 +321,7 @@ def test_chunk3_ledger_rename_carried_no_content_edit():
     assert stat.returncode == 0, f"git show failed: {stat.stderr}"
 
     # Filter for the LEDGER line (rename format: {old => new}/LEDGER.md)
-    ledger_rows = [
-        ln for ln in stat.stdout.splitlines()
-        if ln.strip() and "LEDGER.md" in ln
-    ]
+    ledger_rows = [ln for ln in stat.stdout.splitlines() if ln.strip() and "LEDGER.md" in ln]
     assert ledger_rows, (
         f"no numstat row for LEDGER.md at {sha}; the rename was not detected. "
         f"Full numstat:\n{stat.stdout}"
@@ -395,6 +382,7 @@ def test_chunk3_redirect_only_surfaces_untouched():
     falsifies a record to fix a link. If these counts collapse, someone
     "finished the job" past the §5 hard stop.
     """
+
     def count(pattern: str) -> int:
         total = 0
         for abs_path in glob.glob(os.path.join(REPO_ROOT, pattern)):

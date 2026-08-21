@@ -17,6 +17,7 @@ This script:
 
 Exits 0 on green, SystemExit(1) on FAIL with --exit-loud.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,8 +44,7 @@ def family_check(validator_family: str, executor_family: str) -> tuple[str, str]
             f"family '{executor_family}' — same-family collapse forbidden"
         )
     return "ALLOW", (
-        f"validator family '{validator_family}' != executor "
-        f"family '{executor_family}'"
+        f"validator family '{validator_family}' != executor family '{executor_family}'"
     )
 
 
@@ -78,7 +78,9 @@ def main(argv: list[str]) -> int:
     executor_unknown = decisions["result"].get("executor_unknown_family")
     fails: list[str] = []
     if silent_fallback_proxy:
-        fails.append("executor_uses_silent_fallback_proxy=True (silent fallback on the auto-router)")
+        fails.append(
+            "executor_uses_silent_fallback_proxy=True (silent fallback on the auto-router)"
+        )
     if executor_unknown:
         fails.append("executor_unknown_family=True")
     if decision != "ALLOW":
@@ -102,11 +104,11 @@ def main(argv: list[str]) -> int:
     for vf, ef, expected in neg_cases:
         d, r = family_check(vf, ef)
         mark = "ok" if d == expected else "FAIL"
-        print(f"  [{mark}] family_check({vf!r:14s}, {ef!r:14s}) -> {d!r}  (expected {expected!r})  reason={r}")
+        print(
+            f"  [{mark}] family_check({vf!r:14s}, {ef!r:14s}) -> {d!r}  (expected {expected!r})  reason={r}"
+        )
         if d != expected:
-            fails.append(
-                f"family_check({vf!r}, {ef!r}) returned {d!r}, expected {expected!r}"
-            )
+            fails.append(f"family_check({vf!r}, {ef!r}) returned {d!r}, expected {expected!r}")
 
     if fails:
         print()

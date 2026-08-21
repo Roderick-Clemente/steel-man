@@ -10,13 +10,12 @@ Usage:
     python3 phase-1/scripts/valid-red.py --pilot-root <path> \
         --test-file <path> --accepted-assertion <phrase> [-o json]
 """
+
 import argparse
 import json
 import re
 import subprocess
 import sys
-from typing import Tuple
-
 
 # Regex to strip ANSI color escape codes from pytest output. Without this,
 # patterns like `assert\s+True` fail to match because pytest inserts escape
@@ -48,11 +47,14 @@ INVALID_RED_SIGNATURES = [
     (r"mock\s*=\s*MagicMock", "subject under test mocked"),
     # Class 4 — environment rejection (PRD §5.4: empty selection, unavailable services).
     (r"collected\s+0\s+items|no tests? ran|test selection empty", "empty test selection"),
-    (r"unavailable|service.*unavailable|connection.*refused|could not connect to", "service unavailable"),
+    (
+        r"unavailable|service.*unavailable|connection.*refused|could not connect to",
+        "service unavailable",
+    ),
 ]
 
 
-def run_pytest(pilot_root: str, test_file: str, python: str) -> Tuple[int, str, str]:
+def run_pytest(pilot_root: str, test_file: str, python: str) -> tuple[int, str, str]:
     cmd = [python, "-m", "pytest", test_file, "-v"]
     result = subprocess.run(
         cmd,

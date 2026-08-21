@@ -99,11 +99,10 @@ canonical = open("skills/adversarial-sprint/SKILL.md").read()
 # Strip the canonical's YAML frontmatter and emit Cursor-friendly
 # frontmatter around the same body.
 cursor_md = (
-  "---\n"
-  "description: Adversarial sprint skill — read skills/adversarial-sprint/SKILL.md for the canonical body\n"
-  "alwaysApply: true\n"
-  "---\n\n"
-  + canonical.split("---", 2)[-1]  # body only
+    "---\n"
+    "description: Adversarial sprint skill — read skills/adversarial-sprint/SKILL.md for the canonical body\n"
+    "alwaysApply: true\n"
+    "---\n\n" + canonical.split("---", 2)[-1]  # body only
 )
 assert open(".cursor/rules/adversarial-sprint.mdc").read() == cursor_md
 ```

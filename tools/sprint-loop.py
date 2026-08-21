@@ -47,19 +47,16 @@ OPERATING-RULES applied (see tools/OPERATING-RULES.md for the full list):
   §18 : compose existing primitives; build in chunks; fix ergonomic
         friction inline; review at the end.
 """
+
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import datetime
 import json
 import os
 import re
 import subprocess
 import sys
-import time
-from pathlib import Path
-from typing import Any
 
 # Make ``tools/`` importable + ``adapters``+``sprint_loop`` packages
 # resolvable. Same pattern as ``tools/orchestrate-review.py``.
@@ -72,16 +69,30 @@ if _REPO_ROOT not in sys.path:
 
 from sprint_loop.config import (  # noqa: E402
     BUILD_EVIDENCE_DIR,
-    Config,
     MODEL_FAMILY_MAP,
+    Config,
     build_config,
 )
+from sprint_loop.droid import (  # noqa: E402
+    InvokeOptions,
+    append_run_record,
+    invoke_droid,
+)
+from sprint_loop.per_chunk import (  # noqa: E402
+    invoke_executor,
+    lock_test,
+    produce_evidence,
+    render_executor_prompt,
+    run_validators,
+    validate_red,
+    verify_green,
+)
+from sprint_loop.prompts.render import render_to_file  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
     Finding,
     GateDecision,
-    GateDecision as GD,
     ReconcileDecision,
     Role,
     RoleAssignment,
@@ -92,31 +103,20 @@ from sprint_loop.state import (  # noqa: E402
     now_iso,
     validate_run_id,
 )
-from sprint_loop.droid import (  # noqa: E402
-    InvokeOptions,
-    append_run_record,
-    invoke_droid,
-)
-from sprint_loop.per_chunk import (  # noqa: E402
-    invoke_executor,
-    invoke_test_designer,
-    lock_test,
-    produce_evidence,
-    render_executor_prompt,
-    render_test_designer_prompt,
-    run_validators,
-    validate_red,
-    verify_green,
-)
-from sprint_loop.prompts.render import render_to_file, list_role_prompts  # noqa: E402
-
 
 # ── git helpers (assert-on-reality per OPERATING-RULES §7/§15) ───────────
 
+
 def _git(*args: str, cwd: str | None = None) -> str:
     """Run a git command, capture stdout. cwd defaults to framework_root."""
-    r = subprocess.run(["git", *args], cwd=cwd or _REPO_ROOT,
-                       capture_output=True, text=True, timeout=60, check=False)
+    r = subprocess.run(
+        ["git", *args],
+        cwd=cwd or _REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
     if r.returncode != 0:
         raise RuntimeError(f"git {args} failed: {r.stderr.strip()}")
     return r.stdout.strip()
@@ -128,6 +128,7 @@ def _git_branch_exists(branch: str) -> bool:
 
 
 # ── checkpoints (RunState pause/resume) ─────────────────────────────────
+
 
 def write_checkpoint(rs: RunState, path: str) -> None:
     """Persist RunState to disk so the operator can resume later.
@@ -200,8 +201,7 @@ def load_checkpoint(path: str) -> RunState:
     if data.get("chunks"):
         for c in data["chunks"]:
             cs = ChunkState(chunk_id=c["chunk_id"], scope=c.get("scope", ""))
-            for k in ("observable_criteria", "allowed_files",
-                      "locked_test_files", "commands"):
+            for k in ("observable_criteria", "allowed_files", "locked_test_files", "commands"):
                 setattr(cs, k, c.get(k, []))
             cs.accepted_assertion = c.get("accepted_assertion", "")
             cs.lock_manifest_path = c.get("lock_manifest_path", "")
@@ -213,6 +213,7 @@ def load_checkpoint(path: str) -> RunState:
 
 
 # ── step functions ───────────────────────────────────────────────────────
+
 
 def status_banner(title: str) -> None:
     print()
@@ -227,8 +228,8 @@ def state_status(rs: RunState, what: str) -> None:
 
 # ── steps: planner ───────────────────────────────────────────────────────
 
-def run_planner(rs: RunState, *, pilot_spec_text: str,
-                evidence_dir: str, dry_run: bool) -> dict:
+
+def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_run: bool) -> dict:
     """Fire the planner role and produce the plan document."""
     rs.status = RunStatus.PLANNING
     status_banner("STEP 1 · Planner (GROK)")
@@ -253,12 +254,15 @@ def run_planner(rs: RunState, *, pilot_spec_text: str,
         prompt_file=rendered_path,
         cwd=rs.framework_root,
     )
-    record = invoke_droid(Role.PLANNER, options=options,
-                          envelope_path=env_path,
-                          stderr_path=stderr_path,
-                          max_retries=rs.max_auto_retries,
-                          retry_delay_seconds=rs.retry_delay_seconds,
-                          dry_run=dry_run)
+    record = invoke_droid(
+        Role.PLANNER,
+        options=options,
+        envelope_path=env_path,
+        stderr_path=stderr_path,
+        max_retries=rs.max_auto_retries,
+        retry_delay_seconds=rs.retry_delay_seconds,
+        dry_run=dry_run,
+    )
     # Resolved attribution
     rs.planner.resolved_model_id = record.model_id
     rs.planner.resolved_provider = record.provider
@@ -270,10 +274,12 @@ def run_planner(rs: RunState, *, pilot_spec_text: str,
     rs.planner.is_error = record.is_error
     rs.planner.envelope_path = record.envelope_path
     rs.planner.run_id = record.run_id
-    append_run_record(record, phase="phase-4.5",
-                      branch="factory/phase-4.5-loop-runner",
-                      telemetry_path=os.path.join(rs.framework_root,
-                                                  "telemetry", "runs.jsonl"))
+    append_run_record(
+        record,
+        phase="phase-4.5",
+        branch="factory/phase-4.5-loop-runner",
+        telemetry_path=os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
+    )
 
     if not dry_run and record.is_error:
         raise RuntimeError(
@@ -303,7 +309,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str,
                 env = json.load(f)
             plan_md = env.get("result") or ""
         except (OSError, json.JSONDecodeError) as e:
-            raise RuntimeError(f"planner envelope unreadable for plan: {e}")
+            raise RuntimeError(f"planner envelope unreadable for plan: {e}") from None
 
     os.makedirs(os.path.dirname(plan_doc_path) or ".", exist_ok=True)
     with open(plan_doc_path, "w") as f:
@@ -325,9 +331,14 @@ _FINDING_ID_RE = re.compile(
 )
 
 
-def _parse_finding_block(reviewer_label: str, result_text: str,
-                          source_run_id: str, source_model: str,
-                          source_family: str, panel_position: int) -> list[Finding]:
+def _parse_finding_block(
+    reviewer_label: str,
+    result_text: str,
+    source_run_id: str,
+    source_model: str,
+    source_family: str,
+    panel_position: int,
+) -> list[Finding]:
     """Best-effort JSON extraction of findings from the reviewer's
     natural-language result text. The reviewer prompt asks for a
     structured JSON output; the parser is lenient so missing/extra
@@ -359,8 +370,7 @@ def _parse_finding_block(reviewer_label: str, result_text: str,
                 candidate, end = decoder.raw_decode(result_text, start)
             except json.JSONDecodeError:
                 candidate, end = None, -1
-            if isinstance(candidate, dict) and end > match.end() \
-                    and "finding_id" in candidate:
+            if isinstance(candidate, dict) and end > match.end() and "finding_id" in candidate:
                 obj = candidate
                 break
             start = result_text.rfind("{", 0, start)
@@ -390,17 +400,26 @@ def _parse_finding_block(reviewer_label: str, result_text: str,
     return findings
 
 
-def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
-                      evidence_dir: str, dry_run: bool,
-                      is_second_reviewer: bool = False) -> dict:
+def run_plan_reviewer(
+    rs: RunState,
+    *,
+    reviewer_index: int,
+    evidence_dir: str,
+    dry_run: bool,
+    is_second_reviewer: bool = False,
+) -> dict:
     """Fire ONE plan-reviewer role. Cross-family from planner (§17.2).
 
     reviewer_index: 1..N — used in panel_position and envelope label.
     """
     rs.status = RunStatus.PLAN_REVIEWING
-    reviewer = rs.plan_reviewer_2 if (is_second_reviewer and rs.plan_reviewer_2) else rs.plan_reviewer
+    reviewer = (
+        rs.plan_reviewer_2 if (is_second_reviewer and rs.plan_reviewer_2) else rs.plan_reviewer
+    )
     label = f"plan-reviewer-{reviewer_index}"
-    status_banner(f"STEP 2.{reviewer_index} · Plan reviewer {reviewer_index} ({reviewer.pinned_model_id})")
+    status_banner(
+        f"STEP 2.{reviewer_index} · Plan reviewer {reviewer_index} ({reviewer.pinned_model_id})"
+    )
     state_status(rs, f"reviewer {reviewer_index} role active")
 
     reviewer_prompt_out = os.path.join(evidence_dir, f"{label}-prompt.md")
@@ -427,12 +446,15 @@ def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
         prompt_file=rendered_path,
         cwd=rs.framework_root,
     )
-    record = invoke_droid(Role.PLAN_REVIEWER, options=options,
-                          envelope_path=env_path,
-                          stderr_path=stderr_path,
-                          max_retries=rs.max_auto_retries,
-                          retry_delay_seconds=rs.retry_delay_seconds,
-                          dry_run=dry_run)
+    record = invoke_droid(
+        Role.PLAN_REVIEWER,
+        options=options,
+        envelope_path=env_path,
+        stderr_path=stderr_path,
+        max_retries=rs.max_auto_retries,
+        retry_delay_seconds=rs.retry_delay_seconds,
+        dry_run=dry_run,
+    )
     reviewer.resolved_model_id = record.model_id
     reviewer.resolved_provider = record.provider
     reviewer.resolved_family = record.family
@@ -443,10 +465,12 @@ def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
     reviewer.is_error = record.is_error
     reviewer.envelope_path = record.envelope_path
     reviewer.run_id = record.run_id
-    append_run_record(record, phase="phase-4.5",
-                      branch="factory/phase-4.5-loop-runner",
-                      telemetry_path=os.path.join(rs.framework_root,
-                                                  "telemetry", "runs.jsonl"))
+    append_run_record(
+        record,
+        phase="phase-4.5",
+        branch="factory/phase-4.5-loop-runner",
+        telemetry_path=os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
+    )
 
     if not dry_run and record.is_error:
         raise RuntimeError(
@@ -460,32 +484,35 @@ def run_plan_reviewer(rs: RunState, *, reviewer_index: int,
             env = json.load(f)
         result_text = env.get("result") or ""
     except (OSError, json.JSONDecodeError) as e:
-        raise RuntimeError(f"reviewer envelope unreadable: {e}")
+        raise RuntimeError(f"reviewer envelope unreadable: {e}") from None
 
     verdict_match = _VERDICT_RE.findall(result_text)
     verdict = verdict_match[-1].upper() if verdict_match else "UNKNOWN"
 
-    findings = _parse_finding_block(label, result_text, record.run_id,
-                                     record.model_id, record.family,
-                                     reviewer_index)
+    findings = _parse_finding_block(
+        label, result_text, record.run_id, record.model_id, record.family, reviewer_index
+    )
 
     # Append to plan-level findings; telemetry goes to findings.jsonl too.
     rs.plan_findings.extend(findings)
-    _append_finding_rows(findings, telemetry_path=os.path.join(
-        rs.framework_root, "telemetry", "findings.jsonl"))
+    _append_finding_rows(
+        findings, telemetry_path=os.path.join(rs.framework_root, "telemetry", "findings.jsonl")
+    )
 
     # Panel-finding F-7: store the verdict, bound to the plan_sha256
     # the reviewer saw. This is what `reconcile_human_gate` consults
     # to decide whether `accept` is machine-permissible.
-    rs.plan_reviewer_verdicts.append({
-        "reviewer_index": reviewer_index,
-        "model_id": record.model_id,
-        "family": record.family,
-        "verdict": verdict,
-        "plan_sha256_at_time_of_review": rs.plan_sha256,
-        "is_error": record.is_error,
-        "run_id": record.run_id,
-    })
+    rs.plan_reviewer_verdicts.append(
+        {
+            "reviewer_index": reviewer_index,
+            "model_id": record.model_id,
+            "family": record.family,
+            "verdict": verdict,
+            "plan_sha256_at_time_of_review": rs.plan_sha256,
+            "is_error": record.is_error,
+            "run_id": record.run_id,
+        }
+    )
 
     print(f"  reviewer {reviewer_index} verdict: {verdict}")
     print(f"  findings: {len(findings)}")
@@ -496,8 +523,7 @@ def _append_finding_rows(findings: list[Finding], telemetry_path: str) -> None:
     """Append findings to ``telemetry/findings.jsonl`` per §10."""
     if not findings:
         return
-    os.makedirs(os.path.dirname(os.path.abspath(telemetry_path)) or ".",
-                exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(telemetry_path)) or ".", exist_ok=True)
     with open(telemetry_path, "a") as f:
         for finding in findings:
             row = {
@@ -521,6 +547,7 @@ def _append_finding_rows(findings: list[Finding], telemetry_path: str) -> None:
 
 # ── step: preflight family guard ─────────────────────────────────────────
 
+
 def preflight_family_guard(cfg: Config, rs: RunState) -> None:
     """Run the §17.2 family-guard preflight; halt on violation."""
     assignments = cfg.to_role_assignments()
@@ -532,23 +559,19 @@ def preflight_family_guard(cfg: Config, rs: RunState) -> None:
         allow_single_family=cfg.allow_single_family,
     )
     rs.family_guard_passed = out.ok
-    rs.family_guard_notes = "; ".join(out.notes + [
-        v for v in out.violations if v
-    ])
+    rs.family_guard_notes = "; ".join(out.notes + [v for v in out.violations if v])
     if not out.ok and cfg.fail_closed:
         print("§17.2 family guard FAILED — refusing to launch.", file=sys.stderr)
         for v in out.violations:
             print(f"  - {v}", file=sys.stderr)
         raise SystemExit(2)
     elif not out.ok:
-        print("§17.2 family guard FAILED but fail-closed disabled; continuing.",
-              file=sys.stderr)
+        print("§17.2 family guard FAILED but fail-closed disabled; continuing.", file=sys.stderr)
     else:
         print("§17.2 family guard OK")
 
 
-def recheck_family_guard_post_resolution(cfg: Config, rs: RunState,
-                                          which: str) -> None:
+def recheck_family_guard_post_resolution(cfg: Config, rs: RunState, which: str) -> None:
     """Re-run §17.2 guard with *resolved* families substituted in.
 
     Panel-finding F-2: FamilyGuardOutcome's docstring promised a
@@ -572,9 +595,8 @@ def recheck_family_guard_post_resolution(cfg: Config, rs: RunState,
     )
     if not out.ok:
         rs.family_guard_passed = False
-        rs.family_guard_notes = (
-            f"post-resolution re-check ({which}) failed; " +
-            "; ".join(out.violations)
+        rs.family_guard_notes = f"post-resolution re-check ({which}) failed; " + "; ".join(
+            out.violations
         )
         if cfg.fail_closed:
             print(
@@ -591,18 +613,21 @@ def recheck_family_guard_post_resolution(cfg: Config, rs: RunState,
         )
     else:
         rs.family_guard_passed = True
-        rs.family_guard_notes = (
-            f"§17.2 family guard OK at pref + post-resolution ({which})"
-        )
+        rs.family_guard_notes = f"§17.2 family guard OK at pref + post-resolution ({which})"
 
 
 # ── step: reconcile (human gate) ────────────────────────────────────────
 
-def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
-                          dry_run: bool,
-                          gate_auto_decide: bool = False,
-                          unattended: bool = False,
-                          no_dry_auto_decide: bool = False) -> ReconcileDecision:
+
+def reconcile_human_gate(
+    rs: RunState,
+    *,
+    evidence_dir: str,
+    dry_run: bool,
+    gate_auto_decide: bool = False,
+    unattended: bool = False,
+    no_dry_auto_decide: bool = False,
+) -> ReconcileDecision:
     """Pause for the human operator's reconciliation decision.
 
     PRD §5.3 + §6: the loop runner pauses here and reads ``stdin``.
@@ -637,7 +662,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
 
     print()
     print("═" * 64)
-    print(f"  RECONCILE GATE — human pause")
+    print("  RECONCILE GATE — human pause")
     print(f"  packet: {packet_path}")
     print(f"  round: {rs.plan_round + 1} / max {rs.max_review_rounds}")
     print(f"  findings ({len(rs.plan_findings)}):")
@@ -657,9 +682,11 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
     print("═" * 64)
 
     if dry_run and not no_dry_auto_decide:
-        print("  [dry-run] auto-decision: accept (non-committal — "
-              "dry-run produces a simulated ACCEPT. Live mode honors "
-              "--non-interactive / --unattended separately.)")
+        print(
+            "  [dry-run] auto-decision: accept (non-committal — "
+            "dry-run produces a simulated ACCEPT. Live mode honors "
+            "--non-interactive / --unattended separately.)"
+        )
         return ReconcileDecision.ACCEPT
 
     # Pass-r3 finding H-2 fix: gate auto-decide path is opt-in via
@@ -680,8 +707,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
                 )
             else:
                 print(
-                    f"  [non-interactive] refused (exit {e.code}); "
-                    f"no checkpoint",
+                    f"  [non-interactive] refused (exit {e.code}); no checkpoint",
                     file=sys.stderr,
                 )
             raise
@@ -695,7 +721,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
         line = input("  > ").strip()
     except (EOFError, KeyboardInterrupt):
         print("\n  abort.")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     if not line:
         print("  abort.")
         raise SystemExit(1)
@@ -708,7 +734,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
         # rubber stamp — Phase 0's KNOWN silent-green defect.
         try:
             _enforce_5_3_preconditions(rs)
-        except SystemExit as e:
+        except SystemExit:
             # If the reasons include the explicit REFUSED markers,
             # _enforce_5_3_preconditions has already written them.
             raise
@@ -725,6 +751,7 @@ def reconcile_human_gate(rs: RunState, *, evidence_dir: str,
 
 # ── §5.3 machine-check helpers (panel-finding F-7) ───────────────────────
 
+
 def _enforce_5_3_preconditions(rs: RunState) -> None:
     """Refuse ``accept`` while §5.3 convergence preconditions fail.
 
@@ -739,8 +766,7 @@ def _enforce_5_3_preconditions(rs: RunState) -> None:
     either way).
     """
     open_blocker_or_high = [
-        f for f in rs.plan_findings
-        if f.status == "open" and f.severity in ("blocker", "high")
+        f for f in rs.plan_findings if f.status == "open" and f.severity in ("blocker", "high")
     ]
     if open_blocker_or_high:
         print(
@@ -752,14 +778,14 @@ def _enforce_5_3_preconditions(rs: RunState) -> None:
         )
         for f in open_blocker_or_high:
             print(
-                f"    - {f.finding_id} ({f.source_model_id}): "
-                f"{f.claim[:160]}",
+                f"    - {f.finding_id} ({f.source_model_id}): {f.claim[:160]}",
                 file=sys.stderr,
             )
         raise SystemExit(4)
 
     bound_approves = [
-        v for v in rs.plan_reviewer_verdicts
+        v
+        for v in rs.plan_reviewer_verdicts
         if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
         and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
     ]
@@ -801,6 +827,7 @@ def _write_reconcile_packet(rs: RunState, path: str) -> None:
 
 # ── step: chunking ───────────────────────────────────────────────────────
 
+
 def load_chunks(rs: RunState, chunks_file: str) -> list[ChunkState]:
     """Read the chunks JSON file and materialise the chunk list."""
     if not os.path.isfile(chunks_file):
@@ -839,10 +866,10 @@ def load_chunks(rs: RunState, chunks_file: str) -> list[ChunkState]:
 
 # ── step: per-chunk run + retry policy ───────────────────────────────────
 
-def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
-                            evidence_output_dir: str,
-                            dry_run: bool,
-                            cfg: Config) -> ChunkState:
+
+def run_chunk_with_retries(
+    rs: RunState, chunk: ChunkState, evidence_output_dir: str, dry_run: bool, cfg: Config
+) -> ChunkState:
     """Run a chunk's inner loop. On REJECT, retry up to retry_threshold
     by feeding rejection feedback back to the executor.
 
@@ -852,7 +879,9 @@ def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
     """
     attempts_left = rs.retry_threshold + 1  # first try + retries
     while attempts_left > 0:
-        chunk.status = ChunkStatus.TEST_DESIGNING if chunk.retry_count == 0 else ChunkStatus.RETRYING
+        chunk.status = (
+            ChunkStatus.TEST_DESIGNING if chunk.retry_count == 0 else ChunkStatus.RETRYING
+        )
         attempts_left -= 1
 
         run_chunk_inner(rs, chunk, evidence_output_dir, dry_run, cfg)
@@ -872,15 +901,16 @@ def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
         if attempts_left > 0:
             chunk.retry_count += 1
             chunk.rejection_feedback = [chunk.gate_reason]
-            print(f"  REJECT ({chunk.gate_decision.value}); retrying "
-                  f"({rs.retry_threshold + 1 - attempts_left}/{rs.retry_threshold + 1})")
+            print(
+                f"  REJECT ({chunk.gate_decision.value}); retrying "
+                f"({rs.retry_threshold + 1 - attempts_left}/{rs.retry_threshold + 1})"
+            )
             continue
 
         # No retries left — escalate
         chunk.status = ChunkStatus.HUMAN_DECISION
         rs.status_message = (
-            f"chunk {chunk.chunk_id} reached HUMAN_DECISION after "
-            f"{chunk.retry_count} retries"
+            f"chunk {chunk.chunk_id} reached HUMAN_DECISION after {chunk.retry_count} retries"
         )
         return chunk
     # Shouldn't reach here, but safety
@@ -888,9 +918,9 @@ def run_chunk_with_retries(rs: RunState, chunk: ChunkState,
     return chunk
 
 
-def run_chunk_inner(rs: RunState, chunk: ChunkState,
-                     evidence_output_dir: str, dry_run: bool,
-                     cfg: Config) -> None:
+def run_chunk_inner(
+    rs: RunState, chunk: ChunkState, evidence_output_dir: str, dry_run: bool, cfg: Config
+) -> None:
     """The per-chunk inner loop:
     test-designer → lock → valid-red → executor → verify-green →
     evidence → validation → gate decision.
@@ -911,26 +941,28 @@ def run_chunk_inner(rs: RunState, chunk: ChunkState,
 
     # 2. lock
     chunk.status = ChunkStatus.LOCKING
-    lock_test(chunk,
-              framework_root=rs.framework_root,
-              pilot_root=rs.pilot_root,
-              pilot_python=rs.pilot_python,
-              accepted_assertion=chunk.accepted_assertion,
-              dry_run=dry_run)
+    lock_test(
+        chunk,
+        framework_root=rs.framework_root,
+        pilot_root=rs.pilot_root,
+        pilot_python=rs.pilot_python,
+        accepted_assertion=chunk.accepted_assertion,
+        dry_run=dry_run,
+    )
 
     # 3. valid-red
     chunk.status = ChunkStatus.VALIDATING_RED
     try:
-        validate_red(chunk,
-                     framework_root=rs.framework_root,
-                     pilot_root=rs.pilot_root,
-                     pilot_python=rs.pilot_python,
-                     dry_run=dry_run)
+        validate_red(
+            chunk,
+            framework_root=rs.framework_root,
+            pilot_root=rs.pilot_root,
+            pilot_python=rs.pilot_python,
+            dry_run=dry_run,
+        )
     except RuntimeError as e:
         chunk.status = ChunkStatus.RED_REJECTED
-        rs.status_message = (
-            f"chunk {chunk.chunk_id} RED_REJECTED: {e}"
-        )
+        rs.status_message = f"chunk {chunk.chunk_id} RED_REJECTED: {e}"
         return
 
     # 4. executor
@@ -938,7 +970,8 @@ def run_chunk_inner(rs: RunState, chunk: ChunkState,
     ex_prompt_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-prompt.md")
     render_executor_prompt(chunk, rs, output_path=ex_prompt_path)
     invoke_executor(
-        chunk, rs,
+        chunk,
+        rs,
         evidence_output_dir=evidence_output_dir,
         rendered_prompt_path=ex_prompt_path,
         envelope_path=os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-envelope.json"),
@@ -948,36 +981,41 @@ def run_chunk_inner(rs: RunState, chunk: ChunkState,
 
     # 5. verify-green
     chunk.status = ChunkStatus.VERIFYING_GREEN
-    verify_green(chunk,
-                 framework_root=rs.framework_root,
-                 pilot_root=rs.pilot_root,
-                 pilot_python=rs.pilot_python,
-                 dry_run=dry_run)
+    verify_green(
+        chunk,
+        framework_root=rs.framework_root,
+        pilot_root=rs.pilot_root,
+        pilot_python=rs.pilot_python,
+        dry_run=dry_run,
+    )
 
     # 6. evidence
     chunk.status = ChunkStatus.EVIDENCING
     bundle_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-bundle.json")
-    produce_evidence(chunk,
-                     framework_root=rs.framework_root,
-                     pilot_root=rs.pilot_root,
-                     pilot_python=rs.pilot_python,
-                     evidence_output_path=bundle_path,
-                     dry_run=dry_run)
+    produce_evidence(
+        chunk,
+        framework_root=rs.framework_root,
+        pilot_root=rs.pilot_root,
+        pilot_python=rs.pilot_python,
+        evidence_output_path=bundle_path,
+        dry_run=dry_run,
+    )
 
     # 7. validation
     chunk.status = ChunkStatus.VALIDATING
-    backend_result = run_validators(chunk, rs,
-                                    evidence_output_dir=evidence_output_dir,
-                                    dry_run=dry_run)
+    backend_result = run_validators(
+        chunk, rs, evidence_output_dir=evidence_output_dir, dry_run=dry_run
+    )
     chunk.gate_decision = backend_result.gate
     chunk.gate_reason = backend_result.reason
 
 
 # ── step: branch + commit ───────────────────────────────────────────────
 
-def commit_chunk_change(rs: RunState, chunk: ChunkState,
-                         evidence_output_dir: str,
-                         run_evidence_dir: str | None = None) -> None:
+
+def commit_chunk_change(
+    rs: RunState, chunk: ChunkState, evidence_output_dir: str, run_evidence_dir: str | None = None
+) -> None:
     """One commit per accepted chunk on the output branch.
 
     Operator rule (OPERATING-RULES §18 / AGENTS.md): commits are the
@@ -995,9 +1033,11 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
         # staged by this function.
         rs.commit_count += 1
         rs.output_branch = rs.output_branch or f"factory/sprint-{rs.run_id}-dry-run"
-        print(f"  [dry-run] would commit chunk {chunk.chunk_id} on "
-              f"{rs.output_branch}; audit files committed: "
-              f"{os.path.relpath(evidence_output_dir, _REPO_ROOT)}")
+        print(
+            f"  [dry-run] would commit chunk {chunk.chunk_id} on "
+            f"{rs.output_branch}; audit files committed: "
+            f"{os.path.relpath(evidence_output_dir, _REPO_ROOT)}"
+        )
         return
 
     if not rs.output_branch:
@@ -1043,15 +1083,15 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
     # follow-up write to land in the next chunk's commit.
     if run_evidence_dir:
         try:
-            cp_rel = os.path.relpath(
-                os.path.join(run_evidence_dir, "checkpoint.json"),
-                _REPO_ROOT)
+            cp_rel = os.path.relpath(os.path.join(run_evidence_dir, "checkpoint.json"), _REPO_ROOT)
         except ValueError:
             cp_rel = ""
-        if (cp_rel and not cp_rel.startswith("..")
-                and not os.path.isabs(cp_rel)
-                and os.path.isfile(os.path.join(
-                    run_evidence_dir, "checkpoint.json"))):
+        if (
+            cp_rel
+            and not cp_rel.startswith("..")
+            and not os.path.isabs(cp_rel)
+            and os.path.isfile(os.path.join(run_evidence_dir, "checkpoint.json"))
+        ):
             stage_paths.append(cp_rel)
     for p in stage_paths:
         # Force-add because .gitignore excludes the evidence dir by
@@ -1110,6 +1150,7 @@ def commit_chunk_change(rs: RunState, chunk: ChunkState,
 
 # ── main flow ────────────────────────────────────────────────────────────
 
+
 def guard_in_uncommitted_state() -> None:
     """OPERATING-RULES §7 + §15 — refuse to run a sprint if the working
     tree has uncommitted changes unless the operator opts in."""
@@ -1132,11 +1173,11 @@ def main(argv: list[str] | None = None) -> int:
     raw_argv = sys.argv[1:] if argv is None else argv
     if "--help" in raw_argv or "-h" in raw_argv:
         runner_help = _runner_argparser().format_help()
-        cfg_help = build_config.__doc__ or ""
         # Render build_config's parser help too.
         try:
             from sprint_loop.config import build_config  # noqa: F401
-            cfg_help_parser = argparse.ArgumentParser(prog="(config)")
+
+            argparse.ArgumentParser(prog="(config)")
             # Reuse the same parser that build_config uses.
             cfg_help_parser_help = _format_build_config_help()
         except Exception:
@@ -1156,37 +1197,54 @@ def _runner_argparser() -> argparse.ArgumentParser:
     """The runner-only flag set: anything not seen by build_config's
     parser. Lives here so the ``--help`` surface and the actual
     runner share one source of truth (pass-r3 finding H-8)."""
-    parser = argparse.ArgumentParser(prog="sprint-loop.py",
-        description="Phase 4.5 adversarial-sprint command orchestrator")
+    parser = argparse.ArgumentParser(
+        prog="sprint-loop.py", description="Phase 4.5 adversarial-sprint command orchestrator"
+    )
     parser.add_argument("--config")
     parser.add_argument("--chunks-file", default="")
-    parser.add_argument("--resume-from", default="",
-                        help="Path to a previously-written checkpoint.json. The runner "
-                             "restores RunState from this and continues the loop. Same "
-                             "form on the CLI as the runner's expect: --resume-from <path>.")
-    parser.add_argument("--evidence-output-dir", default="",
-                        help="Override the per-run evidence tree location. By default the "
-                             f"runner stages at <framework-root>/{BUILD_EVIDENCE_DIR}/"
-                             "<run-id>/. Set this for per-pilot overlays so the framework "
-                             f"repo's {BUILD_EVIDENCE_DIR} dir stays clean. "
-                             "WARNING (pass-r3 H-9): when used as the framework-side audit "
-                             "path, the runner cannot force-add the audit tree into the "
-                             "framework repo on commit; pilot repos are responsible for "
-                             "their own archival here.")
-    parser.add_argument("--no-dry-auto-decide", action="store_true",
-                        help="Disable the dry-run auto-accept shortcut. With this set, "
-                             "a dry-run still pauses for the reconcile gate. "
-                             "Pass-r3 H-13: was unreachable (only checked in sys.argv).")
+    parser.add_argument(
+        "--resume-from",
+        default="",
+        help="Path to a previously-written checkpoint.json. The runner "
+        "restores RunState from this and continues the loop. Same "
+        "form on the CLI as the runner's expect: --resume-from <path>.",
+    )
+    parser.add_argument(
+        "--evidence-output-dir",
+        default="",
+        help="Override the per-run evidence tree location. By default the "
+        f"runner stages at <framework-root>/{BUILD_EVIDENCE_DIR}/"
+        "<run-id>/. Set this for per-pilot overlays so the framework "
+        f"repo's {BUILD_EVIDENCE_DIR} dir stays clean. "
+        "WARNING (pass-r3 H-9): when used as the framework-side audit "
+        "path, the runner cannot force-add the audit tree into the "
+        "framework repo on commit; pilot repos are responsible for "
+        "their own archival here.",
+    )
+    parser.add_argument(
+        "--no-dry-auto-decide",
+        action="store_true",
+        help="Disable the dry-run auto-accept shortcut. With this set, "
+        "a dry-run still pauses for the reconcile gate. "
+        "Pass-r3 H-13: was unreachable (only checked in sys.argv).",
+    )
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--non-interactive", action="store_true",
-                        help="Bypass the human reconcile gate. Only valid "
-                             "with --dry-run or SPRINT_LOOP_NON_INTERACTIVE=1.")
-    parser.add_argument("--unattended", action="store_true",
-                        help="Run unattended-live: §5.3 preconditions enforced; "
-                             "on refusal, write a checkpoint and raise "
-                             "(SystemExit 4/5). Decoupled from --dry-run per "
-                             "pd-pass-r2 G-7. Resumes via --resume-from.")
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Bypass the human reconcile gate. Only valid "
+        "with --dry-run or SPRINT_LOOP_NON_INTERACTIVE=1.",
+    )
+    parser.add_argument(
+        "--unattended",
+        action="store_true",
+        help="Run unattended-live: §5.3 preconditions enforced; "
+        "on refusal, write a checkpoint and raise "
+        "(SystemExit 4/5). Decoupled from --dry-run per "
+        "pd-pass-r2 G-7. Resumes via --resume-from.",
+    )
     return parser
+
 
 def _format_build_config_help() -> str:
     """Render build_config's parser help text for ``--help`` output.
@@ -1199,7 +1257,7 @@ def _format_build_config_help() -> str:
     operator sees.
     """
     try:
-        cfg = build_config(["--help-empty-shell"])
+        build_config(["--help-empty-shell"])
     except SystemExit:
         # build_config's parser does NOT consume --help-empty-shell
         # usefully; we want to render the help text without consuming
@@ -1221,60 +1279,101 @@ def _format_build_config_help_synthetic() -> str:
     Config-side flags. Pin test:
     tests/test_sprint_loop.py::test_runner_help_includes_config_flags_h8.
     """
-    p = argparse.ArgumentParser(prog="sprint-loop.py (Config-side flags)",
-        description="Flags accepted and forwarded to build_config. Pass-r3 H-8.")
-    p.add_argument("--framework-root", default="",
-                   help="Path to adversarial-sprint-dev (the loop runner's repo).")
-    p.add_argument("--pilot-root", default="",
-                   help="Path to the repo the runner drives.")
-    p.add_argument("--pilot-python", default="",
-                   help="Python interpreter for the pilot repo (e.g., .venv/bin/python).")
-    p.add_argument("--chunks-file", default="",
-                   help="Path to the chunks spec JSON; REQUIRED at run time.")
-    p.add_argument("--pilot-spec-file", default="",
-                   help="Optional free-form spec file; planner reads it.")
-    p.add_argument("--review-prompt-template", default="",
-                   help="Path to the review prompt template override.")
-    p.add_argument("--evidence-output-dir", default="",
-                   help="Override the per-run evidence-tree location. See H-9.")
+    p = argparse.ArgumentParser(
+        prog="sprint-loop.py (Config-side flags)",
+        description="Flags accepted and forwarded to build_config. Pass-r3 H-8.",
+    )
+    p.add_argument(
+        "--framework-root",
+        default="",
+        help="Path to adversarial-sprint-dev (the loop runner's repo).",
+    )
+    p.add_argument("--pilot-root", default="", help="Path to the repo the runner drives.")
+    p.add_argument(
+        "--pilot-python",
+        default="",
+        help="Python interpreter for the pilot repo (e.g., .venv/bin/python).",
+    )
+    p.add_argument(
+        "--chunks-file", default="", help="Path to the chunks spec JSON; REQUIRED at run time."
+    )
+    p.add_argument(
+        "--pilot-spec-file", default="", help="Optional free-form spec file; planner reads it."
+    )
+    p.add_argument(
+        "--review-prompt-template", default="", help="Path to the review prompt template override."
+    )
+    p.add_argument(
+        "--evidence-output-dir",
+        default="",
+        help="Override the per-run evidence-tree location. See H-9.",
+    )
     p.add_argument("--planner-model", default="")
     p.add_argument("--plan-reviewer-model", default="")
     p.add_argument("--plan-reviewer-2-model", default="")
     p.add_argument("--test-designer-model", default="")
     p.add_argument("--executor-model", default="")
-    p.add_argument("--validators", default="",
-                   help="Comma-separated model_ids (each may carry :provider:family:label).")
+    p.add_argument(
+        "--validators",
+        default="",
+        help="Comma-separated model_ids (each may carry :provider:family:label).",
+    )
     p.add_argument("--max-review-rounds", type=int, default=-1)
     p.add_argument("--retry-threshold", type=int, default=-1)
     p.add_argument("--max-auto-retries", type=int, default=-1)
     p.add_argument("--retry-delay-seconds", type=int, default=-1)
-    p.add_argument("--dry-run", action="store_true",
-                   help="Simulate; do not invoke droid exec or git commit.")
-    p.add_argument("--gate-auto-decide", action="store_true",
-                   help="Reconcile gate auto-decides ACCEPT after §5.3 preconditions. Per-r3 H-2.")
-    p.add_argument("--unattended", action="store_true",
-                   help="Unattended live; checkpoint on §5.3 refusal.")
-    p.add_argument("--no-dry-auto-decide", action="store_true",
-                   help="Disable dry-run auto-accept. Per-r3 H-13.")
-    p.add_argument("--skip-reconcile", action="store_true",
-                   help="Skip the human reconciliation gate (operator accepts ad-hoc).")
-    p.add_argument("--create-pr", action="store_true",
-                   help="Attempt PR creation if the remote is configured.")
-    p.add_argument("--validation-backend", default="", choices=["", "local", "ci"],
-                   help="'local' shells out to orchestrate-review.py; 'ci' is a STUB.")
+    p.add_argument(
+        "--dry-run", action="store_true", help="Simulate; do not invoke droid exec or git commit."
+    )
+    p.add_argument(
+        "--gate-auto-decide",
+        action="store_true",
+        help="Reconcile gate auto-decides ACCEPT after §5.3 preconditions. Per-r3 H-2.",
+    )
+    p.add_argument(
+        "--unattended", action="store_true", help="Unattended live; checkpoint on §5.3 refusal."
+    )
+    p.add_argument(
+        "--no-dry-auto-decide",
+        action="store_true",
+        help="Disable dry-run auto-accept. Per-r3 H-13.",
+    )
+    p.add_argument(
+        "--skip-reconcile",
+        action="store_true",
+        help="Skip the human reconciliation gate (operator accepts ad-hoc).",
+    )
+    p.add_argument(
+        "--create-pr", action="store_true", help="Attempt PR creation if the remote is configured."
+    )
+    p.add_argument(
+        "--validation-backend",
+        default="",
+        choices=["", "local", "ci"],
+        help="'local' shells out to orchestrate-review.py; 'ci' is a STUB.",
+    )
     p.add_argument("--signing-key-env", default="")
     p.add_argument("--security-allowlist", nargs="*", default=[])
     p.add_argument("--security-baseline", default="")
-    p.add_argument("--allow-test-author-collide", action="store_true",
-                   help="§17.6 outage override only. Must be recorded in phase-N/KNOWN-ISSUES.md.")
-    p.add_argument("--allow-single-family", action="store_true",
-                   help="Allow single-family validator panel.")
+    p.add_argument(
+        "--allow-test-author-collide",
+        action="store_true",
+        help="§17.6 outage override only. Must be recorded in phase-N/KNOWN-ISSUES.md.",
+    )
+    p.add_argument(
+        "--allow-single-family", action="store_true", help="Allow single-family validator panel."
+    )
     p.add_argument("--fail-closed", dest="fail_closed", action="store_true", default=True)
-    p.add_argument("--no-fail-closed", dest="fail_closed", action="store_false",
-                   help="Disable §7 fail-closed. NOT recommended.")
+    p.add_argument(
+        "--no-fail-closed",
+        dest="fail_closed",
+        action="store_false",
+        help="Disable §7 fail-closed. NOT recommended.",
+    )
     return p.format_help()
 
-def main(argv: list[str] | None = None) -> int:
+
+def main(argv: list[str] | None = None) -> int:  # noqa: F811
     """Top-level runner entrypoint.
 
     Pass-r3 H-8: render both the runner-only flag table and the
@@ -1288,8 +1387,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg_help = _format_build_config_help_synthetic()
         print(runner_help)
         print()
-        print("-- Below: Config-side flags (also accepted; see "
-              "config.py for defaults) --")
+        print("-- Below: Config-side flags (also accepted; see config.py for defaults) --")
         print(cfg_help)
         return 0
 
@@ -1336,8 +1434,9 @@ def main(argv: list[str] | None = None) -> int:
     run_id = f"r-phase45-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
     validate_run_id(run_id)
 
-    def _make_role(role: Role, model_id: str, auto_level: str,
-                   enabled_tools: str) -> RoleAssignment:
+    def _make_role(
+        role: Role, model_id: str, auto_level: str, enabled_tools: str
+    ) -> RoleAssignment:
         return RoleAssignment(
             role=role,
             pinned_model_id=model_id,
@@ -1363,23 +1462,37 @@ def main(argv: list[str] | None = None) -> int:
         retry_threshold=cfg.retry_threshold,
         max_auto_retries=cfg.max_auto_retries,
         retry_delay_seconds=cfg.retry_delay_seconds,
-        planner=_make_role(Role.PLANNER, cfg.planner_model,
-                            cfg.planner_auto_level,
-                            "Read,Glob,Grep,LS,Execute"),
-        plan_reviewer=_make_role(Role.PLAN_REVIEWER, cfg.plan_reviewer_model,
-                                  cfg.plan_reviewer_auto_level,
-                                  "Read,Glob,Grep,LS,Execute"),
-        plan_reviewer_2=(_make_role(Role.PLAN_REVIEWER,
-                                      cfg.plan_reviewer_2_model,
-                                      cfg.plan_reviewer_2_auto_level,
-                                      "Read,Glob,Grep,LS,Execute")
-                          if cfg.plan_reviewer_2_model else None),
-        test_designer=_make_role(Role.TEST_DESIGNER, cfg.test_designer_model,
-                                  cfg.test_designer_auto_level,
-                                  "Read,Glob,Grep,LS,Edit,Create,Execute"),
-        executor=_make_role(Role.EXECUTOR, cfg.executor_model,
-                            cfg.executor_auto_level,
-                            "Read,Glob,Grep,LS,Edit,Create,Execute"),
+        planner=_make_role(
+            Role.PLANNER, cfg.planner_model, cfg.planner_auto_level, "Read,Glob,Grep,LS,Execute"
+        ),
+        plan_reviewer=_make_role(
+            Role.PLAN_REVIEWER,
+            cfg.plan_reviewer_model,
+            cfg.plan_reviewer_auto_level,
+            "Read,Glob,Grep,LS,Execute",
+        ),
+        plan_reviewer_2=(
+            _make_role(
+                Role.PLAN_REVIEWER,
+                cfg.plan_reviewer_2_model,
+                cfg.plan_reviewer_2_auto_level,
+                "Read,Glob,Grep,LS,Execute",
+            )
+            if cfg.plan_reviewer_2_model
+            else None
+        ),
+        test_designer=_make_role(
+            Role.TEST_DESIGNER,
+            cfg.test_designer_model,
+            cfg.test_designer_auto_level,
+            "Read,Glob,Grep,LS,Edit,Create,Execute",
+        ),
+        executor=_make_role(
+            Role.EXECUTOR,
+            cfg.executor_model,
+            cfg.executor_auto_level,
+            "Read,Glob,Grep,LS,Edit,Create,Execute",
+        ),
         validators=[
             RoleAssignment(
                 role=Role.VALIDATOR,
@@ -1388,8 +1501,13 @@ def main(argv: list[str] | None = None) -> int:
                 pinned_provider=_parse_validator_inline(v, cfg)["pinned_provider"],
                 enabled_tools="Read,Glob,Grep,LS",
             )
-            for v in (cfg.validators or ["grok-4.5:xai:grok-family:grok-4.5",
-                                          "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview"])
+            for v in (
+                cfg.validators
+                or [
+                    "grok-4.5:xai:grok-family:grok-4.5",
+                    "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview",
+                ]
+            )
         ],
     )
 
@@ -1420,18 +1538,25 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
         # 1. Planner
-        run_planner(rs, pilot_spec_text="(see --pilot-spec-file)",
-                    evidence_dir=evidence_dir, dry_run=cfg.dry_run)
+        run_planner(
+            rs,
+            pilot_spec_text="(see --pilot-spec-file)",
+            evidence_dir=evidence_dir,
+            dry_run=cfg.dry_run,
+        )
 
         # 2. Plan reviewer (always); 2nd reviewer if configured.
-        reviewer1 = run_plan_reviewer(rs, reviewer_index=1,
-                                      evidence_dir=evidence_dir,
-                                      dry_run=cfg.dry_run)
+        reviewer1 = run_plan_reviewer(
+            rs, reviewer_index=1, evidence_dir=evidence_dir, dry_run=cfg.dry_run
+        )
         if rs.plan_reviewer_2:
-            reviewer2 = run_plan_reviewer(rs, reviewer_index=2,
-                                          evidence_dir=evidence_dir,
-                                          dry_run=cfg.dry_run,
-                                          is_second_reviewer=True)
+            reviewer2 = run_plan_reviewer(
+                rs,
+                reviewer_index=2,
+                evidence_dir=evidence_dir,
+                dry_run=cfg.dry_run,
+                is_second_reviewer=True,
+            )
         else:
             reviewer2 = None
 
@@ -1447,7 +1572,8 @@ def main(argv: list[str] | None = None) -> int:
         # Sanity print so the operator sees the verdict storage the
         # reconcile gate will consult (panel-finding F-7).
         bound_approves = sum(
-            1 for v in rs.plan_reviewer_verdicts
+            1
+            for v in rs.plan_reviewer_verdicts
             if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
             and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
         )
@@ -1465,16 +1591,15 @@ def main(argv: list[str] | None = None) -> int:
         # gate_auto_decide=… via parameters passed through; only
         # --skip-reconcile additionally prints a louder banner.
         if cfg.skip_reconcile:
-            print(
-                f"  --skip-reconcile: skipping stdin pause; "
-                f"running §5.3 preconditions check"
-            )
+            print("  --skip-reconcile: skipping stdin pause; running §5.3 preconditions check")
         decision = reconcile_human_gate(
-            rs, evidence_dir=evidence_dir,
+            rs,
+            evidence_dir=evidence_dir,
             dry_run=cfg.dry_run,
             gate_auto_decide=(cfg.skip_reconcile or cfg.gate_auto_decide),
             unattended=cfg.unattended,
-            no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False))
+            no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False),
+        )
 
         if decision in (ReconcileDecision.ACCEPT, ReconcileDecision.AMEND):
             break
@@ -1520,14 +1645,12 @@ def main(argv: list[str] | None = None) -> int:
             # provisional rs here for the checkpoint (the chunk was
             # NOT accepted; plan/round not bumped).
             write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-            commit_chunk_change(rs, chunk, chunk_evidence_dir,
-                                run_evidence_dir=evidence_dir)
+            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
             return 3
         # Pass-r3 H-10 fix: write run-level checkpoint BEFORE
         # commit_chunk_change so the chunk commit captures it.
         write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-        commit_chunk_change(rs, chunk, chunk_evidence_dir,
-                            run_evidence_dir=evidence_dir)
+        commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
 
     # ── Final state ────────────────────────────────────────────────
     rs.status = RunStatus.COMPLETED
@@ -1557,7 +1680,7 @@ def _parse_validator_inline(entry: str, cfg: Config) -> dict:
     # If model_id is curated, the inline family (if given) must equal
     # the curated family. Per §4 provenance is curated—not declared.
     if model_id in MODEL_FAMILY_MAP:  # curate presence test (cfg.provider_family
-                                       # already returns ("unknown","unknown") for unmapped)
+        # already returns ("unknown","unknown") for unmapped)
         if len(parts) > 2 and parts[2] and parts[2] != curated_family:
             raise SystemExit(
                 f"validator {entry!r} declares family '{parts[2]}' but "

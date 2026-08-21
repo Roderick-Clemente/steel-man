@@ -21,6 +21,7 @@ to null — they predate the Phase 3.2 evidence provider.
 Usage:
     python3 tools/phase-4-gen/reconstruct-telemetry.py [--dry-run]
 """
+
 import json
 import os
 import sys
@@ -65,54 +66,120 @@ PHASE3_BRANCH = "factory/phase-3-profile"
 # decision: plan-review APPROVE → ACCEPT per the mapping noted in
 # brief-review-grok finding 4 and findings.md reconciliation.
 PHASE2_RUNS = [
-    ("r-phase2-planner", "planner", "claude-opus-5", None,
-     "planner-envelope.json", None),
-    ("r-phase2-plan-review-grok", "reviewer", "grok-4.5", "ACCEPT",
-     "plan-review-grok-4.5-envelope.json",
-     ["grok-4.5", "gemini-3.1-pro-preview"]),
-    ("r-phase2-plan-review-gemini", "reviewer", "gemini-3.1-pro-preview", "ACCEPT",
-     "plan-review-gemini-3.1-pro-preview-envelope.json",
-     ["grok-4.5", "gemini-3.1-pro-preview"]),
-    ("r-phase2-brief-review-grok", "reviewer", "grok-4.5", "ACCEPT-WITH-NITS",
-     "brief-review-grok-envelope.json",
-     ["grok-4.5", "gemini-3.1-pro-preview"]),
-    ("r-phase2-brief-review-gemini", "reviewer", "gemini-3.1-pro-preview", "ACCEPT",
-     "brief-review-gemini-envelope.json",
-     ["grok-4.5", "gemini-3.1-pro-preview"]),
+    ("r-phase2-planner", "planner", "claude-opus-5", None, "planner-envelope.json", None),
+    (
+        "r-phase2-plan-review-grok",
+        "reviewer",
+        "grok-4.5",
+        "ACCEPT",
+        "plan-review-grok-4.5-envelope.json",
+        ["grok-4.5", "gemini-3.1-pro-preview"],
+    ),
+    (
+        "r-phase2-plan-review-gemini",
+        "reviewer",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "plan-review-gemini-3.1-pro-preview-envelope.json",
+        ["grok-4.5", "gemini-3.1-pro-preview"],
+    ),
+    (
+        "r-phase2-brief-review-grok",
+        "reviewer",
+        "grok-4.5",
+        "ACCEPT-WITH-NITS",
+        "brief-review-grok-envelope.json",
+        ["grok-4.5", "gemini-3.1-pro-preview"],
+    ),
+    (
+        "r-phase2-brief-review-gemini",
+        "reviewer",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "brief-review-gemini-envelope.json",
+        ["grok-4.5", "gemini-3.1-pro-preview"],
+    ),
 ]
 
 # Phase 3 runs: (run_id, role, model_id, decision, envelope_filename)
 # Adapted from phase-3/gen-telemetry.py.
 PHASE3_RUNS = [
     # chunk 1
-    ("r-phase3-c1-test-author", "test-designer", "claude-opus-5", None,
-     "chunk1-test-author-envelope.json"),
-    ("r-phase3-c1-executor-openai-fail", "executor", "gpt-5.4-mini", None,
-     "chunk1-executor-openai-failure-envelope.json"),
-    ("r-phase3-c1-executor", "executor", "glm-5.2", None,
-     "chunk1-executor-envelope.json"),
-    ("r-phase3-c1-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk1-validator-grok-envelope.json"),
-    ("r-phase3-c1-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk1-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c1-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk1-test-author-envelope.json",
+    ),
+    (
+        "r-phase3-c1-executor-openai-fail",
+        "executor",
+        "gpt-5.4-mini",
+        None,
+        "chunk1-executor-openai-failure-envelope.json",
+    ),
+    ("r-phase3-c1-executor", "executor", "glm-5.2", None, "chunk1-executor-envelope.json"),
+    (
+        "r-phase3-c1-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk1-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c1-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk1-validator-gemini-envelope.json",
+    ),
     # chunk 2
-    ("r-phase3-c2-test-author", "test-designer", "claude-opus-5", None,
-     "chunk2-test-author-envelope.json"),
-    ("r-phase3-c2-executor", "executor", "glm-5.2", None,
-     "chunk2-executor-envelope.json"),
-    ("r-phase3-c2-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk2-validator-grok-envelope.json"),
-    ("r-phase3-c2-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk2-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c2-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk2-test-author-envelope.json",
+    ),
+    ("r-phase3-c2-executor", "executor", "glm-5.2", None, "chunk2-executor-envelope.json"),
+    (
+        "r-phase3-c2-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk2-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c2-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk2-validator-gemini-envelope.json",
+    ),
     # chunk 3
-    ("r-phase3-c3-test-author", "test-designer", "claude-opus-5", None,
-     "chunk3-test-author-envelope.json"),
-    ("r-phase3-c3-executor", "executor", "glm-5.2", None,
-     "chunk3-executor-envelope.json"),
-    ("r-phase3-c3-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk3-validator-grok-envelope.json"),
-    ("r-phase3-c3-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk3-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c3-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk3-test-author-envelope.json",
+    ),
+    ("r-phase3-c3-executor", "executor", "glm-5.2", None, "chunk3-executor-envelope.json"),
+    (
+        "r-phase3-c3-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk3-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c3-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk3-validator-gemini-envelope.json",
+    ),
 ]
 
 
@@ -121,8 +188,18 @@ def load_envelope(path):
         return json.load(fh)
 
 
-def make_row(run_id, phase, branch, role, model_id, decision, envelope_path_rel,
-             evid_dir, ts, reviewer_panel=None):
+def make_row(
+    run_id,
+    phase,
+    branch,
+    role,
+    model_id,
+    decision,
+    envelope_path_rel,
+    evid_dir,
+    ts,
+    reviewer_panel=None,
+):
     """Build a v2 runs.jsonl row from a committed envelope."""
     env = load_envelope(os.path.join(evid_dir, os.path.basename(envelope_path_rel)))
     usage = env.get("usage", {}) or {}
@@ -186,16 +263,27 @@ def main():
     phase2_rows = []
     for run_id, role, model_id, decision, fname, panel in PHASE2_RUNS:
         env_rel = f"{_P2_ENVELOPE_DIR_REL}/{fname}"
-        row = make_row(run_id, "phase-2", PHASE2_BRANCH, role, model_id,
-                       decision, env_rel, PHASE2_EVID, ts, reviewer_panel=panel)
+        row = make_row(
+            run_id,
+            "phase-2",
+            PHASE2_BRANCH,
+            role,
+            model_id,
+            decision,
+            env_rel,
+            PHASE2_EVID,
+            ts,
+            reviewer_panel=panel,
+        )
         phase2_rows.append(row)
 
     # 3. Generate Phase 3 rows.
     phase3_rows = []
     for run_id, role, model_id, decision, fname in PHASE3_RUNS:
         env_rel = f"{_P3_ENVELOPE_DIR_REL}/{fname}"
-        row = make_row(run_id, "phase-3", PHASE3_BRANCH, role, model_id,
-                       decision, env_rel, PHASE3_EVID, ts)
+        row = make_row(
+            run_id, "phase-3", PHASE3_BRANCH, role, model_id, decision, env_rel, PHASE3_EVID, ts
+        )
         phase3_rows.append(row)
 
     # 4. Merge: append only new rows (deduplicate by run_id).
@@ -216,11 +304,13 @@ def main():
     if dry_run:
         print("\n--dry-run: not writing. New rows:")
         for row in new_rows:
-            print(f"  {row['run_id']} | {row['phase']} | {row['role']} | "
-                  f"{row['model_id']} | turns={row['num_turns']} | "
-                  f"in={row['input_tokens']} out={row['output_tokens']} | "
-                  f"dur={row['duration_ms']}ms | err={row['is_error']} | "
-                  f"dec={row['decision']}")
+            print(
+                f"  {row['run_id']} | {row['phase']} | {row['role']} | "
+                f"{row['model_id']} | turns={row['num_turns']} | "
+                f"in={row['input_tokens']} out={row['output_tokens']} | "
+                f"dur={row['duration_ms']}ms | err={row['is_error']} | "
+                f"dec={row['decision']}"
+            )
         return
 
     # 5. Write merged result back.

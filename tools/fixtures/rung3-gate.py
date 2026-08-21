@@ -21,10 +21,10 @@ Asset shape (consumed via adapter):
   env.tool_calls        — list of {"name", "args", "is_error"}
   env.result_text_first_240chars — str (printed for human review)
 """
+
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 

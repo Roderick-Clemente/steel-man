@@ -284,9 +284,9 @@ def test_chunk2a_evidence_roots_resolve_to_existing_dirs(rel):
         resolved = os.path.realpath(getattr(module, const))
         assert os.path.isdir(resolved), f"{rel}: {const} -> {resolved} (not a dir)"
         # Must land inside evidence/, not under tools/.
-        assert not resolved.startswith(
-            os.path.realpath(_TOOLS) + os.sep
-        ), f"{rel}: {const} resolves under tools/ -> {resolved}"
+        assert not resolved.startswith(os.path.realpath(_TOOLS) + os.sep), (
+            f"{rel}: {const} resolves under tools/ -> {resolved}"
+        )
 
 
 def test_chunk2a_runs_path_is_the_real_sor():
@@ -400,9 +400,7 @@ def test_chunk2a_emitted_envelope_paths_resolve(rel):
     record and reads as evidence.
     """
     result = _probe(rel)
-    assert result["error"] is None, (
-        f"{rel} raised under the probe: {result['error']}"
-    )
+    assert result["error"] is None, f"{rel} raised under the probe: {result['error']}"
 
     emitted = [row["envelope_path"] for row in _emitted_rows(result) if "envelope_path" in row]
     assert emitted, (
@@ -495,9 +493,7 @@ def test_chunk2a_gen_findings_runs_from_a_foreign_cwd():
     so the property is measured rather than inferred.
     """
     result = _probe(_UNGUARDED)
-    assert result["error"] is None, (
-        f"{_UNGUARDED} failed from a foreign CWD: {result['error']}"
-    )
+    assert result["error"] is None, f"{_UNGUARDED} failed from a foreign CWD: {result['error']}"
     assert result["reads"], f"{_UNGUARDED} opened nothing; the probe saw no reads"
     relative = sorted({p for p in result["reads"] if not os.path.isabs(p)})
     assert not relative, (
@@ -525,8 +521,7 @@ def test_chunk2a_reconstruct_telemetry_dry_run_from_foreign_cwd():
             text=True,
         )
     assert proc.returncode == 0, (
-        f"rc={proc.returncode} from a foreign CWD\n"
-        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        f"rc={proc.returncode} from a foreign CWD\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     )
     # A dry run that reports zero existing rows means the merge guard read the
     # wrong file — the silent half of finding 6.5. The assertion this replaces
@@ -579,9 +574,7 @@ def test_chunk2a_lock_py_default_locks_dir_is_locks_root():
         if not (isinstance(func, ast.Attribute) and func.attr == "add_argument"):
             continue
         names = [
-            a.value
-            for a in node.args
-            if isinstance(a, ast.Constant) and isinstance(a.value, str)
+            a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str)
         ]
         if "--locks-dir" not in names:
             continue
@@ -673,9 +666,9 @@ def test_chunk2a_sprint_loop_fixture_uses_taxonomy_roots():
         source = fh.read()
 
     for stale in ("phase-1", "scripts"), ("phase-3.2", "evidence"):
-        assert (
-            os.path.join(*stale) not in source
-        ), f"stale fixture path {os.path.join(*stale)!r} still in test_sprint_loop.py"
+        assert os.path.join(*stale) not in source, (
+            f"stale fixture path {os.path.join(*stale)!r} still in test_sprint_loop.py"
+        )
 
     for root in (scripts_root, evidence_code_root):
         assert root in source, f"fixture does not build {root!r}"

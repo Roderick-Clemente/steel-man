@@ -23,6 +23,7 @@ Usage:
         --lock-file phase-1/locks/test/test_profile_model.py.lock.json \
         --signing-key-env EVIDENCE_SIGNING_KEY
 """
+
 import argparse
 import hashlib
 import hmac
@@ -30,8 +31,8 @@ import json
 import os
 import sys
 
-
 # ── signature verification ───────────────────────────────────────────────
+
 
 def verify_signature(bundle: dict, key: bytes) -> bool:
     """Verify the HMAC-SHA256 signature over the bundle minus the signature field."""
@@ -46,6 +47,7 @@ def verify_signature(bundle: dict, key: bytes) -> bool:
 
 
 # ── validator consumer ───────────────────────────────────────────────────
+
 
 class ValidatorConsumer:
     """Reads the bundle and reaches a deterministic-evidence verdict.
@@ -77,7 +79,7 @@ class ValidatorConsumer:
         failed = tests.get("failed", 0)
         suite_exit = tests.get("suite_exit_code", 1)
 
-        result["tests_passed"] = (failed == 0 and suite_exit == 0 and passed > 0)
+        result["tests_passed"] = failed == 0 and suite_exit == 0 and passed > 0
         result["failures"] = tests.get("failures", [])
 
         if result["tests_passed"]:
@@ -91,6 +93,7 @@ class ValidatorConsumer:
 
 
 # ── orchestrator gate ────────────────────────────────────────────────────
+
 
 class OrchestratorGate:
     """Cross-checks locked_test_sha_observed against the lock manifest (§4.1).
@@ -159,13 +162,13 @@ class OrchestratorGate:
 
         result["gate_decision"] = "PASS"
         result["reason"] = (
-            f"locked-sha matches manifest, suite green "
-            f"({tests.get('passed', 0)} passed, 0 failed)"
+            f"locked-sha matches manifest, suite green ({tests.get('passed', 0)} passed, 0 failed)"
         )
         return result
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evidence-bundle consumer.")
@@ -197,9 +200,11 @@ def main() -> int:
 
     signing_key_env = os.environ.get(args.signing_key_env)
     if not signing_key_env:
-        print(f"ERROR: {args.signing_key_env} not set. Cannot verify bundle signature "
-              f"without the signing key. Set it to the same value used by the backend.",
-              file=sys.stderr)
+        print(
+            f"ERROR: {args.signing_key_env} not set. Cannot verify bundle signature "
+            f"without the signing key. Set it to the same value used by the backend.",
+            file=sys.stderr,
+        )
         return 1
     signing_key = signing_key_env.encode()
 

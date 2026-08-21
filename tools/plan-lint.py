@@ -19,6 +19,7 @@ Exit codes:
 Telemetry: appends one row per invocation following telemetry/SCHEMA.md
 conventions and §17.3 gitignore discipline.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,10 +51,15 @@ RULE_NAMES: dict[int, str] = {
 }
 
 # Families (values in MODEL_FAMILY_MAP) — used for type-confusion detection.
-FAMILY_LABELS: frozenset[str] = frozenset({
-    "claude-family", "openai-family", "grok-family",
-    "gemini-family", "glm-family",
-})
+FAMILY_LABELS: frozenset[str] = frozenset(
+    {
+        "claude-family",
+        "openai-family",
+        "grok-family",
+        "gemini-family",
+        "glm-family",
+    }
+)
 
 
 # ── data structures ──────────────────────────────────────────────────────
@@ -128,7 +134,7 @@ def extract_contract_from_plan(plan_text: str) -> dict[str, Any] | None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
-        raise FailClosed(f"malformed CONTRACT block: {e}", "CONTRACT block")
+        raise FailClosed(f"malformed CONTRACT block: {e}", "CONTRACT block") from None
     return data
 
 
@@ -140,7 +146,7 @@ def load_contract_file(path: str) -> dict[str, Any]:
     try:
         return json.loads(p.read_text())
     except json.JSONDecodeError as e:
-        raise FailClosed(f"malformed contract file: {e}", path)
+        raise FailClosed(f"malformed contract file: {e}", path) from None
 
 
 def resolve_contract(
@@ -192,7 +198,7 @@ def load_json_artifact(repo_root: Path, artifact_path: str) -> Any:
         raise FailClosed(
             f"ground-truth artifact unreadable: {artifact_path}: {e}",
             artifact_path,
-        )
+        ) from None
 
 
 def load_python_source(repo_root: Path, artifact_path: str) -> str:
@@ -209,7 +215,7 @@ def load_python_source(repo_root: Path, artifact_path: str) -> str:
         raise FailClosed(
             f"ground-truth artifact unreadable: {artifact_path}: {e}",
             artifact_path,
-        )
+        ) from None
 
 
 def load_model_family_map(repo_root: Path) -> dict[str, tuple[str, str]]:
@@ -229,7 +235,7 @@ def load_model_family_map(repo_root: Path) -> dict[str, tuple[str, str]]:
         raise FailClosed(
             f"cannot parse config.py: {e}",
             "tools/sprint_loop/config.py",
-        )
+        ) from None
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
@@ -280,7 +286,8 @@ def check_field_path(
 
     if not artifact:
         return Finding(
-            rule=1, line=claim.get("line", 0),
+            rule=1,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason="rule 1 requires an 'artifact' (JSON file path)",
@@ -291,14 +298,16 @@ def check_field_path(
     if expect == "exists":
         if not field_path:
             return Finding(
-                rule=1, line=claim.get("line", 0),
+                rule=1,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=artifact,
                 reason="rule 1 requires a 'field_path' to check",
             )
         if not _field_path_exists(data, field_path):
             return Finding(
-                rule=1, line=claim.get("line", 0),
+                rule=1,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=artifact,
                 reason=f"field path '{field_path}' not found in {artifact}",
@@ -376,7 +385,8 @@ def check_cli_flag(
 
     if not artifact:
         return Finding(
-            rule=2, line=claim.get("line", 0),
+            rule=2,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason="rule 2 requires an 'artifact' (Python file with argparse)",
@@ -389,7 +399,8 @@ def check_cli_flag(
     flag = field_path.strip()
     if not flag:
         return Finding(
-            rule=2, line=claim.get("line", 0),
+            rule=2,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason="rule 2 requires a 'field_path' (flag name)",
@@ -397,7 +408,8 @@ def check_cli_flag(
 
     if flag not in flags:
         return Finding(
-            rule=2, line=claim.get("line", 0),
+            rule=2,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason=f"flag '{flag}' not found in argparse definitions of {artifact}",
@@ -435,17 +447,18 @@ def check_model_id_family(
 
     family_map = load_model_family_map(repo_root)
     model_ids = set(family_map.keys())
-    families = set(v[1] for v in family_map.values())
+    families = {v[1] for v in family_map.values()}
 
     # field_path is like "MODEL_FAMILY_MAP.grok-4.5" or "MODEL_FAMILY_MAP.grok-family"
     # Extract the value after "MODEL_FAMILY_MAP."
     value = field_path
     if value.startswith("MODEL_FAMILY_MAP."):
-        value = value[len("MODEL_FAMILY_MAP."):]
+        value = value[len("MODEL_FAMILY_MAP.") :]
 
     if not value:
         return Finding(
-            rule=3, line=claim.get("line", 0),
+            rule=3,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=claim.get("artifact", ""),
             reason="rule 3 requires a 'field_path' (MODEL_FAMILY_MAP.<value>)",
@@ -455,13 +468,15 @@ def check_model_id_family(
         if value not in model_ids:
             if value in families:
                 return Finding(
-                    rule=3, line=claim.get("line", 0),
+                    rule=3,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=claim.get("artifact", ""),
                     reason=f"'{value}' is a family label, not a model id — type confusion",
                 )
             return Finding(
-                rule=3, line=claim.get("line", 0),
+                rule=3,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=claim.get("artifact", ""),
                 reason=f"'{value}' is not a known model id in MODEL_FAMILY_MAP",
@@ -470,13 +485,15 @@ def check_model_id_family(
         if value not in families:
             if value in model_ids:
                 return Finding(
-                    rule=3, line=claim.get("line", 0),
+                    rule=3,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=claim.get("artifact", ""),
                     reason=f"'{value}' is a model id, not a family label — type confusion",
                 )
             return Finding(
-                rule=3, line=claim.get("line", 0),
+                rule=3,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=claim.get("artifact", ""),
                 reason=f"'{value}' is not a known family label",
@@ -485,10 +502,11 @@ def check_model_id_family(
         # The claim asserts that a family label is being used where a
         # model id is expected — this IS the finding.
         return Finding(
-            rule=3, line=claim.get("line", 0),
+            rule=3,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=claim.get("artifact", ""),
-            reason=f"type confusion: family label used where model id expected",
+            reason="type confusion: family label used where model id expected",
         )
     return None
 
@@ -516,7 +534,8 @@ def check_internal_consistency(
         if _function_contains_check(source, func_name, "2"):
             return None
         return Finding(
-            rule=4, line=claim.get("line", 0),
+            rule=4,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason=f"function '{func_name}' does not contain a >= 2 reviewer check",
@@ -529,13 +548,11 @@ def check_internal_consistency(
         if _function_emits_single_reviewer(source, func_name):
             # This IS the inconsistency: gate requires >= 2, stub emits 1.
             # Check if another claim asserts >= 2.
-            has_min_2 = any(
-                c.get("expect") == "min_reviewers_2"
-                for c in all_claims
-            )
+            has_min_2 = any(c.get("expect") == "min_reviewers_2" for c in all_claims)
             if has_min_2:
                 return Finding(
-                    rule=4, line=claim.get("line", 0),
+                    rule=4,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=artifact,
                     reason=f"arity contradiction: {func_name} emits 1 reviewer but gate requires >= 2",
@@ -545,18 +562,19 @@ def check_internal_consistency(
     if expect.startswith("pattern:"):
         # Filename pattern consistency: check all claims with pattern:
         # expect in the same contract have consistent patterns.
-        pattern = expect[len("pattern:"):]
+        pattern = expect[len("pattern:") :]
         # Collect all patterns in the contract
         all_patterns: list[tuple[str, str]] = []
         for c in all_claims:
             e = c.get("expect", "")
             if e.startswith("pattern:"):
-                all_patterns.append((c.get("artifact", ""), e[len("pattern:"):]))
+                all_patterns.append((c.get("artifact", ""), e[len("pattern:") :]))
         # Check if this claim's pattern differs from others
         for other_artifact, other_pattern in all_patterns:
             if other_artifact != artifact and other_pattern != pattern:
                 return Finding(
-                    rule=4, line=claim.get("line", 0),
+                    rule=4,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=artifact,
                     reason=(
@@ -622,7 +640,8 @@ def check_call_signature(
 
     if not artifact:
         return Finding(
-            rule=5, line=claim.get("line", 0),
+            rule=5,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason="rule 5 requires an 'artifact' (Python file)",
@@ -634,7 +653,8 @@ def check_call_signature(
     sig = _extract_function_signature(source, func_name)
     if sig is None:
         return Finding(
-            rule=5, line=claim.get("line", 0),
+            rule=5,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact,
             reason=f"function '{func_name}' not found in {artifact}",
@@ -648,7 +668,8 @@ def check_call_signature(
         claimed_arity = int(expect.split(":")[1])
         if claimed_arity != actual_arity:
             return Finding(
-                rule=5, line=claim.get("line", 0),
+                rule=5,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=artifact,
                 reason=(
@@ -663,7 +684,8 @@ def check_call_signature(
         claimed_param = expect.split(":", 1)[1]
         if claimed_param not in actual_params:
             return Finding(
-                rule=5, line=claim.get("line", 0),
+                rule=5,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=artifact,
                 reason=(
@@ -686,12 +708,12 @@ def check_call_signature(
             missing = [p for p in claimed_param_list if p not in actual_params]
             if missing:
                 return Finding(
-                    rule=5, line=claim.get("line", 0),
+                    rule=5,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=artifact,
                     reason=(
-                        f"params {missing} not in actual signature; "
-                        f"actual params: {actual_params}"
+                        f"params {missing} not in actual signature; actual params: {actual_params}"
                     ),
                 )
         return None
@@ -744,7 +766,8 @@ def check_required_anchors(
 
     if not artifact or not field_path:
         return Finding(
-            rule=6, line=claim.get("line", 0),
+            rule=6,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=artifact or "(none)",
             reason=(
@@ -759,7 +782,8 @@ def check_required_anchors(
             data = load_json_artifact(repo_root, artifact)
             if not _field_path_exists(data, field_path):
                 return Finding(
-                    rule=6, line=claim.get("line", 0),
+                    rule=6,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=artifact,
                     reason=f"gate predicate references unresolvable field path '{field_path}' in {artifact}",
@@ -768,7 +792,8 @@ def check_required_anchors(
             source = load_python_source(repo_root, artifact)
             if field_path not in source:
                 return Finding(
-                    rule=6, line=claim.get("line", 0),
+                    rule=6,
+                    line=claim.get("line", 0),
                     claim=claim.get("claim", ""),
                     artifact=artifact,
                     reason=f"gate predicate references unresolvable '{field_path}' in {artifact}",
@@ -788,7 +813,8 @@ def check_file_paths(
 
     if not path:
         return Finding(
-            rule=7, line=claim.get("line", 0),
+            rule=7,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact="",
             reason="rule 7 requires a 'path'",
@@ -809,7 +835,8 @@ def check_file_paths(
         full = repo_root / path
         if not full.exists():
             return Finding(
-                rule=7, line=claim.get("line", 0),
+                rule=7,
+                line=claim.get("line", 0),
                 claim=claim.get("claim", ""),
                 artifact=path,
                 reason=f"file path '{path}' not found in repo",
@@ -900,7 +927,14 @@ def _is_file_path(val: str) -> bool:
 
     Examples: 'tools/cross_family_review.py', 'phase-4.5/tokens/chunk-5a.token.json'.
     """
-    return bool(re.match(r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.-]+$", val)) and "." in val.split("/")[-1]
+    return (
+        bool(
+            re.match(
+                r"^(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.-]+$", val
+            )
+        )
+        and "." in val.split("/")[-1]
+    )
 
 
 def _is_value_negated(line: str, val: str) -> bool:
@@ -923,11 +957,16 @@ def _is_value_negated(line: str, val: str) -> bool:
     for m in re.finditer(r"\x60" + escaped + r"\x60", line):
         # Check the 30 chars before the backtick.
         start = max(0, m.start() - 30)
-        prefix = line[start:m.start()].lower()
+        prefix = line[start : m.start()].lower()
         negation_keywords = (
-            "no top-level", "no root", "not found",
-            "does not carry", "does not have",
-            "not a root", "absent", "no ",
+            "no top-level",
+            "no root",
+            "not found",
+            "does not carry",
+            "does not have",
+            "not a root",
+            "absent",
+            "no ",
         )
         if any(neg in prefix for neg in negation_keywords):
             return True
@@ -945,9 +984,16 @@ def _is_to_be_created(line: str, path: str) -> bool:
     """
     lower = line.lower()
     markers = (
-        "new script", "new helper", "new function", "new file",
-        "to-be-created", "to be created", "(new)", "| new |",
-        "new module", "new tool",
+        "new script",
+        "new helper",
+        "new function",
+        "new file",
+        "to-be-created",
+        "to be created",
+        "(new)",
+        "| new |",
+        "new module",
+        "new tool",
     )
     if any(m in lower for m in markers):
         return True
@@ -984,7 +1030,7 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
     try:
         family_map = load_model_family_map(repo_root)
         model_ids = set(family_map.keys())
-        families = set(v[1] for v in family_map.values())
+        families = {v[1] for v in family_map.values()}
     except FailClosed:
         pass
 
@@ -1009,13 +1055,16 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
                         try:
                             data = load_json_artifact(repo_root, artifact)
                             if not _field_path_exists(data, val):
-                                findings.append(Finding(
-                                    rule=1, line=i,
-                                    claim=line.strip(),
-                                    artifact=artifact,
-                                    reason=f"field path '{val}' not found in {artifact} (heuristic)",
-                                    severity="WARNING",
-                                ))
+                                findings.append(
+                                    Finding(
+                                        rule=1,
+                                        line=i,
+                                        claim=line.strip(),
+                                        artifact=artifact,
+                                        reason=f"field path '{val}' not found in {artifact} (heuristic)",
+                                        severity="WARNING",
+                                    )
+                                )
                         except FailClosed:
                             pass
                         break
@@ -1026,17 +1075,26 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
                     # This is a family label — check if the line uses it as
                     # a model id (e.g., "implementer model" or "model_id=").
                     lower_line = line.lower()
-                    if any(kw in lower_line for kw in (
-                        "model id", "model_id", "implementer model",
-                        "--model", "reviewer model",
-                    )):
-                        findings.append(Finding(
-                            rule=3, line=i,
-                            claim=line.strip(),
-                            artifact="tools/sprint_loop/config.py",
-                            reason=f"'{val}' is a family label used as a model id — type confusion (heuristic)",
-                            severity="WARNING",
-                        ))
+                    if any(
+                        kw in lower_line
+                        for kw in (
+                            "model id",
+                            "model_id",
+                            "implementer model",
+                            "--model",
+                            "reviewer model",
+                        )
+                    ):
+                        findings.append(
+                            Finding(
+                                rule=3,
+                                line=i,
+                                claim=line.strip(),
+                                artifact="tools/sprint_loop/config.py",
+                                reason=f"'{val}' is a family label used as a model id — type confusion (heuristic)",
+                                severity="WARNING",
+                            )
+                        )
 
             # Rule 5: call-signature claims against actual function signatures.
             if _is_call_expression(val):
@@ -1106,44 +1164,55 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
                             if sig is not None:
                                 actual_params = sig["params"]
                                 # Parse the claimed args from the call expression.
-                                claimed_args = [
-                                    a.strip().split("=")[0].strip()
-                                    for a in call_args_str.split(",")
-                                    if a.strip()
-                                ] if call_args_str else []
+                                claimed_args = (
+                                    [
+                                        a.strip().split("=")[0].strip()
+                                        for a in call_args_str.split(",")
+                                        if a.strip()
+                                    ]
+                                    if call_args_str
+                                    else []
+                                )
                                 # Check for param name mismatches.
                                 for claimed_arg in claimed_args:
                                     if claimed_arg and claimed_arg not in actual_params:
                                         # Is the actual param similar? (e.g., implementer_family vs implementer_model_id)
                                         similar = [
-                                            p for p in actual_params
+                                            p
+                                            for p in actual_params
                                             if claimed_arg.split("_")[0] in p
                                             or p.split("_")[0] in claimed_arg
                                         ]
                                         if similar:
-                                            findings.append(Finding(
-                                                rule=5, line=i,
-                                                claim=line.strip(),
-                                                artifact=artifact,
-                                                reason=(
-                                                    f"call '{val}' uses param '{claimed_arg}' "
-                                                    f"but actual signature has '{similar[0]}' "
-                                                    f"(heuristic)"
-                                                ),
-                                                severity="WARNING",
-                                            ))
+                                            findings.append(
+                                                Finding(
+                                                    rule=5,
+                                                    line=i,
+                                                    claim=line.strip(),
+                                                    artifact=artifact,
+                                                    reason=(
+                                                        f"call '{val}' uses param '{claimed_arg}' "
+                                                        f"but actual signature has '{similar[0]}' "
+                                                        f"(heuristic)"
+                                                    ),
+                                                    severity="WARNING",
+                                                )
+                                            )
                                         else:
-                                            findings.append(Finding(
-                                                rule=5, line=i,
-                                                claim=line.strip(),
-                                                artifact=artifact,
-                                                reason=(
-                                                    f"call '{val}' uses param '{claimed_arg}' "
-                                                    f"not in actual signature: {actual_params} "
-                                                    f"(heuristic)"
-                                                ),
-                                                severity="WARNING",
-                                            ))
+                                            findings.append(
+                                                Finding(
+                                                    rule=5,
+                                                    line=i,
+                                                    claim=line.strip(),
+                                                    artifact=artifact,
+                                                    reason=(
+                                                        f"call '{val}' uses param '{claimed_arg}' "
+                                                        f"not in actual signature: {actual_params} "
+                                                        f"(heuristic)"
+                                                    ),
+                                                    severity="WARNING",
+                                                )
+                                            )
                         except FailClosed:
                             pass
 
@@ -1154,27 +1223,31 @@ def run_heuristic(plan_text: str, repo_root: Path) -> list[Finding]:
         # `tools/phase-3.2-evidence/local_backend.py`, and the linter then warns
         # that `evidence/local_backend.py` does not exist. Requiring a
         # non-path character before the prefix means only a path START matches.
-        for match in re.finditer(r"(?<![\w./-])(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.]+\.\w+", line):
+        for match in re.finditer(
+            r"(?<![\w./-])(?:tools|phase-\d+(?:\.\d+)?|tests|telemetry|evidence|planning)/[\w/.]+\.\w+",
+            line,
+        ):
             path = match.group(0)
             full = repo_root / path
             if not full.exists():
                 # Check if the line marks the path as to-be-created.
                 if _is_to_be_created(line, path):
                     continue
-                findings.append(Finding(
-                    rule=7, line=i,
-                    claim=line.strip(),
-                    artifact=path,
-                    reason=f"file path '{path}' not found (heuristic warning)",
-                    severity="WARNING",
-                ))
+                findings.append(
+                    Finding(
+                        rule=7,
+                        line=i,
+                        claim=line.strip(),
+                        artifact=path,
+                        reason=f"file path '{path}' not found (heuristic warning)",
+                        severity="WARNING",
+                    )
+                )
 
     # Cross-reference heuristic (rule 5): detect CLI-flag-to-function-param
     # type confusion. When the plan mentions a flag like --implementer-family
     # and a function that has a parameter like implementer_model_id, warn.
-    findings.extend(
-        _heuristic_flag_param_confusion(lines, repo_root, excluded)
-    )
+    findings.extend(_heuristic_flag_param_confusion(lines, repo_root, excluded))
 
     return findings
 
@@ -1217,7 +1290,7 @@ def _heuristic_flag_param_confusion(
         prefix = m.group(1)
 
         # Look for call expressions within ±5 lines.
-        for call_line_num, call_expr, call_line in call_lines:
+        for call_line_num, call_expr, _call_line in call_lines:
             if abs(call_line_num - flag_line_num) > 5:
                 continue
             call_match = re.match(r"^([\w.]+)\(", call_expr)
@@ -1267,18 +1340,21 @@ def _heuristic_flag_param_confusion(
                 if expected_param in actual_params:
                     # The plan passes --<prefix>-family but the function
                     # expects <prefix>_model_id — type confusion.
-                    findings.append(Finding(
-                        rule=5, line=flag_line_num,
-                        claim=flag_line.strip(),
-                        artifact=artifact,
-                        reason=(
-                            f"flag '{flag_name}' passes a family label but "
-                            f"function '{func_name}' expects parameter "
-                            f"'{expected_param}' (a model id) — type confusion "
-                            f"(heuristic)"
-                        ),
-                        severity="WARNING",
-                    ))
+                    findings.append(
+                        Finding(
+                            rule=5,
+                            line=flag_line_num,
+                            claim=flag_line.strip(),
+                            artifact=artifact,
+                            reason=(
+                                f"flag '{flag_name}' passes a family label but "
+                                f"function '{func_name}' expects parameter "
+                                f"'{expected_param}' (a model id) — type confusion "
+                                f"(heuristic)"
+                            ),
+                            severity="WARNING",
+                        )
+                    )
                     break  # One warning per flag is enough.
             except FailClosed:
                 pass
@@ -1347,7 +1423,8 @@ def _dispatch_rule(
         return check_file_paths(claim, repo_root)
     else:
         return Finding(
-            rule=rule, line=claim.get("line", 0),
+            rule=rule,
+            line=claim.get("line", 0),
             claim=claim.get("claim", ""),
             artifact=claim.get("artifact", ""),
             reason=f"unknown rule class {rule}",
@@ -1399,12 +1476,13 @@ def main(argv: list[str] | None = None) -> int:
         description="Deterministic pre-review tier for build plans.",
     )
     parser.add_argument("plan", help="Path to the plan markdown file.")
-    parser.add_argument("--repo-root", default=".",
-                        help="Path to the repo root for ground-truth artifacts.")
-    parser.add_argument("--json", dest="json_out", default="",
-                        help="Path to write structured JSON output.")
-    parser.add_argument("--contract", default="",
-                        help="Path to an external contract JSON file.")
+    parser.add_argument(
+        "--repo-root", default=".", help="Path to the repo root for ground-truth artifacts."
+    )
+    parser.add_argument(
+        "--json", dest="json_out", default="", help="Path to write structured JSON output."
+    )
+    parser.add_argument("--contract", default="", help="Path to an external contract JSON file.")
 
     args = parser.parse_args(argv)
 

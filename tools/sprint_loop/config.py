@@ -8,6 +8,7 @@ The dataclass is the truth source. CLI/JSON parsers fill it. The runner
 never reads a CLI flag or JSON key directly — everything goes through
 ``build_config``.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,33 +32,32 @@ from sprint_loop.state import (  # noqa: E402
     RoleAssignment,
 )
 
-
 # ── defaults ─────────────────────────────────────────────────────────────
 
-DEFAULT_PLAN_REVIEWER = "grok-4.5"           # xAI family
+DEFAULT_PLAN_REVIEWER = "grok-4.5"  # xAI family
 DEFAULT_PLAN_REVIEWER_2 = "gemini-3.1-pro-preview"  # google family
-DEFAULT_TEST_DESIGNER = "claude-opus-5"       # anthropic family
-DEFAULT_EXECUTOR = "gpt-5.4-mini"            # openai family (cheap tier, §17.1 allowed)
+DEFAULT_TEST_DESIGNER = "claude-opus-5"  # anthropic family
+DEFAULT_EXECUTOR = "gpt-5.4-mini"  # openai family (cheap tier, §17.1 allowed)
 DEFAULT_VALIDATORS = ["grok-4.5", "gemini-3.1-pro-preview"]
 
 # Standing family map per tools/conventions/model-discipline.md
 MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
     # model_id: (provider, family)
-    "claude-opus-5":       ("anthropic", "claude-family"),
-    "claude-opus-4-8":     ("anthropic", "claude-family"),
-    "gpt-5.4-mini":        ("openai", "openai-family"),
-    "gpt-5.2":             ("openai", "openai-family"),
-    "grok-4.5":            ("xai", "grok-family"),
+    "claude-opus-5": ("anthropic", "claude-family"),
+    "claude-opus-4-8": ("anthropic", "claude-family"),
+    "gpt-5.4-mini": ("openai", "openai-family"),
+    "gpt-5.2": ("openai", "openai-family"),
+    "grok-4.5": ("xai", "grok-family"),
     "gemini-3.1-pro-preview": ("google", "gemini-family"),
-    "gemini-2.5-pro":      ("google", "gemini-family"),
-    "glm-5.2":             ("zhipu", "glm-family"),
+    "gemini-2.5-pro": ("google", "gemini-family"),
+    "glm-5.2": ("zhipu", "glm-family"),
     # Droid Core (Open Models) tier — operator-approved for runs where
     # frontier budget is exhausted. Same taxonomy shape as the entries
     # above; distinct families so §17.2 cross-family distinctness holds
     # when these are used as Tier-2 reviewers against a builder in the
     # openai-family or claude-family.
-    "kimi-k3":             ("moonshot", "kimi-family"),
-    "minimax-m3":          ("minimax", "minimax-family"),
+    "kimi-k3": ("moonshot", "kimi-family"),
+    "minimax-m3": ("minimax", "minimax-family"),
 }
 
 
@@ -127,9 +127,7 @@ def phase_path(framework_root: str, kind: str, *parts: str) -> str:
     composing against the framework root (§7: fail loudly, never plausibly).
     """
     if kind not in PHASE_ROOTS:
-        raise ValueError(
-            f"unknown layout kind {kind!r}; expected one of {sorted(PHASE_ROOTS)}"
-        )
+        raise ValueError(f"unknown layout kind {kind!r}; expected one of {sorted(PHASE_ROOTS)}")
     return os.path.join(framework_root, PHASE_ROOTS[kind], *parts)
 
 
@@ -153,11 +151,11 @@ class Config:
     pilot_python: str = ""
 
     # Optional paths
-    config_path: str = ""                  # where this config was loaded from
-    chunks_file: str = ""                  # path to chunks JSON (Phase 4.5.4)
-    review_prompt_template: str = ""       # path to review-prompt template
-    locked_test_locks_dir: str = ""        # defaults to phase-1/locks/
-    evidence_output_dir: str = ""          # defaults to phase-4.5/build-evidence/<run-id>/
+    config_path: str = ""  # where this config was loaded from
+    chunks_file: str = ""  # path to chunks JSON (Phase 4.5.4)
+    review_prompt_template: str = ""  # path to review-prompt template
+    locked_test_locks_dir: str = ""  # defaults to phase-1/locks/
+    evidence_output_dir: str = ""  # defaults to phase-4.5/build-evidence/<run-id>/
     security_allowlist: str = ""
     security_baseline: str = ""
 
@@ -166,7 +164,7 @@ class Config:
     planner_auto_level: str = "medium"
     plan_reviewer_model: str = DEFAULT_PLAN_REVIEWER
     plan_reviewer_auto_level: str = "high"
-    plan_reviewer_2_model: str = ""        # empty => single reviewer
+    plan_reviewer_2_model: str = ""  # empty => single reviewer
     plan_reviewer_2_auto_level: str = "high"
     test_designer_model: str = DEFAULT_TEST_DESIGNER
     test_designer_auto_level: str = "medium"
@@ -238,9 +236,7 @@ class Config:
         # its place would compose the evidence root twice. CHUNK-2-SPEC §2.2
         # mandates this segment-preserving form; three reviewer families have
         # flagged it as duplication, so the reason is recorded here.
-        return phase_path(
-            self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id
-        )
+        return phase_path(self.framework_root, "evidence", "phase-4.5", "build-evidence", run_id)
 
     def to_role_assignments(self) -> list[RoleAssignment]:
         """Materialise Config into the ``RoleAssignment`` shapes ``state.RunState`` stores."""
@@ -248,55 +244,65 @@ class Config:
         pm, pfam = self.provider_family(self.planner_model)
         # Don't auto-fill provider family if planner is --auto (no model pinned);
         # the FamilyGuard re-runs post-resolution.
-        out.append(RoleAssignment(
-            role=Role.PLANNER,
-            pinned_model_id=self.planner_model,
-            pinned_family=pfam,
-            pinned_provider=pm,
-            auto_level=self.planner_auto_level or "medium",
-            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLANNER],
-        ))
+        out.append(
+            RoleAssignment(
+                role=Role.PLANNER,
+                pinned_model_id=self.planner_model,
+                pinned_family=pfam,
+                pinned_provider=pm,
+                auto_level=self.planner_auto_level or "medium",
+                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLANNER],
+            )
+        )
 
         prm, prf = self.provider_family(self.plan_reviewer_model)
-        out.append(RoleAssignment(
-            role=Role.PLAN_REVIEWER,
-            pinned_model_id=self.plan_reviewer_model,
-            pinned_family=prf,
-            pinned_provider=prm,
-            auto_level=self.plan_reviewer_auto_level or "high",
-            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
-        ))
+        out.append(
+            RoleAssignment(
+                role=Role.PLAN_REVIEWER,
+                pinned_model_id=self.plan_reviewer_model,
+                pinned_family=prf,
+                pinned_provider=prm,
+                auto_level=self.plan_reviewer_auto_level or "high",
+                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
+            )
+        )
 
         if self.plan_reviewer_2_model:
             pr2m, pr2f = self.provider_family(self.plan_reviewer_2_model)
-            out.append(RoleAssignment(
-                role=Role.PLAN_REVIEWER,  # same enum value; list-based deduplication in guard
-                pinned_model_id=self.plan_reviewer_2_model,
-                pinned_family=pr2f,
-                pinned_provider=pr2m,
-                auto_level=self.plan_reviewer_2_auto_level or "high",
-                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
-            ))
+            out.append(
+                RoleAssignment(
+                    role=Role.PLAN_REVIEWER,  # same enum value; list-based deduplication in guard
+                    pinned_model_id=self.plan_reviewer_2_model,
+                    pinned_family=pr2f,
+                    pinned_provider=pr2m,
+                    auto_level=self.plan_reviewer_2_auto_level or "high",
+                    enabled_tools=DEFAULT_ENABLED_TOOLS[Role.PLAN_REVIEWER],
+                )
+            )
 
         tdm, tdf = self.provider_family(self.test_designer_model)
-        out.append(RoleAssignment(
-            role=Role.TEST_DESIGNER,
-            pinned_model_id=self.test_designer_model,
-            pinned_family=tdf,
-            pinned_provider=tdm,
-            auto_level=self.test_designer_auto_level or "medium",
-            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER],
-        ))
+        out.append(
+            RoleAssignment(
+                role=Role.TEST_DESIGNER,
+                pinned_model_id=self.test_designer_model,
+                pinned_family=tdf,
+                pinned_provider=tdm,
+                auto_level=self.test_designer_auto_level or "medium",
+                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER],
+            )
+        )
 
         em, ef = self.provider_family(self.executor_model)
-        out.append(RoleAssignment(
-            role=Role.EXECUTOR,
-            pinned_model_id=self.executor_model,
-            pinned_family=ef,
-            pinned_provider=em,
-            auto_level=self.executor_auto_level or "medium",
-            enabled_tools=DEFAULT_ENABLED_TOOLS[Role.EXECUTOR],
-        ))
+        out.append(
+            RoleAssignment(
+                role=Role.EXECUTOR,
+                pinned_model_id=self.executor_model,
+                pinned_family=ef,
+                pinned_provider=em,
+                auto_level=self.executor_auto_level or "medium",
+                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.EXECUTOR],
+            )
+        )
 
         # Validators come from the comma-separated list. Each entry is
         # model_id:provider:family[:label]; if provider/family are
@@ -306,15 +312,17 @@ class Config:
             model_id = parts[0]
             provider = parts[1] if len(parts) > 1 else self.provider_family(model_id)[0]
             family = parts[2] if len(parts) > 2 else self.provider_family(model_id)[1]
-            label = parts[3] if len(parts) > 3 else model_id
-            out.append(RoleAssignment(
-                role=Role.VALIDATOR,
-                pinned_model_id=model_id,
-                pinned_family=family,
-                pinned_provider=provider,
-                auto_level=self.validator_auto_level or "high",
-                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.VALIDATOR],
-            ))
+            parts[3] if len(parts) > 3 else model_id
+            out.append(
+                RoleAssignment(
+                    role=Role.VALIDATOR,
+                    pinned_model_id=model_id,
+                    pinned_family=family,
+                    pinned_provider=provider,
+                    auto_level=self.validator_auto_level or "high",
+                    enabled_tools=DEFAULT_ENABLED_TOOLS[Role.VALIDATOR],
+                )
+            )
 
         return out
 
@@ -324,8 +332,8 @@ class Config:
 
 # ── parsers ──────────────────────────────────────────────────────────────
 
-def build_config(argv: list[str] | None = None,
-                 config_path_override: str | None = None) -> Config:
+
+def build_config(argv: list[str] | None = None, config_path_override: str | None = None) -> Config:
     """Build a Config from argv + (optional) JSON file.
 
     The JSON file is the canonical surface; CLI flags override specific
@@ -338,79 +346,139 @@ def build_config(argv: list[str] | None = None,
         prog="sprint-loop.py",
         description="Phase 4.5 sprint-loop runner — adversarial-sprint for Factory.",
     )
-    parser.add_argument("--config", help="Path to JSON config file. Other flags override fields here.")
-    parser.add_argument("--framework-root", default="",
-                        help="Path to adversarial-sprint-dev (the loop runner's repo).")
-    parser.add_argument("--pilot-root", default="",
-                        help="Path to the pilot repo (e.g., quantum-bank--llms-txt-pilot).")
-    parser.add_argument("--pilot-python", default="",
-                        help="Python interpreter in the pilot venv (e.g., .venv/bin/python).")
+    parser.add_argument(
+        "--config", help="Path to JSON config file. Other flags override fields here."
+    )
+    parser.add_argument(
+        "--framework-root",
+        default="",
+        help="Path to adversarial-sprint-dev (the loop runner's repo).",
+    )
+    parser.add_argument(
+        "--pilot-root",
+        default="",
+        help="Path to the pilot repo (e.g., quantum-bank--llms-txt-pilot).",
+    )
+    parser.add_argument(
+        "--pilot-python",
+        default="",
+        help="Python interpreter in the pilot venv (e.g., .venv/bin/python).",
+    )
 
-    parser.add_argument("--chunks-file", default="",
-                        help="JSON file with a list of chunk specs. If missing and "
-                             "planner is run, the planner writes plan.md and chunking must "
-                             "be driven by a subsequent --chunks-file pass.")
+    parser.add_argument(
+        "--chunks-file",
+        default="",
+        help="JSON file with a list of chunk specs. If missing and "
+        "planner is run, the planner writes plan.md and chunking must "
+        "be driven by a subsequent --chunks-file pass.",
+    )
 
-    parser.add_argument("--evidence-output-dir", default="",
-                        help="Per-run evidence tree root. Defaults to "
-                             f"<framework-root>/{BUILD_EVIDENCE_DIR}/<run-id>/. "
-                             "Set this for per-pilot overlays so the framework repo's "
-                             f"{BUILD_EVIDENCE_DIR} dir stays clean.")
+    parser.add_argument(
+        "--evidence-output-dir",
+        default="",
+        help="Per-run evidence tree root. Defaults to "
+        f"<framework-root>/{BUILD_EVIDENCE_DIR}/<run-id>/. "
+        "Set this for per-pilot overlays so the framework repo's "
+        f"{BUILD_EVIDENCE_DIR} dir stays clean.",
+    )
 
-    parser.add_argument("--pilot-spec-file", default="",
-                        help="Path to the pilot spec the planner reads (free-form markdown).")
-    parser.add_argument("--review-prompt-template", default="",
-                        help="Path to the review-prompt template (default: tools/sprint_loop/prompts/validator.md).")
+    parser.add_argument(
+        "--pilot-spec-file",
+        default="",
+        help="Path to the pilot spec the planner reads (free-form markdown).",
+    )
+    parser.add_argument(
+        "--review-prompt-template",
+        default="",
+        help="Path to the review-prompt template (default: tools/sprint_loop/prompts/validator.md).",
+    )
 
     parser.add_argument("--planner-model", default="")
     parser.add_argument("--plan-reviewer-model", default="")
     parser.add_argument("--plan-reviewer-2-model", default="")
     parser.add_argument("--test-designer-model", default="")
     parser.add_argument("--executor-model", default="")
-    parser.add_argument("--validators", default="",
-                        help="Comma-separated model_ids (each may carry :provider:family:label).")
+    parser.add_argument(
+        "--validators",
+        default="",
+        help="Comma-separated model_ids (each may carry :provider:family:label).",
+    )
 
     parser.add_argument("--max-review-rounds", type=int, default=-1)
     parser.add_argument("--retry-threshold", type=int, default=-1)
     parser.add_argument("--max-auto-retries", type=int, default=-1)
     parser.add_argument("--retry-delay-seconds", type=int, default=-1)
 
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Do not invoke droid exec or git commit; record planned actions.")
-    parser.add_argument("--non-interactive", action="store_true",
-                        help="Bypass the human reconcile gate stdin pause; §5.3 preconditions "
-                             "still run. Maps to gate_auto_decide=True. (Pass-r3 H-2: this was "
-                             "previously an alias for dry_run=True; chunk-13 fixes it to be a "
-                             "distinct gate-only mode.")
-    parser.add_argument("--gate-auto-decide", action="store_true",
-                        help="Reconcile gate auto-decides ACCEPT after running §5.3 preconditions; "
-                             "the rest of the pipeline (planner/reviewer/executor/validation/git) "
-                             "runs as in live mode. Distinct from --dry-run (which simulates) and "
-                             "--unattended (which also writes a checkpoint on refusal).")
-    parser.add_argument("--unattended", action="store_true",
-                        help="Run unattended-live. Same as --gate-auto-decide for the reconcile "
-                             "gate; on §5.3 refusal, write a checkpoint and SystemExit(4/5). Repeatable "
-                             "from §5.3 onward via --resume-from. Per pass-r3 finding H-2, this does "
-                             "NOT change dry_run semantics; the pipeline stays live.")
-    parser.add_argument("--no-dry-auto-decide", action="store_true",
-                        help="Disable the dry-run auto-accept shortcut, so a dry-run still pauses for "
-                             "the reconcile gate input. (Pass-r3 finding H-13: was unreachable.)")
-    parser.add_argument("--skip-reconcile", action="store_true",
-                        help="Skip the human reconciliation gate (operator accepts ad-hoc).")
-    parser.add_argument("--create-pr", action="store_true",
-                        help="Attempt PR creation if the remote is configured. Default off — human gates merge per invariant #8.")
-    parser.add_argument("--validation-backend", default="",
-                        choices=["", "local", "ci"],
-                        help="Track B backend. 'local' shells out to tools/orchestrate-review.py. 'ci' is a STUB per the Phase 4.5 prompt.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Do not invoke droid exec or git commit; record planned actions.",
+    )
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Bypass the human reconcile gate stdin pause; §5.3 preconditions "
+        "still run. Maps to gate_auto_decide=True. (Pass-r3 H-2: this was "
+        "previously an alias for dry_run=True; chunk-13 fixes it to be a "
+        "distinct gate-only mode.",
+    )
+    parser.add_argument(
+        "--gate-auto-decide",
+        action="store_true",
+        help="Reconcile gate auto-decides ACCEPT after running §5.3 preconditions; "
+        "the rest of the pipeline (planner/reviewer/executor/validation/git) "
+        "runs as in live mode. Distinct from --dry-run (which simulates) and "
+        "--unattended (which also writes a checkpoint on refusal).",
+    )
+    parser.add_argument(
+        "--unattended",
+        action="store_true",
+        help="Run unattended-live. Same as --gate-auto-decide for the reconcile "
+        "gate; on §5.3 refusal, write a checkpoint and SystemExit(4/5). Repeatable "
+        "from §5.3 onward via --resume-from. Per pass-r3 finding H-2, this does "
+        "NOT change dry_run semantics; the pipeline stays live.",
+    )
+    parser.add_argument(
+        "--no-dry-auto-decide",
+        action="store_true",
+        help="Disable the dry-run auto-accept shortcut, so a dry-run still pauses for "
+        "the reconcile gate input. (Pass-r3 finding H-13: was unreachable.)",
+    )
+    parser.add_argument(
+        "--skip-reconcile",
+        action="store_true",
+        help="Skip the human reconciliation gate (operator accepts ad-hoc).",
+    )
+    parser.add_argument(
+        "--create-pr",
+        action="store_true",
+        help="Attempt PR creation if the remote is configured. Default off — human gates merge per invariant #8.",
+    )
+    parser.add_argument(
+        "--validation-backend",
+        default="",
+        choices=["", "local", "ci"],
+        help="Track B backend. 'local' shells out to tools/orchestrate-review.py. 'ci' is a STUB per the Phase 4.5 prompt.",
+    )
     parser.add_argument("--signing-key-env", default="")
 
-    parser.add_argument("--allow-test-author-collide", action="store_true",
-                        help="§17.6 outage override only. Must be recorded in phase-N/KNOWN-ISSUES.md.")
-    parser.add_argument("--allow-single-family", action="store_true",
-                        help="Allow single-family validator panel. Mirrors orchestrate-review.py --allow-single-family. Use only with §17.6 fallback.")
+    parser.add_argument(
+        "--allow-test-author-collide",
+        action="store_true",
+        help="§17.6 outage override only. Must be recorded in phase-N/KNOWN-ISSUES.md.",
+    )
+    parser.add_argument(
+        "--allow-single-family",
+        action="store_true",
+        help="Allow single-family validator panel. Mirrors orchestrate-review.py --allow-single-family. Use only with §17.6 fallback.",
+    )
     parser.add_argument("--fail-closed", dest="fail_closed", action="store_true", default=True)
-    parser.add_argument("--no-fail-closed", dest="fail_closed", action="store_false",
-                        help="Disable §7 fail-closed on reality-assertion failures. NOT recommended.")
+    parser.add_argument(
+        "--no-fail-closed",
+        dest="fail_closed",
+        action="store_false",
+        help="Disable §7 fail-closed on reality-assertion failures. NOT recommended.",
+    )
 
     parser.add_argument("--security-allowlist", default="")
     parser.add_argument("--security-baseline", default="")
@@ -497,7 +565,7 @@ def _merge_from_json(cfg: Config, path: str) -> Config:
         with open(path) as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
-        raise SystemExit(f"ERROR: cannot load config {path}: {e}")
+        raise SystemExit(f"ERROR: cannot load config {path}: {e}") from None
 
     if not isinstance(data, dict):
         raise SystemExit(f"ERROR: {path} must be a JSON object at the top level")
@@ -547,14 +615,18 @@ def _validate_config(cfg: Config) -> None:
         cfg.pilot_python = sys.executable
         print(f"NOTE: --pilot-python not set, defaulting to {cfg.pilot_python}", file=sys.stderr)
 
-    if cfg.framework_root and not os.path.isdir(os.path.join(cfg.framework_root, "tools", "sprint_loop")):
+    if cfg.framework_root and not os.path.isdir(
+        os.path.join(cfg.framework_root, "tools", "sprint_loop")
+    ):
         raise SystemExit(
             f"ERROR: framework_root {cfg.framework_root} does not contain "
             f"tools/sprint_loop/. Are you sure this is the adversarial-sprint-dev repo?"
         )
 
     if not cfg.validators:
-        raise SystemExit("ERROR: at least one validator must be configured (PRD §17.2 needs a cross-family panel)")
+        raise SystemExit(
+            "ERROR: at least one validator must be configured (PRD §17.2 needs a cross-family panel)"
+        )
     if cfg.max_review_rounds < 1:
         raise SystemExit("ERROR: --max-review-rounds must be >= 1 (PRD §5.3)")
     if cfg.retry_threshold < 0:
@@ -564,4 +636,6 @@ def _validate_config(cfg: Config) -> None:
     if cfg.retry_delay_seconds < 0:
         raise SystemExit("ERROR: --retry-delay-seconds must be >= 0")
     if cfg.validation_backend not in ("local", "ci"):
-        raise SystemExit(f"ERROR: --validation-backend must be 'local' or 'ci' (got {cfg.validation_backend!r})")
+        raise SystemExit(
+            f"ERROR: --validation-backend must be 'local' or 'ci' (got {cfg.validation_backend!r})"
+        )

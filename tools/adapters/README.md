@@ -25,28 +25,28 @@ a new `tools/adapters/<vendor>.py` that produces the same
 
 ```python
 NormalizedEnvelope = {
-    "session_id": str,                    # vendor-internal handle; may be empty for some vendors
-    "is_error": bool,                     # true iff the run aborted
-    "num_turns": int,                     # turns enumerated by the vendor; >=0
-    "duration_ms": int,                   # wall-clock duration of the run
-    "tool_calls": [                       # each matched tool_use ↔ tool_result pair
+    "session_id": str,  # vendor-internal handle; may be empty for some vendors
+    "is_error": bool,  # true iff the run aborted
+    "num_turns": int,  # turns enumerated by the vendor; >=0
+    "duration_ms": int,  # wall-clock duration of the run
+    "tool_calls": [  # each matched tool_use ↔ tool_result pair
         {
-            "name": str,                 # tool name (e.g., Read, Write, Execute, Glob)
-            "args": dict,                # vendor-shape argument block (file_path, command, etc.)
-            "is_error": bool | None,     # result-was-error flag; None if no matching tool_result
+            "name": str,  # tool name (e.g., Read, Write, Execute, Glob)
+            "args": dict,  # vendor-shape argument block (file_path, command, etc.)
+            "is_error": bool | None,  # result-was-error flag; None if no matching tool_result
         },
-        ...
+        ...,
     ],
     "usage": {
-        "input": int,                    # input tokens
-        "output": int,                   # output tokens
-        "cache_read": int,               # cache-read tokens
-        "thinking": int,                 # thinking tokens (if vendor surfaces)
+        "input": int,  # input tokens
+        "output": int,  # output tokens
+        "cache_read": int,  # cache-read tokens
+        "thinking": int,  # thinking tokens (if vendor surfaces)
     },
-    "model_id": str | None,              # the resolved model id, if the vendor exposes it
-    "family": str | None,                # the family key (provider or lineage, see below)
-    "result_text": str,                  # the verifier's verdict text (full)
-    "result_text_first_240chars": str,   # convenience: first 240 chars of result_text
+    "model_id": str | None,  # the resolved model id, if the vendor exposes it
+    "family": str | None,  # the family key (provider or lineage, see below)
+    "result_text": str,  # the verifier's verdict text (full)
+    "result_text_first_240chars": str,  # convenience: first 240 chars of result_text
 }
 ```
 

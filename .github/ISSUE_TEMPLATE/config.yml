@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/Roderick-Clemente/adversarial-sprint-dev/discussions
+    about: Ask questions or start a discussion about the framework

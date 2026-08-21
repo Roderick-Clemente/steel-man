@@ -9,37 +9,42 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-ALLOWED_TOP_LEVEL = frozenset({
-    ".bandit",
-    ".claude",
-    ".cursor",
-    ".factory",
-    ".github",
-    ".gitignore",
-    "AGENTS.md",
-    "LICENSE",
-    "NOTICE",
-    "PRD.md",
-    "README.md",
-    "build-evidence",
-    "droid-wiki",
-    # chunk-D1-2 retired the phase-N silos: their contents moved to
-    # evidence/<phase>/, planning/<phase>/ and tools/phase-N-<subdir>/.
-    # A reappearing `phase-N` top-level dir is a regression, so the
-    # allowlist no longer carries them.
-    "evidence",
-    "pilots",
-    "planning",
-    "Makefile",          # readiness tooling entrypoint (PR #12)
-    "pyproject.toml",    # ruff/black/mypy config (PR #12)
-    "pytest.ini",
-    "requirements.txt",
-    "skills",
-    "telemetry",
-    "templates",
-    "tests",
-    "tools",
-})
+ALLOWED_TOP_LEVEL = frozenset(
+    {
+        ".bandit",
+        ".claude",
+        ".cursor",
+        ".devcontainer",
+        ".factory",
+        ".gitleaks.toml",  # secret scanning config (readiness easy wins)
+        ".github",
+        ".gitignore",
+        ".pre-commit-config.yaml",  # pre-commit hooks (readiness easy wins)
+        "AGENTS.md",
+        "LICENSE",
+        "NOTICE",
+        "PRD.md",
+        "README.md",
+        "build-evidence",
+        "droid-wiki",
+        # chunk-D1-2 retired the phase-N silos: their contents moved to
+        # evidence/<phase>/, planning/<phase>/ and tools/phase-N-<subdir>/.
+        # A reappearing `phase-N` top-level dir is a regression, so the
+        # allowlist no longer carries them.
+        "evidence",
+        "pilots",
+        "planning",
+        "Makefile",  # readiness tooling entrypoint (PR #12)
+        "pyproject.toml",  # ruff/black/mypy config (PR #12)
+        "pytest.ini",
+        "requirements.txt",
+        "skills",
+        "telemetry",
+        "templates",
+        "tests",
+        "tools",
+    }
+)
 
 
 def tracked_top_level_entries():

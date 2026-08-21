@@ -26,6 +26,7 @@ unit C changes rung5 to `is not False`, the adapter still emits
 Pre-fix exit: 1  (RED — contract violated)
 Post-fix exit: 0 (GREEN — contract satisfied)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from adapters.factory import to_envelope  # noqa: E402
-
 
 FIXTURE_DIR = REPO_ROOT / "tools" / "fixtures" / "rung7b-fakepass"
 ENVELOPE_PATH = FIXTURE_DIR / "fake-envelope.json"
@@ -83,8 +83,7 @@ def main(argv: list[str]) -> int:
         and (env["usage"]["input"] > 0 or env["usage"]["output"] > 0)
         and len(env["tool_calls"]) >= 1
         and bool(
-            {tc.get("name") for tc in env["tool_calls"] if isinstance(tc, dict)}
-            & TOOL_ALLOWLIST
+            {tc.get("name") for tc in env["tool_calls"] if isinstance(tc, dict)} & TOOL_ALLOWLIST
         )
     )
 
@@ -95,12 +94,8 @@ def main(argv: list[str]) -> int:
         for tc in env["tool_calls"]
     ]
     file_paths = [fp for fp in file_paths if isinstance(fp, str)]
-    any_unclean_toolcall = any(
-        tc.get("is_error") is not False for tc in env["tool_calls"]
-    )
-    saw_source_coverage = any(
-        fp and fp.endswith("api/llms_txt.py") for fp in file_paths
-    )
+    any_unclean_toolcall = any(tc.get("is_error") is not False for tc in env["tool_calls"])
+    saw_source_coverage = any(fp and fp.endswith("api/llms_txt.py") for fp in file_paths)
     rung5_green = (not any_unclean_toolcall) and saw_source_coverage
 
     # rung 6 axis (per rung6-gate logic): decision regex + finding regex.
@@ -120,10 +115,8 @@ def main(argv: list[str]) -> int:
     print(f"  rung 3 axis GREEN         : {rung3_green}")
     print(f"  rung 5 axis GREEN (post-unit-C): {rung5_green}")
     print(f"  rung 6 axis GREEN         : {rung6_green}")
-    print(f"  any unclean toolcall      : "
-          f"{bool(any_unclean_toolcall)}")
-    print(f"  tool_calls[*].is_error    : "
-          f"{[tc.get('is_error') for tc in env['tool_calls']]}")
+    print(f"  any unclean toolcall      : {bool(any_unclean_toolcall)}")
+    print(f"  tool_calls[*].is_error    : {[tc.get('is_error') for tc in env['tool_calls']]}")
     print(f"  SILENT-GREEN (all green)  : {silent_green}")
 
     if silent_green:
