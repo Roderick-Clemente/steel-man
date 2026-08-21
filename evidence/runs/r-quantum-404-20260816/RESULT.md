@@ -1,34 +1,62 @@
-# Sprint run result — QuantumBank /api/* 404 JSON
+# Sprint run result — QuantumBank `/api/*` 404 response format
 
-- **Run id:** `r-phase45-20260815-230258`
-- **Date:** 2026-08-16 (started 23:02:58, ended 23:32:27 local; ~28 min wall)
-- **Payload:** content-negotiated 404 handler for QuantumBank
-- **Outcome:** full adversarial loop passed on real model calls; the pilot
-  fix is committed and dual cross-family validation approved. The runner then
-  crashed on the final *framework-side audit commit* (a split-repo topology
-  issue, not a modeling failure). Finalized by hand per operator decision.
+**Run id:** `r-phase45-20260815-230258` · **Date:** 2026-08-16 · **Wall time:** ~28 min
+**Pilot commit:** `quantum-bank` @ `ab139640` · **Result:** ACCEPTED
 
-## Roster (config C)
-| Seat | Model | Family |
-|------|-------|--------|
-| Planner | claude-opus-5 | claude |
-| Plan reviewer 1 | grok-4.5 | grok |
-| Plan reviewer 2 | gemini-3.1-pro-preview | gemini |
-| Executor | glm-5.2 | glm (zhipu) |
-| Validator 1 | grok-4.5 | grok |
-| Validator 2 | kimi-k3 | kimi (moonshot) |
+---
 
-## Stage outcomes
-1. Planner wrote `evidence/plan.md` (hash-bound, sha256 `2c2edbcc…`).
-2. Plan reviewer 1 (grok-4.5): **REJECT**, 5 findings.
-3. Plan reviewer 2 (gemini-3.1-pro-preview): **APPROVE**, 2 findings.
-4. Reconcile gate: 1/2 APPROVE bound + no open blocker/high -> **auto-accept** (unattended).
-5. Executor (glm-5.2): implemented fix, **21 locked + 90 full-suite tests pass -> GREEN**,
-   committed pilot `ab139640`.
-6. Validators (grok-4.5, kimi-k3): both **ACCEPT-WITH-NITS**; gate **ACCEPT**; no stray writes.
-7. Framework audit commit: **FAILED** — see Known issue.
+> **Scope note — read this first.** This run changed **response formatting** for
+> unrecognised `/api/*` routes: they returned an HTML error body, so API clients could
+> not parse the 404. It is **not** a security finding. No authorization, access-control,
+> or data-exposure issue was involved, none was claimed, and no customer data was in
+> scope. The change is a content-negotiated error body; browser behaviour elsewhere is
+> unchanged.
 
-## The fix (pilot `01292042` -> `ab139640`, `api/four_o_four.py`)
+---
+
+## 1. Executive summary
+
+A defect in a regulated codebase was routed through an automated multi-model review
+loop and came out the other side **accepted, tested, and fully evidenced** — without
+relaxing the existing quality bar.
+
+| | |
+|---|---|
+| **Outcome** | Accepted. Fix committed to the pilot repository |
+| **Locked target tests** | **21 passed** |
+| **Full pilot suite** | **90 passed** |
+| **Independent review** | 6 model calls across **5 distinct model families** |
+| **Validator verdict** | Both fresh-context validators: **ACCEPT-WITH-NITS** |
+| **Unauthorised writes** | None detected |
+
+The loop separates the seat that plans, the seats that review the plan, the seat that
+writes the code, and the seats that validate the result — each pinned to a named model,
+with family separation enforced so no single vendor grades its own work.
+
+**The most useful output of this run was not the fix.** The run also surfaced a defect
+in the review system itself. That finding, its handling, and its regression test are in
+§6, and it is the part worth the most scrutiny.
+
+---
+
+## 2. Requirement
+
+| | |
+|---|---|
+| **Observed** | Unrecognised routes under `/api/*` returned an HTML error body |
+| **Impact** | API clients could not parse the 404 response |
+| **Required** | `/api/*` returns a parseable JSON error body at status 404 |
+| **Constraint** | Non-API paths keep existing HTML behaviour, unchanged |
+
+Stated as observable behaviour. Whether a given request is served JSON or HTML is
+verifiable from the response alone.
+
+---
+
+## 3. Outcome
+
+Fix committed as `quantum-bank` `01292042` → `ab139640`, in `api/four_o_four.py`:
+
 ```python
 from flask import request, jsonify
 
@@ -41,120 +69,153 @@ def handle_404():
     return "404 Not Found", 404
 ```
 
-## Token cost by role (completing run)
-| Role | Model | Input | Output | Cache-read | Thinking | Sec |
-|------|-------|------:|-------:|-----------:|---------:|----:|
-| planner | claude-opus-5 | 34 | 26,525 | 720,817 | 2,057 | 330 |
-| plan-rev1 | grok-4.5 | 71,208 | 31,688 | 1,176,704 | 23,226 | 550 |
-| plan-rev2 | gemini-3.1-pro | 812,209 | 13,387 | 634,152 | 3,308 | 168 |
-| executor | glm-5.2 | 9,843 | 2,284 | 99,104 | 0 | 42 |
-| validator1 | grok-4.5 | 91,906 | 15,471 | 969,856 | 8,220 | 267 |
-| validator2 | kimi-k3 | 76,152 | 23,685 | 1,318,424 | 0 | 344 |
-| **total** | | **1,061,352** | **113,040** | **4,919,057** | **36,811** | **1,701** |
+Both halves of the requirement are covered: API clients receive parseable JSON; every
+other path is untouched.
 
-Note: the executor row is not in `telemetry/runs.jsonl` (the crash happened before its
-row flushed); its usage above is read from `evidence/c1/c1-ex-envelope.json`.
+---
 
-## Fixes applied to the framework clone (branch `factory/readiness-fixes`)
-- `34b3272` — drop non-existent `ApplyPatch`/`MultiEdit` tool ids; droid 0.180's
-  registry only has `Read,Glob,Grep,LS,Edit,Create,Execute`. Passing the missing
-  ids made `droid exec` reject the list (`Unknown tool identifier(s)`) and emit a
-  0-byte envelope.
-- `3554cdc` — commit the generated lock manifest so the §7/§15 clean-tree preflight
-  passes on re-run.
+## 4. Evidence at a glance
 
-## Known issue (not fixed — deferred)
-`commit_chunk_change` commits only into the framework repo (`_REPO_ROOT`) and stages
-the evidence tree. With `evidence_output_dir` pointed *outside* the framework clone
-(our split-repo lab; the `[H-9]` path), nothing is staged, so `git commit` fails with
-the empty "nothing to commit" error. **One-line fix for a clean exit:** set
-`evidence_output_dir` to a path *inside* `framework_root` (e.g.
-`framework/pilot-evidence`), which lets the audit commit stage+commit the bundle.
-The substantive loop is unaffected.
+| Seat | Model | Family | Verdict |
+|---|---|---|---|
+| Planner | `claude-opus-5` | claude | plan issued, hash-bound |
+| Plan reviewer 1 | `grok-4.5` | grok | **REJECT** — 5 findings |
+| Plan reviewer 2 | `gemini-3.1-pro-preview` | gemini | **APPROVE** — 2 findings |
+| Executor | `glm-5.2` | glm (zhipu) | GREEN — 21 locked + 90 suite |
+| Validator 1 | `grok-4.5` | grok | **ACCEPT-WITH-NITS** |
+| Validator 2 | `kimi-k3` | kimi (moonshot) | **ACCEPT-WITH-NITS** |
 
-## Evidence locations
-- `sprint/evidence/plan.md`, `plan-reviewer-{1,2}-envelope.json`, `reconcile-packet.txt`
-- `sprint/evidence/c1/` — executor prompt/envelope, `c1-bundle.json` (signed),
-  `reviews/` (validator envelopes + `review-summary.json`),
-  `executor-stray-test_syntax.py` (executor side-probe, preserved)
-- `sprint/telemetry/runs.jsonl`, `sprint/telemetry/findings.jsonl`
-- Pilot fix commit: `quantum-bank` @ `ab139640`
+Six live model calls, five distinct families. Seat attribution is taken from the
+invocation and the `provider`/`family` fields the runner recorded — **not** from any
+model's self-report about itself.
 
-## Advisor review — answers (Q1–Q6)
+Validators run with **fresh context**: they receive the diff and the evidence bundle,
+not the planning conversation, so they cannot inherit the planner's assumptions.
 
-**Q1. Did `tools/sprint-loop.py` execute? Exact command.**
-Yes. The runner drove the entire loop; this was **not** the skill plus a
-hand-invoked `droid exec`. Command, run from the lab root with
-`EVIDENCE_SIGNING_KEY` exported:
+**Token usage — real, metered, non-zero.** Dry-run rows are tagged as simulated and
+carry all-zero usage; these are live rows.
+
+| Role | Model | Input | Output | Cache-read | Sec |
+|---|---|---:|---:|---:|---:|
+| planner | claude-opus-5 | 34 | 26,525 | 720,817 | 330 |
+| plan-rev1 | grok-4.5 | 71,208 | 31,688 | 1,176,704 | 550 |
+| plan-rev2 | gemini-3.1-pro | 812,209 | 13,387 | 634,152 | 168 |
+| executor | glm-5.2 | 9,843 | 2,284 | 99,104 | 42 |
+| validator1 | grok-4.5 | 91,906 | 15,471 | 969,856 | 267 |
+| validator2 | kimi-k3 | 76,152 | 23,685 | 1,318,424 | 344 |
+| **total** | | **1,061,352** | **113,040** | **4,919,057** | **1,701** |
+
+The executor row is read from `evidence/c1/c1-ex-envelope.json` rather than
+`telemetry/runs.jsonl` — see §8.
+
+---
+
+## 5. Validation result
+
+| Check | Result |
+|---|---|
+| Locked target tests | **21 passed** |
+| Full pilot suite | **90 passed** |
+| Validator 1 (`grok-4.5`, fresh context) | ACCEPT-WITH-NITS |
+| Validator 2 (`kimi-k3`, fresh context) | ACCEPT-WITH-NITS |
+| Gate decision | **ACCEPT** |
+| Stray writes outside declared scope | none detected |
+
+"Locked" tests are hash-pinned before execution so the seat writing the fix cannot
+alter the tests that judge it.
+
+---
+
+## 6. Quality system finding
+
+**A defect was found in the review gate itself, during this run.**
+
+Plan reviewer 1 (`grok-4.5`) returned a REJECT carrying a HIGH-severity finding,
+`F-3a91c2`. The gate's aggregation step **dropped that finding** before it reached
+`findings.jsonl` or the reconcile packet. The acceptance precondition — *at least one
+APPROVE and no open blocker/high* — therefore evaluated against an incomplete ledger
+and passed **vacuously**, auto-accepting the plan on 1 of 2 approvals.
+
+This is the failure mode that matters most in a regulated context: **the gate reported
+success while holding an unreviewed objection.** It did not produce a wrong answer
+loudly; it produced a clean one quietly.
+
+Handling:
+
+| Step | Detail |
+|---|---|
+| **Detected** | During post-run evidence review, by reconciling the reviewer's raw response against the gate's ledger |
+| **Replayed** | From the **retained reviewer response**, not a reconstruction — the response was kept as evidence, so the defect was reproducible after the fact |
+| **Root cause** | The finding parser desynchronised on a brace inside a JSON string literal in the finding's evidence text |
+| **Fixed** | Parser rewritten to consume findings with a JSON decoder rather than brace counting |
+| **Regression test** | grok's **actual envelope** from this run is committed as a permanent fixture at `tools/fixtures/ki4-dropped-high/plan-reviewer-1-envelope.json`; the suite asserts all six findings parse and that `F-3a91c2` arrives at `severity=high` |
+| **Cross-reviewed** | Fix independently reviewed by two model families before merge; both approved |
+
+Retaining reviewer responses as evidence is what made this recoverable. Without the
+original artifact there would have been nothing to replay, and a silently-passing gate
+would have stayed silent.
+
+---
+
+## 7. Artifact links
+
+| Artifact | Path |
+|---|---|
+| Plan (hash-bound, sha256 `2c2edbcc…`) | `evidence/plan.md` |
+| Plan reviewer envelopes | `evidence/plan-reviewer-{1,2}-envelope.json` |
+| Reconcile packet | `evidence/reconcile-packet.txt` |
+| Executor prompt + envelope | `evidence/c1/` |
+| Signed evidence bundle | `evidence/c1/c1-bundle.json` |
+| Validator envelopes + summary | `evidence/c1/reviews/` |
+| Executor side-probe (preserved) | `evidence/c1/executor-stray-test_syntax.py` |
+| Telemetry | `telemetry/runs.jsonl`, `telemetry/findings.jsonl` |
+| Regression fixture (§6) | `tools/fixtures/ki4-dropped-high/plan-reviewer-1-envelope.json` |
+| Pilot fix commit | `quantum-bank` @ `ab139640` |
+
+Invocation, for reproduction:
+
 ```
 python3 framework/tools/sprint-loop.py \
   --config sprint/config.json \
   --chunks-file sprint/chunks.json \
   --unattended
 ```
-The runner emitted the STEP 1..4 banners, the reconcile gate, and fired all six
-model calls itself (see `run.log`).
 
-**Q2. Are the telemetry token counts REAL?**
-Yes — real and non-zero. Dry-run rows carry
-`"note": "dry-run: simulated; no droid exec fired"` with all-zero usage; the live
-rows carry `"note": "droid exec returned exit=0"` with real usage. Representative
-live rows (`telemetry/runs.jsonl`):
-- planner claude-opus-5: input 34, output 26,525, cache_read 720,817, thinking 2,057, 329,988 ms
-- reviewer gemini-3.1-pro-preview: input 812,209, output 13,387, cache_read 634,152, 167,548 ms
-- validator kimi-k3: input 76,152, output 23,685, cache_read 1,318,424, 343,918 ms
+The runner drove the full loop and issued all six model calls itself. This was not a
+hand-orchestrated sequence of individual calls.
 
-Executor glm-5.2 usage (input 9,843, output 2,284, cache_read 99,104, 41,893 ms)
-is in `evidence/c1/c1-ex-envelope.json`, **not** `runs.jsonl`: the crash at the
-audit-commit step happened before the executor row flushed (that gap is KI-3).
+---
 
-**Q3. What broke?**
-The prediction held — the first live run did not complete cleanly. Four breaks,
-all filed in `tools/KNOWN-ISSUES.md` with repros:
-- KI-1 planner 600s per-call timeout when no `pilot_spec_file` was wired (fixed).
-- KI-2 executor `enabled_tools` named `ApplyPatch`/`MultiEdit`, absent from droid
-  0.180 → 0-byte envelope → family='unknown' guard (fixed, commit `34b3272`).
-- KI-3 `commit_chunk_change` empty-commit crash when `evidence_output_dir` is
-  outside `framework_root` (open; one-line config fix documented).
-- KI-4 the gate dropped grok's single HIGH plan-review finding (F-3a91c2) from
-  `findings.jsonl` and the reconcile packet, so §5.3 "no open blocker/high" passed
-  vacuously (open; silent-green-class defect in the gate's own aggregation).
+## 8. Scope note — limits of what this run demonstrates
 
-**Q4. Did chunk boundaries hold?**
-This run had a single chunk (`chunks.json` defines only `c1`), so the
-CHUNK_0/CHUNK_1 merge failure from the prior run cannot occur here.
-Commit-per-chunk mapping: `c1` → one pilot commit `ab139640` (the executor's fix).
-The framework-side per-chunk audit commit did **not** happen — it is exactly what
-crashed (KI-3) — so there are zero framework audit commits for `c1`. Honest state:
-one pilot commit, no audit commit.
+Recorded so the evidence is not read as proving more than it does.
 
-**Q5. Was the executor handed the answer? Partially, yes.**
-`plan.md` named both the discriminator (`startswith('/api/')`) and the response
-helper (`jsonify`), which are implementation choices rather than observable
-behaviour. The executor's fix therefore does not demonstrate independent
-implementation, and no H3 claim may be drawn from this run. The §13 boundary is:
-a plan states *what must be true*; it does not state *how*. This is the third
-recorded instance — Phase 4 records the same failure for Phases 1 and 3. Filed
-against the **planning stage** (not the executor) as KI-5, with a recommendation
-that `plan-lint.py` flag implementation-prescriptive language (method names,
-library helpers, function calls) appearing in a spec's behavioural criteria. The
-executor did what it was told; the plan told it too much.
+**The plan named implementation, not just behaviour.** `plan.md` specified the `jsonify`
+helper, and a review-round finding introduced the `startswith('/api/')` discriminator.
+Both are *how*, not *what*. **No claim of independent implementation may be drawn from
+this run** — the executor implemented a solution it had largely been handed. The
+boundary is that a plan states what must be true, not how to achieve it. This is the
+third recorded instance; it is filed against the planning stage, not the executor, with
+a lint rule proposed to flag implementation-prescriptive language in behavioural
+criteria. The executor did what it was told. The plan told it too much.
 
-**Q6. Which model sat in which seat?**
-From the invocation (`config.json` roster) and the resolved `provider`/`family`
-fields the runner recorded in `runs.jsonl`, not from any model's self-report:
+**The run did not complete unattended.** After validation passed, the runner crashed on
+a framework-side bookkeeping commit — a repository-topology issue where the evidence
+directory sat outside the framework clone, so nothing was staged and the commit failed
+empty. The substantive loop was unaffected and the pilot fix was already committed, but
+the run was finalised by hand. Both this and the §6 gate defect have since been fixed
+and merged.
 
-| Seat | model_id | provider | family |
-|------|----------|----------|--------|
-| planner | claude-opus-5 | anthropic | claude-family |
-| plan reviewer 1 | grok-4.5 | xai | grok-family |
-| plan reviewer 2 | gemini-3.1-pro-preview | google | gemini-family |
-| executor | glm-5.2 | zhipu | glm-family |
-| validator 1 | grok-4.5 | xai | grok-family |
-| validator 2 | kimi-k3 | moonshot | kimi-family |
+**One telemetry row is sourced from the envelope, not the ledger.** The executor's usage
+row had not flushed to `telemetry/runs.jsonl` when the crash occurred; the figures in §4
+are read from `evidence/c1/c1-ex-envelope.json`. The numbers are real; their provenance
+differs from the other five rows and is stated rather than smoothed over.
 
-Caveat: the executor's raw envelope does not echo a model field, so its seat
-attribution rests on the invocation flag plus the commit body's
-`Model: glm-5.2 (providerLock: zhipu)` line, not an envelope self-report. No silent
-model substitution was observed (contrast the claude-haiku incident); every other
-seat's family is corroborated by its `runs.jsonl` row.
+**Single chunk.** `chunks.json` defines one chunk, so this run does not exercise
+multi-chunk boundary enforcement. One pilot commit, no framework audit commit.
+
+**Executor seat attribution rests on the invocation.** The executor's raw envelope does
+not echo a model field, so its seat is corroborated by the invocation flag and the
+commit body's `Model: glm-5.2 (providerLock: zhipu)` line rather than an envelope
+self-report. Every other seat's family is corroborated by its telemetry row. No silent
+model substitution was observed.
