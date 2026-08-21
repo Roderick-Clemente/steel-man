@@ -21,6 +21,7 @@ select = [
 ignore = [
     "E501",  # line length handled by formatter
     "UP017", # datetime.UTC requires 3.11+; repo supports 3.10+
+    "UP038", # isinstance(x, A | B) requires 3.10+; repo supports 3.10+
     "UP042", # enum.StrEnum requires 3.11+; repo supports 3.10+
     "B905",  # zip(strict=) requires 3.10+; repo supports 3.10+
 ]
