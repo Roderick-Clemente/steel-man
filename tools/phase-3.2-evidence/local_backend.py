@@ -22,6 +22,7 @@ Usage:
         [--security-allowlist phase-3.2/evidence/security_allowlist.json] \
         [--security-baseline phase-3.2/build-evidence/bandit-baseline.json]
 """
+
 import argparse
 import datetime
 import hashlib
@@ -58,8 +59,8 @@ if _TOOLS_DIR not in sys.path:
 
 from sprint_loop.config import SCRIPTS_ROOT, phase_path  # noqa: E402
 
-
 # ── helpers ──────────────────────────────────────────────────────────────
+
 
 def utcnow_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -95,16 +96,23 @@ def sign_bundle(bundle: dict, key: bytes, key_id: str) -> dict:
 
 # ── verify-green.py reuse (locked-hash check) ────────────────────────────
 
-def run_verify_green(framework_root: str, pilot_root: str, lock_file: str,
-                     test_file: str, python: str) -> dict:
+
+def run_verify_green(
+    framework_root: str, pilot_root: str, lock_file: str, test_file: str, python: str
+) -> dict:
     """Run verify-green.py and extract locked_test_sha_observed + pass/fail."""
     script = phase_path(framework_root, "scripts", "verify-green.py")
     cmd = [
-        python, script,
-        "--pilot-root", pilot_root,
-        "--lock-file", lock_file,
-        "--test-file", test_file,
-        "--python", python,
+        python,
+        script,
+        "--pilot-root",
+        pilot_root,
+        "--lock-file",
+        lock_file,
+        "--test-file",
+        test_file,
+        "--python",
+        python,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
@@ -127,6 +135,7 @@ def run_verify_green(framework_root: str, pilot_root: str, lock_file: str,
 
 
 # ── pytest structured results ────────────────────────────────────────────
+
 
 def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
     """Run pytest and parse pass/fail/skip counts + compact failure records.
@@ -166,11 +175,13 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
                             assertion_line = int(line_match.group(1))
                             short_message = tb_clean.strip()[:300]
                         break
-                failures.append({
-                    "nodeid": nodeid,
-                    "assertion_line": assertion_line,
-                    "short_message": short_message,
-                })
+                failures.append(
+                    {
+                        "nodeid": nodeid,
+                        "assertion_line": assertion_line,
+                        "short_message": short_message,
+                    }
+                )
             elif status == "SKIPPED":
                 skipped += 1
 
@@ -185,6 +196,7 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
 
 
 # ── coverage (optional, via pytest-cov) ──────────────────────────────────
+
 
 def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:
     """Attempt coverage via pytest-cov. Returns None if unavailable."""
@@ -203,14 +215,25 @@ def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:
 
 # ── security lens (Bandit, new-vs-baseline + allowlist) ───────────────────
 
+
 def run_bandit(pilot_root: str, python: str) -> dict:
     """Run Bandit, return raw findings in a normalized structure.
 
     Excludes .venv and common non-project dirs to avoid noise from installed
     packages (the §4.4 lesson: don't drown the signal in old debt).
     """
-    cmd = [python, "-m", "bandit", "-r", ".", "-x", "./.venv,./.git,./node_modules",
-           "-f", "json", "-q"]
+    cmd = [
+        python,
+        "-m",
+        "bandit",
+        "-r",
+        ".",
+        "-x",
+        "./.venv,./.git,./node_modules",
+        "-f",
+        "json",
+        "-q",
+    ]
     result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
     try:
         report = json.loads(result.stdout)
@@ -219,14 +242,16 @@ def run_bandit(pilot_root: str, python: str) -> dict:
 
     findings = []
     for item in report.get("results", []):
-        findings.append({
-            "rule_id": item.get("test_id", "unknown"),
-            "severity": item.get("issue_severity", "low").lower(),
-            "file": item.get("filename", ""),
-            "line": item.get("line_number", 0),
-            "short_message": item.get("issue_text", "")[:300],
-            "confidence": item.get("issue_confidence", "MEDIUM").lower(),
-        })
+        findings.append(
+            {
+                "rule_id": item.get("test_id", "unknown"),
+                "severity": item.get("issue_severity", "low").lower(),
+                "file": item.get("filename", ""),
+                "line": item.get("line_number", 0),
+                "short_message": item.get("issue_text", "")[:300],
+                "confidence": item.get("issue_confidence", "MEDIUM").lower(),
+            }
+        )
     return {"raw_findings": findings, "error": None}
 
 
@@ -245,8 +270,7 @@ def apply_allowlist(findings: list[dict], allowlist: dict) -> list[dict]:
     for f in findings:
         matched = False
         for entry in entries:
-            if (f["rule_id"] == entry.get("rule_id")
-                    and f["file"] == entry.get("file")):
+            if f["rule_id"] == entry.get("rule_id") and f["file"] == entry.get("file"):
                 entry_line = entry.get("line", 0)
                 # line=0 means wildcard (match any line for this rule+file)
                 if entry_line == 0 or f.get("line") == entry_line:
@@ -270,11 +294,13 @@ def diff_vs_baseline(findings: list[dict], baseline: dict) -> list[dict]:
     if not baseline_raw:
         # Fallback: raw bandit JSON has "results"
         for r in baseline.get("results", []):
-            baseline_raw.append({
-                "rule_id": r.get("test_id", "unknown"),
-                "file": r.get("filename", ""),
-                "line": r.get("line_number", 0),
-            })
+            baseline_raw.append(
+                {
+                    "rule_id": r.get("test_id", "unknown"),
+                    "file": r.get("filename", ""),
+                    "line": r.get("line_number", 0),
+                }
+            )
 
     baseline_keys = set()
     for b in baseline_raw:
@@ -289,6 +315,7 @@ def diff_vs_baseline(findings: list[dict], baseline: dict) -> list[dict]:
 
 # ── main ─────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Local evidence-provider backend.")
     parser.add_argument("--pilot-root", required=True)
@@ -297,63 +324,82 @@ def main() -> int:
     parser.add_argument("--lock-file", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--python", default=sys.executable)
-    parser.add_argument("--signing-key-env", default="EVIDENCE_SIGNING_KEY",
-                        help="Env var holding the HMAC signing key.")
-    parser.add_argument("--key-id", default="local-default",
-                        help="Key identifier recorded in the signature.")
-    parser.add_argument("--security-scan", action="store_true",
-                        help="Run the Bandit security lens.")
-    parser.add_argument("--security-allowlist", default=None,
-                        help="Path to curated allowlist JSON.")
-    parser.add_argument("--security-baseline", default=None,
-                        help="Path to baseline Bandit scan for new-vs-baseline.")
-    parser.add_argument("--full-suite", action="store_true",
-                        help="Run the full test suite for the tests section (what validators "
-                             "consumed in Phase 3). Without this, only the locked test is reported.")
+    parser.add_argument(
+        "--signing-key-env",
+        default="EVIDENCE_SIGNING_KEY",
+        help="Env var holding the HMAC signing key.",
+    )
+    parser.add_argument(
+        "--key-id", default="local-default", help="Key identifier recorded in the signature."
+    )
+    parser.add_argument(
+        "--security-scan", action="store_true", help="Run the Bandit security lens."
+    )
+    parser.add_argument(
+        "--security-allowlist", default=None, help="Path to curated allowlist JSON."
+    )
+    parser.add_argument(
+        "--security-baseline",
+        default=None,
+        help="Path to baseline Bandit scan for new-vs-baseline.",
+    )
+    parser.add_argument(
+        "--full-suite",
+        action="store_true",
+        help="Run the full test suite for the tests section (what validators "
+        "consumed in Phase 3). Without this, only the locked test is reported.",
+    )
     args = parser.parse_args()
 
     started = utcnow_iso()
 
     # 1. Locked-hash check (reuse verify-green.py)
-    print(f"[1/5] Locked-hash check via verify-green.py...", file=sys.stderr)
+    print("[1/5] Locked-hash check via verify-green.py...", file=sys.stderr)
     vg = run_verify_green(
-        args.framework_root, args.pilot_root, args.lock_file,
-        args.test_file, args.python,
+        args.framework_root,
+        args.pilot_root,
+        args.lock_file,
+        args.test_file,
+        args.python,
     )
     if not vg["green_accepted"]:
-        print(f"  GREEN REFUSED (exit {vg['exit_code']}). Bundle will be red.",
-              file=sys.stderr)
+        print(f"  GREEN REFUSED (exit {vg['exit_code']}). Bundle will be red.", file=sys.stderr)
     else:
-        print(f"  GREEN ACCEPTED. locked_test_sha={vg['locked_test_sha_observed']}",
-              file=sys.stderr)
+        print(
+            f"  GREEN ACCEPTED. locked_test_sha={vg['locked_test_sha_observed']}", file=sys.stderr
+        )
 
     # 2. Pytest structured results
-    print(f"[2/5] Running pytest for structured test results...", file=sys.stderr)
+    print("[2/5] Running pytest for structured test results...", file=sys.stderr)
     pt = run_pytest(args.pilot_root, args.test_file, args.python)
-    print(f"  locked test: passed={pt['passed']} failed={pt['failed']} skipped={pt['skipped']} exit={pt['suite_exit_code']}",
-          file=sys.stderr)
+    print(
+        f"  locked test: passed={pt['passed']} failed={pt['failed']} skipped={pt['skipped']} exit={pt['suite_exit_code']}",
+        file=sys.stderr,
+    )
 
     # 2b. Full regression suite (what validators also consumed in Phase 3)
     if args.full_suite:
-        print(f"[2b] Running full regression suite...", file=sys.stderr)
+        print("[2b] Running full regression suite...", file=sys.stderr)
         fs = run_pytest(args.pilot_root, "", args.python)  # empty test_file = full suite
-        print(f"  full suite: passed={fs['passed']} failed={fs['failed']} skipped={fs['skipped']} exit={fs['suite_exit_code']}",
-              file=sys.stderr)
+        print(
+            f"  full suite: passed={fs['passed']} failed={fs['failed']} skipped={fs['skipped']} exit={fs['suite_exit_code']}",
+            file=sys.stderr,
+        )
         # Use full suite results for the tests section, but merge any locked-test failures
         pt = fs
 
     # 3. Coverage (optional)
-    print(f"[3/5] Coverage (best-effort)...", file=sys.stderr)
+    print("[3/5] Coverage (best-effort)...", file=sys.stderr)
     cov = run_coverage(args.pilot_root, args.test_file, args.python)
     if cov:
         print(f"  lines_pct={cov['lines_pct']}%", file=sys.stderr)
     else:
-        print(f"  not available (pytest-cov missing or failed)", file=sys.stderr)
+        print("  not available (pytest-cov missing or failed)", file=sys.stderr)
 
     # 4. Security lens (optional)
     security_section = None
     if args.security_scan:
-        print(f"[4/5] Security scan (Bandit)...", file=sys.stderr)
+        print("[4/5] Security scan (Bandit)...", file=sys.stderr)
         bandit = run_bandit(args.pilot_root, args.python)
 
         # Load allowlist
@@ -377,21 +423,25 @@ def main() -> int:
         new_findings = [f for f in findings if f["is_new"]]
         new_count = len(new_findings)
         total_count = len(findings)
-        print(f"  total={total_count} new={new_count} suppressed={len(bandit['raw_findings']) - total_count}",
-              file=sys.stderr)
+        print(
+            f"  total={total_count} new={new_count} suppressed={len(bandit['raw_findings']) - total_count}",
+            file=sys.stderr,
+        )
 
         security_section = {"findings": new_findings}
     else:
-        print(f"[4/5] Security scan skipped (--security-scan not set).", file=sys.stderr)
+        print("[4/5] Security scan skipped (--security-scan not set).", file=sys.stderr)
 
     # 5. Assemble + sign the bundle
-    print(f"[5/5] Assembling + signing bundle...", file=sys.stderr)
+    print("[5/5] Assembling + signing bundle...", file=sys.stderr)
     finished = utcnow_iso()
 
     # Get commit SHA of the pilot repo
     commit_sha = subprocess.run(
         ["git", "rev-parse", "HEAD"],
-        cwd=args.pilot_root, capture_output=True, text=True,
+        cwd=args.pilot_root,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
 
     tool_versions = {
@@ -449,9 +499,12 @@ def main() -> int:
         # cross-process or cross-agent scenario, set EVIDENCE_SIGNING_KEY.
         signing_key = os.urandom(32)
         key_id = f"local-random-{uuid.uuid4().hex[:8]}"
-        print(f"  WARNING: {args.signing_key_env} not set. Generated random key "
-              f"(key_id={key_id}). Signature is valid for this process only — "
-              f"set {args.signing_key_env} for cross-process verification.", file=sys.stderr)
+        print(
+            f"  WARNING: {args.signing_key_env} not set. Generated random key "
+            f"(key_id={key_id}). Signature is valid for this process only — "
+            f"set {args.signing_key_env} for cross-process verification.",
+            file=sys.stderr,
+        )
     bundle = sign_bundle(bundle, signing_key, key_id)
 
     # Write

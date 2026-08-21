@@ -29,6 +29,7 @@ Exit codes:
     1  at least one envelope carried no verdict (or was unparseable)
     2  usage / no envelopes found
 """
+
 from __future__ import annotations
 
 import argparse
@@ -87,9 +88,7 @@ def summarise(path: Path) -> dict[str, Any]:
     events, bad = _iter_events(path)
     census = Counter(str(e.get("type")) for e in events)
 
-    session_ids = sorted({
-        str(e["session_id"]) for e in events if e.get("session_id")
-    })
+    session_ids = sorted({str(e["session_id"]) for e in events if e.get("session_id")})
     models = sorted({str(e["model"]) for e in events if e.get("model")})
     errors = [
         {
@@ -97,7 +96,8 @@ def summarise(path: Path) -> dict[str, Any]:
             "message": e.get("message"),
             "session_id": e.get("session_id"),
         }
-        for e in events if e.get("type") == "error"
+        for e in events
+        if e.get("type") == "error"
     ]
 
     text = _assistant_text(events)
@@ -161,22 +161,23 @@ def render_markdown(rows: list[dict[str, Any]]) -> str:
         lines.append("")
         for r in err_rows:
             for e in r["errors"]:
-                lines.append(
-                    f"- `{Path(r['envelope']).name}` [{e['source']}] "
-                    f"`{e['message']}`"
-                )
+                lines.append(f"- `{Path(r['envelope']).name}` [{e['source']}] `{e['message']}`")
     return "\n".join(lines) + "\n"
 
 
 def main(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("root", help="run dir, envelope dir, or single envelope file")
     ap.add_argument("--json", dest="json_out", default=None)
     ap.add_argument("--markdown", dest="md_out", default=None)
-    ap.add_argument("--allow-missing-verdict", action="store_true",
-                    help="report but do not fail on verdict-less envelopes "
-                         "(for recording a burned round as burned)")
+    ap.add_argument(
+        "--allow-missing-verdict",
+        action="store_true",
+        help="report but do not fail on verdict-less envelopes "
+        "(for recording a burned round as burned)",
+    )
     args = ap.parse_args(argv)
 
     root = Path(args.root)
@@ -202,13 +203,11 @@ def main(argv: list[str]) -> int:
     if missing:
         names = ", ".join(Path(r["envelope"]).name for r in missing)
         print(
-            f"envelope-manifest: NO VERDICT in {len(missing)}/{len(rows)} "
-            f"envelope(s): {names}",
+            f"envelope-manifest: NO VERDICT in {len(missing)}/{len(rows)} envelope(s): {names}",
             file=sys.stderr,
         )
         print(
-            "  These are NOT reviewer attestations. Do not SHA them into a "
-            "chunk token (§21).",
+            "  These are NOT reviewer attestations. Do not SHA them into a chunk token (§21).",
             file=sys.stderr,
         )
         if not args.allow_missing_verdict:

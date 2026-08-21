@@ -20,6 +20,7 @@ Usage:
         --bundle phase-3.2/build-evidence/chunk1-bundle.json \
         --output phase-3.2/build-evidence/chunk1-token-accounting.json
 """
+
 import argparse
 import json
 import os
@@ -38,12 +39,15 @@ def file_token_count(path: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Token accounting for §3.2 fairness rule.")
-    parser.add_argument("--raw-output", required=True,
-                        help="Path to the raw pytest output (the in-session cost being replaced).")
-    parser.add_argument("--bundle", required=True,
-                        help="Path to the EvidenceBundle JSON (the replacement cost).")
-    parser.add_argument("--output", required=True,
-                        help="Path to write the token accounting JSON.")
+    parser.add_argument(
+        "--raw-output",
+        required=True,
+        help="Path to the raw pytest output (the in-session cost being replaced).",
+    )
+    parser.add_argument(
+        "--bundle", required=True, help="Path to the EvidenceBundle JSON (the replacement cost)."
+    )
+    parser.add_argument("--output", required=True, help="Path to write the token accounting JSON.")
     args = parser.parse_args()
 
     raw_tokens = file_token_count(args.raw_output)

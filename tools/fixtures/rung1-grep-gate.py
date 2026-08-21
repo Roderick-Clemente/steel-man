@@ -15,6 +15,7 @@ Usage:
     # or just
     python3 tools/fixtures/rung1-grep-gate.py
 """
+
 from __future__ import annotations
 
 import argparse

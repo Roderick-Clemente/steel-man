@@ -20,6 +20,7 @@ Refs:
   - phase-4.5/DESIGN-PERSISTENT-REFEREE.md §5 (queue protocol)
   - phase-4.5/KNOWN-ISSUES.md KN-A-8 (entry this implements)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,7 +31,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
 
 # Local import: reuse the canonical HMAC signer. The build agent's
 # signer is reused here with EVIDENCE_SIGNING_KEY_STUB so the
@@ -38,7 +38,6 @@ from typing import Iterable, List, Optional, Tuple
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 import sign_chunk_token  # noqa: E402
-import sprint_loop.chunk_close_banner as chunk_close_banner  # noqa: E402
 
 RE_REQUEST = re.compile(
     r"^REVIEW REQUEST:\s*"
@@ -60,7 +59,7 @@ def sha256_path(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def parse_steer(path: Path) -> Tuple[List[dict], Optional[int]]:
+def parse_steer(path: Path) -> tuple[list[dict], int | None]:
     """Parse STEER.md.
 
     Returns (pending_requests, last_completion_line_no). Pending
@@ -73,14 +72,12 @@ def parse_steer(path: Path) -> Tuple[List[dict], Optional[int]]:
         return ([], None)
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    last_complete_idx: Optional[int] = None
+    last_complete_idx: int | None = None
     for idx, line in enumerate(lines):
         if RE_COMPLETE.match(line):
             last_complete_idx = idx
-    pending_section = (
-        lines[last_complete_idx + 1 :] if last_complete_idx is not None else lines
-    )
-    requests: List[dict] = []
+    pending_section = lines[last_complete_idx + 1 :] if last_complete_idx is not None else lines
+    requests: list[dict] = []
     for line in pending_section:
         m = RE_REQUEST.match(line)
         if not m:
@@ -98,12 +95,12 @@ def parse_steer(path: Path) -> Tuple[List[dict], Optional[int]]:
     return (requests, last_complete_idx)
 
 
-def validate_request(req: dict) -> List[Path]:
+def validate_request(req: dict) -> list[Path]:
     """Verify the request's envelope paths exist on disk.
 
     Refuses on missing path, returning the parse-level reason.
     """
-    missing: List[Path] = []
+    missing: list[Path] = []
     if not req["paths"]:
         raise Refusal("no envelope paths in REQ")
     if not req["commit"] or len(req["commit"]) != 40:
@@ -175,9 +172,7 @@ def write_token_to_path(token: str, out_path: Path) -> None:
 # Sticky refusal markers reused by the queue. Format matched by the
 # build agent's await_referee_completion helper (planned, not built).
 def make_refused_marker(req: dict, reason: str) -> str:
-    return (
-        f"REFUSED: chunk={req['chunk']} reason={reason}\n"
-    )
+    return f"REFUSED: chunk={req['chunk']} reason={reason}\n"
 
 
 def make_completion_marker(
@@ -255,7 +250,7 @@ def one_shot_poll(steer_path: Path, token_dir: Path, reviewer_label: str) -> int
     return 0 if (processed + refused) else 0
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Persistent referee stub.")
     ap.add_argument("--steer", default=".adversarial-sprint/STEER.md", type=Path)
     ap.add_argument(

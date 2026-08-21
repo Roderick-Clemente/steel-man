@@ -15,9 +15,9 @@ operator needs (a clear, refusing message rather than a silent fallback).
 LocalBackend is the *thin composition* of the project's existing review
 harness — it does not reimplement the validation step.
 """
+
 from __future__ import annotations
 
-import dataclasses
 import json
 import os
 import subprocess
@@ -28,7 +28,6 @@ from typing import Any, Protocol
 from sprint_loop.config import phase_path
 from sprint_loop.state import GateDecision
 
-
 # Make tools/ importable so the package can co-locate with adapters
 # even though backends.py doesn't itself call the adapter.
 _TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,6 +36,7 @@ if _TOOLS_DIR not in sys.path:
 
 
 # ── common return shape ──────────────────────────────────────────────────
+
 
 @dataclass
 class BackendResult:
@@ -47,9 +47,10 @@ class BackendResult:
     status check. Both produce this shape so the chunk-loop logic does
     not need to branch on backend flavour.
     """
+
     gate: GateDecision
     reason: str
-    summary_path: str = ""                   # on-disk JSON for audit
+    summary_path: str = ""  # on-disk JSON for audit
     validators: list[dict[str, Any]] = field(default_factory=list)
     evidence_source: str = "bundle"
     raw: dict[str, Any] = field(default_factory=dict)
@@ -57,12 +58,14 @@ class BackendResult:
 
 # ── interface ────────────────────────────────────────────────────────────
 
+
 class ValidationBackend(Protocol):
     """Track B interface. Both backends satisfy this — the loop runner
     calls ``backend.validate(chunk, evidence_bundle)`` and gets back a
     ``BackendResult``. The chunk loop logic does not branch on backend
     type beyond passing backend-specific kwargs.
     """
+
     name: str
 
     def validate(
@@ -82,6 +85,7 @@ class ValidationBackend(Protocol):
 
 
 # ── LocalBackend ──────────────────────────────────────────────────────────
+
 
 class LocalBackend:
     """Delegates to ``tools/orchestrate-review.py``.
@@ -128,8 +132,12 @@ class LocalBackend:
         # would double the evidence root. CHUNK-2-SPEC §2.2 mandates this
         # segment-preserving form; it reads as duplication and is not.
         review_output_dir = chunk.get("review_output_dir", "") or phase_path(
-            framework_root, "evidence", "phase-4.5", "build-evidence",
-            extra.get("run_id", run_label), "reviews"
+            framework_root,
+            "evidence",
+            "phase-4.5",
+            "build-evidence",
+            extra.get("run_id", run_label),
+            "reviews",
         )
         if not test_file or not lock_file:
             return BackendResult(
@@ -153,9 +161,15 @@ class LocalBackend:
                 "evidence_source": evidence_source,
                 "run_label": run_label,
                 "validators": [
-                    {"label": v.split(":")[0], "model": v.split(":")[0],
-                     "family": "dry-run", "verdict": "ACCEPT",
-                     "tokens_in": 0, "tokens_out": 0, "retry_count": 0}
+                    {
+                        "label": v.split(":")[0],
+                        "model": v.split(":")[0],
+                        "family": "dry-run",
+                        "verdict": "ACCEPT",
+                        "tokens_in": 0,
+                        "tokens_out": 0,
+                        "retry_count": 0,
+                    }
                     for v in validators
                 ],
                 "gate": "ACCEPT",
@@ -187,23 +201,40 @@ class LocalBackend:
         validators_arg = ",".join(validators)
 
         argv: list[str] = [
-            pilot_python, orchestrator,
-            "--framework-root", framework_root,
-            "--pilot-root", pilot_root,
-            "--pilot-python", pilot_python,
-            "--test-file", test_file,
-            "--lock-file", lock_file,
-            "--prompt-file", prompt_template_path,
-            "--review-output-dir", review_output_dir,
-            "--validators", validators_arg,
-            "--evidence-output", evidence_bundle,
-            "--auto-level", auto_level,
-            "--max-retries", str(extra.get("max_auto_retries", 2)),
-            "--retry-delay", str(extra.get("retry_delay_seconds", 5)),
-            "--phase", extra.get("phase", "phase-4.5"),
-            "--branch", extra.get("branch", "factory/phase-4.5-loop-runner"),
-            "--evidence-source", evidence_source,
-            "--run-label", run_label,
+            pilot_python,
+            orchestrator,
+            "--framework-root",
+            framework_root,
+            "--pilot-root",
+            pilot_root,
+            "--pilot-python",
+            pilot_python,
+            "--test-file",
+            test_file,
+            "--lock-file",
+            lock_file,
+            "--prompt-file",
+            prompt_template_path,
+            "--review-output-dir",
+            review_output_dir,
+            "--validators",
+            validators_arg,
+            "--evidence-output",
+            evidence_bundle,
+            "--auto-level",
+            auto_level,
+            "--max-retries",
+            str(extra.get("max_auto_retries", 2)),
+            "--retry-delay",
+            str(extra.get("retry_delay_seconds", 5)),
+            "--phase",
+            extra.get("phase", "phase-4.5"),
+            "--branch",
+            extra.get("branch", "factory/phase-4.5-loop-runner"),
+            "--evidence-source",
+            evidence_source,
+            "--run-label",
+            run_label,
         ]
         # KI-2 fix: bundle-mode validators get no Execute tool (Track B + Track C
         # both rely on this). The runner passes --enabled-tools explicitly
@@ -230,9 +261,15 @@ class LocalBackend:
                 "evidence_source": evidence_source,
                 "run_label": run_label,
                 "validators": [
-                    {"label": v.split(":")[0], "model": v.split(":")[0],
-                     "family": "dry-run", "verdict": "ACCEPT",
-                     "tokens_in": 0, "tokens_out": 0, "retry_count": 0}
+                    {
+                        "label": v.split(":")[0],
+                        "model": v.split(":")[0],
+                        "family": "dry-run",
+                        "verdict": "ACCEPT",
+                        "tokens_in": 0,
+                        "tokens_out": 0,
+                        "retry_count": 0,
+                    }
                     for v in validators
                 ],
                 "gate": "ACCEPT",
@@ -271,15 +308,14 @@ class LocalBackend:
             )
         env["EVIDENCE_SIGNING_KEY"] = signing_key
 
-        result = subprocess.run(argv, env=env, capture_output=True, text=True,
-                               timeout=900)
+        result = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=900)
         # The orchestrator writes review-summary.json; read it.
         summary_path = os.path.join(review_output_dir, "review-summary.json")
         if not os.path.isfile(summary_path):
             return BackendResult(
                 gate=GateDecision.STOP,
                 reason=f"orchestrate-review.py exited {result.returncode} without writing "
-                       f"{summary_path}; stderr: {result.stderr[:300]!r}",
+                f"{summary_path}; stderr: {result.stderr[:300]!r}",
                 evidence_source=evidence_source,
             )
         try:
@@ -312,7 +348,9 @@ def _reason_from_summary(summary: dict[str, Any], gate: str) -> str:
     """Pull a human-readable reason from the orchestrator's summary JSON."""
     n_v = len(summary.get("validators", []))
     if gate == "ACCEPT":
-        nits = sum(1 for v in summary.get("validators", []) if v.get("verdict") == "ACCEPT-WITH-NITS")
+        nits = sum(
+            1 for v in summary.get("validators", []) if v.get("verdict") == "ACCEPT-WITH-NITS"
+        )
         return f"all {n_v} validator(s) ACCEPT" + (f" ({nits} with nits)" if nits else "")
     if gate == "REJECT":
         return f"{summary.get('note') or 'reject gate returned'}"
@@ -320,6 +358,7 @@ def _reason_from_summary(summary: dict[str, Any], gate: str) -> str:
 
 
 # ── CIBackend (stub) ──────────────────────────────────────────────────────
+
 
 class CIBackend:
     """Stub — Track B says the interface exists; do NOT implement until
@@ -369,15 +408,15 @@ def build_backend(name: str, *, dry_run: bool = False) -> ValidationBackend:
         return LocalBackend(dry_run=dry_run)
     if n == "ci":
         return CIBackend()
-    raise ValueError(
-        f"unknown validation backend: {name!r} (expected 'local' or 'ci')"
-    )
+    raise ValueError(f"unknown validation backend: {name!r} (expected 'local' or 'ci')")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
+
 def _utcnow_iso() -> str:
     import datetime
+
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

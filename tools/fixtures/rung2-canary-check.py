@@ -29,6 +29,7 @@ referencing itself. We do a coarse substring count; if any forbidden
 substring appears in the prompt, the canary raises. Hitting canary is a
 bug at this rung.
 """
+
 from __future__ import annotations
 
 import argparse

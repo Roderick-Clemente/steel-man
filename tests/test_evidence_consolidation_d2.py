@@ -25,7 +25,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 # chunk-D5A migrated the d2-1 builder bundle to evidence/reviews/.
 # legacy-duplicates subtree remains at the chunk-D1-frozen path.

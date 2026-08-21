@@ -1,0 +1,17 @@
+{
+  "session_id": "dry-run-no-session",
+  "is_error": false,
+  "num_turns": 0,
+  "duration_ms": 0,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "thinking_tokens": 0
+  },
+  "result": "[dry-run] No droid exec fired. Planned call: droid exec --model gpt-5.4-mini --auto medium --enabled-tools Read,Glob,Grep,LS,Edit,Create,Execute --cwd /tmp/loop-smoke/pilot -f /Users/factory/work/adversarial-sprint-dev/evidence/phase-4.5/build-evidence/r-phase45-20260816-193022/c1/c1-ex-prompt.md -o json",
+  "model_id": "gpt-5.4-mini",
+  "modelId": "gpt-5.4-mini",
+  "apiProviderLock": "openai",
+  "providerLock": "openai"
+}

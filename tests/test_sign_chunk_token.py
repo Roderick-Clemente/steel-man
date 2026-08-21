@@ -7,6 +7,7 @@ SHA (commit `f1bae98`) per PRD §11 Phase 5's retro-tokenize recipe.
 
 Drive these tests via `pytest tests/test_sign_chunk_token.py -v`.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,19 +24,17 @@ sys.path.insert(0, str(_REPO / "tools"))
 
 import sign_chunk_token as sct  # noqa: E402
 
-
 # Pin: chunk-13 retro-application — the fixture commit SHA we
 # retroactively sign during the chunk-13 replay pin below.
 # Identify the chunk-13 fixture commit by its SUBJECT, not its SHA. A literal
 # SHA is not portable: any history rewrite (e.g. publishing a scrubbed mirror of
 # this repo) renumbers every commit, and `git rev-parse <literal>` then fails on
 # a perfectly valid clone. The subject is unique across all history.
-CHUNK_13_FIXTURE_SUBJECT = (
-    "phase-4.5: chunk 13 — pd-pass-r3 panel fixes (H-1..H-10 + KN-H11..H-19)"
-)
+CHUNK_13_FIXTURE_SUBJECT = "phase-4.5: chunk 13 — pd-pass-r3 panel fixes (H-1..H-10 + KN-H11..H-19)"
 
 
 # ── canonical-JSON + HMAC helpers ───────────────────────────────────────
+
 
 def test_canonical_json_is_key_sorted_and_dense():
     """Compose pin: token JSON must be byte-identical for any
@@ -57,6 +56,7 @@ def test_hmac_sha256_hex_uses_sort_keys():
 
 # ── build_token refusal-at-parse pins ────────────────────────────────────
 
+
 def test_build_token_refuses_on_short_chunk_commit_sha():
     reviewers = [_good_reviewer("grok-family", "ACCEPT-WITH-NITS")]
     with pytest.raises(ValueError, match="40-char hex"):
@@ -69,8 +69,9 @@ def test_build_token_refuses_on_short_chunk_commit_sha():
 
 
 def test_build_token_refuses_on_missing_reviewer_field():
-    bad = [{"family": "grok-family", "model_id": "grok-4.5",
-            "verdict": "ACCEPT-WITH-NITS"}]  # missing envelope_sha256
+    bad = [
+        {"family": "grok-family", "model_id": "grok-4.5", "verdict": "ACCEPT-WITH-NITS"}
+    ]  # missing envelope_sha256
     with pytest.raises(ValueError, match="envelope_sha256"):
         sct.build_token(
             chunk_id="5a",
@@ -106,6 +107,7 @@ def test_build_token_refuses_when_signing_key_unset(monkeypatch):
 
 
 # ── verify_token pins ───────────────────────────────────────────────────
+
 
 def test_verify_token_round_trip_with_key(monkeypatch):
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-1")
@@ -160,9 +162,14 @@ def test_verify_token_refuses_when_key_unset(monkeypatch):
 
 def test_verify_token_refuses_on_unsigned(monkeypatch):
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-1")
-    bad = {"schema": sct.TOKEN_SCHEMA, "chunk_id": "5a",
-           "chunk_commit_sha": "f" * 40, "reviewers": [],
-           "signed_at": "now", "signed_by": "test@local"}
+    bad = {
+        "schema": sct.TOKEN_SCHEMA,
+        "chunk_id": "5a",
+        "chunk_commit_sha": "f" * 40,
+        "reviewers": [],
+        "signed_at": "now",
+        "signed_by": "test@local",
+    }
     assert sct.verify_token(bad) is False
 
 
@@ -172,6 +179,7 @@ def test_verify_token_refuses_on_non_dict(monkeypatch):
 
 
 # ── replay-chunk-13 pin (PRD §11 Phase 5 retro-tokenize) ───────────────
+
 
 def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
     """Per Prompt 2 deliverable chunk-5a:
@@ -186,15 +194,27 @@ def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-chunk13-replay")
     sha_proc = subprocess.run(
-        ["git", "log", "--all", "--format=%H", "--fixed-strings",
-         f"--grep={CHUNK_13_FIXTURE_SUBJECT}"],
-        cwd=str(_REPO), capture_output=True, text=True, check=True,
+        [
+            "git",
+            "log",
+            "--all",
+            "--format=%H",
+            "--fixed-strings",
+            f"--grep={CHUNK_13_FIXTURE_SUBJECT}",
+        ],
+        cwd=str(_REPO),
+        capture_output=True,
+        text=True,
+        check=True,
     )
     matches = [line for line in sha_proc.stdout.split() if line]
     if not matches:
         shallow = subprocess.run(
             ["git", "rev-parse", "--is-shallow-repository"],
-            cwd=str(_REPO), capture_output=True, text=True, check=True,
+            cwd=str(_REPO),
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         if shallow == "true":
             pytest.skip(
@@ -202,10 +222,7 @@ def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
                 "the chunk-13 fixture commit is not fetched, so there is "
                 "nothing to replay against in this checkout"
             )
-    assert matches, (
-        f"chunk-13 fixture commit not found by subject: "
-        f"{CHUNK_13_FIXTURE_SUBJECT!r}"
-    )
+    assert matches, f"chunk-13 fixture commit not found by subject: {CHUNK_13_FIXTURE_SUBJECT!r}"
     assert len(matches) == 1, (
         f"chunk-13 fixture subject is no longer unique ({len(matches)} matches)"
     )
@@ -231,6 +248,7 @@ def test_replay_chunk13_succeeds(tmp_path, monkeypatch):
 
 # ── CLI pin: arrange key, sign, then re-verify via subprocess ───────────
 
+
 def test_cli_sign_then_verify_subprocess(tmp_path, monkeypatch):
     """Drive the full CLI path (sign -> write token -> verify via
     subprocess). Per KN-J16: behavioral tests pin actual code paths,
@@ -246,14 +264,21 @@ def test_cli_sign_then_verify_subprocess(tmp_path, monkeypatch):
             sys.executable,
             str(_REPO / "tools" / "sign_chunk_token.py"),
             "sign",
-            "--chunk-id", "5a-cli",
-            "--chunk-commit-sha", sha,
-            "--reviewers-json", reviewers_json,
-            "--signed-by", "test@cli",
-            "--out", str(out),
+            "--chunk-id",
+            "5a-cli",
+            "--chunk-commit-sha",
+            sha,
+            "--reviewers-json",
+            reviewers_json,
+            "--signed-by",
+            "test@cli",
+            "--out",
+            str(out),
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY": "k-cli-1"},
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     assert "wrote" in p_sign.stderr
     assert out.exists()
@@ -263,10 +288,12 @@ def test_cli_sign_then_verify_subprocess(tmp_path, monkeypatch):
             sys.executable,
             str(_REPO / "tools" / "sign_chunk_token.py"),
             "verify",
-            "--token-path", str(out),
+            "--token-path",
+            str(out),
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY": "k-cli-1"},
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert p_verify.returncode == 0, p_verify.stderr
     assert sha in p_verify.stdout
@@ -278,14 +305,22 @@ def test_cli_verify_refuses_tampered_token(tmp_path, monkeypatch):
     out = tmp_path / "token.json"
     subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "sign_chunk_token.py"),
-            "sign", "--chunk-id", "tampered",
-            "--chunk-commit-sha", "f" * 40,
-            "--reviewers-json", reviewers_json,
-            "--out", str(out),
+            sys.executable,
+            str(_REPO / "tools" / "sign_chunk_token.py"),
+            "sign",
+            "--chunk-id",
+            "tampered",
+            "--chunk-commit-sha",
+            "f" * 40,
+            "--reviewers-json",
+            reviewers_json,
+            "--out",
+            str(out),
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY": "k-cli-2"},
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     # Tamper the on-disk artifact.
     token = json.loads(out.read_text())
@@ -294,16 +329,21 @@ def test_cli_verify_refuses_tampered_token(tmp_path, monkeypatch):
 
     p = subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "sign_chunk_token.py"),
-            "verify", "--token-path", str(out),
+            sys.executable,
+            str(_REPO / "tools" / "sign_chunk_token.py"),
+            "verify",
+            "--token-path",
+            str(out),
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY": "k-cli-2"},
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert p.returncode == 6, p.stdout + p.stderr
 
 
 # ── helpers ─────────────────────────────────────────────────────────────
+
 
 def _good_reviewer(family: str, verdict: str) -> dict:
     return {

@@ -1,0 +1,3 @@
+ planning/evidence-hygiene/CHUNK-D5-SPEC.md     | 254 +++++++++++++
+ planning/evidence-hygiene/PROMPT-D5-BUILDER.md | 496 +++++++++++++++++++++++++
+ 2 files changed, 750 insertions(+)

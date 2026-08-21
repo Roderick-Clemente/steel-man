@@ -28,6 +28,7 @@ Truth assertions (OPERATING-RULES §7):
   by the ``FactoryAdapter.to_envelope`` contract; an unreadable
   envelope propagates as a transient-failure record.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -37,8 +38,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import Any
 
 # Make ``tools/`` importable so the call sites can stay flat — the
@@ -60,10 +60,11 @@ except ImportError as e:
         "to be on sys.path (OPERATING-RULES §14). If running this module "
         "directly, ensure PYTHONPATH includes the repo's tools/ "
         f"directory. Underlying error: {e}"
-    )
+    ) from None
 
 
 # ── run record ───────────────────────────────────────────────────────────
+
 
 @dataclass
 class RunRecord:
@@ -72,9 +73,10 @@ class RunRecord:
     Mirrors the v2 ``runs.jsonl`` schema (subset — the on-disk row is
     a strict superset; this dataclass is the in-memory shape).
     """
+
     run_id: str
-    role: str                    # planner | reviewer | test-designer | executor | validator
-    model_id: str                # resolved model from envelope
+    role: str  # planner | reviewer | test-designer | executor | validator
+    model_id: str  # resolved model from envelope
     provider: str
     family: str
     provider_lock: str
@@ -142,9 +144,9 @@ class RunRecord:
 _SESSION_ID_RE = re.compile(r'"session_id"\s*:\s*"([^"]+)"')
 
 
-def parse_envelope(envelope_path: str,
-                   session_jsonl_path: str | None = None,
-                   settings_json_path: str | None = None) -> dict[str, Any]:
+def parse_envelope(
+    envelope_path: str, session_jsonl_path: str | None = None, settings_json_path: str | None = None
+) -> dict[str, Any]:
     """Parse an envelope via the vendor adapter shim.
 
     Wraps ``tools/adapters/factory.py:to_envelope`` with a clear error
@@ -172,17 +174,21 @@ def parse_envelope(envelope_path: str,
 
 # ── droid invocation ─────────────────────────────────────────────────────
 
+
 @dataclass
 class InvokeOptions:
     """Per-call knobs for ``invoke_droid``."""
-    model_id: str                    # DROID_MODEL_ID (required by the wrapper)
-    auto_level: str = "medium"        # --auto <level>
-    enabled_tools: str = ""          # --enabled-tools <list>
-    prompt_file: str = ""            # -f <path>
-    cwd: str = ""                    # --cwd <path>
+
+    model_id: str  # DROID_MODEL_ID (required by the wrapper)
+    auto_level: str = "medium"  # --auto <level>
+    enabled_tools: str = ""  # --enabled-tools <list>
+    prompt_file: str = ""  # -f <path>
+    cwd: str = ""  # --cwd <path>
     extra_args: list[str] = field(default_factory=list)  # any extras
-    timeout_seconds: int = 600        # droid exec per-call cap
-    skip_run_with_model: bool = False # escape hatch for tests only — never True in production chunks
+    timeout_seconds: int = 600  # droid exec per-call cap
+    skip_run_with_model: bool = (
+        False  # escape hatch for tests only — never True in production chunks
+    )
 
 
 def _utcnow_iso() -> str:
@@ -191,7 +197,7 @@ def _utcnow_iso() -> str:
 
 def _retry_delay(args_paced_max_attempts: int, attempt: int) -> int:
     """Linearly increasing delay: 0, base, 2*base, ... capped at a sane ceiling."""
-    return min(2 ** attempt, 30)
+    return min(2**attempt, 30)
 
 
 def _resolved_provider_and_family(
@@ -286,10 +292,7 @@ def invoke_droid(
                 "cache_read_input_tokens": 0,
                 "thinking_tokens": 0,
             },
-            "result": (
-                f"[dry-run] No droid exec fired. Planned call: "
-                f"{' '.join(droid_args)}"
-            ),
+            "result": (f"[dry-run] No droid exec fired. Planned call: {' '.join(droid_args)}"),
             "model_id": options.model_id,
             "modelId": options.model_id,
             "apiProviderLock": provider,
@@ -299,9 +302,9 @@ def invoke_droid(
             json.dump(fake_envelope, f, indent=2)
         if stderr_path:
             with open(stderr_path, "w") as f:
-                f.write(f"[dry-run] no stderr — call not fired\n")
+                f.write("[dry-run] no stderr — call not fired\n")
         return RunRecord(
-            run_id=f"r-dry-run-{int(time.time()*1000)}",
+            run_id=f"r-dry-run-{int(time.time() * 1000)}",
             role=role_str,
             model_id=options.model_id,
             provider=provider,
@@ -330,8 +333,10 @@ def invoke_droid(
     # `attempts = 0`, defeating the budget guard and firing N
     # unbounded paid calls before Python's recursion limit kicks in.
     envelope_path_abs = os.path.abspath(envelope_path)
-    stderr_path_abs = os.path.abspath(stderr_path) if stderr_path else os.path.join(
-        os.path.dirname(envelope_path_abs), "stderr.log"
+    stderr_path_abs = (
+        os.path.abspath(stderr_path)
+        if stderr_path
+        else os.path.join(os.path.dirname(envelope_path_abs), "stderr.log")
     )
     os.makedirs(os.path.dirname(envelope_path_abs) or ".", exist_ok=True)
     if stderr_path:
@@ -346,7 +351,7 @@ def invoke_droid(
         if attempts > max_retries + 1:
             # Persistent — surface as a real error record (don't silently degrade).
             return RunRecord(
-                run_id=f"r-error-{int(time.time()*1000)}",
+                run_id=f"r-error-{int(time.time() * 1000)}",
                 role=role_str,
                 model_id=options.model_id,
                 provider="unknown",
@@ -361,15 +366,16 @@ def invoke_droid(
                 envelope_raw_bytes=os.path.getsize(envelope_path_abs),
                 started_at=started_at,
                 finished_at=_utcnow_iso(),
-                note=f"retry budget exhausted after {max_retries} retries: "
-                     f"{last_error!r}",
+                note=f"retry budget exhausted after {max_retries} retries: {last_error!r}",
             )
 
         with open(envelope_path_abs, "wb") as enf, open(stderr_path_abs, "wb") as errf:
             result = subprocess.run(
                 [run_with_model] + droid_args,
-                stdout=enf, stderr=errf,
-                cwd=cwd, env=env,
+                stdout=enf,
+                stderr=errf,
+                cwd=cwd,
+                env=env,
                 timeout=options.timeout_seconds,
             )
 
@@ -380,8 +386,10 @@ def invoke_droid(
         except (FileNotFoundError, ValueError) as e:
             last_error = f"envelope parse failed: {e}"
             delay = retry_delay_seconds * (2 ** (attempts - 1))
-            print(f"[droid] retry {attempts}/{max_retries + 1} after {delay}s "
-                  f"({last_error!r})", file=sys.stderr)
+            print(
+                f"[droid] retry {attempts}/{max_retries + 1} after {delay}s ({last_error!r})",
+                file=sys.stderr,
+            )
             time.sleep(delay)
             continue
 
@@ -389,18 +397,17 @@ def invoke_droid(
         # is_error=True from a provider hiccup that wrote a parseable
         # envelope. This is the same shape §11 of orchestrator-review
         # catches — retry budget is shared with envelope-parse retries.
-        is_transient = (
-            env_parsed["is_error"] is True
-            or env_parsed["usage"]["output"] == 0
-        )
+        is_transient = env_parsed["is_error"] is True or env_parsed["usage"]["output"] == 0
         if is_transient:
             last_error = (
                 f"transient failure (is_error={env_parsed['is_error']}, "
                 f"output_tokens={env_parsed['usage']['output']})"
             )
             delay = retry_delay_seconds * (2 ** (attempts - 1))
-            print(f"[droid] retry {attempts}/{max_retries + 1} after {delay}s "
-                  f"({last_error})", file=sys.stderr)
+            print(
+                f"[droid] retry {attempts}/{max_retries + 1} after {delay}s ({last_error})",
+                file=sys.stderr,
+            )
             time.sleep(delay)
             continue
 
@@ -415,7 +422,7 @@ def invoke_droid(
         env_parsed.get("family"),
     )
     return RunRecord(
-        run_id=f"r-{role_str}-{int(time.time()*1000)}",
+        run_id=f"r-{role_str}-{int(time.time() * 1000)}",
         role=role_str,
         model_id=env_parsed.get("model_id") or options.model_id,
         provider=provider,
@@ -434,16 +441,18 @@ def invoke_droid(
         envelope_raw_bytes=os.path.getsize(envelope_path_abs),
         started_at=started_at,
         finished_at=finished_at,
-        note=f"droid exec returned exit={result.returncode}" if 'result' in locals() else "",
+        note=f"droid exec returned exit={result.returncode}" if "result" in locals() else "",
     )
 
 
 # ── family / provider lookups (mirror Config.provider_family; imported
 # lazily so this module has no cycle) ────────────────────────────────────
 
+
 def _provider_for(model_id: str) -> str:
     """Mirror ``tools/sprint_loop/config.py`` MODEL_FAMILY_MAP."""
     from sprint_loop.config import MODEL_FAMILY_MAP
+
     if model_id in MODEL_FAMILY_MAP:
         return MODEL_FAMILY_MAP[model_id][0]
     return "unknown"
@@ -452,6 +461,7 @@ def _provider_for(model_id: str) -> str:
 def _family_for(model_id: str) -> str:
     """Same map, column 1."""
     from sprint_loop.config import MODEL_FAMILY_MAP
+
     if model_id in MODEL_FAMILY_MAP:
         return MODEL_FAMILY_MAP[model_id][1]
     return "unknown"
@@ -459,10 +469,8 @@ def _family_for(model_id: str) -> str:
 
 # ── telemetry append ─────────────────────────────────────────────────────
 
-def append_run_record(record: RunRecord,
-                      phase: str,
-                      branch: str,
-                      telemetry_path: str) -> None:
+
+def append_run_record(record: RunRecord, phase: str, branch: str, telemetry_path: str) -> None:
     """Append a single ``RunRecord`` to ``telemetry/runs.jsonl``.
 
     OPERATING-RULES §10 — telemetry rows are written by the script.

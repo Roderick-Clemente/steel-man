@@ -5,6 +5,7 @@ refusal lists — not exit-code faith. Drives through check_reviewer_panel
 (the pure refusal-list producer) so the assertion fails for the right
 reason, regardless of what the CLI wrapper does.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,18 +14,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 _REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO / "tools"))
 
 import cross_family_review as cfr  # noqa: E402
 import sign_chunk_token as sct  # noqa: E402
 
-
 IMPLEMENTER = "gpt-5.4-mini"  # openai-family
-GROK = "grok-4.5"             # grok-family
-CLAUDE = "claude-opus-5"      # claude-family
+GROK = "grok-4.5"  # grok-family
+CLAUDE = "claude-opus-5"  # claude-family
 GEMINI = "gemini-3.1-pro-preview"  # gemini-family
 
 
@@ -35,6 +33,7 @@ def _envelope(model_id: str) -> str:
     the happy path need a value the gate accepts.
     """
     import hashlib
+
     return hashlib.sha256(model_id.encode()).hexdigest()
 
 
@@ -47,6 +46,7 @@ def _sha(*models: str) -> list[str]:
 
 
 # ── refusal-at-parse pins ───────────────────────────────────────────────
+
 
 def test_missing_reviewer_refuses():
     refusals = cfr.check_reviewer_panel(
@@ -113,8 +113,7 @@ def test_implementer_unknown_refuses():
         reviewer_verdicts=_verdicts(GROK, GEMINI),
         reviewer_envelope_sha256s=_sha(GROK, GEMINI),
     )
-    assert any("implementer" in r.reason and "family" in r.reason
-               for r in refusals)
+    assert any("implementer" in r.reason and "family" in r.reason for r in refusals)
 
 
 def test_non_accept_verdict_refuses():
@@ -138,6 +137,7 @@ def test_verdict_count_mismatch_refuses():
 
 
 # ── happy path: dual ACCEPT emits a token ───────────────────────────────
+
 
 def test_dual_accept_emits_token(monkeypatch):
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-cfr-1")
@@ -178,21 +178,31 @@ def test_token_is_revocable_on_state_change(monkeypatch):
 
 # ── CLI pin ─────────────────────────────────────────────────────────────
 
+
 def test_cli_refuses_unknown_family(tmp_path, monkeypatch):
     monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "k-cli-cfr")
     out = tmp_path / "token.json"
     p = subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "cross_family_review.py"),
-            "--implementer-model-id", IMPLEMENTER,
-            "--reviewer-models", f"{GROK},unknown-xyz",
-            "--reviewers-verdicts-json", json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
-            "--reviewers-envelope-sha256s-json", json.dumps(_sha(GROK, "unknown-xyz")),
-            "--chunk-id", "5b",
-            "--chunk-commit-sha", "f" * 40,
-            "--out", str(out),
+            sys.executable,
+            str(_REPO / "tools" / "cross_family_review.py"),
+            "--implementer-model-id",
+            IMPLEMENTER,
+            "--reviewer-models",
+            f"{GROK},unknown-xyz",
+            "--reviewers-verdicts-json",
+            json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
+            "--reviewers-envelope-sha256s-json",
+            json.dumps(_sha(GROK, "unknown-xyz")),
+            "--chunk-id",
+            "5b",
+            "--chunk-commit-sha",
+            "f" * 40,
+            "--out",
+            str(out),
         ],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert p.returncode == 6, p.stdout + p.stderr
     assert "family=unknown" in p.stderr
@@ -204,32 +214,46 @@ def test_cli_emits_token_on_dual_accept(tmp_path, monkeypatch):
     out = tmp_path / "token.json"
     p = subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "cross_family_review.py"),
-            "--implementer-model-id", IMPLEMENTER,
-            "--reviewer-models", f"{GROK},{GEMINI}",
-            "--reviewers-verdicts-json", json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
-            "--reviewers-envelope-sha256s-json", json.dumps(_sha(GROK, GEMINI)),
-            "--chunk-id", "5b",
-            "--chunk-commit-sha", "f" * 40,
-            "--out", str(out),
+            sys.executable,
+            str(_REPO / "tools" / "cross_family_review.py"),
+            "--implementer-model-id",
+            IMPLEMENTER,
+            "--reviewer-models",
+            f"{GROK},{GEMINI}",
+            "--reviewers-verdicts-json",
+            json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
+            "--reviewers-envelope-sha256s-json",
+            json.dumps(_sha(GROK, GEMINI)),
+            "--chunk-id",
+            "5b",
+            "--chunk-commit-sha",
+            "f" * 40,
+            "--out",
+            str(out),
         ],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert p.returncode == 0, p.stdout + p.stderr
     assert out.exists()
     # Token HMAC-verifies
     pv = subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "sign_chunk_token.py"),
-            "verify", "--token-path", str(out),
+            sys.executable,
+            str(_REPO / "tools" / "sign_chunk_token.py"),
+            "verify",
+            "--token-path",
+            str(out),
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY": "k-cli-cfr"},
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert pv.returncode == 0, pv.stdout + pv.stderr
 
 
 # ── KN-A-5: placeholder-envelope pins (design-doc §10) ───────────────
+
 
 def test_envelope_is_placeholder_detects_homogeneous_leading_run():
     """A real sha256 is hashlib.sha256 over raw model output; the
@@ -269,6 +293,7 @@ def test_envelope_is_placeholder_accepts_uniform_sha():
     assert cfr.envelope_is_placeholder(sample) is False
     # Real sha256: hashlib.sha256(b"sample").hexdigest() prefix.
     import hashlib
+
     sha = hashlib.sha256(b"sample").hexdigest()
     assert cfr.envelope_is_placeholder(sha) is False
 
@@ -299,9 +324,8 @@ def test_real_envelope_sha_passes_panel_check(tmp_path):
     gate; only manifest leftovers are caught.
     """
     import hashlib
-    fake_envelope = (
-        b'{"model_id":"grok-4.5","result_text":"VERDICT: ACCEPT-WITH-NITS"}'
-    )
+
+    fake_envelope = b'{"model_id":"grok-4.5","result_text":"VERDICT: ACCEPT-WITH-NITS"}'
     real_sha = hashlib.sha256(fake_envelope).hexdigest()
     refusals = cfr.check_reviewer_panel(
         implementer_model_id=IMPLEMENTER,
@@ -323,19 +347,27 @@ def test_cli_refuses_placeholder_envelope(tmp_path, monkeypatch):
     out = tmp_path / "token.json"
     p = subprocess.run(
         [
-            sys.executable, str(_REPO / "tools" / "cross_family_review.py"),
-            "--implementer-model-id", IMPLEMENTER,
-            "--reviewer-models", f"{GROK},{GEMINI}",
-            "--reviewers-verdicts-json", json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
+            sys.executable,
+            str(_REPO / "tools" / "cross_family_review.py"),
+            "--implementer-model-id",
+            IMPLEMENTER,
+            "--reviewer-models",
+            f"{GROK},{GEMINI}",
+            "--reviewers-verdicts-json",
+            json.dumps(["ACCEPT-WITH-NITS", "ACCEPT-WITH-NITS"]),
             # NB: deliberately typed exactly the kind of fixture marker
             # I'd ship if I tried to bypass the gate anonymously.
             "--reviewers-envelope-sha256s-json",
             json.dumps(["5" * 60 + "01", _envelope(GEMINI)]),
-            "--chunk-id", "5b",
-            "--chunk-commit-sha", "f" * 40,
-            "--out", str(out),
+            "--chunk-id",
+            "5b",
+            "--chunk-commit-sha",
+            "f" * 40,
+            "--out",
+            str(out),
         ],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert p.returncode == 6, p.stdout + p.stderr
     assert "fixture marker" in p.stderr

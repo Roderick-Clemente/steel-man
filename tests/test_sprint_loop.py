@@ -8,6 +8,7 @@ integration.
 Exit criteria for Chunk 1 (per phase-4.5/PLAN.md): all tests pass and
 ``python3 -m pytest`` exits 0 with no regressions.
 """
+
 from __future__ import annotations
 
 import json
@@ -16,7 +17,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-import sys
 
 # Make tools/ importable so ``sprint_loop.*`` resolves when pytest runs
 # from the repo root.
@@ -24,30 +24,26 @@ _TOOLS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 if _TOOLS not in sys.path:
     sys.path.insert(0, _TOOLS)
 
-import pytest
-
-from sprint_loop.config import Config, MODEL_FAMILY_MAP, build_config
-from sprint_loop.state import (
+import pytest  # noqa: E402
+from sprint_loop.config import MODEL_FAMILY_MAP, Config, build_config  # noqa: E402
+from sprint_loop.state import (  # noqa: E402
     DEFAULT_ENABLED_TOOLS,
+    SEPARATION_BINDING_ROLES,
     ChunkState,
     ChunkStatus,
-    FamilyGuardOutcome,
     Finding,
     GateDecision,
-    ReconcileDecision,
     Role,
     RoleAssignment,
     RunState,
     RunStatus,
-    SEPARATION_BINDING_ROLES,
     check_family_separation,
-    hash_text,
     now_iso,
     validate_run_id,
 )
 
-
 # ── state primitives ─────────────────────────────────────────────────────
+
 
 def test_role_enum_strings_are_stable_contract():
     # If you change these values, you break the telemetry schema.
@@ -86,6 +82,7 @@ def test_default_enabled_tools_per_role_are_distinct():
 
 # ── family guard ─────────────────────────────────────────────────────────
 
+
 def _mk(role: Role, model: str, family: str, provider: str = "x") -> RoleAssignment:
     return RoleAssignment(
         role=role, pinned_model_id=model, pinned_family=family, pinned_provider=provider
@@ -96,7 +93,9 @@ def test_family_guard_passes_for_separated_panel():
     assignments = [
         _mk(Role.PLANNER, "claude-opus-5", "claude-family"),
         _mk(Role.PLAN_REVIEWER, "grok-4.5", "grok-family"),
-        _mk(Role.TEST_DESIGNER, "claude-opus-5", "claude-family"),  # ok, planner is claude but executor isn't
+        _mk(
+            Role.TEST_DESIGNER, "claude-opus-5", "claude-family"
+        ),  # ok, planner is claude but executor isn't
         _mk(Role.EXECUTOR, "gpt-5.4-mini", "openai-family"),
         _mk(Role.VALIDATOR, "grok-4.5", "grok-family"),
         _mk(Role.VALIDATOR, "gemini-3.1-pro-preview", "gemini-family"),
@@ -106,6 +105,7 @@ def test_family_guard_passes_for_separated_panel():
 
 
 # ── panel-finding regression tests (chunk 10) ───────────────────────────
+
 
 def test_family_guard_catches_planner_reviewer1_collision_only_f1():
     """Panel-finding F-1 regression.
@@ -120,7 +120,7 @@ def test_family_guard_catches_planner_reviewer1_collision_only_f1():
     assignments = [
         _mk(Role.PLANNER, "claude-opus-5", "claude-family"),
         _mk(Role.PLAN_REVIEWER, "claude-opus-5", "claude-family"),  # collides
-        _mk(Role.PLAN_REVIEWER, "grok-4.5", "grok-family"),         # does NOT
+        _mk(Role.PLAN_REVIEWER, "grok-4.5", "grok-family"),  # does NOT
         _mk(Role.TEST_DESIGNER, "gemini-3.1-pro-preview", "gemini-family"),
         _mk(Role.EXECUTOR, "gpt-5.4-mini", "openai-family"),
         _mk(Role.VALIDATOR, "grok-4.5", "grok-family"),
@@ -128,11 +128,9 @@ def test_family_guard_catches_planner_reviewer1_collision_only_f1():
     ]
     out = check_family_separation(*assignments)
     assert not out.ok, (
-        f"F-1 regression FAILED: silent overwrite of reviewer 1; "
-        f"violations: {out.violations}"
+        f"F-1 regression FAILED: silent overwrite of reviewer 1; violations: {out.violations}"
     )
-    assert any("planner family 'claude-family' == plan_reviewer" in v
-               for v in out.violations)
+    assert any("planner family 'claude-family' == plan_reviewer" in v for v in out.violations)
 
 
 def test_family_guard_catches_planner_reviewer_collision():
@@ -147,8 +145,7 @@ def test_family_guard_catches_planner_reviewer_collision():
     ]
     out = check_family_separation(*assignments)
     assert not out.ok
-    assert any("planner family 'claude-family' == plan_reviewer" in v
-               for v in out.violations)
+    assert any("planner family 'claude-family' == plan_reviewer" in v for v in out.violations)
 
 
 def test_family_guard_catches_test_designer_executor_collision():
@@ -162,7 +159,9 @@ def test_family_guard_catches_test_designer_executor_collision():
     ]
     out = check_family_separation(*assignments)
     assert not out.ok
-    assert any("test_designer family 'openai-family' == executor family" in v for v in out.violations)
+    assert any(
+        "test_designer family 'openai-family' == executor family" in v for v in out.violations
+    )
 
 
 def test_family_guard_catches_validator_executor_collision():
@@ -204,12 +203,13 @@ def test_family_guard_test_designer_collide_allowed_with_override():
     out_default = check_family_separation(*assignments)
     assert not out_default.ok
     out_override = check_family_separation(*assignments, allow_test_author_collide=True)
-    assert out_override.ok, f"override should silence only that one rule, got {out_override.violations}"
+    assert out_override.ok, (
+        f"override should silence only that one rule, got {out_override.violations}"
+    )
 
 
 def test_family_guard_known_model_lookups():
     # Sanity: the curated family map actually contains the standing picks.
-    from sprint_loop.config import MODEL_FAMILY_MAP
     assert MODEL_FAMILY_MAP["grok-4.5"] == ("xai", "grok-family")
     assert MODEL_FAMILY_MAP["gemini-3.1-pro-preview"] == ("google", "gemini-family")
     assert MODEL_FAMILY_MAP["gpt-5.4-mini"] == ("openai", "openai-family")
@@ -248,6 +248,7 @@ def test_family_guard_unknown_model_fails_separation():
 
 # ── retry math + chunk state ─────────────────────────────────────────────
 
+
 def test_chunk_state_retry_count_increments_are_deterministic():
     cs = ChunkState(chunk_id="c1", scope="simple chunk")
     assert cs.status == ChunkStatus.PENDING
@@ -265,22 +266,41 @@ def test_runstate_serialises_and_restores_role_assignments():
         framework_root="/tmp/fw",
         pilot_root="/tmp/pilot",
         pilot_python="/tmp/pilot/.venv/bin/python",
-        planner=RoleAssignment(role=Role.PLANNER, pinned_model_id="claude-opus-5",
-                               pinned_family="claude-family", pinned_provider="anthropic"),
-        plan_reviewer=RoleAssignment(role=Role.PLAN_REVIEWER, pinned_model_id="grok-4.5",
-                                     pinned_family="grok-family", pinned_provider="xai"),
-        executor=RoleAssignment(role=Role.EXECUTOR, pinned_model_id="gpt-5.4-mini",
-                                pinned_family="openai-family", pinned_provider="openai"),
+        planner=RoleAssignment(
+            role=Role.PLANNER,
+            pinned_model_id="claude-opus-5",
+            pinned_family="claude-family",
+            pinned_provider="anthropic",
+        ),
+        plan_reviewer=RoleAssignment(
+            role=Role.PLAN_REVIEWER,
+            pinned_model_id="grok-4.5",
+            pinned_family="grok-family",
+            pinned_provider="xai",
+        ),
+        executor=RoleAssignment(
+            role=Role.EXECUTOR,
+            pinned_model_id="gpt-5.4-mini",
+            pinned_family="openai-family",
+            pinned_provider="openai",
+        ),
         validators=[
-            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="grok-4.5",
-                           pinned_family="grok-family", pinned_provider="xai"),
-            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="gemini-3.1-pro-preview",
-                           pinned_family="gemini-family", pinned_provider="google"),
+            RoleAssignment(
+                role=Role.VALIDATOR,
+                pinned_model_id="grok-4.5",
+                pinned_family="grok-family",
+                pinned_provider="xai",
+            ),
+            RoleAssignment(
+                role=Role.VALIDATOR,
+                pinned_model_id="gemini-3.1-pro-preview",
+                pinned_family="gemini-family",
+                pinned_provider="google",
+            ),
         ],
         status=RunStatus.PLANNING,
         chunks=[
-            ChunkState(chunk_id="c1", scope="add /llms.txt handler",
-                       status=ChunkStatus.PENDING),
+            ChunkState(chunk_id="c1", scope="add /llms.txt handler", status=ChunkStatus.PENDING),
         ],
     )
     serialised = rs.to_json()
@@ -343,12 +363,17 @@ def test_build_config_from_json_only(tmp_path):
 def test_build_config_cli_overrides_json(tmp_path):
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(_example_config_dict()))
-    cfg = build_config([
-        "--config", str(cfg_path),
-        "--executor-model", "claude-opus-5",
-        "--dry-run",
-        "--max-review-rounds", "3",
-    ])
+    cfg = build_config(
+        [
+            "--config",
+            str(cfg_path),
+            "--executor-model",
+            "claude-opus-5",
+            "--dry-run",
+            "--max-review-rounds",
+            "3",
+        ]
+    )
     assert cfg.executor_model == "claude-opus-5"
     assert cfg.dry_run is True
     assert cfg.max_review_rounds == 3
@@ -361,11 +386,15 @@ def test_build_config_validates_missing_framework_root():
 
 def test_build_config_validates_missing_pilot(tmp_path):
     cfg_path = tmp_path / "cfg.json"
-    cfg_path.write_text(json.dumps({
-        "framework_root": REPO_ROOT,
-        "pilot_root": "/nonexistent/pilot",
-        "validators": ["grok-4.5"],
-    }))
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "framework_root": REPO_ROOT,
+                "pilot_root": "/nonexistent/pilot",
+                "validators": ["grok-4.5"],
+            }
+        )
+    )
     # Config does not (yet) check disk existence of pilot; the per-chunk
     # subprocess is what would actually fail there. We just assert the
     # config builds — the runner surfaces the real failure later.
@@ -389,7 +418,7 @@ def test_build_config_warns_on_unknown_json_keys(tmp_path, capsys):
     payload = _example_config_dict()
     payload["definitely_unknown_key"] = "should-warn"
     cfg_path.write_text(json.dumps(payload))
-    cfg = build_config(["--config", str(cfg_path)])
+    build_config(["--config", str(cfg_path)])
     captured = capsys.readouterr()
     assert "definitely_unknown_key" in captured.err
     assert "unknown keys (ignored)" in captured.err
@@ -399,10 +428,14 @@ def test_validators_flag_splits_and_trims_the_panel(tmp_path):
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(_example_config_dict()))
 
-    cfg = build_config([
-        "--config", str(cfg_path),
-        "--validators", " grok-4.5 , gemini-3.1-pro-preview ,claude-opus-5 ",
-    ])
+    cfg = build_config(
+        [
+            "--config",
+            str(cfg_path),
+            "--validators",
+            " grok-4.5 , gemini-3.1-pro-preview ,claude-opus-5 ",
+        ]
+    )
 
     assert cfg.validators == ["grok-4.5", "gemini-3.1-pro-preview", "claude-opus-5"]
 
@@ -453,9 +486,13 @@ def test_role_assignments_materialise_from_config():
         validators=["grok-4.5", "gemini-3.1-pro-preview"],
     )
     assignments = cfg.to_role_assignments()
-    by_role_count: dict[Role, int] = {Role.PLANNER: 0, Role.PLAN_REVIEWER: 0,
-                                      Role.TEST_DESIGNER: 0, Role.EXECUTOR: 0,
-                                      Role.VALIDATOR: 0}
+    by_role_count: dict[Role, int] = {
+        Role.PLANNER: 0,
+        Role.PLAN_REVIEWER: 0,
+        Role.TEST_DESIGNER: 0,
+        Role.EXECUTOR: 0,
+        Role.VALIDATOR: 0,
+    }
     for a in assignments:
         by_role_count[a.role] = by_role_count.get(a.role, 0) + 1
     assert by_role_count[Role.PLANNER] == 1
@@ -467,11 +504,13 @@ def test_role_assignments_materialise_from_config():
 
 # ── droid wrapper + backends (Chunk 2) ───────────────────────────────────
 
+
 def test_invoke_options_default_skip_run_with_model_disallowed_in_production():
     """The wrapper is mandatory per OPERATING-RULES §14; the only way to
     skip it is the test-only ``skip_run_with_model`` flag. Verify the
     field exists and default is False."""
     from sprint_loop.droid import InvokeOptions
+
     opts = InvokeOptions(model_id="grok-4.5", prompt_file="/tmp/x.md")
     assert opts.skip_run_with_model is False
     assert opts.model_id == "grok-4.5"
@@ -480,6 +519,7 @@ def test_invoke_options_default_skip_run_with_model_disallowed_in_production():
 def test_droid_dry_run_writes_synthetic_envelope(tmp_path):
     from sprint_loop.droid import InvokeOptions, invoke_droid
     from sprint_loop.state import Role
+
     envelope_path = tmp_path / "envelope.json"
     stderr_path = tmp_path / "stderr.log"
     options = InvokeOptions(
@@ -524,8 +564,9 @@ def _fake_live_envelope(model_id: str, provider_lock: str) -> dict[str, object]:
     }
 
 
-def _invoke_live_record(monkeypatch, tmp_path, *, model_id: str,
-                        provider_lock: str, role: Role = Role.EXECUTOR):
+def _invoke_live_record(
+    monkeypatch, tmp_path, *, model_id: str, provider_lock: str, role: Role = Role.EXECUTOR
+):
     from sprint_loop import droid as droid_mod
 
     monkeypatch.setattr(
@@ -589,7 +630,9 @@ def test_droid_live_record_preserves_curated_family_label(tmp_path, monkeypatch)
     assert row["provider"] != row["family"]
 
 
-def test_post_resolution_recheck_refuses_same_family_collision_from_live_record(tmp_path, monkeypatch):
+def test_post_resolution_recheck_refuses_same_family_collision_from_live_record(
+    tmp_path, monkeypatch
+):
     mod = _load_sprint_loop_module()
     cfg = Config(fail_closed=True)
     rs = _post_resolution_guard_state()
@@ -708,14 +751,18 @@ def test_chunk_loop_refuses_after_executor_family_collision(tmp_path, monkeypatc
     assert exc.value.code == 2
     captured = capsys.readouterr()
     assert "after-executor" in captured.err
-    assert "validator 'gpt-5.4-mini' family 'openai-family' == executor family 'openai-family'" in captured.err
+    assert (
+        "validator 'gpt-5.4-mini' family 'openai-family' == executor family 'openai-family'"
+        in captured.err
+    )
     assert observed["verify_green"] == 0
     assert observed["run_validators"] == 0
 
 
 def test_backends_local_dry_run_returns_accept(tmp_path):
-    from sprint_loop.backends import LocalBackend, BackendResult
+    from sprint_loop.backends import LocalBackend
     from sprint_loop.state import GateDecision
+
     backend = LocalBackend(dry_run=True)
     chunk = {
         "test_file": "test/test_x.py",
@@ -746,6 +793,7 @@ def test_backends_local_dry_run_returns_accept(tmp_path):
 
 def test_backends_local_refuses_missing_orchestrator(tmp_path, monkeypatch):
     from sprint_loop.backends import LocalBackend
+
     backend = LocalBackend(dry_run=False)
     # Force a framework_root that doesn't contain orchestrate-review.py
     res = backend.validate(
@@ -765,6 +813,7 @@ def test_backends_local_refuses_missing_orchestrator(tmp_path, monkeypatch):
 
 def test_backends_local_refuses_missing_chunk_keys(tmp_path):
     from sprint_loop.backends import LocalBackend
+
     backend = LocalBackend(dry_run=False)
     res = backend.validate(
         chunk={},
@@ -783,6 +832,7 @@ def test_backends_local_refuses_missing_chunk_keys(tmp_path):
 
 def test_backends_ci_stub_raises_with_actionable_message():
     from sprint_loop.backends import CIBackend
+
     backend = CIBackend()
     with pytest.raises(NotImplementedError) as exc:
         backend.validate(
@@ -802,6 +852,7 @@ def test_backends_ci_stub_raises_with_actionable_message():
 
 def test_backends_build_factory_rejects_unknown():
     from sprint_loop.backends import build_backend
+
     with pytest.raises(ValueError):
         build_backend("totally-fake")
     # Known names succeed
@@ -811,19 +862,21 @@ def test_backends_build_factory_rejects_unknown():
 
 def test_backends_name_constants_are_stable():
     # Used by Config + CLI flag; do not rename without bumping schema.
-    from sprint_loop.backends import LocalBackend, CIBackend
+    from sprint_loop.backends import CIBackend, LocalBackend
+
     assert LocalBackend.name == "local"
     assert CIBackend.name == "ci"
 
 
 # ── prompt templates + renderer (Chunk 3) ────────────────────────────────
 
+
 def test_prompt_templates_exist_for_all_five_roles():
     from sprint_loop.prompts.render import list_role_prompts
+
     roles = list_role_prompts()
     expected = {"planner", "plan-reviewer", "test-designer", "executor", "validator"}
-    assert expected.issubset(set(roles)), \
-        f"missing roles: {expected - set(roles)}; have: {roles}"
+    assert expected.issubset(set(roles)), f"missing roles: {expected - set(roles)}; have: {roles}"
 
 
 @pytest.mark.parametrize("role", ["executor", "test-designer"])
@@ -852,13 +905,11 @@ def test_role_prompts_never_embed_the_implementation(tmp_path, role):
 
 
 def test_prompt_renderer_substitutes_variables(tmp_path):
-    from sprint_loop.prompts.render import render, render_to_file
+    from sprint_loop.prompts.render import render
+
     template = tmp_path / "tmpl.md"
     template.write_text(
-        "# hello\n"
-        "model={{model_id}}\n"
-        "branch={{branch}}\n"
-        "missing={{not_in_context}}\n"
+        "# hello\nmodel={{model_id}}\nbranch={{branch}}\nmissing={{not_in_context}}\n"
     )
     out = render(str(template), {"model_id": "grok-4.5", "branch": "main"})
     # Confirmed substitutions
@@ -870,6 +921,7 @@ def test_prompt_renderer_substitutes_variables(tmp_path):
 
 def test_prompt_renderer_to_file(tmp_path):
     from sprint_loop.prompts.render import render_to_file
+
     out_path = render_to_file(
         "planner",
         {
@@ -886,6 +938,7 @@ def test_prompt_renderer_to_file(tmp_path):
 
 def test_prompt_renderer_rejects_missing_template(tmp_path):
     from sprint_loop.prompts.render import render
+
     with pytest.raises(FileNotFoundError):
         render(str(tmp_path / "no-such.md"), {})
 
@@ -896,8 +949,9 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
     common 'I forgot to template a key' defect — the rendered output
     must contain NO unresolved placeholders.
     """
-    from sprint_loop.prompts.render import render_to_file, _PROMPT_DIR
     import re
+
+    from sprint_loop.prompts.render import render_to_file
 
     # Minimal context: every key the templates reference. If a role
     # adds a new `{{key}}` and this test is not updated, the test
@@ -933,9 +987,11 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
 
 # ── per_chunk inner loop (Chunk 4) ──────────────────────────────────────
 
+
 def test_validate_red_dry_run_returns_valid_envelope(tmp_path):
     from sprint_loop.per_chunk import validate_red
     from sprint_loop.state import ChunkState
+
     chunk = ChunkState(
         chunk_id="c1",
         scope="add /llms.txt route",
@@ -956,6 +1012,7 @@ def test_validate_red_dry_run_returns_valid_envelope(tmp_path):
 def test_produce_evidence_dry_run_roundtrip(tmp_path):
     from sprint_loop.per_chunk import produce_evidence
     from sprint_loop.state import ChunkState
+
     chunk = ChunkState(
         chunk_id="c1",
         scope="add /llms.txt route",
@@ -982,6 +1039,7 @@ def test_produce_evidence_dry_run_roundtrip(tmp_path):
 def test_verify_green_dry_run_returns_true(tmp_path):
     from sprint_loop.per_chunk import verify_green
     from sprint_loop.state import ChunkState
+
     chunk = ChunkState(
         chunk_id="c1",
         scope="x",
@@ -1001,7 +1059,8 @@ def test_verify_green_dry_run_returns_true(tmp_path):
 
 def test_render_test_designer_prompt_substitutes(tmp_path):
     from sprint_loop.per_chunk import render_test_designer_prompt
-    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role
+    from sprint_loop.state import ChunkState, RunState
+
     chunk = ChunkState(
         chunk_id="c1",
         scope="add /llms.txt route that returns Quantum Bank content",
@@ -1009,12 +1068,15 @@ def test_render_test_designer_prompt_substitutes(tmp_path):
         observable_criteria=["GET /llms.txt returns 200", "body contains 'Quantum Bank'"],
     )
     rs = RunState(
-        run_id="r-test", started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw",
+        pilot_root="/tmp/pilot",
         pilot_python="/usr/bin/python3",
     )
-    out = render_test_designer_prompt(chunk, rs, pilot_spec_text="ignored",
-                                       output_path=str(tmp_path / "td.md"))
+    out = render_test_designer_prompt(
+        chunk, rs, pilot_spec_text="ignored", output_path=str(tmp_path / "td.md")
+    )
     assert os.path.isfile(out)
     text = open(out).read()
     assert "c1" in text  # chunk_id rendered
@@ -1024,6 +1086,7 @@ def test_render_test_designer_prompt_substitutes(tmp_path):
 def test_render_executor_prompt_substitutes(tmp_path):
     from sprint_loop.per_chunk import render_executor_prompt
     from sprint_loop.state import ChunkState, RunState
+
     chunk = ChunkState(
         chunk_id="c2",
         scope="add chunk handler that returns contract keys",
@@ -1032,8 +1095,10 @@ def test_render_executor_prompt_substitutes(tmp_path):
         commands=["pytest test/test_profile_model.py -v"],
     )
     rs = RunState(
-        run_id="r-test", started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw",
+        pilot_root="/tmp/pilot",
         pilot_python="/usr/bin/python3",
     )
     out = render_executor_prompt(chunk, rs, output_path=str(tmp_path / "ex.md"))
@@ -1044,15 +1109,19 @@ def test_render_executor_prompt_substitutes(tmp_path):
 
 def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
     from sprint_loop.per_chunk import invoke_executor, render_executor_prompt
-    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role
+    from sprint_loop.state import ChunkState, Role, RoleAssignment, RunState
+
     chunk = ChunkState(
-        chunk_id="c1", scope="add chunk",
+        chunk_id="c1",
+        scope="add chunk",
         locked_test_files=["test/test_x.py"],
         commands=["pytest test/test_x.py -v"],
     )
     rs = RunState(
-        run_id="r-test", started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp/fw", pilot_root="/tmp/pilot",
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw",
+        pilot_root="/tmp/pilot",
         pilot_python="/usr/bin/python3",
         executor=RoleAssignment(
             role=Role.EXECUTOR,
@@ -1067,7 +1136,8 @@ def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
     env_dir.mkdir(parents=True)
     rendered = render_executor_prompt(chunk, rs, output_path=str(tmp_path / "ex.md"))
     rec = invoke_executor(
-        chunk, rs,
+        chunk,
+        rs,
         evidence_output_dir=str(env_dir),
         rendered_prompt_path=rendered,
         envelope_path=str(tmp_path / "env" / "executor" / "envelope.json"),
@@ -1082,7 +1152,8 @@ def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
 
 def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
     from sprint_loop.per_chunk import run_validators
-    from sprint_loop.state import ChunkState, RunState, RoleAssignment, Role, GateDecision
+    from sprint_loop.state import ChunkState, GateDecision, Role, RoleAssignment, RunState
+
     chunk = ChunkState(
         chunk_id="c1",
         scope="add /llms.txt",
@@ -1092,23 +1163,33 @@ def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
         evidence_bundle_path=str(tmp_path / "fake-bundle.json"),
     )
     rs = RunState(
-        run_id="r-test", started_at="2026-08-09T00:00:00Z",
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
         framework_root=str(tmp_path / "fw"),
         pilot_root=str(tmp_path / "pilot"),
         pilot_python="/usr/bin/python3",
         validators=[
-            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="grok-4.5",
-                           pinned_family="grok-family", pinned_provider="xai",
-                           enabled_tools="Read,Glob,Grep,LS"),
-            RoleAssignment(role=Role.VALIDATOR, pinned_model_id="gemini-3.1-pro-preview",
-                           pinned_family="gemini-family", pinned_provider="google",
-                           enabled_tools="Read,Glob,Grep,LS"),
+            RoleAssignment(
+                role=Role.VALIDATOR,
+                pinned_model_id="grok-4.5",
+                pinned_family="grok-family",
+                pinned_provider="xai",
+                enabled_tools="Read,Glob,Grep,LS",
+            ),
+            RoleAssignment(
+                role=Role.VALIDATOR,
+                pinned_model_id="gemini-3.1-pro-preview",
+                pinned_family="gemini-family",
+                pinned_provider="google",
+                enabled_tools="Read,Glob,Grep,LS",
+            ),
         ],
     )
     (tmp_path / "fw").mkdir()
     (tmp_path / "pilot").mkdir()
     res = run_validators(
-        chunk, rs,
+        chunk,
+        rs,
         evidence_output_dir=str(tmp_path / "evidence"),
         dry_run=True,
     )
@@ -1120,6 +1201,7 @@ def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
 
 # ── sprint-loop runner end-to-end (Chunk 5) ─────────────────────────────
 
+
 def test_sprint_loop_dry_run_end_to_end(tmp_path):
     """The runner drives planner → 2 plan-reviewers → reconcile →
     chunk → commit across a single chunk, dry-run == no real droid.
@@ -1129,8 +1211,10 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
         "framework_root": str(tmp_path / "fw"),
         "pilot_root": str(tmp_path / "pilot"),
         "pilot_python": "/usr/bin/python3",
-        "validators": ["grok-4.5:xai:grok-family:grok-4.5",
-                        "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview"],
+        "validators": [
+            "grok-4.5:xai:grok-family:grok-4.5",
+            "gemini-3.1-pro-preview:google:gemini-family:gemini-3.1-pro-preview",
+        ],
     }
     cfg_path.write_text(json.dumps(cfg_payload))
     # Bootstrap a fake framework + pilot so the directory-validation passes.
@@ -1143,18 +1227,24 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
     (tmp_path / "fw" / "tools" / "orchestrate-review.py").write_text("# stub")
     (tmp_path / "pilot").mkdir()
     chunks_path = tmp_path / "chunks.json"
-    chunks_path.write_text(json.dumps({
-        "chunks": [{
-            "chunk_id": "c1",
-            "scope": "add /llms.txt route",
-            "observable_criteria": ["GET /llms.txt returns 200"],
-            "allowed_files": ["app.py"],
-            "locked_test_files": ["test/test_x.py"],
-            "commands": ["pytest test/test_x.py -v"],
-            "rollback": "git checkout HEAD -- app.py",
-            "accepted_assertion": "GET /llms.txt returns 200",
-        }],
-    }))
+    chunks_path.write_text(
+        json.dumps(
+            {
+                "chunks": [
+                    {
+                        "chunk_id": "c1",
+                        "scope": "add /llms.txt route",
+                        "observable_criteria": ["GET /llms.txt returns 200"],
+                        "allowed_files": ["app.py"],
+                        "locked_test_files": ["test/test_x.py"],
+                        "commands": ["pytest test/test_x.py -v"],
+                        "rollback": "git checkout HEAD -- app.py",
+                        "accepted_assertion": "GET /llms.txt returns 200",
+                    }
+                ],
+            }
+        )
+    )
     # Also configure a 2nd reviewer so the test exercises both.
     cfg_payload["plan_reviewer_2_model"] = "gemini-3.1-pro-preview"
     cfg_path.write_text(json.dumps(cfg_payload))
@@ -1163,15 +1253,20 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
     # Import directly via runpy so PYTHONPATH is honoured.
     import runpy
     import sys as _sys
-    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools",
-                                "sprint-loop.py")
+
+    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools", "sprint-loop.py")
     runner_path = os.path.abspath(runner_path)
     saved = list(_sys.argv)
     try:
-        _sys.argv = ["sprint-loop.py",
-                     "--config", str(cfg_path),
-                     "--chunks-file", str(chunks_path),
-                     "--dry-run", "--non-interactive"]
+        _sys.argv = [
+            "sprint-loop.py",
+            "--config",
+            str(cfg_path),
+            "--chunks-file",
+            str(chunks_path),
+            "--dry-run",
+            "--non-interactive",
+        ]
         # runpy.run_path executes the module-level code and gives us the
         # module's globals; we then call main().
         ns = runpy.run_path(runner_path, run_name="sprint_loop_runner")
@@ -1180,9 +1275,7 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
         _sys.argv = saved
     assert rc == 0, f"runner exited {rc}"
     # Evidence dir produced
-    evidence_root = (
-        tmp_path / "fw" / "evidence" / "phase-4.5" / "build-evidence"
-    )
+    evidence_root = tmp_path / "fw" / "evidence" / "phase-4.5" / "build-evidence"
     runs = list(evidence_root.glob("r-phase45-*"))
     assert runs, f"no evidence dir under {evidence_root}"
     run_dir = runs[0]
@@ -1217,16 +1310,22 @@ def test_sprint_loop_dry_run_refuses_unknown_validator_family(tmp_path):
     cfg_path.write_text(json.dumps(cfg_payload))
 
     import runpy
-    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools",
-                                "sprint-loop.py")
+
+    runner_path = os.path.join(os.path.dirname(_TOOLS), "tools", "sprint-loop.py")
     runner_path = os.path.abspath(runner_path)
     import sys as _sys
+
     saved = list(_sys.argv)
     try:
-        _sys.argv = ["sprint-loop.py",
-                     "--config", str(cfg_path),
-                     "--dry-run", "--non-interactive",
-                     "--chunks-file", "/tmp/non-existent-blocks-prelaunch.json"]
+        _sys.argv = [
+            "sprint-loop.py",
+            "--config",
+            str(cfg_path),
+            "--dry-run",
+            "--non-interactive",
+            "--chunks-file",
+            "/tmp/non-existent-blocks-prelaunch.json",
+        ]
         ns = runpy.run_path(runner_path, run_name="sprint_loop_runner")
         try:
             rc = ns["main"]()
@@ -1247,38 +1346,58 @@ def test_sprint_loop_dry_run_refuses_unknown_validator_family(tmp_path):
 
 # ── run-with-model.sh refinements (Chunk 1 inline primitive fix) ─────────
 
+
 def test_run_with_model_refuses_mission_by_default():
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     path = os.path.join(repo, "tools", "run-with-model.sh")
     assert os.path.isfile(path), f"missing: {path}"
     env = dict(os.environ, DROID_MODEL_ID="grok-4.5", DROID_ALLOW_MISSION="0")
-    r = subprocess.run(["bash", path, "droid", "exec", "--mission"],
-                       env=env, capture_output=True, text=True)
-    assert r.returncode == 3, f"expected exit 3 (refusing mission); got {r.returncode}; stderr={r.stderr!r}"
+    r = subprocess.run(
+        ["bash", path, "droid", "exec", "--mission"], env=env, capture_output=True, text=True
+    )
+    assert r.returncode == 3, (
+        f"expected exit 3 (refusing mission); got {r.returncode}; stderr={r.stderr!r}"
+    )
     assert "refusing to run" in r.stderr
     assert "GO-NO-GO" in r.stderr
 
 
 def test_run_with_model_allows_mission_with_override():
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     path = os.path.join(repo, "tools", "run-with-model.sh")
     assert os.path.isfile(path)
     env = dict(os.environ, DROID_MODEL_ID="grok-4.5", DROID_ALLOW_MISSION="1")
-    r = subprocess.run(["bash", path, "true"],
-                       env=env, capture_output=True, text=True)
+    r = subprocess.run(["bash", path, "true"], env=env, capture_output=True, text=True)
     # 'true' always succeeds; the wrapper should pass it through.
     assert r.returncode == 0
 
 
 def test_run_with_model_refuses_unset_droid_model_id():
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     path = os.path.join(repo, "tools", "run-with-model.sh")
     assert os.path.isfile(path)
     env = dict(os.environ)
     env.pop("DROID_MODEL_ID", None)
     env.pop("DROID_ALLOW_MISSION", None)
-    r = subprocess.run(["bash", path, "droid", "exec"],
-                       env=env, capture_output=True, text=True)
+    r = subprocess.run(["bash", path, "droid", "exec"], env=env, capture_output=True, text=True)
     assert r.returncode == 2, f"expected exit 2 (refusing unset DROID_MODEL_ID); got {r.returncode}"
     assert "DROID_MODEL_ID is unset" in r.stderr
 
@@ -1287,9 +1406,13 @@ def test_run_with_model_refuses_unset_droid_model_id():
 
 
 def _read_skill_md() -> str:
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     path = os.path.join(repo, "skills", "adversarial-sprint", "SKILL.md")
     assert os.path.isfile(path), f"skill asset missing: {path}"
     return open(path).read()
@@ -1339,9 +1462,13 @@ def test_skill_md_documents_rehydration_for_long_jobs():
 
 def test_skill_md_is_compact_well_under_index_content():
     body = _read_skill_md()
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     full = open(os.path.join(repo, "tools", "OPERATING-RULES.md")).read()
     # Per the design discussion: skill MUST stay lighter than the full
     # text, otherwise there is no point having the index layer.
@@ -1356,11 +1483,16 @@ def test_skill_md_is_compact_well_under_index_content():
 
 def _load_sprint_loop_module():
     """Load sprint-loop.py as a module without running main()."""
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     runner_path = os.path.join(repo, "tools", "sprint-loop.py")
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("sprint_loop_runner", runner_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -1381,19 +1513,27 @@ def test_local_backend_refuses_closed_when_signing_key_unset_f10():
     per-process key (the §7 silent-green shape).
     """
     import importlib
+
     importlib.invalidate_caches()
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     sys.path.insert(0, repo + "/tools")
 
-    from sprint_loop.backends import LocalBackend, GateDecision
+    from sprint_loop.backends import GateDecision, LocalBackend
+
     backend = LocalBackend(dry_run=False)
     env_save = os.environ.pop("EVIDENCE_SIGNING_KEY", None)
     try:
         res = backend.validate(
-            chunk={"test_file": "tests/test_x.py",
-                   "lock_file": "tools/phase-1-locks/test_x.py.lock.json"},
+            chunk={
+                "test_file": "tests/test_x.py",
+                "lock_file": "tools/phase-1-locks/test_x.py.lock.json",
+            },
             evidence_bundle="/tmp/unused.json",
             framework_root=repo,
             pilot_root="/unused",
@@ -1413,13 +1553,16 @@ def test_local_backend_refuses_closed_when_signing_key_unset_f10():
 
 def test_local_backend_dry_run_simulates_accept_regardless_of_key(tmp_path):
     """Sanity: dry-run path still works regardless of env state."""
-    from sprint_loop.backends import LocalBackend, GateDecision
+    from sprint_loop.backends import GateDecision, LocalBackend
+
     backend = LocalBackend(dry_run=True)
     env_save = os.environ.pop("EVIDENCE_SIGNING_KEY", None)
     try:
         res = backend.validate(
-            chunk={"test_file": "tests/test_x.py",
-                   "lock_file": "tools/phase-1-locks/test_x.py.lock.json"},
+            chunk={
+                "test_file": "tests/test_x.py",
+                "lock_file": "tools/phase-1-locks/test_x.py.lock.json",
+            },
             evidence_bundle=str(tmp_path / "unused.json"),
             # Must be per-test, not a shared /tmp root: the backend writes
             # <framework_root>/evidence/phase-4.5/build-evidence/... , so a fixed /tmp
@@ -1444,10 +1587,12 @@ def test_local_backend_dry_run_simulates_accept_regardless_of_key(tmp_path):
 
 def _make_run_state(sha256: str = "abc123") -> RunState:
     """Build a RunState with the minimum required init args."""
-    import datetime
     return RunState(
-        run_id="r-test", started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp/fw", pilot_root="/tmp/pl", pilot_python="/usr/bin/true",
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root="/tmp/fw",
+        pilot_root="/tmp/pl",
+        pilot_python="/usr/bin/true",
     )
 
 
@@ -1472,17 +1617,31 @@ def test_enforce_5_3_preconditions_refuses_open_blocker_high_f7():
     mod = _load_sprint_loop_module()
     rs = _make_run_state(sha256="abc123")
     rs.plan_sha256 = "abc123"
-    rs.plan_reviewer_verdicts = [{
-        "reviewer_index": 1, "verdict": "APPROVE",
-        "plan_sha256_at_time_of_review": "abc123", "model_id": "grok-4.5",
-        "family": "grok-family", "is_error": False, "run_id": "r-test",
-    }]
+    rs.plan_reviewer_verdicts = [
+        {
+            "reviewer_index": 1,
+            "verdict": "APPROVE",
+            "plan_sha256_at_time_of_review": "abc123",
+            "model_id": "grok-4.5",
+            "family": "grok-family",
+            "is_error": False,
+            "run_id": "r-test",
+        }
+    ]
     rs.plan_findings = [
-        Finding(finding_id="F-X", severity="blocker", category="semantic",
-                claim="...", evidence=[], recommended_change="...",
-                source_role="reviewer", source_run_id="r-x",
-                source_model_id="grok-4.5", source_family="grok-family",
-                status="open"),
+        Finding(
+            finding_id="F-X",
+            severity="blocker",
+            category="semantic",
+            claim="...",
+            evidence=[],
+            recommended_change="...",
+            source_role="reviewer",
+            source_run_id="r-x",
+            source_model_id="grok-4.5",
+            source_family="grok-family",
+            status="open",
+        ),
     ]
     try:
         mod._enforce_5_3_preconditions(rs)
@@ -1498,9 +1657,14 @@ def test_enforce_5_3_preconditions_passes_with_bound_approve_and_clean_findings(
     rs = _make_run_state(sha256="abc123")
     rs.plan_sha256 = "abc123"
     rs.plan_reviewer_verdicts = [
-        {"reviewer_index": 1, "verdict": "APPROVE",
-         "plan_sha256_at_time_of_review": "abc123", "model_id": "grok-4.5",
-         "family": "grok-family", "is_error": False, "run_id": "r-test",
+        {
+            "reviewer_index": 1,
+            "verdict": "APPROVE",
+            "plan_sha256_at_time_of_review": "abc123",
+            "model_id": "grok-4.5",
+            "family": "grok-family",
+            "is_error": False,
+            "run_id": "r-test",
         },
     ]
     rs.plan_findings = []  # clean
@@ -1520,11 +1684,12 @@ def test_no_recursion_in_droid_invoke_retry_loop_f8():
     while-loop (not a recursion).
     """
     import inspect
+
     from sprint_loop.droid import invoke_droid
+
     src = inspect.getsource(invoke_droid)
     assert "return invoke_droid(" not in src, (
-        "F-8 regression: invoke_droid still self-recurses — "
-        "unbounded paid retry remains a risk."
+        "F-8 regression: invoke_droid still self-recurses — unbounded paid retry remains a risk."
     )
     assert "attempts += 1" in src
     assert "max_retries" in src
@@ -1558,22 +1723,31 @@ def _read_skill_body(path_relative_to_repo: str) -> str:
     every install path is what we compare against.
     """
     import pathlib
-    repo = pathlib.Path(subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip())
+
+    repo = pathlib.Path(
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     p = repo / path_relative_to_repo
     raw = p.read_text()
-    parts = raw.split('---', 2)
+    parts = raw.split("---", 2)
     assert len(parts) == 3, f"{path_relative_to_repo}: expected YAML frontmatter"
-    return parts[-1].lstrip('\n')
+    return parts[-1].lstrip("\n")
 
 
 def _canonical_body(skill_name: str) -> str:
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     return _read_skill_body(f"skills/{skill_name}/SKILL.md")
 
 
@@ -1594,13 +1768,18 @@ def test_install_paths_resolve_to_canonical_body():
 def test_install_paths_commit_paths_exist():
     """Per-agent install paths must exist on disk (symlink resolves,
     mdc is present)."""
-    for skill, paths in _SKILL_INSTALL_PATHS.items():
+    for _skill, paths in _SKILL_INSTALL_PATHS.items():
         for path in paths:
             import pathlib
-            repo = pathlib.Path(subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=os.path.dirname(_TOOLS),
-            ).decode().strip())
+
+            repo = pathlib.Path(
+                subprocess.check_output(
+                    ["git", "rev-parse", "--show-toplevel"],
+                    cwd=os.path.dirname(_TOOLS),
+                )
+                .decode()
+                .strip()
+            )
             p = repo / path
             assert p.exists(), f"{path} missing (chunk-11 install paths must exist)"
             assert p.is_symlink() or path.endswith(".mdc"), (
@@ -1612,18 +1791,21 @@ def test_skills_have_yml_frontmatter():
     """Both skills ship YAML frontmatter so Factory/Claude/Cursor
     loaders wire to them cleanly (panel-finding F-4)."""
     import pathlib
-    repo = pathlib.Path(subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip())
+
+    repo = pathlib.Path(
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     for skill in ("adversarial-sprint", "sprint-invocation"):
         raw = (repo / f"skills/{skill}/SKILL.md").read_text()
         assert raw.startswith("---"), f"{skill}: missing YAML frontmatter"
         assert "name:" in raw, f"{skill}: missing name:"
         # description: must be present (Cursor's mdc strict schema)
-        assert "description:" or "description: " in raw, (
-            f"{skill}: missing description:"
-        )
+        assert "description:" or "description: " in raw, f"{skill}: missing description:"
 
 
 def test_sprint_invocation_skill_is_small_and_trigger_focused():
@@ -1631,10 +1813,14 @@ def test_sprint_invocation_skill_is_small_and_trigger_focused():
     + flag semantics + 3 example invocations. Keeps low-context-load
     per Cursor/Codex. Pass-r3 H-1: this skill must NOT teach the
     framework-CLI path or the (deleted) examples/ files."""
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     body = open(f"{repo}/skills/sprint-invocation/SKILL.md").read()
     # Chunk-13 bound: skill expanded to teach the overlay (chunk-12)
     # but the spirit is "low-context-load trigger + reference", never
@@ -1665,10 +1851,14 @@ def test_sprint_invocation_skill_is_small_and_trigger_focused():
 def test_skill_distribution_convention_doc_exists():
     """Convention doc that says 'one canonical, four install paths,
     zero body drift' is present + loadable."""
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     p = f"{repo}/tools/conventions/skill-distribution.md"
     assert os.path.isfile(p), f"missing: {p}"
     body = open(p).read()
@@ -1684,19 +1874,19 @@ def test_agents_md_cross_references_skill_canonical():
     """AGENTS.md says 'commits are the baton' for multi-agent handoff;
     chunk-11 adds an explicit cross-ref to the canonical skill so
     operators know where the rules + rehydration live."""
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     body = open(f"{repo}/AGENTS.md").read()
     assert "skills/adversarial-sprint/SKILL.md" in body, (
         "AGENTS.md missing cross-reference to canonical skill asset"
     )
-    assert "skill-distribution.md" in body, (
-        "AGENTS.md missing reference to install convention"
-    )
-
-
+    assert "skill-distribution.md" in body, "AGENTS.md missing reference to install convention"
 
 
 # ── chunk-12a panel-finding regression cluster (pass-r2 G-*) ───────────
@@ -1705,7 +1895,13 @@ def test_agents_md_cross_references_skill_canonical():
 def test_commit_chunk_force_adds_evidence_g10():
     """G-10 regression: commit_chunk_change must use git add -f on
     the gitignored evidence dir."""
-    repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
     src_path = os.path.join(repo, "tools", "sprint-loop.py")
     body = open(src_path).read()
     assert '"add", "-f"' in body, (
@@ -1715,20 +1911,23 @@ def test_commit_chunk_force_adds_evidence_g10():
 
 
 def test_install_skill_sh_cursor_mdc_body_matches_canonical_g6():
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     import pathlib
+
     canonical = pathlib.Path(f"{repo}/skills/adversarial-sprint/SKILL.md").read_text()
     parts = canonical.split("---", 2)
     body_canonical = parts[-1].lstrip("\n")
     actual = pathlib.Path(f"{repo}/.cursor/rules/adversarial-sprint.mdc").read_text()
     parts_actual = actual.split("---", 2)
     body_committed = parts_actual[-1].lstrip("\n")
-    assert body_canonical == body_committed, (
-        f"G-6: committed .mdc body drifted from canonical body"
-    )
+    assert body_canonical == body_committed, "G-6: committed .mdc body drifted from canonical body"
 
 
 def test_unattended_writes_checkpoint_on_refusal_g7():
@@ -1740,9 +1939,11 @@ def test_unattended_writes_checkpoint_on_refusal_g7():
     (sys.argv reading).
     """
     repo_root = os.path.dirname(_TOOLS)
-    from sprint_loop.state import RunState, RunStatus, Role, RoleAssignment
-    from sprint_loop.state import Finding as StateFinding
     import importlib
+
+    from sprint_loop.state import Finding as StateFinding
+    from sprint_loop.state import RunState, RunStatus
+
     sprint_loop = importlib.import_module("sprint-loop")
 
     # Mock RunState with one open blocker|high finding + a bound
@@ -1778,16 +1979,14 @@ def test_unattended_writes_checkpoint_on_refusal_g7():
     with tempfile.TemporaryDirectory() as evidence_dir:
         try:
             sprint_loop.reconcile_human_gate(
-                rs, evidence_dir=evidence_dir, dry_run=False,
-                gate_auto_decide=True, unattended=True)
-            assert False, "unattended refusal should SystemExit"
+                rs, evidence_dir=evidence_dir, dry_run=False, gate_auto_decide=True, unattended=True
+            )
+            raise AssertionError("unattended refusal should SystemExit")
         except SystemExit as e:
             assert e.code in (4, 5), f"unexpected exit code {e.code}"
             # The checkpoint file is the §11 / pass-r3 G-7 contract.
             cp = os.path.join(evidence_dir, "checkpoint.json")
-            assert os.path.isfile(cp), (
-                f"G-7: unattended refusal didn't write checkpoint at {cp}"
-            )
+            assert os.path.isfile(cp), f"G-7: unattended refusal didn't write checkpoint at {cp}"
             data = json.load(open(cp))
             assert data["run_id"] == "r-test-unattended"
 
@@ -1798,9 +1997,11 @@ def test_skip_reconcile_still_enforces_5_3_g8():
     preconditions. The previous source-grep test missed H-2 (the
     cfg.dry_run coercion) and H-14 (sys.argv reading); the
     behavioral test catches them both."""
-    from sprint_loop.state import RunState, RunStatus
-    from sprint_loop.state import Finding as StateFinding
     import importlib
+
+    from sprint_loop.state import Finding as StateFinding
+    from sprint_loop.state import RunState, RunStatus
+
     sprint_loop = importlib.import_module("sprint-loop")
 
     rs = RunState(
@@ -1836,18 +2037,22 @@ def test_skip_reconcile_still_enforces_5_3_g8():
     with tempfile.TemporaryDirectory() as evidence_dir:
         try:
             sprint_loop.reconcile_human_gate(
-                rs, evidence_dir=evidence_dir, dry_run=False,
-                gate_auto_decide=True, unattended=False)
-            assert False, "skip-reconcile refusal should SystemExit"
+                rs,
+                evidence_dir=evidence_dir,
+                dry_run=False,
+                gate_auto_decide=True,
+                unattended=False,
+            )
+            raise AssertionError("skip-reconcile refusal should SystemExit")
         except SystemExit as e:
             assert e.code in (4, 5), f"unexpected exit code {e.code}"
             # --non-interactive refuses WITHOUT checkpoint (operator
             # in the seat has to scope their own retry).
             cp = os.path.join(evidence_dir, "checkpoint.json")
             assert not os.path.exists(cp), (
-                f"G-8 regression: --skip-reconcile (--non-interactive "
-                f"semantics) wrote a checkpoint; expected only "
-                f"--unattended to write one."
+                "G-8 regression: --skip-reconcile (--non-interactive "
+                "semantics) wrote a checkpoint; expected only "
+                "--unattended to write one."
             )
 
 
@@ -1858,43 +2063,51 @@ def test_no_dry_run_coercion_h2_h14():
     constructing a careful case: dry_run=False, gate_auto_decide=True,
     and inspecting rs.dry_run afterwards — it must still be False."""
     import importlib
+
     sprint_loop = importlib.import_module("sprint-loop")
 
     from sprint_loop.state import RunState, RunStatus
+
     rs = RunState(
         run_id="r-h2",
         started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp", pilot_root="/tmp", pilot_python="python3",
+        framework_root="/tmp",
+        pilot_root="/tmp",
+        pilot_python="python3",
     )
     rs.status = RunStatus.AWAITING_RECONCILIATION
     rs.plan_doc_path = "/tmp/p.md"
     rs.plan_sha256 = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
     rs.plan_round = 1
     rs.plan_findings = []
-    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "APPROVE",
-                                  "plan_sha256_at_time_of_review": rs.plan_sha256}]
+    rs.plan_reviewer_verdicts = [
+        {"reviewer_index": 1, "verdict": "APPROVE", "plan_sha256_at_time_of_review": rs.plan_sha256}
+    ]
     with tempfile.TemporaryDirectory() as ed:
         # In live mode (dry_run=False), no --dry-run, with
         # gate_auto_decide=True + §5.3 met, the gate accepts.
         decision = sprint_loop.reconcile_human_gate(
-            rs, evidence_dir=ed, dry_run=False,
-            gate_auto_decide=True, unattended=False)
+            rs, evidence_dir=ed, dry_run=False, gate_auto_decide=True, unattended=False
+        )
     # The decision is ACCEPT, not the dry-run simulated simulator.
     # ReconcileDecision is an Enum so .value gives the string form.
     assert str(decision.value).upper() == "ACCEPT"
     # Critically: rs.dry_run must still be False after the call —
     # --non-interactive must NOT mutate cfg.dry_run to True.
     assert rs.dry_run is False, (
-        "H-2 regression: gate path mutated rs.dry_run (was the "
-        "alias-for-dry-run bug)."
+        "H-2 regression: gate path mutated rs.dry_run (was the alias-for-dry-run bug)."
     )
 
 
 def test_factory_skills_unignored_in_gitignore_g4():
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     gitignore = open(f"{repo}/.gitignore").read()
     assert "!.factory/skills/" in gitignore, (
         "G-4 regression: .gitignore doesn't have !.factory/skills/ "
@@ -1903,17 +2116,19 @@ def test_factory_skills_unignored_in_gitignore_g4():
 
 
 def test_install_skill_sh_runs_without_bound_recursion_g5():
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     script = open(f"{repo}/tools/install-skill.sh").read()
     assert '"$0" "$@" factory claude cursor codex' not in script, (
         "G-5 regression: install-skill.sh has the unbounded recursion shape"
     )
-    assert "sprint-invocation" in script, (
-        "G-5: install-skill.sh has no sprint-invocation support"
-    )
+    assert "sprint-invocation" in script, "G-5: install-skill.sh has no sprint-invocation support"
     assert "SKILLS=(" in script or "for skill in" in script, (
         "G-5: install-skill.sh should iterate skills explicitly"
     )
@@ -1928,10 +2143,15 @@ def test_meta_skill_no_invocation_block_g2():
     Rules digest + index only, no runner-CLI surface.
     """
     import pathlib
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     meta = pathlib.Path(f"{repo}/skills/adversarial-sprint/SKILL.md").read_text()
     # The CLI invocation block was the canonical duplication shape.
     # The post-chunk-12b shape references the overlay (per-pilot
@@ -1949,18 +2169,14 @@ def test_meta_skill_no_invocation_block_g2():
 
 
 def test_runner_help_exposes_unattended():
-    """Pd-pass-r2 G-7: --unattended is in --help (operator-visible).
-    """
+    """Pd-pass-r2 G-7: --unattended is in --help (operator-visible)."""
     out = subprocess.run(
-        [sys.executable,
-         os.path.join(_TOOLS, "sprint-loop.py"),
-         "--help"],
+        [sys.executable, os.path.join(_TOOLS, "sprint-loop.py"), "--help"],
         env={"PYTHONPATH": "tools", "PATH": os.environ["PATH"]},
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
-    assert "--unattended" in out.stdout, (
-        "G-7: --unattended not exposed in --help"
-    )
+    assert "--unattended" in out.stdout, "G-7: --unattended not exposed in --help"
 
 
 def test_run_sprint_overlay_template_exists_g3():
@@ -1970,19 +2186,24 @@ def test_run_sprint_overlay_template_exists_g3():
     the four-path-shape drift (skills, RUN-PROMPT, examples/, framework CLI)
     the panel flagged.
     """
-    import pathlib, stat
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    import pathlib
+
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     overlay = pathlib.Path(f"{repo}/templates/overlay")
-    assert overlay.is_dir(), f"G-3: templates/overlay/ missing"
+    assert overlay.is_dir(), "G-3: templates/overlay/ missing"
     bin_path = overlay / "bin" / "run-sprint"
-    assert bin_path.is_file(), f"G-3: bin/run-sprint missing"
-    assert os.access(str(bin_path), os.X_OK), f"G-3: bin/run-sprint not executable"
+    assert bin_path.is_file(), "G-3: bin/run-sprint missing"
+    assert os.access(str(bin_path), os.X_OK), "G-3: bin/run-sprint not executable"
     # Config template exists with placeholders the operator edits.
     config_tmpl = overlay / "sprint-loop-config.template.json"
-    assert config_tmpl.is_file(), f"G-3: sprint-loop-config.template.json missing"
+    assert config_tmpl.is_file(), "G-3: sprint-loop-config.template.json missing"
     body = config_tmpl.read_text()
     assert "REPLACE-WITH-FRAMEWORK-CHECKOUT-PATH" in body, (
         "G-3: config template missing framework placeholder"
@@ -1995,10 +2216,14 @@ def test_overlay_replaces_examples():
     The examples/ dir should no longer contain the per-pilot config
     samples — they live at templates/overlay/*.template.json now.
     """
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=os.path.dirname(_TOOLS),
-    ).decode().strip()
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(_TOOLS),
+        )
+        .decode()
+        .strip()
+    )
     examples_dir = f"{repo}/examples"
     # examples/ may still exist for other artefacts (legacy); the
     # sprint-loop-config.json samples specifically MUST be gone.
@@ -2032,19 +2257,16 @@ def test_ki3_commit_chunk_skips_commit_when_nothing_staged(monkeypatch, capsys):
     rs = _make_run_state()
     rs.dry_run = False
     rs.output_branch = "factory/sprint-r-test-ki3"  # pre-set: no checkout -b
-    chunk = ChunkState(chunk_id="c1", scope="x",
-                       gate_decision=GateDecision.ACCEPT)
+    chunk = ChunkState(chunk_id="c1", scope="x", gate_decision=GateDecision.ACCEPT)
 
     # evidence dir OUTSIDE _REPO_ROOT — relpath starts with ".."
-    mod.commit_chunk_change(rs, chunk,
-                            evidence_output_dir="/tmp/outside-pilot/evidence",
-                            run_evidence_dir=None)
+    mod.commit_chunk_change(
+        rs, chunk, evidence_output_dir="/tmp/outside-pilot/evidence", run_evidence_dir=None
+    )
 
     committed = [c for c in git_calls if c and c[0] == "commit"]
     added = [c for c in git_calls if c and c[0] == "add"]
-    assert not committed, (
-        f"KI-3 regression: empty audit commit fired anyway: {committed}"
-    )
+    assert not committed, f"KI-3 regression: empty audit commit fired anyway: {committed}"
     assert not added, f"nothing should be staged, got: {added}"
     assert rs.commit_count == 0
     err = capsys.readouterr().err
@@ -2055,11 +2277,13 @@ def test_ki3_commit_chunk_skips_commit_when_nothing_staged(monkeypatch, capsys):
 def _fake_git_with_staged_content(git_calls):
     """fake_git that reports staged content for `diff --cached` so the
     F-7c8d9e clean-index guard sees a dirty index."""
+
     def fake_git(*args, cwd=None):
         git_calls.append(args)
         if args[:2] == ("diff", "--cached"):
             return "evidence/some-staged-file.json"
         return ""
+
     return fake_git
 
 
@@ -2075,21 +2299,17 @@ def test_ki3_commit_chunk_still_commits_when_evidence_inside_root(monkeypatch):
     rs = _make_run_state()
     rs.dry_run = False
     rs.output_branch = "factory/sprint-r-test-ki3"
-    chunk = ChunkState(chunk_id="c1", scope="x",
-                       gate_decision=GateDecision.ACCEPT)
+    chunk = ChunkState(chunk_id="c1", scope="x", gate_decision=GateDecision.ACCEPT)
 
-    inside = os.path.join(mod._REPO_ROOT, "evidence", "phase-4.5",
-                          "build-evidence", "r-test-ki3")
-    mod.commit_chunk_change(rs, chunk, evidence_output_dir=inside,
-                            run_evidence_dir=None)
+    inside = os.path.join(mod._REPO_ROOT, "evidence", "phase-4.5", "build-evidence", "r-test-ki3")
+    mod.commit_chunk_change(rs, chunk, evidence_output_dir=inside, run_evidence_dir=None)
 
     assert any(c and c[0] == "add" for c in git_calls)
     assert any(c and c[0] == "commit" for c in git_calls)
     assert rs.commit_count == 1
 
 
-def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(
-        monkeypatch, tmp_path):
+def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(monkeypatch, tmp_path):
     """Review finding F-1a2b3c: the mixed H-9/H-10 path — evidence dir
     OUTSIDE framework_root but run_evidence_dir INSIDE with a
     checkpoint.json present — must still stage the checkpoint and
@@ -2101,9 +2321,9 @@ def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(
     git_calls: list[tuple] = []
     monkeypatch.setattr(mod, "_git", _fake_git_with_staged_content(git_calls))
 
-    run_evidence_dir = os.path.join(mod._REPO_ROOT, "evidence",
-                                    "phase-4.5", "build-evidence",
-                                    "r-test-ki3-mixed")
+    run_evidence_dir = os.path.join(
+        mod._REPO_ROOT, "evidence", "phase-4.5", "build-evidence", "r-test-ki3-mixed"
+    )
     os.makedirs(run_evidence_dir, exist_ok=True)
     cp = os.path.join(run_evidence_dir, "checkpoint.json")
     try:
@@ -2113,13 +2333,14 @@ def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(
         rs = _make_run_state()
         rs.dry_run = False
         rs.output_branch = "factory/sprint-r-test-ki3"
-        chunk = ChunkState(chunk_id="c1", scope="x",
-                           gate_decision=GateDecision.ACCEPT)
+        chunk = ChunkState(chunk_id="c1", scope="x", gate_decision=GateDecision.ACCEPT)
 
         mod.commit_chunk_change(
-            rs, chunk,
+            rs,
+            chunk,
             evidence_output_dir=str(tmp_path / "outside-evidence"),
-            run_evidence_dir=run_evidence_dir)
+            run_evidence_dir=run_evidence_dir,
+        )
     finally:
         os.remove(cp)
         os.removedirs(run_evidence_dir)
@@ -2132,8 +2353,7 @@ def test_ki3_outside_evidence_inside_checkpoint_still_commits_f_1a2b3c(
     assert rs.commit_count == 1
 
 
-def test_ki3_clean_index_after_add_skips_commit_real_git_f_7c8d9e(
-        monkeypatch, tmp_path, capsys):
+def test_ki3_clean_index_after_add_skips_commit_real_git_f_7c8d9e(monkeypatch, tmp_path, capsys):
     """Review finding F-7c8d9e: stage_paths non-empty but the staged
     paths are byte-identical to HEAD — `git add -f` stages nothing and
     the old unconditional commit crashed with 'nothing to commit'.
@@ -2146,39 +2366,38 @@ def test_ki3_clean_index_after_add_skips_commit_real_git_f_7c8d9e(
     evidence = repo / "evidence" / "r-test"
     evidence.mkdir(parents=True)
     (evidence / "bundle.json").write_text("{}")
-    for args in (("init", "-q"),
-                 ("config", "user.email", "t@t"),
-                 ("config", "user.name", "t"),
-                 ("add", "-A"),
-                 ("commit", "-q", "-m", "seed")):
-        subprocess.run(["git", *args], cwd=str(repo), check=True,
-                       capture_output=True)
+    for args in (
+        ("init", "-q"),
+        ("config", "user.email", "t@t"),
+        ("config", "user.name", "t"),
+        ("add", "-A"),
+        ("commit", "-q", "-m", "seed"),
+    ):
+        subprocess.run(["git", *args], cwd=str(repo), check=True, capture_output=True)
 
     monkeypatch.setattr(mod, "_REPO_ROOT", str(repo))
 
     rs = _make_run_state()
     rs.dry_run = False
     rs.output_branch = "factory/sprint-r-test-ki3"
-    chunk = ChunkState(chunk_id="c1", scope="x",
-                       gate_decision=GateDecision.ACCEPT)
+    chunk = ChunkState(chunk_id="c1", scope="x", gate_decision=GateDecision.ACCEPT)
 
     head_before = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=str(repo),
-        capture_output=True, text=True, check=True).stdout.strip()
+        ["git", "rev-parse", "HEAD"], cwd=str(repo), capture_output=True, text=True, check=True
+    ).stdout.strip()
 
     # evidence dir inside repo but already committed unchanged:
     # add -f stages nothing; must skip, not crash.
-    mod.commit_chunk_change(rs, chunk,
-                            evidence_output_dir=str(evidence),
-                            run_evidence_dir=None)
+    mod.commit_chunk_change(rs, chunk, evidence_output_dir=str(evidence), run_evidence_dir=None)
 
     head_after = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=str(repo),
-        capture_output=True, text=True, check=True).stdout.strip()
+        ["git", "rev-parse", "HEAD"], cwd=str(repo), capture_output=True, text=True, check=True
+    ).stdout.strip()
     assert head_after == head_before, "no commit should have been created"
     assert rs.commit_count == 0
     err = capsys.readouterr().err
     assert "nothing to commit, skipping audit commit" in err
+
 
 # ── KI-4 regression: dropped HIGH plan-review finding ───────────────────
 
@@ -2190,11 +2409,16 @@ def _ki4_fixture_result_text() -> str:
     prose and a `---` rule and quotes a `{{chunk_spec}` template
     literal in an evidence string, which desynced the old
     brace-counting parser."""
-    repo = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
-    ).decode().strip()
-    path = os.path.join(repo, "tools", "fixtures", "ki4-dropped-high",
-                        "plan-reviewer-1-envelope.json")
+    repo = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(_TOOLS)
+        )
+        .decode()
+        .strip()
+    )
+    path = os.path.join(
+        repo, "tools", "fixtures", "ki4-dropped-high", "plan-reviewer-1-envelope.json"
+    )
     assert os.path.isfile(path), f"KI-4 fixture missing: {path}"
     env = json.loads(open(path).read())
     return env["result"]
@@ -2206,14 +2430,11 @@ def test_ki4_all_six_findings_parse_from_real_envelope():
     dropping the only HIGH."""
     mod = _load_sprint_loop_module()
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", _ki4_fixture_result_text(),
-        "r-quantum-404", "grok-4.5", "grok-family", 1)
-    ids = {f.finding_id for f in findings}
-    assert len(findings) == 6, (
-        f"KI-4 regression: expected 6 findings, got {len(findings)}: {ids}"
+        "plan-reviewer-1", _ki4_fixture_result_text(), "r-quantum-404", "grok-4.5", "grok-family", 1
     )
-    assert ids == {"F-3a91c2", "F-8c2e14", "F-b7d401",
-                   "F-51e0aa", "F-c0f3a9", "F-2d9b17"}
+    ids = {f.finding_id for f in findings}
+    assert len(findings) == 6, f"KI-4 regression: expected 6 findings, got {len(findings)}: {ids}"
+    assert ids == {"F-3a91c2", "F-8c2e14", "F-b7d401", "F-51e0aa", "F-c0f3a9", "F-2d9b17"}
 
 
 def test_ki4_dropped_high_finding_is_present_with_high_severity():
@@ -2223,8 +2444,8 @@ def test_ki4_dropped_high_finding_is_present_with_high_severity():
     auto-accepted on 1/2 APPROVE."""
     mod = _load_sprint_loop_module()
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", _ki4_fixture_result_text(),
-        "r-quantum-404", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", _ki4_fixture_result_text(), "r-quantum-404", "grok-4.5", "grok-family", 1
+    )
     high = [f for f in findings if f.finding_id == "F-3a91c2"]
     assert high, "KI-4 regression: F-3a91c2 dropped from the ledger again"
     assert high[0].severity == "high"
@@ -2237,7 +2458,7 @@ def test_ki4_parser_survives_unbalanced_braces_inside_strings():
     parse, and must not swallow the finding that follows it."""
     mod = _load_sprint_loop_module()
     text = (
-        'prose preamble\n\n---\n\n```json\n'
+        "prose preamble\n\n---\n\n```json\n"
         '{"finding_id": "F-aaa111", "severity": "high",'
         ' "category": "operability",'
         ' "claim": "x", "evidence": ["validator receives {{chunk_spec}"],'
@@ -2247,7 +2468,8 @@ def test_ki4_parser_survives_unbalanced_braces_inside_strings():
         ' "evidence": [], "recommended_change": "w"}\n'
     )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     got = {(f.finding_id, f.severity) for f in findings}
     assert got == {("F-aaa111", "high"), ("F-bbb222", "low")}
 
@@ -2265,10 +2487,11 @@ def test_ki4_parser_extracts_findings_from_json_array_f_a1b2c3():
         '{"finding_id": "F-ccc333", "severity": "low",'
         ' "category": "nit", "claim": "b", "evidence": [],'
         ' "recommended_change": "r2"}'
-        ']}'
+        "]}"
     )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     got = {(f.finding_id, f.severity) for f in findings}
     assert got == {("F-bbb222", "high"), ("F-ccc333", "low")}
 
@@ -2288,10 +2511,10 @@ def test_ki4_parser_no_double_count_from_nested_finding_id_f_d4e5f6():
         ' "claim": "inner"}}'
     )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     assert len(findings) == 1, (
-        f"F-d4e5f6: nested duplicate double-counted: "
-        f"{[(f.finding_id, f.claim) for f in findings]}"
+        f"F-d4e5f6: nested duplicate double-counted: {[(f.finding_id, f.claim) for f in findings]}"
     )
     assert findings[0].finding_id == "F-aaa111"
     # First text occurrence wins after nearest-object resolve; here the
@@ -2315,11 +2538,12 @@ def test_ki4_parser_nested_duplicate_child_key_first_keeps_inner_f_c0ffee():
         ' "recommended_change": "r"}'
     )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     assert len(findings) == 1
     assert findings[0].finding_id == "F-aaa111"
     assert findings[0].severity == "high"  # gate input identical
-    assert findings[0].claim == "inner"    # first occurrence in text
+    assert findings[0].claim == "inner"  # first occurrence in text
 
 
 def test_ki4_parser_distinct_nested_ids_both_survive():
@@ -2335,7 +2559,8 @@ def test_ki4_parser_distinct_nested_ids_both_survive():
         ' "claim": "inner"}}'
     )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     got = {(f.finding_id, f.severity) for f in findings}
     assert got == {("F-aaa111", "low"), ("F-bbb222", "high")}
 
@@ -2344,8 +2569,10 @@ def test_ki4_parser_prose_finding_id_without_object_yields_nothing_f_a1b2c3():
     """Review finding F-a1b2c3: a finding_id quoted in prose with no
     enclosing JSON object must not fabricate a ledger row."""
     mod = _load_sprint_loop_module()
-    text = ('the reviewer discussed "finding_id": "F-ddd444" in prose '
-            'without emitting any JSON object')
+    text = (
+        'the reviewer discussed "finding_id": "F-ddd444" in prose without emitting any JSON object'
+    )
     findings = mod._parse_finding_block(
-        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1)
+        "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
+    )
     assert findings == []

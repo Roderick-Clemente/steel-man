@@ -10,6 +10,7 @@ giving it only the spec and the diff).
 Usage:
     python3 tools/render-blind-prompt.py
 """
+
 from __future__ import annotations
 
 import argparse

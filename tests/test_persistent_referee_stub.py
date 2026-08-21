@@ -9,6 +9,7 @@ Each test sets EVIDENCE_SIGNING_KEY_STUB explicitly so the stub's
 signing domain is structurally separate from the build agent's
 EVIDENCE_SIGNING_KEY — per the §22 rule.
 """
+
 import json
 import os
 import re
@@ -23,8 +24,8 @@ _ROOT = _HERE.parent
 sys.path.insert(0, str(_ROOT / "tools"))
 sys.path.insert(0, str(_ROOT / "tools" / "sprint_loop"))
 
-import sign_chunk_token  # noqa: E402
 import persistent_referee_stub as stub  # noqa: E402
+import sign_chunk_token  # noqa: E402
 
 STUB_KEY = "phase4.5-referee-stub-2918bd6-fixed-not-for-prod"
 
@@ -143,7 +144,8 @@ def test_build_signed_token_uses_stub_key_isolates_build_key(tmp_path):
     # Verify with stub key succeeds (same domain — EVIDENCE_SIGNING_KEY_STUB
     # was set by the autouse fixture to STUB_KEY):
     ok = sign_chunk_token.verify_token(
-        payload, signing_key_env="EVIDENCE_SIGNING_KEY_STUB",
+        payload,
+        signing_key_env="EVIDENCE_SIGNING_KEY_STUB",
     )
     assert ok is True
 
@@ -174,17 +176,16 @@ def test_process_request_writes_completion_to_steer(tmp_path):
     payload = json.loads(written)
     assert payload["chunk_id"] == "5b"
     # Verify only with stub key (build-agent key fails — §22 isolation):
-    assert sign_chunk_token.verify_token(
-        payload, signing_key_env="EVIDENCE_SIGNING_KEY_STUB"
-    ) is True
+    assert (
+        sign_chunk_token.verify_token(payload, signing_key_env="EVIDENCE_SIGNING_KEY_STUB") is True
+    )
     assert sign_chunk_token.verify_token(payload) is False
 
 
 def test_process_request_appends_refused_marker_on_missing_path(tmp_path):
     steer = _write_steer(
         tmp_path,
-        "REVIEW REQUEST: chunk=5c commit=" + "c" * 40
-        + " paths=/nonexistent.raw\n",
+        "REVIEW REQUEST: chunk=5c commit=" + "c" * 40 + " paths=/nonexistent.raw\n",
     )
     with pytest.raises(stub.Refusal):
         stub.process_request(
@@ -242,9 +243,12 @@ def test_cli_once_exit_code_zero_on_pending(tmp_path):
             sys.executable,
             str(_ROOT / "tools" / "persistent_referee_stub.py"),
             "--once",
-            "--steer", str(steer),
-            "--token-dir", str(tmp_path / "tokens"),
-            "--reviewer-label", "stub",
+            "--steer",
+            str(steer),
+            "--token-dir",
+            str(tmp_path / "tokens"),
+            "--reviewer-label",
+            "stub",
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY_STUB": STUB_KEY},
         capture_output=True,
@@ -262,7 +266,8 @@ def test_cli_requires_explicit_once_or_poll():
         [
             sys.executable,
             str(_ROOT / "tools" / "persistent_referee_stub.py"),
-            "--steer", "/tmp/whatever",
+            "--steer",
+            "/tmp/whatever",
         ],
         env={**os.environ, "EVIDENCE_SIGNING_KEY_STUB": STUB_KEY},
         capture_output=True,

@@ -9,6 +9,7 @@ Usage:
     python3 phase-1/scripts/verify-green.py --pilot-root <path> \
         --lock-file <path> --test-file <path>
 """
+
 import argparse
 import hashlib
 import json
@@ -101,7 +102,7 @@ def main() -> int:
     print("GREEN ACCEPTED")
     print(f"  test_file: {args.test_file}")
     print(f"  sha256:    {current_sha}")
-    print(f"  pytest:    exit 0")
+    print("  pytest:    exit 0")
     print(f"  assertion: {accepted_assertion}")
     return 0
 

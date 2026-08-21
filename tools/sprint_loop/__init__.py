@@ -21,5 +21,6 @@ The CLI entry point is ``tools/sprint-loop.py`` (a sibling module in the
 The runner is bounded by OPERATING-RULES §17 — refuse unbounded foundation
 programs. One phase, three tracks, no scope creep.
 """
+
 __version__ = "0.1.0"
 __phase__ = "phase-4.5"

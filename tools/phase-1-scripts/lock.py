@@ -9,6 +9,7 @@ The manifest is written to <LOCKS_ROOT>/<test-file>.lock.json, preserving
 any directory separators in the test-file path so a single lock directory
 can hold tests from different pilot-repo subdirectories.
 """
+
 import argparse
 import hashlib
 import json

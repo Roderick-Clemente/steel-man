@@ -37,6 +37,7 @@ Usage:
         [--auto-level high] \
         [--enabled-tools Read,Glob,Grep,LS,Execute]
 """
+
 import argparse
 import datetime
 import json
@@ -66,6 +67,7 @@ def _import_adapter(framework_root: str):
     if tools_dir not in sys.path:
         sys.path.insert(0, tools_dir)
     from adapters.factory import to_envelope
+
     return to_envelope
 
 
@@ -74,6 +76,7 @@ def utcnow_iso() -> str:
 
 
 # ── step 1: produce evidence ─────────────────────────────────────────────
+
 
 def step1_produce_evidence(args) -> dict:
     """Run local_backend.py to produce the evidence bundle."""
@@ -84,12 +87,18 @@ def step1_produce_evidence(args) -> dict:
     cmd = [
         args.pilot_python,
         phase_path(args.framework_root, "evidence-code", "local_backend.py"),
-        "--pilot-root", args.pilot_root,
-        "--framework-root", args.framework_root,
-        "--test-file", args.test_file,
-        "--lock-file", args.lock_file,
-        "--output", args.evidence_output,
-        "--python", args.pilot_python,
+        "--pilot-root",
+        args.pilot_root,
+        "--framework-root",
+        args.framework_root,
+        "--test-file",
+        args.test_file,
+        "--lock-file",
+        args.lock_file,
+        "--output",
+        args.evidence_output,
+        "--python",
+        args.pilot_python,
     ]
     if args.full_suite:
         cmd.append("--full-suite")
@@ -110,14 +119,15 @@ def step1_produce_evidence(args) -> dict:
     bundle = json.load(open(args.evidence_output))
     tests = bundle.get("tests", {})
     print(f"  Bundle: {os.path.getsize(args.evidence_output)} bytes")
-    print(f"  Tests: {tests.get('passed',0)} passed, {tests.get('failed',0)} failed")
-    print(f"  Locked SHA: {bundle.get('change',{}).get('locked_test_sha_observed','NONE')}")
-    print(f"  Green: {tests.get('failed',0) == 0 and tests.get('suite_exit_code',1) == 0}")
+    print(f"  Tests: {tests.get('passed', 0)} passed, {tests.get('failed', 0)} failed")
+    print(f"  Locked SHA: {bundle.get('change', {}).get('locked_test_sha_observed', 'NONE')}")
+    print(f"  Green: {tests.get('failed', 0) == 0 and tests.get('suite_exit_code', 1) == 0}")
 
     return {"ok": True, "bundle": bundle}
 
 
 # ── step 2: run validators ───────────────────────────────────────────────
+
 
 def capture_dirty_paths(framework_root: str) -> set[str]:
     """Capture the set of currently-dirty git paths as a baseline.
@@ -130,7 +140,8 @@ def capture_dirty_paths(framework_root: str) -> set[str]:
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=framework_root,
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     paths = set()
     for line in result.stdout.strip().splitlines():
@@ -152,7 +163,7 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
 
     for v in validators:
         model_id = v["model_id"]
-        provider = v["provider"]
+        v["provider"]
         family = v["family"]
         label = v.get("label", model_id)
 
@@ -167,13 +178,20 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
         prompt_file_abs = os.path.abspath(args.prompt_file)
         cmd = [
             run_with_model,
-            DROID_BIN, "exec",
-            "--model", model_id,
-            "--auto", args.auto_level,
-            "--enabled-tools", args.enabled_tools,
-            "--cwd", args.validator_cwd,
-            "-f", prompt_file_abs,
-            "-o", "json",
+            DROID_BIN,
+            "exec",
+            "--model",
+            model_id,
+            "--auto",
+            args.auto_level,
+            "--enabled-tools",
+            args.enabled_tools,
+            "--cwd",
+            args.validator_cwd,
+            "-f",
+            prompt_file_abs,
+            "-o",
+            "json",
         ]
 
         env = os.environ.copy()
@@ -189,8 +207,11 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
         while True:
             with open(envelope_path, "w") as enf, open(stderr_path, "w") as errf:
                 result = subprocess.run(
-                    cmd, stdout=enf, stderr=errf,
-                    cwd=args.validator_cwd, env=env,
+                    cmd,
+                    stdout=enf,
+                    stderr=errf,
+                    cwd=args.validator_cwd,
+                    env=env,
                     timeout=600,
                 )
 
@@ -206,7 +227,9 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
                 if attempt < max_retries:
                     attempt += 1
                     v["retry_count"] = attempt
-                    print(f"    Retry {attempt}/{max_retries} after {retry_delay}s (unreadable envelope)...")
+                    print(
+                        f"    Retry {attempt}/{max_retries} after {retry_delay}s (unreadable envelope)..."
+                    )
                     time.sleep(retry_delay)
                     continue
                 v["ok"] = False
@@ -226,19 +249,23 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
             v["adapter_family"] = normalized.get("family")
 
             # Check for transient failure: 0 output tokens or is_error
-            is_transient = (v["output_tokens"] == 0 or v["is_error"])
+            is_transient = v["output_tokens"] == 0 or v["is_error"]
 
             if is_transient and attempt < max_retries:
                 attempt += 1
                 v["retry_count"] = attempt
                 reason = "0 output tokens" if v["output_tokens"] == 0 else "is_error=true"
-                print(f"    Transient failure ({reason}), retry {attempt}/{max_retries} after {retry_delay}s...")
+                print(
+                    f"    Transient failure ({reason}), retry {attempt}/{max_retries} after {retry_delay}s..."
+                )
                 time.sleep(retry_delay)
                 continue
 
-            print(f"    turns={v['num_turns']} tokens_in={v['input_tokens']} tokens_out={v['output_tokens']} "
-                  f"cache_read={v['cache_read_tokens']} thinking={v['thinking_tokens']} "
-                  f"error={v['is_error']} retries={v['retry_count']}")
+            print(
+                f"    turns={v['num_turns']} tokens_in={v['input_tokens']} tokens_out={v['output_tokens']} "
+                f"cache_read={v['cache_read_tokens']} thinking={v['thinking_tokens']} "
+                f"error={v['is_error']} retries={v['retry_count']}"
+            )
 
             results.append(v)
             break
@@ -247,6 +274,7 @@ def step2_run_validators(args, validators: list[dict], to_envelope_fn) -> list[d
 
 
 # ── step 3: check stray writes ────────────────────────────────────────────
+
 
 def step3_check_stray_writes(args, validator: dict, baseline: set[str]) -> bool:
     """Check for stray writes after a validator run (KI-2 mitigation).
@@ -282,6 +310,7 @@ def step3_check_stray_writes(args, validator: dict, baseline: set[str]) -> bool:
 
 # ── step 4: parse verdicts ───────────────────────────────────────────────
 
+
 def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
     """Extract the verdict from each validator's result text."""
     print("\n" + "=" * 60)
@@ -289,8 +318,8 @@ def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
     print("=" * 60)
 
     verdict_pattern = re.compile(
-        r'\b(ACCEPT-WITH-NITS|ACCEPT|REJECT_IMPLEMENTATION|REJECT_TEST|REJECT|HUMAN_DECISION)\b',
-        re.IGNORECASE
+        r"\b(ACCEPT-WITH-NITS|ACCEPT|REJECT_IMPLEMENTATION|REJECT_TEST|REJECT|HUMAN_DECISION)\b",
+        re.IGNORECASE,
     )
 
     for v in validators:
@@ -315,6 +344,7 @@ def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
 
 # ── step 5: append telemetry ─────────────────────────────────────────────
 
+
 def step5_append_telemetry(args, validators: list[dict]):
     """Append telemetry rows to runs.jsonl."""
     print("\n" + "=" * 60)
@@ -329,7 +359,9 @@ def step5_append_telemetry(args, validators: list[dict]):
             row = {
                 "schema_version": "v2",
                 "ts": ts,
-                "run_id": f"r-{args.run_label}-{v['label']}" if args.run_label else f"r-phase32-review-{v['label']}",
+                "run_id": f"r-{args.run_label}-{v['label']}"
+                if args.run_label
+                else f"r-phase32-review-{v['label']}",
                 "phase": args.phase,
                 "branch": args.branch,
                 "role": "validator",
@@ -356,12 +388,15 @@ def step5_append_telemetry(args, validators: list[dict]):
             else:
                 row["raw_test_output_tokens"] = args.raw_test_output_tokens or 0
             f.write(json.dumps(row) + "\n")
-            print(f"  Appended: {v['label']} -> {v.get('verdict', 'UNKNOWN')} (retries={v.get('retry_count', 0)})")
+            print(
+                f"  Appended: {v['label']} -> {v.get('verdict', 'UNKNOWN')} (retries={v.get('retry_count', 0)})"
+            )
 
     print(f"  Total rows appended: {len(validators)}")
 
 
 # ── step 6: report gate decision ─────────────────────────────────────────
+
 
 def step6_gate_decision(validators: list[dict]) -> str:
     """Aggregate verdicts and report the gate decision."""
@@ -378,7 +413,9 @@ def step6_gate_decision(validators: list[dict]) -> str:
     strays = [v for v in validators if v.get("stray_writes")]
 
     print(f"  Validators: {len(validators)}")
-    print(f"  ACCEPT: {len(accepts)} | REJECT: {len(rejects)} | HUMAN_DECISION: {len(humans)} | ERROR: {len(errors)} | UNKNOWN: {len(unknowns)}")
+    print(
+        f"  ACCEPT: {len(accepts)} | REJECT: {len(rejects)} | HUMAN_DECISION: {len(humans)} | ERROR: {len(errors)} | UNKNOWN: {len(unknowns)}"
+    )
     if strays:
         print(f"  Stray writes: {len(strays)} (KI-2 violation)")
 
@@ -401,7 +438,9 @@ def step6_gate_decision(validators: list[dict]) -> str:
     elif accepts:
         gate = "ACCEPT"
         nits = len([v for v in verdicts if v == "ACCEPT-WITH-NITS"])
-        reason = f"All {len(accepts)} validator(s) ACCEPT" + (f" ({nits} with nits)" if nits else "")
+        reason = f"All {len(accepts)} validator(s) ACCEPT" + (
+            f" ({nits} with nits)" if nits else ""
+        )
     else:
         gate = "STOP"
         reason = "No valid verdicts"
@@ -414,13 +453,17 @@ def step6_gate_decision(validators: list[dict]) -> str:
 
 # ── main ─────────────────────────────────────────────────────────────────
 
+
 def parse_validators(s: str) -> list[dict]:
     """Parse --validators string: model_id:provider:family[:label],..."""
     validators = []
     for entry in s.split(","):
         parts = entry.strip().split(":")
         if len(parts) < 3:
-            print(f"ERROR: invalid validator entry '{entry}' (need model:provider:family)", file=sys.stderr)
+            print(
+                f"ERROR: invalid validator entry '{entry}' (need model:provider:family)",
+                file=sys.stderr,
+            )
             sys.exit(1)
         v = {
             "model_id": parts[0],
@@ -433,7 +476,9 @@ def parse_validators(s: str) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Orchestration script: mechanical review pipeline.")
+    parser = argparse.ArgumentParser(
+        description="Orchestration script: mechanical review pipeline."
+    )
     parser.add_argument("--framework-root", required=True)
     parser.add_argument("--pilot-root", required=True)
     parser.add_argument("--pilot-python", required=True)
@@ -441,40 +486,76 @@ def main() -> int:
     parser.add_argument("--lock-file", required=True)
     parser.add_argument("--prompt-file", required=True)
     parser.add_argument("--review-output-dir", required=True)
-    parser.add_argument("--validator-cwd", default=None,
-                        help="Working directory for validator droid exec calls. "
-                             "Defaults to --framework-root. Set to pilot repo for H-CI.")
-    parser.add_argument("--validators", required=True,
-                        help="Comma-separated: model_id:provider:family[:label],...")
-    parser.add_argument("--evidence-output", default=None,
-                        help="If set, step 1 produces a bundle. If not, skip step 1.")
+    parser.add_argument(
+        "--validator-cwd",
+        default=None,
+        help="Working directory for validator droid exec calls. "
+        "Defaults to --framework-root. Set to pilot repo for H-CI.",
+    )
+    parser.add_argument(
+        "--validators", required=True, help="Comma-separated: model_id:provider:family[:label],..."
+    )
+    parser.add_argument(
+        "--evidence-output",
+        default=None,
+        help="If set, step 1 produces a bundle. If not, skip step 1.",
+    )
     parser.add_argument("--full-suite", action="store_true")
     parser.add_argument("--security-scan", action="store_true")
     parser.add_argument("--security-allowlist", default=None)
     parser.add_argument("--security-baseline", default=None)
     parser.add_argument("--auto-level", default="high")
-    parser.add_argument("--enabled-tools", default=None,
-                        help="Comma-separated tool list. If not set, auto-derived from --treatment.")
-    parser.add_argument("--treatment", action="store_true",
-                        help="Treatment mode (H-CI): validators get no Execute tool (KI-2 fix). "
-                             "Sets evidence_source=bundle and excludes Execute from enabled-tools.")
-    parser.add_argument("--run-label", default=None,
-                        help="Label for this run (e.g., 'h-ci-run1-control'). Used in run_id for N-run A/B.")
-    parser.add_argument("--max-retries", type=int, default=2,
-                        help="Max retries on transient API failure (0 output tokens or ERROR). Default: 2.")
-    parser.add_argument("--retry-delay", type=int, default=5,
-                        help="Delay in seconds between retries. Default: 5.")
+    parser.add_argument(
+        "--enabled-tools",
+        default=None,
+        help="Comma-separated tool list. If not set, auto-derived from --treatment.",
+    )
+    parser.add_argument(
+        "--treatment",
+        action="store_true",
+        help="Treatment mode (H-CI): validators get no Execute tool (KI-2 fix). "
+        "Sets evidence_source=bundle and excludes Execute from enabled-tools.",
+    )
+    parser.add_argument(
+        "--run-label",
+        default=None,
+        help="Label for this run (e.g., 'h-ci-run1-control'). Used in run_id for N-run A/B.",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=2,
+        help="Max retries on transient API failure (0 output tokens or ERROR). Default: 2.",
+    )
+    parser.add_argument(
+        "--retry-delay", type=int, default=5, help="Delay in seconds between retries. Default: 5."
+    )
     parser.add_argument("--phase", default="phase-3.2")
-    parser.add_argument("--branch", default=None,
-                        help="Branch name for telemetry. Auto-detected if not set.")
-    parser.add_argument("--evidence-source", default=None,
-                        help="evidence_source for telemetry rows. Auto-derived from --treatment if not set.")
-    parser.add_argument("--mcp-payload-tokens", type=int, default=None,
-                        help="Bundle read token count (treatment arm, fairness rule).")
-    parser.add_argument("--raw-test-output-tokens", type=int, default=None,
-                        help="Raw pytest output token count (control arm, fairness rule).")
-    parser.add_argument("--allow-single-family", action="store_true",
-                        help="Allow a single-family validator panel. Default: refuse (PRD section 17.2).")
+    parser.add_argument(
+        "--branch", default=None, help="Branch name for telemetry. Auto-detected if not set."
+    )
+    parser.add_argument(
+        "--evidence-source",
+        default=None,
+        help="evidence_source for telemetry rows. Auto-derived from --treatment if not set.",
+    )
+    parser.add_argument(
+        "--mcp-payload-tokens",
+        type=int,
+        default=None,
+        help="Bundle read token count (treatment arm, fairness rule).",
+    )
+    parser.add_argument(
+        "--raw-test-output-tokens",
+        type=int,
+        default=None,
+        help="Raw pytest output token count (control arm, fairness rule).",
+    )
+    parser.add_argument(
+        "--allow-single-family",
+        action="store_true",
+        help="Allow a single-family validator panel. Default: refuse (PRD section 17.2).",
+    )
     args = parser.parse_args()
 
     # Derive treatment-mode settings (B1 fix: parameterize KI-2 fix)
@@ -492,7 +573,9 @@ def main() -> int:
     if not args.branch:
         args.branch = subprocess.run(
             ["git", "branch", "--show-current"],
-            cwd=args.framework_root, capture_output=True, text=True,
+            cwd=args.framework_root,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
 
     validators = parse_validators(args.validators)
@@ -505,11 +588,14 @@ def main() -> int:
     to_envelope_fn = _import_adapter(args.framework_root)
 
     # Cross-family enforcement (PRD section 17.2: >=2 distinct families required)
-    families = set(v["family"] for v in validators)
+    families = {v["family"] for v in validators}
     if len(families) < 2 and not args.allow_single_family:
-        print(f"ERROR: cross-family requirement not met. {len(families)} family(ies) "
-              f"in panel ({families}). Need >=2 distinct families per PRD section 17.2. "
-              f"Use --allow-single-family to override (not recommended).", file=sys.stderr)
+        print(
+            f"ERROR: cross-family requirement not met. {len(families)} family(ies) "
+            f"in panel ({families}). Need >=2 distinct families per PRD section 17.2. "
+            f"Use --allow-single-family to override (not recommended).",
+            file=sys.stderr,
+        )
         return 1
     print(f"Cross-family check: {len(families)} families ({families}) — OK")
     print(f"Evidence source: {args.evidence_source} | Treatment: {args.treatment}")
@@ -528,7 +614,9 @@ def main() -> int:
     # Capture stray-write baseline BEFORE running validators (B1 fix #2)
     dirty_baseline = capture_dirty_paths(args.validator_cwd)
     if dirty_baseline:
-        print(f"\n  Stray-write baseline: {len(dirty_baseline)} pre-existing dirty path(s) (will be excluded)")
+        print(
+            f"\n  Stray-write baseline: {len(dirty_baseline)} pre-existing dirty path(s) (will be excluded)"
+        )
 
     # Step 2: run validators (via run-with-model.sh + adapter shim, with retry)
     validators = step2_run_validators(args, validators, to_envelope_fn)
@@ -580,10 +668,10 @@ def main() -> int:
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SUMMARY written: {summary_path}")
     print(f"GATE: {gate}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     return 0 if gate in ("ACCEPT", "HUMAN_DECISION") else 1
 

@@ -11,15 +11,11 @@ edits.
 This test does not mock the install script — it shells out to the real
 one and inspects the resulting files on disk (the artifact, per §7).
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
 from pathlib import Path
-
-import pytest
-
 
 _REPO = Path(__file__).resolve().parent.parent
 _SKILL = _REPO / "skills" / "adversarial-sprint" / "SKILL.md"
@@ -33,7 +29,7 @@ def test_canonical_skill_has_rule_nine_chunk_close_is_gated():
     body = _SKILL.read_text()
     assert "9. **Chunk close is gated" in body, (
         f"Rule #9 absence: cannot guarantee downstream enforcement. "
-        f"First 200 chars around the digest:\n{body[body.find('Skill digest'):body.find('Skill digest')+1200]}"
+        f"First 200 chars around the digest:\n{body[body.find('Skill digest') : body.find('Skill digest') + 1200]}"
     )
     assert "EVIDENCE_SIGNING_KEY" in body
     assert "chunk-N.token.json" in body
@@ -57,10 +53,15 @@ def test_install_skill_emits_rule_nine_to_factory_claude_cursors(tmp_path):
 
     p = subprocess.run(
         [
-            "bash", str(_REPO / "tools" / "install-skill.sh"),
-            "factory", "claude", "cursor",
+            "bash",
+            str(_REPO / "tools" / "install-skill.sh"),
+            "factory",
+            "claude",
+            "cursor",
         ],
-        cwd=str(_REPO), capture_output=True, text=True,
+        cwd=str(_REPO),
+        capture_output=True,
+        text=True,
     )
     assert p.returncode == 0, p.stderr
 
@@ -69,9 +70,7 @@ def test_install_skill_emits_rule_nine_to_factory_claude_cursors(tmp_path):
         s = sandbox / f".{sname}" / "skills" / "adversarial-sprint" / "SKILL.md"
         assert s.exists(), f"missing {s}"
         body = s.read_text()
-        assert "9. **Chunk close is gated" in body, (
-            f"{sname} install did not propagate rule #9"
-        )
+        assert "9. **Chunk close is gated" in body, f"{sname} install did not propagate rule #9"
 
     # cursor: rendered .mdc, must also reference the rule.
     cursor_adversarial = sandbox / ".cursor" / "rules" / "adversarial-sprint.mdc"

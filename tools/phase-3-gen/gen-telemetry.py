@@ -15,6 +15,7 @@ Note (schema gap): telemetry/SCHEMA.md's `role` enum is
 planner/executor/validator/reviewer and omits `test-designer` (PRD §7's fifth
 role). We emit the canonical role name anyway; see KI-4.
 """
+
 import json
 import os
 import sys
@@ -53,34 +54,81 @@ MODEL_META = {
 # (run_id, role, model_id, decision, envelope_filename)
 RUNS = [
     # chunk 1
-    ("r-phase3-c1-test-author", "test-designer", "claude-opus-5", None,
-     "chunk1-test-author-envelope.json"),
-    ("r-phase3-c1-executor-openai-fail", "executor", "gpt-5.4-mini", None,
-     "chunk1-executor-openai-failure-envelope.json"),
-    ("r-phase3-c1-executor", "executor", "glm-5.2", None,
-     "chunk1-executor-envelope.json"),
-    ("r-phase3-c1-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk1-validator-grok-envelope.json"),
-    ("r-phase3-c1-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk1-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c1-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk1-test-author-envelope.json",
+    ),
+    (
+        "r-phase3-c1-executor-openai-fail",
+        "executor",
+        "gpt-5.4-mini",
+        None,
+        "chunk1-executor-openai-failure-envelope.json",
+    ),
+    ("r-phase3-c1-executor", "executor", "glm-5.2", None, "chunk1-executor-envelope.json"),
+    (
+        "r-phase3-c1-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk1-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c1-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk1-validator-gemini-envelope.json",
+    ),
     # chunk 2
-    ("r-phase3-c2-test-author", "test-designer", "claude-opus-5", None,
-     "chunk2-test-author-envelope.json"),
-    ("r-phase3-c2-executor", "executor", "glm-5.2", None,
-     "chunk2-executor-envelope.json"),
-    ("r-phase3-c2-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk2-validator-grok-envelope.json"),
-    ("r-phase3-c2-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk2-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c2-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk2-test-author-envelope.json",
+    ),
+    ("r-phase3-c2-executor", "executor", "glm-5.2", None, "chunk2-executor-envelope.json"),
+    (
+        "r-phase3-c2-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk2-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c2-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk2-validator-gemini-envelope.json",
+    ),
     # chunk 3
-    ("r-phase3-c3-test-author", "test-designer", "claude-opus-5", None,
-     "chunk3-test-author-envelope.json"),
-    ("r-phase3-c3-executor", "executor", "glm-5.2", None,
-     "chunk3-executor-envelope.json"),
-    ("r-phase3-c3-validator-grok", "validator", "grok-4.5", "ACCEPT",
-     "chunk3-validator-grok-envelope.json"),
-    ("r-phase3-c3-validator-gemini", "validator", "gemini-3.1-pro-preview", "ACCEPT",
-     "chunk3-validator-gemini-envelope.json"),
+    (
+        "r-phase3-c3-test-author",
+        "test-designer",
+        "claude-opus-5",
+        None,
+        "chunk3-test-author-envelope.json",
+    ),
+    ("r-phase3-c3-executor", "executor", "glm-5.2", None, "chunk3-executor-envelope.json"),
+    (
+        "r-phase3-c3-validator-grok",
+        "validator",
+        "grok-4.5",
+        "ACCEPT",
+        "chunk3-validator-grok-envelope.json",
+    ),
+    (
+        "r-phase3-c3-validator-gemini",
+        "validator",
+        "gemini-3.1-pro-preview",
+        "ACCEPT",
+        "chunk3-validator-gemini-envelope.json",
+    ),
 ]
 
 

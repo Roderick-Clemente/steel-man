@@ -35,13 +35,13 @@ The hook exits 0 on allow, 2 on deny. The contract string `SPEC_OR_TEST_BLOCKED`
 is delivered to stderr so the agent run can continue with the message
 visible in the transcript.
 """
+
 import glob
 import json
 import os
 import re
 import shlex
 import sys
-
 
 # chunk-D1-2a: this guard is the READER half of the lock store, and it carried
 # the same broken two-hop default as lock.py, the writer — after the chunk-2
@@ -88,8 +88,16 @@ LOCKS_REQUIRED = os.environ.get("ADVERSARIAL_SPRINT_LOCKS_REQUIRED", "1") != "0"
 # are the tools known to be incapable of writing, and ANYTHING else is treated as
 # a writer and checked.
 READ_ONLY_TOOLS = (
-    "Read", "Glob", "Grep", "LS", "List", "Search", "NotebookRead",
-    "WebFetch", "WebSearch", "TodoWrite",
+    "Read",
+    "Glob",
+    "Grep",
+    "LS",
+    "List",
+    "Search",
+    "NotebookRead",
+    "WebFetch",
+    "WebSearch",
+    "TodoWrite",
 )
 
 # Keys an unrecognised tool might carry its target path under.
@@ -113,8 +121,16 @@ SHELL_SEPARATORS = re.compile(r"[;&|\n]")
 # `pytest <path>` directly. This was caught as a BLOCKING finding in the
 # round-2 cross-family review (Grok, xAI).
 READ_ONLY_HEADS = (
-    "ls", "grep", "rg", "head", "tail", "wc", "find",
-    "pytest", "read", "cat",
+    "ls",
+    "grep",
+    "rg",
+    "head",
+    "tail",
+    "wc",
+    "find",
+    "pytest",
+    "read",
+    "cat",
 )
 
 # Write operators used for the per-segment read-only check.
@@ -125,11 +141,11 @@ READ_ONLY_HEADS = (
 # `find test -name '*.py' -delete` previously classified as read-only and was
 # allowed to remove the locked test.
 WRITE_RE = re.compile(
-    r">>?"                              # redirection (write)
-    r"|\bsed\s+[^;|&]*\s+-i\b"          # sed -i (in-place)
-    r"|\btee\b|\bcp\b|\bmv\b|\brm\b"   # filesystem mutation
-    r"|-delete\b|-execdir\b|-exec\b"    # find's destructive predicates
-    r"|\btruncate\b|\bdd\b|\binstall\b" # other write verbs
+    r">>?"  # redirection (write)
+    r"|\bsed\s+[^;|&]*\s+-i\b"  # sed -i (in-place)
+    r"|\btee\b|\bcp\b|\bmv\b|\brm\b"  # filesystem mutation
+    r"|-delete\b|-execdir\b|-exec\b"  # find's destructive predicates
+    r"|\btruncate\b|\bdd\b|\binstall\b"  # other write verbs
     r"|\bpatch\b|\bxargs\b|\bchmod\b"
     r"|\bln\b|\bmkdir\b|\btouch\b"
 )
@@ -271,10 +287,13 @@ def main() -> int:
         # the block in its transcript.
         if not LOCKS_REQUIRED:
             return 0
-        print(f"SPEC_OR_TEST_BLOCKED: lock state unreadable ({e}). Refusing to "
-              f"act as if nothing were protected. Set "
-              f"ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 only if this phase is "
-              f"genuinely unlocked.", file=sys.stderr)
+        print(
+            f"SPEC_OR_TEST_BLOCKED: lock state unreadable ({e}). Refusing to "
+            f"act as if nothing were protected. Set "
+            f"ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 only if this phase is "
+            f"genuinely unlocked.",
+            file=sys.stderr,
+        )
         return 2
 
     if not state["tests"] and not state["manifests"]:
@@ -283,9 +302,12 @@ def main() -> int:
         # Treated as inability to enforce, not as permission.
         if not LOCKS_REQUIRED:
             return 0
-        print("SPEC_OR_TEST_BLOCKED: locks directory contains no manifests. "
-              "Set ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 if this phase is "
-              "genuinely unlocked.", file=sys.stderr)
+        print(
+            "SPEC_OR_TEST_BLOCKED: locks directory contains no manifests. "
+            "Set ADVERSARIAL_SPRINT_LOCKS_REQUIRED=0 if this phase is "
+            "genuinely unlocked.",
+            file=sys.stderr,
+        )
         return 2
 
     locked_abs = {normalize_path(lp, cwd) for lp in state["tests"]}

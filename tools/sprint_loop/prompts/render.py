@@ -21,6 +21,7 @@ Two safeguards:
 
 Tests live in ``tests/test_sprint_loop.py``.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,11 +39,7 @@ _PROMPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def list_role_prompts() -> list[str]:
     """Return the role names (= .md filenames without extension)."""
-    return sorted(
-        os.path.splitext(f)[0]
-        for f in os.listdir(_PROMPT_DIR)
-        if f.endswith(".md")
-    )
+    return sorted(os.path.splitext(f)[0] for f in os.listdir(_PROMPT_DIR) if f.endswith(".md"))
 
 
 def render(template_path: str, context: dict[str, Any]) -> str:
@@ -53,8 +50,7 @@ def render(template_path: str, context: dict[str, Any]) -> str:
     """
     if not os.path.isfile(template_path):
         raise FileNotFoundError(
-            f"prompt template not found: {template_path} (the role "
-            f"prompt will not be substituted)"
+            f"prompt template not found: {template_path} (the role prompt will not be substituted)"
         )
     with open(template_path) as f:
         text = f.read()
@@ -86,6 +82,7 @@ def render_to_file(role: str, context: dict[str, Any], output_path: str) -> str:
 
 
 # ── CLI entry: inspect templates ─────────────────────────────────────────
+
 
 def _cli(argv: list[str]) -> int:
     """Tiny shell driver.

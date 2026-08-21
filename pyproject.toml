@@ -20,7 +20,16 @@ select = [
 ]
 ignore = [
     "E501",  # line length handled by formatter
+    "UP017", # datetime.UTC requires 3.11+; repo supports 3.10+
+    "UP042", # enum.StrEnum requires 3.11+; repo supports 3.10+
+    "B905",  # zip(strict=) requires 3.10+; repo supports 3.10+
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# SHA-locked judge test files — cannot be modified without breaking
+# test_chunk3_existing_judges_byte_unchanged. Suppress new ruff rules
+# that fire on these files under newer ruff versions.
+"tests/test_layout_paths*.py" = ["UP015", "UP036", "I001"]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -17,6 +17,7 @@ page to anything outside it (../../pilots/, ../../PRD.md) resolves locally and
 
 Exit 0 = clean, exit 1 = findings. Assert on the published boundary, not the disk.
 """
+
 import os
 import re
 import sys
@@ -65,13 +66,11 @@ def skeleton_drift():
     out = []
     missing = sorted(nodes[0] - nodes[1])
     if missing:
-        out.append(("skeleton", page,
-                    f"diagram 2 dropped diagram 1 node(s): {', '.join(missing)}"))
+        out.append(("skeleton", page, f"diagram 2 dropped diagram 1 node(s): {', '.join(missing)}"))
     solid = [ln for ln in blocks[1].splitlines() if "-->" in ln]
     for extra in sorted(nodes[1] - nodes[0]):
         if any(re.search(rf"\b{re.escape(extra)}\b", ln) for ln in solid):
-            out.append(("skeleton", page,
-                        f"overlay node {extra} joins the flow with a solid edge"))
+            out.append(("skeleton", page, f"overlay node {extra} joins the flow with a solid edge"))
     return out
 
 
@@ -119,7 +118,7 @@ def main():
 
     findings += skeleton_drift()
 
-    counts = {k: 0 for k in ("dead", "anchor", "absolute", "escaping", "skeleton")}
+    counts = dict.fromkeys(("dead", "anchor", "absolute", "escaping", "skeleton"), 0)
     for kind, _p, _u in findings:
         counts[kind] += 1
     summary = " ".join(f"{k}={counts[k]}" for k in counts)

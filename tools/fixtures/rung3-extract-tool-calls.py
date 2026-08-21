@@ -15,6 +15,7 @@ Behavior preservation is asserted by running this script
 before/after the refactor on the same envelope and comparing
 outputs.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,7 +26,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
-from adapters.factory import to_envelope, to_digest_shape, locate_sibling_files  # noqa: E402
+from adapters.factory import locate_sibling_files, to_digest_shape, to_envelope  # noqa: E402
 
 
 def main(argv: list[str]) -> int:

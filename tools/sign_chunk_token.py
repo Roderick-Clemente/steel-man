@@ -23,10 +23,10 @@ Refusal-at-parse:
   * EVIDENCE_SIGNING_KEY unset -> SystemExit(2) (sign path); verify
     returns False (refusal is the audit-trail consumer's choice).
 """
+
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import hashlib
 import hmac
 import json
@@ -36,32 +36,37 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-
 TOKEN_SCHEMA = "**************"  # nosec B105 — token format marker, not a password
 # Verdicts the orchestrator accepts. Mirrors
 # ``tools/orchestrate-review.py`` verdict regex.
-ALLOWED_VERDICTS: frozenset[str] = frozenset({
-    "ACCEPT",
-    "ACCEPT-WITH-NITS",
-    "HUMAN_DECISION",
-    "REJECT",
-    "REJECT_IMPLEMENTATION",
-    "REJECT_TEST",
-    "STOP",
-    "ERROR",
-    "UNKNOWN",
-})
+ALLOWED_VERDICTS: frozenset[str] = frozenset(
+    {
+        "ACCEPT",
+        "ACCEPT-WITH-NITS",
+        "HUMAN_DECISION",
+        "REJECT",
+        "REJECT_IMPLEMENTATION",
+        "REJECT_TEST",
+        "STOP",
+        "ERROR",
+        "UNKNOWN",
+    }
+)
 # Verdicts that count toward §17.2 ACCEPT-class verdict at chunk close.
 ACCEPT_CLASS: frozenset[str] = frozenset({"ACCEPT", "ACCEPT-WITH-NITS"})
 
 # Required reviewer-record keys (composer rule: keep tight, the gate
 # enforces; an extra key is fine, a missing one is refusal).
 REVIEWER_REQUIRED_KEYS: tuple[str, ...] = (
-    "family", "model_id", "verdict", "envelope_sha256",
+    "family",
+    "model_id",
+    "verdict",
+    "envelope_sha256",
 )
 
 
 # ── helpers (compose with per_chunk.py canonical-JSON pattern) ──────────
+
 
 def canonical_json(payload: dict[str, Any]) -> bytes:
     """Sort keys, no whitespace, UTF-8. Same scheme as
@@ -83,12 +88,16 @@ def _utcnow_iso() -> str:
 def _git_head_sha(cwd: str) -> str:
     r = subprocess.run(
         ["git", "rev-parse", "HEAD"],
-        cwd=cwd, capture_output=True, text=True, check=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return r.stdout.strip()
 
 
 # ── public API ──────────────────────────────────────────────────────────
+
 
 def _materialise_reviewer(r: Any) -> dict[str, str]:
     """Validate one reviewer record, return canonical dict.
@@ -102,9 +111,7 @@ def _materialise_reviewer(r: Any) -> dict[str, str]:
         if k not in r or not isinstance(r[k], str) or not r[k]:
             raise ValueError(f"reviewer missing required field {k!r}: {r!r}")
     if r["verdict"] not in ALLOWED_VERDICTS:
-        raise ValueError(
-            f"reviewer verdict {r['verdict']!r} not in ALLOWED_VERDICTS"
-        )
+        raise ValueError(f"reviewer verdict {r['verdict']!r} not in ALLOWED_VERDICTS")
     return {
         "family": r["family"],
         "model_id": r["model_id"],
@@ -137,9 +144,7 @@ def build_token(
     if not isinstance(chunk_id, str) or not chunk_id:
         raise ValueError("chunk_id is required")
     if not isinstance(chunk_commit_sha, str) or len(chunk_commit_sha) != 40:
-        raise ValueError(
-            f"chunk_commit_sha must be a 40-char hex string; got {chunk_commit_sha!r}"
-        )
+        raise ValueError(f"chunk_commit_sha must be a 40-char hex string; got {chunk_commit_sha!r}")
     if not isinstance(reviewers, list) or not reviewers:
         raise ValueError("reviewers must be a non-empty list")
     reviewer_dicts = [_materialise_reviewer(r) for r in reviewers]
@@ -205,6 +210,7 @@ def verify_token(token: Any, *, signing_key_env: str = "EVIDENCE_SIGNING_KEY") -
 
 # ── CLI ──────────────────────────────────────────────────────────────────
 
+
 def _cli_sign(args: argparse.Namespace) -> int:
     sha = args.chunk_commit_sha or _git_head_sha(args.cwd)
     reviewers_in = json.loads(args.reviewers_json)
@@ -214,10 +220,7 @@ def _cli_sign(args: argparse.Namespace) -> int:
     for r in reviewers_in:
         if isinstance(r, list):
             full = REVIEWER_REQUIRED_KEYS + ("provider",)
-            normalised.append({
-                k: (r[i] if i < len(r) else "")
-                for i, k in enumerate(full)
-            })
+            normalised.append({k: (r[i] if i < len(r) else "") for i, k in enumerate(full)})
         else:
             normalised.append(r)
     token = build_token(
@@ -269,12 +272,14 @@ def build_argparser() -> argparse.ArgumentParser:
     p_sign = sub.add_parser("sign", help="emit a signed token JSON to a path")
     p_sign.add_argument("--chunk-id", required=True)
     p_sign.add_argument(
-        "--chunk-commit-sha", default="",
+        "--chunk-commit-sha",
+        default="",
         help="40-char hex commit SHA; defaults to `git rev-parse HEAD` in --cwd",
     )
     p_sign.add_argument("--cwd", default=".", help="cwd for --chunk-commit-sha default")
     p_sign.add_argument(
-        "--reviewers-json", required=True,
+        "--reviewers-json",
+        required=True,
         help='JSON list of {"family","model_id","verdict","envelope_sha256","provider"}',
     )
     p_sign.add_argument("--signed-by", default="factory/droid@local")
