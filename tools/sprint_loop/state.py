@@ -60,8 +60,13 @@ SEPARATION_BINDING_ROLES: frozenset[Role] = frozenset(
 DEFAULT_ENABLED_TOOLS: dict[Role, str] = {
     Role.PLANNER: "Read,Glob,Grep,LS,Execute",
     Role.PLAN_REVIEWER: "Read,Glob,Grep,LS,Execute",
-    Role.TEST_DESIGNER: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
-    Role.EXECUTOR: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
+    # NOTE: every identifier here must be one the installed droid CLI
+    # accepts. One unknown id rejects the whole call ("Unknown tool
+    # identifier(s)"), which surfaces as a 0-byte envelope and — because
+    # the family is then read from an unparseable envelope — as a misleading
+    # §17.2 "family=unknown" refusal. `MultiEdit` and `Write` are NOT valid.
+    Role.TEST_DESIGNER: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
+    Role.EXECUTOR: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
     Role.VALIDATOR: "Read,Glob,Grep,LS,Execute",
 }
 
@@ -181,6 +186,14 @@ class ChunkState:
     rejection_feedback: list[str] = field(default_factory=list)  # fed back to executor
     findings: list[Finding] = field(default_factory=list)
 
+    # Verify-and-harden mode: when True (set from Config.verify_mode
+    # or the chunk JSON's "verify_mode" field), the runner relaxes
+    # the §5.3 "valid RED before GREEN" precondition for this chunk.
+    # If the locked test is already passing at HEAD, the runner
+    # accepts that as the starting state and the executor becomes a
+    # verify-and-harden pass.
+    verify_mode: bool = False
+
     # The five run-ids inside one chunk
     test_designer_run_id: str = ""
     executor_run_id: str = ""
@@ -280,6 +293,7 @@ class RunState:
     retry_threshold: int = 1  # PRD §5.7 cap for executor reject
     max_auto_retries: int = 2  # transient API failure retries
     retry_delay_seconds: int = 5
+    per_call_timeout_seconds: int = 0    # 0 = use InvokeOptions default (1800)
 
     # Status flow
     status: RunStatus = RunStatus.PENDING
@@ -313,6 +327,16 @@ class RunState:
     create_pr: bool = False
     validation_backend: str = "local"  # local|ci (Track B)
     signing_key_env: str = "EVIDENCE_SIGNING_KEY"
+
+    # Verify-and-harden mode (§5.3 relaxation): the runner accepts
+    # "changes already exist" as a valid starting state.
+    verify_mode: bool = False
+
+    # Force-accept override for unattended reconcile gate: records
+    # an explicit operator disposition and proceeds.
+    force_accept: bool = False
+    force_accept_reason: str = ""
+    force_accept_disposition: str = ""   # filled by the gate at override time
 
     # Inputs the runner reads across pauses
     pilot_spec_file: str = ""

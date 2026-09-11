@@ -90,3 +90,9 @@ telemetry/plan_lint_runs.jsonl
 # narrowed: any prefix-based rule reintroduces the same silent-loss risk the
 # moment a reviewer tree and a scratch tree share a prefix, which they do.
 
+# Per-pilot overlay installed for self-enhancement sprint (not framework code)
+.adversarial-sprint/
+
+# Generated sprint run evidence from self-enhancement experiments
+evidence/phase-4.5/build-evidence/r-phase45-20260908-*/
+

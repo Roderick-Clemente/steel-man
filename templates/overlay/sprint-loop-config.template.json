@@ -9,6 +9,7 @@
   "retry_threshold": 1,
   "max_auto_retries": 2,
   "retry_delay_seconds": 5,
+  "per_call_timeout_seconds": 0,
   "planner_model": "claude-opus-5",
   "plan_reviewer_model": "grok-4.5",
   "plan_reviewer_2_model": "gemini-3.1-pro-preview",
@@ -25,5 +26,8 @@
   "allow_single_family": false,
   "dry_run": false,
   "skip_reconcile": false,
-  "create_pr": false
+  "create_pr": false,
+  "verify_mode": false,
+  "force_accept": false,
+  "force_accept_reason": ""
 }

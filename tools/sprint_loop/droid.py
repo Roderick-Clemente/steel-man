@@ -185,7 +185,7 @@ class InvokeOptions:
     prompt_file: str = ""  # -f <path>
     cwd: str = ""  # --cwd <path>
     extra_args: list[str] = field(default_factory=list)  # any extras
-    timeout_seconds: int = 600  # droid exec per-call cap
+    timeout_seconds: int = 1800  # droid exec per-call cap
     skip_run_with_model: bool = (
         False  # escape hatch for tests only — never True in production chunks
     )

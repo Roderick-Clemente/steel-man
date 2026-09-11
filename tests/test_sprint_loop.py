@@ -75,9 +75,10 @@ def test_default_enabled_tools_per_role_are_distinct():
     assert "Edit" not in DEFAULT_ENABLED_TOOLS[Role.VALIDATOR]
     assert "Edit" in DEFAULT_ENABLED_TOOLS[Role.EXECUTOR]
     assert "Edit" in DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER]
-    # MultiEdit MUST be in executor allowlist (KI-2 lesson — round-2 Phase 1 review)
-    assert "MultiEdit" in DEFAULT_ENABLED_TOOLS[Role.EXECUTOR]
-    assert "MultiEdit" in DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER]
+    # MultiEdit is NOT a valid droid CLI tool id — it produces 0-byte
+    # envelopes ("Unknown tool identifier(s)"). F-5 fix removed it.
+    assert "MultiEdit" not in DEFAULT_ENABLED_TOOLS[Role.EXECUTOR]
+    assert "MultiEdit" not in DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER]
 
 
 # ── family guard ─────────────────────────────────────────────────────────
@@ -970,6 +971,7 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
         "commit": "abc1234",
         "evidence_bundle_path": "/tmp/bundle.json",
         "commands": "pytest test/test_x.py -v",
+        "verify_and_harden_directive": "",
     }
     remaining_unresolved = {}
     for role in ("planner", "plan-reviewer", "test-designer", "executor", "validator"):
@@ -1129,7 +1131,7 @@ def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
             pinned_family="openai-family",
             pinned_provider="openai",
             auto_level="medium",
-            enabled_tools="Read,Glob,Grep,LS,Edit,Create,ApplyPatch,MultiEdit,Execute",
+            enabled_tools="Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
         ),
     )
     env_dir = tmp_path / "env" / "executor"
@@ -2576,3 +2578,358 @@ def test_ki4_parser_prose_finding_id_without_object_yields_nothing_f_a1b2c3():
         "plan-reviewer-1", text, "r-x", "grok-4.5", "grok-family", 1
     )
     assert findings == []
+
+
+# ── verify-mode, per-call-timeout, force-accept (dogfood sprint) ───────
+
+
+def test_config_has_verify_mode_field():
+    """Config dataclass has verify_mode field defaulting to False."""
+    cfg = Config()
+    assert cfg.verify_mode is False
+
+
+def test_config_has_per_call_timeout_field():
+    """Config dataclass has per_call_timeout_seconds field defaulting to 0."""
+    cfg = Config()
+    assert cfg.per_call_timeout_seconds == 0
+
+
+def test_config_has_force_accept_field():
+    """Config dataclass has force_accept and force_accept_reason fields."""
+    cfg = Config()
+    assert cfg.force_accept is False
+    assert cfg.force_accept_reason == ""
+
+
+def test_build_config_verify_mode_flag():
+    """--verify-mode flag sets cfg.verify_mode = True."""
+    repo_root = os.path.dirname(_TOOLS)
+    cfg = build_config([
+        "--framework-root", repo_root,
+        "--pilot-root", repo_root,
+        "--verify-mode",
+    ])
+    assert cfg.verify_mode is True
+
+
+def test_build_config_per_call_timeout_flag():
+    """--per-call-timeout-seconds flag sets the field."""
+    repo_root = os.path.dirname(_TOOLS)
+    cfg = build_config([
+        "--framework-root", repo_root,
+        "--pilot-root", repo_root,
+        "--per-call-timeout-seconds", "900",
+    ])
+    assert cfg.per_call_timeout_seconds == 900
+
+
+def test_build_config_force_accept_flag():
+    """--force-accept flag sets cfg.force_accept = True."""
+    repo_root = os.path.dirname(_TOOLS)
+    cfg = build_config([
+        "--framework-root", repo_root,
+        "--pilot-root", repo_root,
+        "--force-accept",
+    ])
+    assert cfg.force_accept is True
+
+
+def test_config_json_per_call_timeout():
+    """per_call_timeout_seconds is read from JSON config."""
+    import tempfile, json as _json
+    repo_root = os.path.dirname(_TOOLS)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        _json.dump({
+            "framework_root": repo_root,
+            "pilot_root": repo_root,
+            "pilot_python": sys.executable,
+            "validators": ["grok-4.5:xai:grok-family:grok-4.5"],
+            "per_call_timeout_seconds": 600,
+        }, f)
+        path = f.name
+    try:
+        cfg = build_config(["--config", path])
+        assert cfg.per_call_timeout_seconds == 600
+    finally:
+        os.unlink(path)
+
+
+def test_config_json_verify_mode():
+    """verify_mode is read from JSON config."""
+    import tempfile, json as _json
+    repo_root = os.path.dirname(_TOOLS)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        _json.dump({
+            "framework_root": repo_root,
+            "pilot_root": repo_root,
+            "pilot_python": sys.executable,
+            "validators": ["grok-4.5:xai:grok-family:grok-4.5"],
+            "verify_mode": True,
+        }, f)
+        path = f.name
+    try:
+        cfg = build_config(["--config", path])
+        assert cfg.verify_mode is True
+    finally:
+        os.unlink(path)
+
+
+def test_run_state_has_verify_mode_and_timeout():
+    """RunState has verify_mode, per_call_timeout_seconds, and force_accept fields."""
+    rs = RunState(
+        run_id="r-test",
+        started_at="2026-01-01T00:00:00Z",
+        framework_root="/tmp",
+        pilot_root="/tmp",
+        pilot_python="python3",
+    )
+    assert rs.verify_mode is False
+    assert rs.per_call_timeout_seconds == 0
+    assert rs.force_accept is False
+    assert rs.force_accept_reason == ""
+    assert rs.force_accept_disposition == ""
+
+
+def test_chunk_state_has_verify_mode():
+    """ChunkState has verify_mode field defaulting to False."""
+    cs = ChunkState(chunk_id="c1", scope="test")
+    assert cs.verify_mode is False
+
+
+def test_invoke_options_timeout_default():
+    """InvokeOptions.timeout_seconds defaults to 1800."""
+    from sprint_loop.droid import InvokeOptions
+    opts = InvokeOptions(model_id="grok-4.5", prompt_file="/tmp/x.md")
+    assert opts.timeout_seconds == 1800
+
+
+def test_invoke_options_timeout_override():
+    """InvokeOptions.timeout_seconds can be overridden."""
+    from sprint_loop.droid import InvokeOptions
+    opts = InvokeOptions(model_id="grok-4.5", prompt_file="/tmp/x.md",
+                         timeout_seconds=600)
+    assert opts.timeout_seconds == 600
+
+
+def test_force_accept_overrides_5_3_refusal_unattended():
+    """When --force-accept is set in unattended mode, the reconcile
+    gate records an explicit operator disposition and proceeds with
+    ACCEPT instead of SystemExit(4)."""
+    import importlib
+    sprint_loop = importlib.import_module("sprint-loop")
+    from sprint_loop.state import Finding as StateFinding
+
+    rs = RunState(
+        run_id="r-force-accept",
+        started_at="2026-01-01T00:00:00Z",
+        framework_root=os.path.dirname(_TOOLS),
+        pilot_root=os.path.dirname(_TOOLS),
+        pilot_python=sys.executable,
+    )
+    rs.status = RunStatus.AWAITING_RECONCILIATION
+    rs.plan_doc_path = "/tmp/fake-plan.md"
+    rs.plan_sha256 = "deadbeef" * 8
+    rs.plan_round = 1
+    rs.plan_findings = [
+        StateFinding(
+            finding_id="f-blocker-1",
+            severity="blocker",
+            category="correctness",
+            claim="test finding",
+            evidence=["line:42"],
+            recommended_change="fix it",
+            source_role="reviewer",
+            source_run_id="r-force-accept",
+            source_model_id="fake",
+            source_family="fake-family",
+        ),
+    ]
+    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "REJECT"}]
+
+    with tempfile.TemporaryDirectory() as ed:
+        decision = sprint_loop.reconcile_human_gate(
+            rs, evidence_dir=ed, dry_run=False,
+            gate_auto_decide=True, unattended=True,
+            force_accept=True,
+            force_accept_reason="Operator reviewed; blocker is a known false positive.")
+        # Must return ACCEPT, not SystemExit
+        assert str(decision.value).upper() == "ACCEPT"
+        # Disposition must be recorded on RunState
+        assert rs.force_accept_disposition != ""
+        assert "FORCE-ACCEPT DISPOSITION" in rs.force_accept_disposition
+        assert "f-blocker-1" in rs.force_accept_disposition
+        assert "Operator reviewed" in rs.force_accept_disposition
+        # Checkpoint must be written (audit trail)
+        cp = os.path.join(ed, "checkpoint.json")
+        assert os.path.isfile(cp), "force-accept must write checkpoint with disposition"
+        data = json.load(open(cp))
+        assert data.get("force_accept") is True
+        assert data.get("force_accept_disposition", "") != ""
+
+
+def test_force_accept_without_unattended_still_refuses():
+    """--force-accept without --unattended does NOT override the §5.3
+    refusal. The operator must be in unattended mode to use the override;
+    in interactive mode, the operator can use 'amend' instead."""
+    import importlib
+    sprint_loop = importlib.import_module("sprint-loop")
+    from sprint_loop.state import Finding as StateFinding
+
+    rs = RunState(
+        run_id="r-force-accept-interactive",
+        started_at="2026-01-01T00:00:00Z",
+        framework_root=os.path.dirname(_TOOLS),
+        pilot_root=os.path.dirname(_TOOLS),
+        pilot_python=sys.executable,
+    )
+    rs.status = RunStatus.AWAITING_RECONCILIATION
+    rs.plan_doc_path = "/tmp/fake-plan.md"
+    rs.plan_sha256 = "deadbeef" * 8
+    rs.plan_round = 1
+    rs.plan_findings = [
+        StateFinding(
+            finding_id="f-blocker-1",
+            severity="blocker",
+            category="correctness",
+            claim="test finding",
+            evidence=["line:42"],
+            recommended_change="fix",
+            source_role="reviewer",
+            source_run_id="r-force-accept-interactive",
+            source_model_id="fake",
+            source_family="fake-family",
+        ),
+    ]
+    rs.plan_reviewer_verdicts = [{"reviewer_index": 1, "verdict": "REJECT"}]
+
+    with tempfile.TemporaryDirectory() as ed:
+        try:
+            sprint_loop.reconcile_human_gate(
+                rs, evidence_dir=ed, dry_run=False,
+                gate_auto_decide=True, unattended=False,
+                force_accept=True)
+            assert False, "force-accept without unattended should still refuse"
+        except SystemExit as e:
+            assert e.code in (4, 5), f"unexpected exit code {e.code}"
+
+
+def test_runner_help_exposes_verify_mode():
+    """--verify-mode is in --help (operator-visible)."""
+    out = subprocess.run(
+        [sys.executable,
+         os.path.join(_TOOLS, "sprint-loop.py"),
+         "--help"],
+        env={"PYTHONPATH": "tools", "PATH": os.environ["PATH"]},
+        capture_output=True, text=True,
+    )
+    assert "--verify-mode" in out.stdout, "--verify-mode not in --help"
+
+
+def test_runner_help_exposes_force_accept():
+    """--force-accept is in --help (operator-visible)."""
+    out = subprocess.run(
+        [sys.executable,
+         os.path.join(_TOOLS, "sprint-loop.py"),
+         "--help"],
+        env={"PYTHONPATH": "tools", "PATH": os.environ["PATH"]},
+        capture_output=True, text=True,
+    )
+    assert "--force-accept" in out.stdout, "--force-accept not in --help"
+
+
+def test_runner_help_exposes_per_call_timeout():
+    """--per-call-timeout-seconds is in --help (operator-visible)."""
+    out = subprocess.run(
+        [sys.executable,
+         os.path.join(_TOOLS, "sprint-loop.py"),
+         "--help"],
+        env={"PYTHONPATH": "tools", "PATH": os.environ["PATH"]},
+        capture_output=True, text=True,
+    )
+    assert "--per-call-timeout-seconds" in out.stdout, (
+        "--per-call-timeout-seconds not in --help"
+    )
+
+
+def test_config_template_has_per_call_timeout():
+    """The overlay config template includes per_call_timeout_seconds."""
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    tmpl = open(f"{repo}/templates/overlay/sprint-loop-config.template.json").read()
+    assert "per_call_timeout_seconds" in tmpl, (
+        "config template missing per_call_timeout_seconds"
+    )
+
+
+def test_config_template_has_verify_mode():
+    """The overlay config template includes verify_mode."""
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    tmpl = open(f"{repo}/templates/overlay/sprint-loop-config.template.json").read()
+    assert "verify_mode" in tmpl, "config template missing verify_mode"
+
+
+def test_config_template_has_force_accept():
+    """The overlay config template includes force_accept."""
+    repo = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=os.path.dirname(_TOOLS),
+    ).decode().strip()
+    tmpl = open(f"{repo}/templates/overlay/sprint-loop-config.template.json").read()
+    assert "force_accept" in tmpl, "config template missing force_accept"
+
+
+def test_executor_prompt_has_verify_directive_variable():
+    """The executor prompt template has the verify_and_harden_directive
+    placeholder so it renders cleanly with or without verify mode."""
+    tmpl_path = os.path.join(_TOOLS, "sprint_loop", "prompts", "executor.md")
+    text = open(tmpl_path).read()
+    assert "{{verify_and_harden_directive}}" in text, (
+        "executor prompt template missing verify_and_harden_directive placeholder"
+    )
+
+
+def test_executor_prompt_renders_verify_directive_when_active():
+    """When verify_and_harden=True, the rendered executor prompt
+    contains the VERIFY-AND-HARDEN directive."""
+    from sprint_loop.prompts.render import render_to_file
+    cs = ChunkState(chunk_id="c1", scope="verify existing impl",
+                    locked_test_files=["test/test_x.py"],
+                    commands=["pytest test/test_x.py"])
+    rs = RunState(
+        run_id="r-test", started_at="2026-01-01T00:00:00Z",
+        framework_root="/tmp", pilot_root="/tmp", pilot_python="python3",
+    )
+    with tempfile.TemporaryDirectory() as td:
+        out = os.path.join(td, "ex-prompt.md")
+        from sprint_loop.per_chunk import render_executor_prompt
+        render_executor_prompt(cs, rs, output_path=out, verify_and_harden=True)
+        text = open(out).read()
+        assert "VERIFY-AND-HARDEN MODE" in text, (
+            "rendered executor prompt missing VERIFY-AND-HARDEN directive"
+        )
+
+
+def test_executor_prompt_no_verify_directive_when_inactive():
+    """When verify_and_harden=False, the rendered executor prompt
+    does NOT contain the VERIFY-AND-HARDEN directive."""
+    from sprint_loop.per_chunk import render_executor_prompt
+    cs = ChunkState(chunk_id="c1", scope="build new impl",
+                    locked_test_files=["test/test_x.py"],
+                    commands=["pytest test/test_x.py"])
+    rs = RunState(
+        run_id="r-test", started_at="2026-01-01T00:00:00Z",
+        framework_root="/tmp", pilot_root="/tmp", pilot_python="python3",
+    )
+    with tempfile.TemporaryDirectory() as td:
+        out = os.path.join(td, "ex-prompt.md")
+        render_executor_prompt(cs, rs, output_path=out, verify_and_harden=False)
+        text = open(out).read()
+        assert "VERIFY-AND-HARDEN MODE" not in text, (
+            "rendered executor prompt should NOT have VERIFY-AND-HARDEN directive"
+        )

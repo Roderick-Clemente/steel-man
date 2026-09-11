@@ -179,6 +179,11 @@ def load_checkpoint(path: str) -> RunState:
     rs.retry_threshold = int(data.get("retry_threshold", 1))
     rs.max_auto_retries = int(data.get("max_auto_retries", 2))
     rs.retry_delay_seconds = int(data.get("retry_delay_seconds", 5))
+    rs.per_call_timeout_seconds = int(data.get("per_call_timeout_seconds", 0))
+    rs.verify_mode = bool(data.get("verify_mode", False))
+    rs.force_accept = bool(data.get("force_accept", False))
+    rs.force_accept_reason = data.get("force_accept_reason", "")
+    rs.force_accept_disposition = data.get("force_accept_disposition", "")
     if data.get("plan_findings"):
         rs.plan_findings = [
             Finding(
@@ -208,6 +213,7 @@ def load_checkpoint(path: str) -> RunState:
             cs.locked_test_sha = c.get("locked_test_sha", "")
             cs.evidence_bundle_path = c.get("evidence_bundle_path", "")
             cs.status = ChunkStatus(c.get("status", "PENDING"))
+            cs.verify_mode = bool(c.get("verify_mode", False)) or rs.verify_mode
             rs.chunks.append(cs)
     return rs
 
@@ -253,6 +259,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
         enabled_tools=rs.planner.enabled_tools,
         prompt_file=rendered_path,
         cwd=rs.framework_root,
+        timeout_seconds=rs.per_call_timeout_seconds or 1800,
     )
     record = invoke_droid(
         Role.PLANNER,
@@ -445,6 +452,7 @@ def run_plan_reviewer(
         enabled_tools=reviewer.enabled_tools,
         prompt_file=rendered_path,
         cwd=rs.framework_root,
+        timeout_seconds=rs.per_call_timeout_seconds or 1800,
     )
     record = invoke_droid(
         Role.PLAN_REVIEWER,
@@ -627,6 +635,8 @@ def reconcile_human_gate(
     gate_auto_decide: bool = False,
     unattended: bool = False,
     no_dry_auto_decide: bool = False,
+    force_accept: bool = False,
+    force_accept_reason: str = "",
 ) -> ReconcileDecision:
     """Pause for the human operator's reconciliation decision.
 
@@ -655,6 +665,13 @@ def reconcile_human_gate(
       refusal write a checkpoint at
       ``<evidence_dir>/checkpoint.json`` and SystemExit(4/5).
       Operator resumes via ``--resume-from``.
+    - ``force_accept=True`` (unattended only): when §5.3 preconditions
+      refuse (open blocker|high findings), record an explicit operator
+      disposition in the checkpoint and proceed with ACCEPT instead of
+      refusing. The disposition captures which findings were overridden
+      and the operator's reason, preserving the audit trail. This is
+      the "operator overrides the gate" escape hatch — it must be
+      deliberately set and carries an auditable record.
     """
     rs.status = RunStatus.AWAITING_RECONCILIATION
     packet_path = os.path.join(evidence_dir, "reconcile-packet.txt")
@@ -697,6 +714,51 @@ def reconcile_human_gate(
         try:
             _enforce_5_3_preconditions(rs)
         except SystemExit as e:
+            # --force-accept override: when the operator has
+            # explicitly set --force-accept in unattended mode, the
+            # gate records an explicit disposition (which findings
+            # were overridden + the operator's reason) and proceeds
+            # with ACCEPT. The disposition is stamped on the RunState
+            # so the checkpoint captures it (§11 audit trail).
+            if force_accept and unattended and e.code in (4, 5):
+                open_blockers = [
+                    f for f in rs.plan_findings
+                    if f.status == "open" and f.severity in ("blocker", "high")
+                ]
+                disposition_lines = [
+                    f"FORCE-ACCEPT DISPOSITION — {now_iso()}",
+                    f"Operator reason: {force_accept_reason or '(not provided)'}",
+                    f"§5.3 refusal code: {e.code}",
+                ]
+                if e.code == 4:
+                    disposition_lines.append(
+                        f"Overridden blocker|high findings ({len(open_blockers)}):"
+                    )
+                    for f in open_blockers:
+                        disposition_lines.append(
+                            f"  - {f.finding_id} ({f.severity}/{f.category}) "
+                            f"by {f.source_model_id}: {f.claim[:200]}"
+                        )
+                elif e.code == 5:
+                    disposition_lines.append(
+                        "Overridden: no reviewer APPROVE bound to current plan_sha256."
+                    )
+                disposition = "\n".join(disposition_lines)
+                rs.force_accept = True
+                rs.force_accept_reason = force_accept_reason
+                rs.force_accept_disposition = disposition
+                print(
+                    f"  [force-accept] §5.3 refused (exit {e.code}); "
+                    f"operator override active. Disposition recorded.",
+                    file=sys.stderr,
+                )
+                for line in disposition_lines:
+                    print(f"    {line}", file=sys.stderr)
+                # Write checkpoint with the disposition before proceeding.
+                cp_path = os.path.join(evidence_dir, "checkpoint.json")
+                write_checkpoint(rs, cp_path)
+                return ReconcileDecision.ACCEPT
+
             if unattended:
                 cp_path = os.path.join(evidence_dir, "checkpoint.json")
                 write_checkpoint(rs, cp_path)
@@ -735,8 +797,38 @@ def reconcile_human_gate(
         try:
             _enforce_5_3_preconditions(rs)
         except SystemExit:
-            # If the reasons include the explicit REFUSED markers,
-            # _enforce_5_3_preconditions has already written them.
+            if force_accept and e.code in (4, 5):
+                open_blockers = [
+                    f for f in rs.plan_findings
+                    if f.status == "open" and f.severity in ("blocker", "high")
+                ]
+                disposition_lines = [
+                    f"FORCE-ACCEPT DISPOSITION — {now_iso()}",
+                    f"Operator reason: {force_accept_reason or '(not provided)'}",
+                    f"§5.3 refusal code: {e.code}",
+                ]
+                if e.code == 4:
+                    disposition_lines.append(
+                        f"Overridden blocker|high findings ({len(open_blockers)}):"
+                    )
+                    for f in open_blockers:
+                        disposition_lines.append(
+                            f"  - {f.finding_id} ({f.severity}/{f.category}) "
+                            f"by {f.source_model_id}: {f.claim[:200]}"
+                        )
+                elif e.code == 5:
+                    disposition_lines.append(
+                        "Overridden: no reviewer APPROVE bound to current plan_sha256."
+                    )
+                rs.force_accept = True
+                rs.force_accept_reason = force_accept_reason
+                rs.force_accept_disposition = "\n".join(disposition_lines)
+                print(
+                    f"  [force-accept] §5.3 refused (exit {e.code}); "
+                    f"operator override active. Disposition recorded.",
+                    file=sys.stderr,
+                )
+                return ReconcileDecision.ACCEPT
             raise
         return ReconcileDecision.ACCEPT
     if head == "amend":
@@ -860,6 +952,9 @@ def load_chunks(rs: RunState, chunks_file: str) -> list[ChunkState]:
         cs.accepted_assertion = c.get("accepted_assertion") or (
             cs.observable_criteria[0] if cs.observable_criteria else cs.scope
         )
+        # Per-chunk verify_mode: set from the chunk JSON if present,
+        # otherwise inherit from the global Config.verify_mode flag.
+        cs.verify_mode = bool(c.get("verify_mode", False)) or rs.verify_mode
         out.append(cs)
     return out
 
@@ -897,12 +992,17 @@ def run_chunk_with_retries(
             rs.status_message = f"STOP in chunk {chunk.chunk_id}: {chunk.gate_reason}"
             return chunk
 
-        # REJECT or similar — retry if we have attempts left
+        # REJECT or similar — retry if we have attempts left.
+        # gate_decision can still be None when the chunk never reached the
+        # validation gate (e.g. RED_REJECTED); report the status instead of
+        # dereferencing None.
+        decision_label = (chunk.gate_decision.value if chunk.gate_decision
+                          else f"NO-GATE/{chunk.status.value}")
         if attempts_left > 0:
             chunk.retry_count += 1
-            chunk.rejection_feedback = [chunk.gate_reason]
+            chunk.rejection_feedback = [chunk.gate_reason or rs.status_message]
             print(
-                f"  REJECT ({chunk.gate_decision.value}); retrying "
+                f"  REJECT ({decision_label}); retrying "
                 f"({rs.retry_threshold + 1 - attempts_left}/{rs.retry_threshold + 1})"
             )
             continue
@@ -952,6 +1052,7 @@ def run_chunk_inner(
 
     # 3. valid-red
     chunk.status = ChunkStatus.VALIDATING_RED
+    already_green = False
     try:
         validate_red(
             chunk,
@@ -961,14 +1062,58 @@ def run_chunk_inner(
             dry_run=dry_run,
         )
     except RuntimeError as e:
-        chunk.status = ChunkStatus.RED_REJECTED
-        rs.status_message = f"chunk {chunk.chunk_id} RED_REJECTED: {e}"
-        return
+        if chunk.verify_mode:
+            # §5.3 verify-and-harden relaxation: the chunk scope says
+            # "changes already exist, verify and harden." If the locked
+            # test is already passing at HEAD (no valid RED because the
+            # implementation already exists), accept that as the starting
+            # state instead of treating it as a blocker. The executor
+            # still runs as a verify-and-harden pass.
+            print(
+                f"  [verify-mode] validate_red raised: {e}. "
+                f"Checking whether the test is already GREEN at HEAD "
+                f"(changes already exist → verify-and-harden pass).",
+                file=sys.stderr,
+            )
+            try:
+                verify_green(chunk,
+                             framework_root=rs.framework_root,
+                             pilot_root=rs.pilot_root,
+                             pilot_python=rs.pilot_python,
+                             dry_run=dry_run)
+                already_green = True
+                print(
+                    f"  [verify-mode] test already GREEN at HEAD for "
+                    f"chunk {chunk.chunk_id}; executor will run as "
+                    f"verify-and-harden pass.",
+                    file=sys.stderr,
+                )
+            except RuntimeError:
+                # verify_green also failed — the test is broken for a
+                # reason other than "already passing." This is still
+                # RED_REJECTED, even in verify mode.
+                chunk.status = ChunkStatus.RED_REJECTED
+                rs.status_message = (
+                    f"chunk {chunk.chunk_id} RED_REJECTED (verify-mode): "
+                    f"test not RED and not GREEN — {e}"
+                )
+                chunk.gate_decision = GateDecision.REJECT
+                chunk.gate_reason = rs.status_message
+                return
+        else:
+            chunk.status = ChunkStatus.RED_REJECTED
+            rs.status_message = (
+                f"chunk {chunk.chunk_id} RED_REJECTED: {e}"
+            )
+            chunk.gate_decision = GateDecision.REJECT
+            chunk.gate_reason = rs.status_message
+            return
 
     # 4. executor
     chunk.status = ChunkStatus.EXECUTING
     ex_prompt_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-prompt.md")
-    render_executor_prompt(chunk, rs, output_path=ex_prompt_path)
+    render_executor_prompt(chunk, rs, output_path=ex_prompt_path,
+                           verify_and_harden=already_green or chunk.verify_mode)
     invoke_executor(
         chunk,
         rs,
@@ -1243,6 +1388,15 @@ def _runner_argparser() -> argparse.ArgumentParser:
         "(SystemExit 4/5). Decoupled from --dry-run per "
         "pd-pass-r2 G-7. Resumes via --resume-from.",
     )
+    parser.add_argument("--verify-mode", action="store_true",
+                        help="Relax the §5.3 'no RED at HEAD' requirement. When the "
+                             "chunk scope says 'changes already exist, verify and "
+                             "harden,' the runner accepts that as a valid starting "
+                             "state. The executor becomes a verify-and-harden pass.")
+    parser.add_argument("--force-accept", action="store_true",
+                        help="In unattended mode, override the §5.3 reconcile gate "
+                             "refusal. Records an explicit operator disposition in "
+                             "the checkpoint and proceeds with ACCEPT.")
     return parser
 
 
@@ -1333,6 +1487,12 @@ def _format_build_config_help_synthetic() -> str:
     p.add_argument(
         "--unattended", action="store_true", help="Unattended live; checkpoint on §5.3 refusal."
     )
+    p.add_argument("--verify-mode", action="store_true",
+                   help="Relax §5.3 'no RED at HEAD'; verify-and-harden pass.")
+    p.add_argument("--force-accept", action="store_true",
+                   help="Override §5.3 reconcile refusal in unattended mode.")
+    p.add_argument("--per-call-timeout-seconds", type=int, default=-1,
+                   help="Override the per-droid-exec call timeout (default: 1800s).")
     p.add_argument(
         "--no-dry-auto-decide",
         action="store_true",
@@ -1462,6 +1622,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         retry_threshold=cfg.retry_threshold,
         max_auto_retries=cfg.max_auto_retries,
         retry_delay_seconds=cfg.retry_delay_seconds,
+        per_call_timeout_seconds=cfg.per_call_timeout_seconds,
+        verify_mode=cfg.verify_mode,
+        force_accept=cfg.force_accept,
+        force_accept_reason=cfg.force_accept_reason,
         planner=_make_role(
             Role.PLANNER, cfg.planner_model, cfg.planner_auto_level, "Read,Glob,Grep,LS,Execute"
         ),
@@ -1599,6 +1763,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
             gate_auto_decide=(cfg.skip_reconcile or cfg.gate_auto_decide),
             unattended=cfg.unattended,
             no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False),
+            force_accept=cfg.force_accept,
+            force_accept_reason=cfg.force_accept_reason,
         )
 
         if decision in (ReconcileDecision.ACCEPT, ReconcileDecision.AMEND):

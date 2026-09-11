@@ -424,6 +424,7 @@ def invoke_test_designer(
         enabled_tools=rs.test_designer.enabled_tools,
         prompt_file=rendered_prompt_path,
         cwd=rs.pilot_root,
+        timeout_seconds=rs.per_call_timeout_seconds or 1800,
     )
     rr = invoke_droid(
         Role.TEST_DESIGNER,
@@ -472,6 +473,7 @@ def invoke_executor(
         enabled_tools=rs.executor.enabled_tools,
         prompt_file=rendered_prompt_path,
         cwd=rs.pilot_root,
+        timeout_seconds=rs.per_call_timeout_seconds or 1800,
     )
     rr = invoke_droid(
         Role.EXECUTOR,
@@ -574,8 +576,28 @@ def render_test_designer_prompt(
     )
 
 
-def render_executor_prompt(chunk: ChunkState, rs: RunState, output_path: str) -> str:
-    """Render the executor role prompt for this chunk."""
+def render_executor_prompt(chunk: ChunkState, rs: RunState,
+                           output_path: str,
+                           verify_and_harden: bool = False) -> str:
+    """Render the executor role prompt for this chunk.
+
+    When ``verify_and_harden=True`` (§5.3 verify mode), the prompt
+    context instructs the executor to verify and harden the existing
+    implementation rather than build from scratch.
+    """
+    verify_directive = ""
+    if verify_and_harden:
+        verify_directive = (
+            "> **VERIFY-AND-HARDEN MODE (§5.3 relaxation):** The changes\n"
+            "> already exist at HEAD — the locked test is already GREEN.\n"
+            "> Your job is NOT to build from scratch. Review the existing\n"
+            "> implementation against the chunk spec and observable\n"
+            "> criteria. Harden it: fix edge cases, improve error paths,\n"
+            "> add defensive checks, and ensure the full suite still\n"
+            "> passes. Do NOT break the existing GREEN test. If the\n"
+            "> existing implementation is already correct and complete,\n"
+            "> make minimal or no changes — the validator will confirm.\n"
+        )
     return render_to_file(
         "executor",
         {
@@ -583,6 +605,7 @@ def render_executor_prompt(chunk: ChunkState, rs: RunState, output_path: str) ->
             "pilot_root": rs.pilot_root,
             "test_file_path": os.path.join(rs.pilot_root, chunk.locked_test_files[0]),
             "commands": "\n".join(chunk.commands),
+            "verify_and_harden_directive": verify_directive,
         },
         output_path,
     )

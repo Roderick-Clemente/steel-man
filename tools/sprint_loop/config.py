@@ -180,6 +180,7 @@ class Config:
     retry_threshold: int = 1
     max_auto_retries: int = 2
     retry_delay_seconds: int = 5
+    per_call_timeout_seconds: int = 0  # 0 = use InvokeOptions default (1800)
 
     # CLI behaviour
     dry_run: bool = False
@@ -200,6 +201,20 @@ class Config:
     # from argv OR env vars. (Pass-r3 finding H-14 — passed via
     # parsed namespace, not sys.argv.)
     unattended: bool = False
+
+    # §5.3 verify-and-harden mode: when True, the runner relaxes the
+    # "no RED at HEAD" precondition. Chunks whose scope indicates
+    # "changes already exist, verify and harden" are accepted with
+    # the existing state as the starting point — the executor becomes
+    # a verify-and-harden pass rather than build-from-scratch.
+    verify_mode: bool = False
+
+    # Reconcile gate override for unattended mode: when True, the gate
+    # records an explicit operator disposition in the checkpoint and
+    # proceeds with ACCEPT instead of refusing on §5.3 preconditions.
+    # The reason is captured for the audit trail.
+    force_accept: bool = False
+    force_accept_reason: str = ""
 
     # §17.6 outage override (must be recorded in phase-N/KNOWN-ISSUES.md)
     allow_test_author_collide: bool = False
@@ -410,6 +425,31 @@ def build_config(argv: list[str] | None = None, config_path_override: str | None
     parser.add_argument("--retry-delay-seconds", type=int, default=-1)
 
     parser.add_argument(
+        "--per-call-timeout-seconds",
+        type=int,
+        default=-1,
+        help="Override the per-droid-exec call timeout (default: 1800s). "
+        "Set via config JSON or this flag; 0 or negative uses the default.",
+    )
+
+    parser.add_argument(
+        "--verify-mode",
+        action="store_true",
+        help="Relax the §5.3 'no RED at HEAD' requirement. When the chunk "
+        "scope says 'changes already exist, verify and harden,' the "
+        "runner accepts that as a valid starting state. The executor "
+        "becomes a verify-and-harden pass rather than build-from-scratch.",
+    )
+
+    parser.add_argument(
+        "--force-accept",
+        action="store_true",
+        help="In unattended mode, override the §5.3 reconcile gate refusal. "
+        "Records an explicit operator disposition in the checkpoint and "
+        "proceeds with ACCEPT. Use only with documented operator approval.",
+    )
+
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Do not invoke droid exec or git commit; record planned actions.",
@@ -524,6 +564,14 @@ def build_config(argv: list[str] | None = None, config_path_override: str | None
         cfg.max_auto_retries = args.max_auto_retries
     if args.retry_delay_seconds >= 0:
         cfg.retry_delay_seconds = args.retry_delay_seconds
+
+    if args.per_call_timeout_seconds >= 0:
+        cfg.per_call_timeout_seconds = args.per_call_timeout_seconds
+
+    if args.verify_mode:
+        cfg.verify_mode = True
+    if args.force_accept:
+        cfg.force_accept = True
 
     if args.dry_run:
         cfg.dry_run = True
