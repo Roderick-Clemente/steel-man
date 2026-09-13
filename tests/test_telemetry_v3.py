@@ -305,6 +305,7 @@ def test_schema_phase_step_enum_matches_current_emitters():
         "plan",
         "plan-review",
         "test-design",
+        "test-design-rerun",
         "execute",
     ]
 

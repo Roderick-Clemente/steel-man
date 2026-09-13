@@ -142,7 +142,7 @@ aggregator accepts `schema_version` in `{v1, v2, v3}`.
    | `finished_at`       | ISO-8601 | wall-clock end of the invocation |
    | `run_label`         | string | experiment arm / operator label (`--run-label`; defaults to the run_id) |
    | `chunk_id`          | string | set on per-chunk seats (`test-designer`, `executor`); absent on plan-level seats |
-   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `execute` |
+   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `test-design-rerun` / `execute` |
    | `verdict_text_first_240` | string | existing key, carried on the in-memory `RunRecord`; emitted only when non-empty. The Phase 4.5 runner does not yet populate it (the reviewer verdict is parsed after the row is appended). |
 
    `branch` is now the actual `git branch --show-current` of the framework
