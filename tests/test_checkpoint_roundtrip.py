@@ -228,6 +228,32 @@ def test_checkpoint_round_trips_all_chunkstate_fields(tmp_path):
         )
 
 
+def test_checkpoint_preserves_executor_retry_count_and_rejection_feedback(tmp_path):
+    """Resume keeps the retry budget spent and the finding for the next seat."""
+    mod = _load_runner()
+    rs = RunState(
+        run_id="r-retry-feedback",
+        started_at="2026-09-13T00:00:00Z",
+        framework_root=str(tmp_path / "fw"),
+        pilot_root=str(tmp_path / "pilot"),
+        pilot_python="/usr/bin/python3",
+    )
+    chunk = ChunkState(chunk_id="c-retry-feedback", scope="fix the rejected behavior")
+    chunk.retry_count = 1
+    chunk.rejection_feedback = [
+        "validator-a: the implementation substitutes a fallback instead of "
+        "reporting the deleted reference"
+    ]
+    rs.chunks = [chunk]
+
+    cp = tmp_path / "checkpoint.json"
+    mod.write_checkpoint(rs, str(cp))
+    restored = mod.load_checkpoint(str(cp)).chunks[0]
+
+    assert restored.retry_count == 1
+    assert restored.rejection_feedback == chunk.rejection_feedback
+
+
 def test_verify_mode_or_inheritance(tmp_path):
     """verify_mode on a chunk must OR with the run-level flag."""
     mod = _load_runner()
