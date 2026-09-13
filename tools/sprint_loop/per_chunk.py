@@ -504,11 +504,12 @@ def invoke_test_designer(
     rs.test_designer.run_id = rr.run_id
     chunk.test_designer_run_id = rr.run_id
     _emit_seat_row(rr, chunk, rs, phase_step)
-    # The accepted assertion was emitted by the test-designer; the
-    # runner parses it out of the result text. For dry-run / chunk that
-    # was loaded via chunks_file, the assertion is already in
-    # chunk.accepted_assertion and the renderer substituted it in the
-    # prompt.
+    # The accepted assertion may be emitted by the test-designer as an
+    # ``ACCEPTED_ASSERTION: <phrase>`` line. The caller
+    # (``run_chunk_inner``) parses it via ``parse_accepted_assertion``
+    # and threads it into lock_test / validate_red. For dry-run or a
+    # chunk loaded via chunks_file, the assertion is already in
+    # chunk.accepted_assertion.
     return {"record": rr, "result_text": _read_envelope_result_text(rr.envelope_path)}
 
 
@@ -877,6 +878,28 @@ def _read_envelope_result_text(envelope_path: str) -> str:
         return env.get("result") or ""
     except (OSError, json.JSONDecodeError):
         return ""
+
+
+# ── ACCEPTED_ASSERTION parser ────────────────────────────────────────────
+
+_ACCEPTED_ASSERTION_RE = re.compile(
+    r"^ACCEPTED_ASSERTION:\s*(.+)$", re.MULTILINE
+)
+
+
+def parse_accepted_assertion(result_text: str) -> str | None:
+    """Extract the ACCEPTED_ASSERTION phrase from the test-designer's
+    result text. Returns the phrase, or ``None`` if not found.
+
+    The test-designer prompt instructs the seat to emit a literal line:
+
+        ACCEPTED_ASSERTION: <phrase>
+
+    The runner parses it here and threads it into lock_test /
+    validate_red so the RED gate can match it.
+    """
+    m = _ACCEPTED_ASSERTION_RE.search(result_text)
+    return m.group(1).strip() if m else None
 
 
 # ── render role prompts per chunk ────────────────────────────────────────

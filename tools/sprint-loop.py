@@ -95,6 +95,7 @@ from sprint_loop.per_chunk import (  # noqa: E402
     invoke_executor,
     invoke_test_designer,
     lock_test,
+    parse_accepted_assertion,
     produce_evidence,
     render_executor_prompt,
     render_test_designer_prompt,
@@ -1690,7 +1691,7 @@ def run_chunk_inner(
         render_test_designer_prompt(
             chunk, rs, _read_pilot_spec_text(rs), output_path=td_prompt_path
         )
-        invoke_test_designer(
+        td_result = invoke_test_designer(
             chunk,
             rs,
             evidence_output_dir=evidence_output_dir,
@@ -1699,6 +1700,22 @@ def run_chunk_inner(
             dry_run=dry_run,
             phase_step="test-design-rerun" if redesign_round else "test-design",
         )
+        # Parse the ACCEPTED_ASSERTION from the designer's result text.
+        # The chunk spec may already carry one (from chunks_file); the
+        # designer's emit overrides it — the designer is the authority
+        # on what phrase appears in the test it just wrote.
+        parsed = parse_accepted_assertion(td_result.get("result_text", ""))
+        if parsed:
+            chunk.accepted_assertion = parsed
+        elif not chunk.accepted_assertion:
+            print(
+                f"  [warn] test-designer for chunk {chunk.chunk_id} did "
+                f"not emit ACCEPTED_ASSERTION and no assertion was "
+                f"pre-set; lock_test / validate_red will use the chunk "
+                f"scope as a fallback.",
+                file=sys.stderr,
+            )
+
         if not dry_run and (
             not os.path.isfile(test_file_abs) or os.path.getsize(test_file_abs) == 0
         ):
