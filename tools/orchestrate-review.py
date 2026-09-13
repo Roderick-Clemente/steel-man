@@ -56,6 +56,7 @@ if _TOOLS_DIR not in sys.path:
 
 from sprint_loop.config import phase_path  # noqa: E402
 from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
+from sprint_loop.vocab import VALIDATOR_VERDICTS, tagged_line_pattern  # noqa: E402
 
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
 
@@ -357,8 +358,8 @@ def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
     print("=" * 60)
 
     verdict_pattern = re.compile(
-        r"\b(ACCEPT-WITH-NITS|ACCEPT|REJECT_IMPLEMENTATION|REJECT_TEST|REJECT|HUMAN_DECISION)\b",
-        re.IGNORECASE,
+        tagged_line_pattern("VERDICT", VALIDATOR_VERDICTS),
+        re.IGNORECASE | re.MULTILINE,
     )
 
     for v in validators:

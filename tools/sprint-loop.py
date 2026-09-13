@@ -124,6 +124,7 @@ from sprint_loop.state import (  # noqa: E402
     now_iso,
     validate_run_id,
 )
+from sprint_loop import vocab  # noqa: E402
 
 # ── git helpers (assert-on-reality per OPERATING-RULES §7/§15) ───────────
 
@@ -610,7 +611,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     rs.planner.run_id = record.run_id
     record.provenance = run_provenance(rs)
     record.run_label = rs.run_label
-    record.phase_step = "plan"
+    record.phase_step = vocab.PHASE_PLAN
     append_run_record(
         record,
         phase="phase-4.5",
@@ -677,7 +678,10 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
 
 # ── steps: plan reviewer ─────────────────────────────────────────────────
 
-_VERDICT_RE = re.compile(r"\bVERDICT:\s*(APPROVE|APPROVE-WITH-NITS|REJECT)\b", re.IGNORECASE)
+_VERDICT_RE = re.compile(
+    vocab.tagged_line_pattern("VERDICT", vocab.PLAN_REVIEW_VERDICTS),
+    re.IGNORECASE | re.MULTILINE,
+)
 # The executor emits a literal "RESULT: SPEC_OR_TEST_BLOCKED" line when it
 # believes the locked test is contradictory or the spec is unimplementable
 # (see tools/sprint_loop/prompts/executor.md). Same anchored-literal pattern
@@ -854,7 +858,7 @@ def run_plan_reviewer(
     reviewer.run_id = record.run_id
     record.provenance = run_provenance(rs)
     record.run_label = rs.run_label
-    record.phase_step = "plan-review"
+    record.phase_step = vocab.PHASE_PLAN_REVIEW
     append_run_record(
         record,
         phase="phase-4.5",
@@ -1733,7 +1737,11 @@ def run_chunk_inner(
             rendered_prompt_path=td_prompt_path,
             envelope_path=td_envelope_path,
             dry_run=dry_run,
-            phase_step="test-design-rerun" if redesign_round else "test-design",
+            phase_step=(
+                vocab.PHASE_TEST_DESIGN_RERUN
+                if redesign_round
+                else vocab.PHASE_TEST_DESIGN
+            ),
         )
         # Parse the ACCEPTED_ASSERTION from the designer's result text.
         # The chunk spec may already carry one (from chunks_file); the

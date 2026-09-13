@@ -1073,3 +1073,34 @@ After a test-designer rewrite is accepted and the new test is written to disk,
 `lock_test()` must be re-invoked to regenerate the lock manifest with the new SHA.
 The re-lock should happen in `run_chunk_with_retries` after the test-designer
 completes its redesign round, before the executor re-runs.
+## Issue KI-19: Validator advertises an unsupported REPLAN verdict
+
+- **Status:** FIXED.
+- **Surface:** `tools/sprint_loop/prompts/validator.md`,
+  `tools/orchestrate-review.py`, and `tools/sprint_loop/per_chunk.py`.
+- **Filed:** 2026-09-13.
+- **Numbering:** KI-18 is assigned in the adjacent experiment-doc stack, so
+  this review-cleanup finding uses the next available number.
+
+### Symptom
+The validator prompt offered `VERDICT: REPLAN`, but the orchestrator's parser
+did not recognize it. Depending on surrounding prose, the result became
+`UNKNOWN` or was mistaken for another untagged verdict word.
+
+### Root cause
+The prompt, parser, routing set, executor signals, and telemetry phase names
+each maintained independent string literals. There was no structural check
+that a value advertised by one process was accepted by the next.
+
+### Fix
+Add `tools/sprint_loop/vocab.py` as the shared protocol vocabulary and derive
+the validator parser and test-directed routing set from it. Contract tests
+compare the prompt's complete verdict block to the vocabulary and exercise
+every parsed value.
+
+`REPLAN` is removed. A chunk validator runs after the approved plan has been
+chunked and after implementation; the runtime has no safe transition from
+that point back through planning, plan review, reconciliation, and chunk
+replacement. Parsing `REPLAN` without that lifecycle would only disguise it
+as an executor retry or a human pause. Removing the unsupported promise is
+fail-closed and keeps a future planner transition explicit.
