@@ -230,17 +230,51 @@ def load_checkpoint(path: str) -> RunState:
             for f in data["plan_findings"]
         ]
 
-    # chunks: nested ChunkState dataclasses with enum fields.
+    # chunks: field-driven restore mirroring the RunState approach.
+    _CHUNK_SKIP = frozenset({"chunk_id", "scope", "findings", "verify_mode"})
+    _CHUNK_ENUM_MAP: dict[str, type] = {"status": ChunkStatus}
+
     if data.get("chunks"):
         for c in data["chunks"]:
             cs = ChunkState(chunk_id=c["chunk_id"], scope=c.get("scope", ""))
-            for k in ("observable_criteria", "allowed_files", "locked_test_files", "commands"):
-                setattr(cs, k, c.get(k, []))
-            cs.accepted_assertion = c.get("accepted_assertion", "")
-            cs.lock_manifest_path = c.get("lock_manifest_path", "")
-            cs.locked_test_sha = c.get("locked_test_sha", "")
-            cs.evidence_bundle_path = c.get("evidence_bundle_path", "")
-            cs.status = ChunkStatus(c.get("status", "PENDING"))
+            for fld in dataclasses.fields(ChunkState):
+                if fld.name in _CHUNK_SKIP or fld.name not in c:
+                    continue
+                raw = c[fld.name]
+                if fld.name in _CHUNK_ENUM_MAP:
+                    setattr(cs, fld.name, _CHUNK_ENUM_MAP[fld.name](raw))
+                elif fld.name == "gate_decision":
+                    # gate_decision is GateDecision | None; serialized as
+                    # a string value or null.
+                    setattr(cs, fld.name, GateDecision(raw) if raw else None)
+                else:
+                    setattr(cs, fld.name, raw)
+            # findings: nested Finding dataclasses, same shape as
+            # plan_findings.
+            if c.get("findings"):
+                cs.findings = [
+                    Finding(
+                        finding_id=f.get("finding_id", ""),
+                        severity=f.get("severity", ""),
+                        category=f.get("category", ""),
+                        claim=f.get("claim", ""),
+                        evidence=f.get("evidence", []),
+                        recommended_change=f.get("recommended_change", ""),
+                        source_role=f.get("source_role", "reviewer"),
+                        source_run_id=f.get("source_run_id", ""),
+                        source_model_id=f.get("source_model_id", ""),
+                        source_family=f.get("source_family", ""),
+                        first_seen_in_panel_position=f.get(
+                            "first_seen_in_panel_position", 1
+                        ),
+                        status=f.get("status", "open"),
+                        disposition_rationale=f.get("disposition_rationale", ""),
+                        plan_section=f.get("plan_section", ""),
+                        risk_if_ignored=f.get("risk_if_ignored", ""),
+                    )
+                    for f in c["findings"]
+                ]
+            # verify_mode: inherit from run-level flag (deliberate OR).
             cs.verify_mode = bool(c.get("verify_mode", False)) or rs.verify_mode
             # A resume must not silently hand the test-design budget back:
             # the bounces already spent are part of the chunk's state.
