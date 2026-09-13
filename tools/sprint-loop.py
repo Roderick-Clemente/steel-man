@@ -514,7 +514,8 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     status_banner("STEP 1 · Planner (GROK)")
     state_status(rs, "planner role active")
 
-    plan_doc_path = os.path.join(evidence_dir, "plan.md")
+    rnd = rs.plan_round
+    plan_doc_path = os.path.join(evidence_dir, f"plan-r{rnd}.md")
     rendered_path = render_to_file(
         "planner",
         {
@@ -523,7 +524,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
             "authored_chunks": _format_authored_chunks(rs.chunks_file),
             "prior_findings": _format_prior_findings(rs.plan_findings),
         },
-        os.path.join(evidence_dir, "plan-prompt.md"),
+        os.path.join(evidence_dir, f"plan-prompt-r{rnd}.md"),
     )
 
     # A finding is raised against one plan_sha256. The plan about to be
@@ -542,8 +543,8 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
                 f"{rs.plan_round - 1}, which this round replaces"
             )
 
-    env_path = os.path.join(evidence_dir, "planner-envelope.json")
-    stderr_path = os.path.join(evidence_dir, "planner-stderr.log")
+    env_path = os.path.join(evidence_dir, f"planner-envelope-r{rnd}.json")
+    stderr_path = os.path.join(evidence_dir, f"planner-stderr-r{rnd}.log")
     options = InvokeOptions(
         model_id=rs.planner.pinned_model_id or "claude-opus-5",
         auto_level=rs.planner.auto_level,
@@ -771,7 +772,8 @@ def run_plan_reviewer(
     )
     state_status(rs, f"reviewer {reviewer_index} role active")
 
-    reviewer_prompt_out = os.path.join(evidence_dir, f"{label}-prompt.md")
+    rnd = rs.plan_round
+    reviewer_prompt_out = os.path.join(evidence_dir, f"{label}-r{rnd}-prompt.md")
     rendered_path = render_to_file(
         "plan-reviewer",
         {
@@ -786,8 +788,8 @@ def run_plan_reviewer(
     # see the first reviewer's output. The runner does NOT inject the
     # prior findings into the prompt; the test on that is in KNOWN-ISSUES.
 
-    env_path = os.path.join(evidence_dir, f"{label}-envelope.json")
-    stderr_path = os.path.join(evidence_dir, f"{label}-stderr.log")
+    env_path = os.path.join(evidence_dir, f"{label}-r{rnd}-envelope.json")
+    stderr_path = os.path.join(evidence_dir, f"{label}-r{rnd}-stderr.log")
     options = InvokeOptions(
         model_id=reviewer.pinned_model_id,
         auto_level=reviewer.auto_level,
