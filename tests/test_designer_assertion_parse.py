@@ -61,12 +61,29 @@ def test_parse_strips_whitespace():
     assert parse_accepted_assertion(text) == "spaced phrase"
 
 
-def test_parse_takes_first_occurrence():
+def test_parse_takes_last_occurrence():
+    """Last-match discipline: a designer that narrates the format early
+    should not win over its final authoritative line."""
     text = (
         "ACCEPTED_ASSERTION: first phrase\n"
         "ACCEPTED_ASSERTION: second phrase\n"
     )
-    assert parse_accepted_assertion(text) == "first phrase"
+    assert parse_accepted_assertion(text) == "second phrase"
+
+
+def test_narrated_line_does_not_win_over_final_authoritative_line():
+    """A designer quoting the instruction format early in its message
+    must not shadow the real assertion at the end."""
+    text = (
+        "I will use the format:\n"
+        "ACCEPTED_ASSERTION: wrong phrase\n"
+        "\n"
+        "Here is the test I wrote...\n"
+        "\n"
+        "STATUS: TEST_AUTHORED\n"
+        "ACCEPTED_ASSERTION: right phrase\n"
+    )
+    assert parse_accepted_assertion(text) == "right phrase"
 
 
 def test_parse_handles_empty_string():

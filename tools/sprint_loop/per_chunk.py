@@ -895,11 +895,16 @@ def parse_accepted_assertion(result_text: str) -> str | None:
 
         ACCEPTED_ASSERTION: <phrase>
 
+    Takes the LAST match — consistent with the verdict parser's
+    last-occurrence discipline. A designer that narrates the line
+    format early in its message (e.g. quoting the instruction) should
+    not win over its final authoritative line.
+
     The runner parses it here and threads it into lock_test /
     validate_red so the RED gate can match it.
     """
-    m = _ACCEPTED_ASSERTION_RE.search(result_text)
-    return m.group(1).strip() if m else None
+    matches = _ACCEPTED_ASSERTION_RE.findall(result_text)
+    return matches[-1].strip() if matches else None
 
 
 # ── render role prompts per chunk ────────────────────────────────────────
