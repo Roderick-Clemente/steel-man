@@ -21,6 +21,12 @@ in ``phase-N/KNOWN-ISSUES.md``).
 ## Inputs
 
 - The **chunk spec** (from the approved plan): ``{{chunk_spec}}``
+- The **pilot spec** (the behaviour the pilot is meant to have):
+
+```
+{{pilot_spec}}
+```
+
 - The **pilot repo** at ``{{pilot_root}}`` — read-only context; any
   write to the pilot goes through your ``Write`` / ``Edit`` /
   ``ApplyPatch`` tools ONLY against the locked test file.
@@ -29,11 +35,24 @@ in ``phase-N/KNOWN-ISSUES.md``).
   the expected reason. The runner runs ``tools/phase-1-scripts/valid-red.py``
   after you commit the test; that classifier rejects syntax errors,
   import errors, missing fixtures, tautological tests, etc.
-- The **running pytest baseline** (``{{pytest_baseline_path}}``, if
-  the runner wrote one) — let the baseline tell you what the test
-  pattern is.
-- The **existing similar tests** (``{{sibling_tests_pattern}}``, if
-  known) — match the test style of the pilot repo.
+- The **pytest baseline command** (``{{pytest_baseline_path}}``, if the
+  chunk spec gave one) — run it to see the suite's current state and
+  let it tell you what the test pattern is.
+- The **existing similar tests** under ``{{sibling_tests_pattern}}`` —
+  read them and match the test style of the pilot repo (fixtures,
+  client construction, naming, imports).
+
+## Why you may be running again
+
+```
+{{prior_test_rejection}}
+```
+
+If the block above carries validator findings, a PREVIOUS locked test
+for this chunk was rejected as inadequate — the implementation was not
+found at fault. Read the findings and write a test that closes the gap
+they name. Do not re-issue the previous test; the superseded copy is
+archived under the run's evidence tree.
 
 ## What you write
 
@@ -63,7 +82,15 @@ reasoning — do not preempt by self-classifying.
 
 ## Acceptance assertion phrase
 
-Pick ONE short phrase that uniquely identifies the assertion. The
+If the chunk spec above carries an ``ACCEPTED_ASSERTION:`` line, that
+phrase is already fixed — do NOT invent your own. It MUST appear
+**literally, character for character**, in the test source you write
+(an assertion message, or a comment on the asserting line). The runner
+greps the locked test source for it; if it is absent, GREEN is refused
+and the chunk is rejected.
+
+Only when the chunk spec carries no ``ACCEPTED_ASSERTION:`` line do you
+pick ONE short phrase that uniquely identifies the assertion. The
 runner records it in the lock manifest. The classifier pattern-matches
 it on pytest failure output. Example phrases:
 

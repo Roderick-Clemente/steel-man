@@ -58,6 +58,8 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 | `panel_size_at_surfacing` | int | yes | how many models were on the panel at the time |
 | `first_seen_in_panel_position` | int | yes | 1..N (1 = first reviewer, N = Nth). 0 = caught by all reviewers identically (rare; recorded as 'shared-not-unique'). |
 | `raw_text_first_240` | string | no | the finding's first 240 chars, no chain-of-thought |
+| `plan_section`      | string   | no | the plan section the finding is against (e.g. `Chunk plan / commands`). Absent on rows written before Phase 4.5's plan-review loop. |
+| `risk_if_ignored`   | string   | no | what goes wrong if the finding is not acted on. This — not `raw_text_first_240`, which holds the plan's own claim — is the defect. Absent on older rows. |
 | `verdict_blocking_total` | int | yes | total blocking-severity findings in the same review pass |
 
 ## dispositions.jsonl — one row per finding closed or explicitly not-closed
@@ -116,6 +118,88 @@ Changes:
 3. **`schema_version` front-matter** bumped from `"v1"` to `"v2"`. The
    aggregator continues to read v1 rows for back-compat; v2 rows carry the new
    fields.
+
+## Migration v2 → v3 (Phase 4.5 runner)
+
+**Driver:** the §13 efficacy series needs per-row seat outcome, funnel
+position, and run provenance. Before v3 the runner wrote `branch` as a
+hardcoded string (not the branch the run executed against), and the
+`executor` / `test-designer` seats emitted **no** `runs.jsonl` rows at all —
+only planner and plan-reviewer calls were recorded.
+
+All additions are optional for readers; v1/v2 rows are unchanged and the
+aggregator accepts `schema_version` in `{v1, v2, v3}`.
+
+1. **New per-invocation fields on `runs.jsonl`** (rows with `role` in the
+   seat enum):
+
+   | key                 | type   | note |
+   |---                  |---     |---   |
+   | `seat_outcome`      | enum   | `ok` / `tool-error` / `empty-envelope` / `parse-fail` / `transient-exhausted` / `dry-run`. Artifact state of the call; `is_error` alone cannot distinguish "droid reported an error" from "no envelope was produced". |
+   | `stderr_path`       | string | path to the captured stderr log |
+   | `envelope_raw_bytes`| int    | size of the envelope file on disk (0 = missing/empty) |
+   | `started_at`        | ISO-8601 | wall-clock start of the invocation |
+   | `finished_at`       | ISO-8601 | wall-clock end of the invocation |
+   | `run_label`         | string | experiment arm / operator label (`--run-label`; defaults to the run_id) |
+   | `chunk_id`          | string | set on per-chunk seats (`test-designer`, `executor`); absent on plan-level seats |
+   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `execute` / `validate` |
+   | `verdict_text_first_240` | string | existing key, carried on the in-memory `RunRecord`; emitted only when non-empty. The Phase 4.5 runner does not yet populate it (the reviewer verdict is parsed after the row is appended). |
+
+   `branch` is now the actual `git branch --show-current` of the framework
+   checkout.
+
+2. **Flattened provenance keys**, stamped on every v3 row (runs, run
+   summary, dispositions) so queries need no JSON paths:
+   `framework_sha`, `framework_branch`, `pilot_root`, `pilot_head`,
+   `plan_sha256`, `plan_round`, `flag_unattended`, `flag_force_accept`,
+   `flag_verify_mode`, `flag_dry_run`, `flag_skip_reconcile`. Git values are
+   `"unknown"` / `"detached"` when they cannot be read.
+
+3. **New `role="run"` summary row in `runs.jsonl`** — exactly one per runner
+   process, emitted on every exit path (normal return, `SystemExit`,
+   uncaught exception). Seat-oriented queries must filter it out
+   (`role != "run"`); `model_id` / `provider` / `family` are `"(n/a)"`.
+
+   | key                     | type     | note |
+   |---                      |---       |---   |
+   | `run_id`                | string   | `r-run-<epoch-ms>` |
+   | `phase`, `branch`       | string   | as for seat rows |
+   | `exit_code`             | int      | process exit code |
+   | `run_status`            | string   | final `RunStatus` value |
+   | `status_message`        | string   | last operator-facing status text |
+   | `reached_phase_step`    | enum     | furthest step reached: `start` / `planner` / `plan-review` / `reconcile` / `chunking` / `chunk-execution` / `red-gate` / `execute` / `verify-green` / `validate` / `completed` |
+   | `findings_total`        | int      | plan-level findings count |
+   | `findings_by_severity`  | object   | `{severity: count}` |
+   | `plan_reviewer_verdicts`| object[] | `{model_id, verdict, bound_to_plan}`; `bound_to_plan` is whether the verdict's plan_sha256 matches the final plan |
+   | `chunk_statuses`        | object[] | `{chunk_id, status, gate_decision, retry_count}` |
+   | `force_accept_disposition` | string | the operator disposition text, if a force-accept fired |
+   | + provenance keys       |          | see (2) |
+
+4. **`dispositions.jsonl` v3 rows for force-accept.** A `--force-accept`
+   override at the reconcile gate writes one row per overridden open
+   `blocker|high` finding with `disposition="overridden"` (new enum value).
+   `disposition_reason` is the operator's `--force-accept-reason` (or
+   `"(not provided)"`), `disposition_model_id` is `"(operator)"`,
+   `disposition_commit_sha` is `pilot_head`. Rows also carry `severity`,
+   `category`, `source_run_id`, `source_model_id`, `run_label`,
+   `framework_sha`, `plan_sha256`. Without these rows, reviewer precision
+   (upheld vs. overridden) is not measurable from telemetry.
+
+5. **`schema_version`** is `"v3"` on all rows written by the Phase 4.5
+   runner. `findings.jsonl` rows written by the runner remain `"v2"`.
+
+6. **Two new optional `findings.jsonl` fields**, `plan_section` and
+   `risk_if_ignored`. Both are strings, both are optional, and both are
+   absent on every row written before the plan-review loop landed;
+   readers must treat missing as `""`. `schema_version` stays `"v2"` for
+   `findings.jsonl` because the change is additive only.
+
+   The reason they exist: plan reviewers emit a `claim` (the plan's own
+   assertion, which the reviewer is *challenging*) alongside
+   `risk_if_ignored` (the defect). Storing only `claim` — as
+   `raw_text_first_240` did — makes a finding read as an approval when
+   rendered, and leaves the actionable text nowhere on disk. No backfill;
+   older rows keep `raw_text_first_240` as their only prose.
 
 
 ## plan_lint_runs.jsonl — one row per `plan-lint.py` invocation

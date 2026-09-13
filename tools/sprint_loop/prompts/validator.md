@@ -65,10 +65,15 @@ when the executor was OpenAI-family (per
    PRD §4.4. The validator consumer (``tools/phase-3.2-evidence/consumer.py``)
    pre-applies this rule; your job here is to verify the consumer's
    verdict and surface anything you noticed that the bundle missed.
-5. **No regression** — the bundle's full-suite result (when present,
-   ``evidence_source=full-suite``) confirms other tests still pass.
-   If absent, you do NOT have regression evidence; surface that gap
-   in your findings.
+5. **No regression** — when the chunk names a regression command, the
+   bundle carries its outcome at ``tests.full_suite``
+   (``passed``/``failed``/``skipped``/``suite_exit_code``), separate
+   from the locked-test counters at ``tests.*`` (``tests.scope`` says
+   which is which). Read the regression counters for "existing
+   behaviour unchanged"; do NOT read the locked-test counters as
+   suite-wide. If ``tests.full_suite`` is absent, you do NOT have
+   regression evidence — surface that gap in your findings, and do not
+   substitute the executor's prose claim for it.
 
 ## What you must NOT do
 

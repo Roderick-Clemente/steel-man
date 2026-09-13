@@ -691,6 +691,11 @@ def test_chunk_loop_refuses_after_executor_family_collision(tmp_path, monkeypatc
         _mk(Role.VALIDATOR, "gpt-5.4-mini", "openai-family"),
         _mk(Role.VALIDATOR, "gemini-3.1-pro-preview", "gemini-family"),
     ]
+    # The locked test must exist on disk, else run_chunk_inner fires
+    # the test_designer round before reaching the guard under test.
+    rs.pilot_root = str(tmp_path)
+    (tmp_path / "tests").mkdir(exist_ok=True)
+    (tmp_path / "tests" / "test_x.py").write_text("def test_x():\n    assert True\n")
     chunk = ChunkState(
         chunk_id="c-collision",
         scope="post-executor family collision",
@@ -961,8 +966,12 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
         "pilot_spec_path": "/tmp/spec.md",
         "plan_doc_path": "/tmp/plan.md",
         "plan_output_path": "/tmp/plan-out.md",
+        "authored_chunks": "(none supplied — propose a chunking)",
+        "prior_findings": "(first round — no prior findings)",
+        "prior_test_rejection": "(no prior test rejection)",
         "panel_position": "1",
         "chunk_spec": "scope: add /llms.txt route; acceptance: GET returns 200 ...",
+        "pilot_spec": "the pilot exposes a public /llms.txt route",
         "pilot_root": "/tmp/pilot",
         "pytest_baseline_path": "/tmp/baseline.txt",
         "sibling_tests_pattern": "/tmp/repo/tests",
@@ -972,6 +981,7 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
         "evidence_bundle_path": "/tmp/bundle.json",
         "commands": "pytest test/test_x.py -v",
         "verify_and_harden_directive": "",
+        "prior_implementation_rejection": "",
     }
     remaining_unresolved = {}
     for role in ("planner", "plan-reviewer", "test-designer", "executor", "validator"):
@@ -1961,7 +1971,10 @@ def test_unattended_writes_checkpoint_on_refusal_g7():
     rs.status = RunStatus.AWAITING_RECONCILIATION
     rs.plan_doc_path = "/tmp/fake-plan.md"
     rs.plan_sha256 = "deadbeef" * 8
-    rs.plan_round = 1
+    # Rounds exhausted: with rounds remaining the unattended gate loops
+    # the planner (REJECT) instead of refusing, so the checkpoint path
+    # this test pins is only reachable at exhaustion.
+    rs.plan_round = rs.max_review_rounds
     rs.plan_findings = [
         StateFinding(
             finding_id="f-blocker-1",

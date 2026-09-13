@@ -31,6 +31,36 @@ import json
 import os
 import sys
 
+# pytest exit 5 = no tests collected. A regression section reporting zero
+# collected tests has ``failed == 0``, so a counter-only check reads it as a
+# pass; the exit code is the only thing that distinguishes it from a real
+# green run.
+PYTEST_EXIT_NO_TESTS_COLLECTED = 5
+
+
+def regression_refusal_reason(full_suite: dict) -> str:
+    """Why the bundle's regression section is not evidence, or "".
+
+    Empty / absent section returns "" — bundles produced before the
+    ``tests.full_suite`` section existed are not retroactively red.
+    """
+    if not full_suite:
+        return ""
+    exit_code = full_suite.get("suite_exit_code", 1)
+    failed = full_suite.get("failed", 0)
+    collected = failed + full_suite.get("passed", 0) + full_suite.get("skipped", 0)
+    if failed > 0:
+        return f"{failed} failure(s), suite exit {exit_code}"
+    if exit_code == PYTEST_EXIT_NO_TESTS_COLLECTED or collected == 0:
+        return (
+            f"the regression run collected no tests (suite exit {exit_code}) "
+            f"— it proves nothing about existing behaviour"
+        )
+    if exit_code != 0:
+        return f"suite exit {exit_code}"
+    return ""
+
+
 # ── signature verification ───────────────────────────────────────────────
 
 
@@ -79,15 +109,32 @@ class ValidatorConsumer:
         failed = tests.get("failed", 0)
         suite_exit = tests.get("suite_exit_code", 1)
 
-        result["tests_passed"] = failed == 0 and suite_exit == 0 and passed > 0
-        result["failures"] = tests.get("failures", [])
+        # The regression suite, when the bundle carries it, is part of the
+        # evidence verdict: a locked test that passes while the rest of the
+        # suite is red is not an accept.
+        full_suite = tests.get("full_suite") or {}
+        full_suite_refusal = regression_refusal_reason(full_suite)
+        full_suite_red = bool(full_suite_refusal)
+
+        result["tests_passed"] = (
+            failed == 0 and suite_exit == 0 and passed > 0 and not full_suite_red
+        )
+        result["failures"] = tests.get("failures", []) + full_suite.get("failures", [])
 
         if result["tests_passed"]:
             result["evidence_verdict"] = "ACCEPT"
             result["reason"] = f"bundle shows {passed} passed, 0 failed, suite exit 0"
+            if full_suite:
+                result["reason"] += (
+                    f"; full suite {full_suite.get('passed', 0)} passed, "
+                    f"0 failed, exit {full_suite.get('suite_exit_code')}"
+                )
         else:
             result["evidence_verdict"] = "REJECT"
-            result["reason"] = f"bundle shows {failed} failure(s), suite exit {suite_exit}"
+            if full_suite_red:
+                result["reason"] = f"bundle shows full-suite regression: {full_suite_refusal}"
+            else:
+                result["reason"] = f"bundle shows {failed} failure(s), suite exit {suite_exit}"
 
         return result
 
@@ -158,6 +205,12 @@ class OrchestratorGate:
         if tests.get("passed", 0) == 0:
             result["gate_decision"] = "FAIL_CLOSED"
             result["reason"] = "vacuous green — 0 tests passed (all skipped or empty suite)"
+            return result
+        full_suite = tests.get("full_suite") or {}
+        refusal = regression_refusal_reason(full_suite)
+        if refusal:
+            result["gate_decision"] = "FAIL_CLOSED"
+            result["reason"] = f"full-suite regression — {refusal}"
             return result
 
         result["gate_decision"] = "PASS"

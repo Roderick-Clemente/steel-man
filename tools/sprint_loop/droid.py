@@ -97,11 +97,27 @@ class RunRecord:
     started_at: str = ""
     finished_at: str = ""
     note: str = ""
+    # v3 seat-outcome + funnel + provenance fields. Everything below is
+    # additive: absent/empty values are simply not emitted, so v2 readers
+    # keep working.
+    seat_outcome: str = "ok"     # ok | tool-error | empty-envelope | parse-fail
+                                 # | transient-exhausted | dry-run
+    run_label: str = ""          # experiment arm / run label
+    chunk_id: str = ""
+    phase_step: str = ""         # plan | plan-review | red-gate | execute | validate
+    verdict_text_first_240: str = ""
+    provenance: dict[str, Any] = field(default_factory=dict)
 
     def to_telemetry_row(self, phase: str, branch: str) -> dict[str, Any]:
-        """Build the on-disk row (per ``telemetry/SCHEMA.md`` v2)."""
+        """Build the on-disk row (per ``telemetry/SCHEMA.md`` v3).
+
+        v3 adds seat outcome, funnel position and run provenance. Without
+        them a row cannot answer "which arm was this, how far did the run
+        get, and against which runner version" — the questions the §13
+        efficacy series is built on.
+        """
         row = {
-            "schema_version": "v2",
+            "schema_version": "v3",
             "ts": self.finished_at or self.started_at or _utcnow_iso(),
             "run_id": self.run_id,
             "phase": phase,
@@ -123,9 +139,26 @@ class RunRecord:
             "evidence_source": self.evidence_source,
             "retry_count": self.retry_count,
             "envelope_path": self.envelope_path,
+            # v3: artifact state, so a row proves what the call produced
+            # rather than asserting success (§7).
+            "seat_outcome": self.seat_outcome,
+            "stderr_path": self.stderr_path,
+            "envelope_raw_bytes": self.envelope_raw_bytes,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
         }
-        if self.note:
-            row["note"] = self.note
+        for key, value in (
+            ("run_label", self.run_label),
+            ("chunk_id", self.chunk_id),
+            ("phase_step", self.phase_step),
+            ("verdict_text_first_240", self.verdict_text_first_240),
+            ("note", self.note),
+        ):
+            if value:
+                row[key] = value
+        # Provenance keys are flattened so queries don't need JSON paths.
+        for key, value in (self.provenance or {}).items():
+            row.setdefault(key, value)
         return row
 
     def to_finding_rows(self) -> list[dict[str, Any]]:
@@ -320,6 +353,7 @@ def invoke_droid(
             started_at=started_at,
             finished_at=_utcnow_iso(),
             note="dry-run: simulated; no droid exec fired",
+            seat_outcome="dry-run",
         )
 
     # ── live path: route through run-with-model.sh, retry on transient
@@ -366,7 +400,10 @@ def invoke_droid(
                 envelope_raw_bytes=os.path.getsize(envelope_path_abs),
                 started_at=started_at,
                 finished_at=_utcnow_iso(),
-                note=f"retry budget exhausted after {max_retries} retries: {last_error!r}",
+                note=f"retry budget exhausted after {max_retries} retries: "
+                     f"{last_error!r}",
+                seat_outcome=classify_seat_outcome(
+                    envelope_path_abs, stderr_path_abs, last_error),
             )
 
         with open(envelope_path_abs, "wb") as enf, open(stderr_path_abs, "wb") as errf:
@@ -442,11 +479,38 @@ def invoke_droid(
         started_at=started_at,
         finished_at=finished_at,
         note=f"droid exec returned exit={result.returncode}" if "result" in locals() else "",
+        seat_outcome="ok",
     )
 
 
 # ── family / provider lookups (mirror Config.provider_family; imported
 # lazily so this module has no cycle) ────────────────────────────────────
+
+def classify_seat_outcome(envelope_path: str, stderr_path: str,
+                          last_error: str | None) -> str:
+    """Name *why* a seat call produced nothing, from artifacts on disk.
+
+    A bare `is_error` flag cannot distinguish "the model refused" from "the
+    CLI rejected our tool list", and that distinction is the difference
+    between a model-quality finding and a one-token config bug.
+    """
+    stderr_text = ""
+    try:
+        with open(stderr_path, "r", errors="replace") as f:
+            stderr_text = f.read(4096)
+    except OSError:
+        pass
+
+    if "Unknown tool identifier" in stderr_text:
+        return "tool-error"
+    try:
+        if os.path.getsize(envelope_path) == 0:
+            return "empty-envelope"
+    except OSError:
+        return "empty-envelope"
+    if last_error and "envelope parse failed" in last_error:
+        return "parse-fail"
+    return "transient-exhausted"
 
 
 def _provider_for(model_id: str) -> str:

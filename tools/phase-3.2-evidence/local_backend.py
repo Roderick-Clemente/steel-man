@@ -18,9 +18,18 @@ Usage:
         --lock-file phase-1/locks/test/test_profile_model.py.lock.json \
         --output phase-3.2/build-evidence/chunk1-bundle.json \
         [--signing-key-env EVIDENCE_SIGNING_KEY] \
+        [--full-suite] \
+        [--full-suite-command "python -m pytest tests/ -q"] \
         [--security-scan] \
         [--security-allowlist phase-3.2/evidence/security_allowlist.json] \
         [--security-baseline phase-3.2/build-evidence/bandit-baseline.json]
+
+``--full-suite-command`` is the chunk's *declared* regression command and is
+what actually runs for the ``tests.full_suite`` section: its targets and
+selectors are preserved verbatim, only reporting flags are re-imposed so this
+producer can parse the result. Bare ``--full-suite`` (no command) falls back to
+``pytest`` from the pilot root, which collects nothing in a pilot whose tests
+live in a subdirectory — pass the command whenever the chunk declares one.
 """
 
 import argparse
@@ -30,6 +39,7 @@ import hmac
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import uuid
@@ -142,10 +152,95 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
 
     If test_file is empty, runs the full suite (no file argument).
     """
-    cmd = [python, "-m", "pytest", "-v", "--tb=line", "--no-header"]
-    if test_file:
-        cmd.append(test_file)
-    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
+    args = [test_file] if test_file else []
+    return run_pytest_args(pilot_root, args, python)
+
+
+# pytest's documented exit codes. 5 = no tests were collected, which for a
+# regression suite means the run proved nothing; 2/3/4 are interrupt, internal
+# error and usage error. None of them are a pass.
+PYTEST_EXIT_NO_TESTS_COLLECTED = 5
+PYTEST_EXIT_HARD_ERRORS = (2, 3, 4)
+
+# Reporting flags this producer must own: it parses the per-test
+# ``PASSED/FAILED/SKIPPED`` lines, so a declared command's ``-q`` (or a
+# different ``--tb`` style) would silently zero out every counter.
+_REPORTING_FLAGS = frozenset(
+    {"-q", "-qq", "--quiet", "-v", "-vv", "-vvv", "--verbose", "--no-header", "--header", "--tb"}
+)
+
+
+def pytest_args_from_command(command: str) -> list[str]:
+    """The selector/target arguments of a declared pytest command.
+
+    The chunk's command is authoritative about *what* runs (test directory,
+    ``-k`` / ``-m`` selectors, plugin flags); this producer is authoritative
+    about the output format it can parse, so reporting flags are dropped here
+    and re-imposed by ``run_pytest_args``. Raises ValueError when the command
+    does not invoke pytest at all — guessing would fabricate evidence.
+    """
+    tokens = shlex.split(command)
+    rest = None
+    for i, tok in enumerate(tokens):
+        if tok == "pytest" or os.path.basename(tok) == "pytest":
+            rest = tokens[i + 1 :]
+            break
+    if rest is None:
+        raise ValueError(
+            f"regression command {command!r} does not invoke pytest; this "
+            f"producer can only run and parse a pytest command"
+        )
+
+    args: list[str] = []
+    drop_next = False
+    for tok in rest:
+        if drop_next:
+            drop_next = False
+            continue
+        base = tok.split("=", 1)[0]
+        if base in _REPORTING_FLAGS:
+            # ``--tb line`` spends its value on the next token; ``--tb=line``
+            # carries it inline.
+            drop_next = base == "--tb" and "=" not in tok
+            continue
+        args.append(tok)
+    return args
+
+
+def run_pytest_command(pilot_root: str, command: str, python: str) -> dict:
+    """Run the chunk's declared regression command and parse its result."""
+    return run_pytest_args(pilot_root, pytest_args_from_command(command), python)
+
+
+def regression_refusal_reason(fs: dict) -> str:
+    """Why a regression run is not evidence, or "" when it is real and green.
+
+    A run that collected nothing is the dangerous case: ``failed == 0`` reads
+    as a pass while nothing was executed, so it is refused by exit code rather
+    than by counter.
+    """
+    exit_code = fs.get("suite_exit_code", 1)
+    failed = fs.get("failed", 0)
+    collected = fs.get("passed", 0) + failed + fs.get("skipped", 0)
+    if failed:
+        return f"{failed} failure(s) (pytest exit {exit_code})"
+    if exit_code == PYTEST_EXIT_NO_TESTS_COLLECTED or collected == 0:
+        return (
+            f"collected no tests (pytest exit {exit_code}) — a regression run "
+            f"that executed nothing is not evidence that existing behaviour "
+            f"is unchanged"
+        )
+    if exit_code in PYTEST_EXIT_HARD_ERRORS:
+        return f"pytest did not complete (pytest exit {exit_code})"
+    if exit_code != 0:
+        return f"pytest exit {exit_code}"
+    return ""
+
+
+def run_pytest_args(pilot_root: str, args: list[str], python: str) -> dict:
+    """Run pytest with this producer's reporting flags plus ``args``."""
+    cmd = [python, "-m", "pytest", "-v", "--tb=line", "--no-header", *args]
+    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=300)
     output = result.stdout + result.stderr
 
     passed = failed = skipped = 0
@@ -192,6 +287,7 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
         "suite_exit_code": result.returncode,
         "failures": failures,
         "raw_output": output.strip(),
+        "command": " ".join(cmd),
     }
 
 
@@ -349,6 +445,16 @@ def main() -> int:
         help="Run the full test suite for the tests section (what validators "
         "consumed in Phase 3). Without this, only the locked test is reported.",
     )
+    parser.add_argument(
+        "--full-suite-command",
+        default="",
+        help="The chunk's declared regression command (e.g. "
+        '"python -m pytest tests/ -q"). Implies --full-suite and is what runs '
+        "for the tests.full_suite section: its targets and selectors are kept, "
+        "only reporting flags are re-imposed so the result can be parsed. "
+        "Without it, --full-suite runs bare pytest from the pilot root, which "
+        "collects nothing when the pilot's tests live in a subdirectory.",
+    )
     args = parser.parse_args()
 
     started = utcnow_iso()
@@ -378,15 +484,35 @@ def main() -> int:
     )
 
     # 2b. Full regression suite (what validators also consumed in Phase 3)
-    if args.full_suite:
+    full_suite = None
+    if args.full_suite or args.full_suite_command:
         print("[2b] Running full regression suite...", file=sys.stderr)
-        fs = run_pytest(args.pilot_root, "", args.python)  # empty test_file = full suite
+        if args.full_suite_command:
+            print(f"  command: {args.full_suite_command}", file=sys.stderr)
+            try:
+                fs = run_pytest_command(args.pilot_root, args.full_suite_command, args.python)
+            except ValueError as exc:
+                print(f"  REFUSED: {exc}", file=sys.stderr)
+                return 1
+        else:
+            fs = run_pytest(args.pilot_root, "", args.python)  # empty test_file = full suite
         print(
             f"  full suite: passed={fs['passed']} failed={fs['failed']} skipped={fs['skipped']} exit={fs['suite_exit_code']}",
             file=sys.stderr,
         )
-        # Use full suite results for the tests section, but merge any locked-test failures
-        pt = fs
+        # Recorded alongside the locked-test counters, never in place of them: a
+        # validator has to tell "the locked assertions pass" apart from "the whole
+        # suite still passes", and merging the two makes the stronger claim
+        # unprovable from the bundle.
+        full_suite = {
+            "passed": fs["passed"],
+            "failed": fs["failed"],
+            "skipped": fs["skipped"],
+            "suite_exit_code": fs["suite_exit_code"],
+            "failures": fs["failures"],
+            "scope": "full-suite",
+            "command": fs.get("command", ""),
+        }
 
     # 3. Coverage (optional)
     print("[3/5] Coverage (best-effort)...", file=sys.stderr)
@@ -472,6 +598,8 @@ def main() -> int:
             "skipped": pt["skipped"],
             "suite_exit_code": pt["suite_exit_code"],
             "failures": pt["failures"],
+            "scope": "locked-test",
+            **({"full_suite": full_suite} if full_suite else {}),
         },
         "provenance": {
             "producer_run_id": str(uuid.uuid4()),
@@ -518,8 +646,15 @@ def main() -> int:
     print(f"  green: {vg['green_accepted']}", file=sys.stderr)
     print(f"  locked_sha: {vg['locked_test_sha_observed']}", file=sys.stderr)
 
-    # Exit 0 only if GREEN accepted and no test failures
-    return 0 if (vg["green_accepted"] and pt["failed"] == 0) else 1
+    # Exit 0 only if GREEN accepted and no test failures, in either suite. A red
+    # regression suite is a failed chunk even when every locked assertion passes.
+    ok = vg["green_accepted"] and pt["failed"] == 0
+    if full_suite:
+        refusal = regression_refusal_reason(full_suite)
+        if refusal:
+            print(f"  full-suite regression: {refusal}", file=sys.stderr)
+            ok = False
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -128,6 +128,7 @@ class ChunkStatus(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
     RETRYING = "RETRYING"
     HUMAN_DECISION = "HUMAN_DECISION"
+    BLOCKED = "BLOCKED"
     SKIPPED = "SKIPPED"
 
 
@@ -153,6 +154,13 @@ class Finding:
     first_seen_in_panel_position: int = 1
     status: str = "open"  # open|accepted|rejected|superseded
     disposition_rationale: str = ""
+    # ``claim`` is the plan's own assertion that the reviewer is
+    # challenging, so rendering it alone makes a finding read as an
+    # approval. ``risk_if_ignored`` is the defect. Trailing optionals so
+    # older findings.jsonl rows and existing construction sites still
+    # parse.
+    plan_section: str = ""
+    risk_if_ignored: str = ""
 
     def to_jsonl(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -184,7 +192,21 @@ class ChunkState:
     gate_decision: GateDecision | None = None
     gate_reason: str = ""
     rejection_feedback: list[str] = field(default_factory=list)  # fed back to executor
+    # Telemetry: did the formatted feedback carry a real validator
+    # finding (``validator-finding``) or only the gate-reason fallback
+    # (``gate-reason``)? Empty on a first attempt. Additive — absent in
+    # checkpoints from before this field existed.
+    rejection_feedback_source: str = ""
     findings: list[Finding] = field(default_factory=list)
+
+    # Which seat a rejection is directed at. ``REJECT_IMPLEMENTATION``
+    # means the locked test is a fair contract and the executor runs
+    # again; ``REJECT_TEST`` means the locked test does not lock what the
+    # chunk claims, so re-running the executor against it cannot fix
+    # anything — the test-designer runs again instead.
+    rejection_kind: str = ""  # "" | "implementation" | "test"
+    test_design_feedback: list[str] = field(default_factory=list)  # fed back to test-designer
+    test_design_retry_count: int = 0  # bounces charged to the test-design budget
 
     # Verify-and-harden mode: when True (set from Config.verify_mode
     # or the chunk JSON's "verify_mode" field), the runner relaxes
@@ -323,6 +345,7 @@ class RunState:
 
     # CLI behaviour flags (configurable)
     dry_run: bool = False
+    unattended: bool = False
     skip_reconcile: bool = False
     create_pr: bool = False
     validation_backend: str = "local"  # local|ci (Track B)
@@ -340,7 +363,14 @@ class RunState:
 
     # Inputs the runner reads across pauses
     pilot_spec_file: str = ""
+    chunks_file: str = ""
     signing_key: str = ""
+
+    # v3 telemetry: experiment arm label and the furthest step the run
+    # reached. ``reached_phase_step`` is what makes a funnel ("how many runs
+    # die at the RED gate?") answerable from rows instead of from logs.
+    run_label: str = ""
+    reached_phase_step: str = "start"
 
     # Track which submission keys the family guard accepted — once any role's
     # family becomes known post-run, the guard re-runs to confirm nothing

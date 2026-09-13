@@ -65,12 +65,7 @@ that means you accidentally edited the test file. STOP. Report
 - Do NOT add tests beyond the locked one — the validator will catch
   test_scope creep (PRD §5.7 testing review).
 
-## Retry feedback (only if you see this)
-
-If the loop is being re-fired after a REJECT, the runner upper-cases
-the rejection findings and includes them. Read them; do not duplicate
-the rejected work. The rejection messages come from the cross-family
-validator, which is a different family from you.
+{{prior_implementation_rejection}}
 
 ## Output
 

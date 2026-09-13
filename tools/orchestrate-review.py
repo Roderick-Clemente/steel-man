@@ -31,7 +31,8 @@ Usage:
         --review-output-dir phase-3.2/reviews/ \
         --validators grok-4.5:xai:grok-family,gemini-3.1-pro-preview:google:gemini-family \
         [--evidence-output phase-3.2/build-evidence/chunk1-bundle.json] \
-        [--full-suite] [--security-scan] \
+        [--full-suite] [--full-suite-command "python -m pytest tests/ -q"] \
+        [--security-scan] \
         [--security-allowlist phase-3.2/evidence/security_allowlist.json] \
         [--security-baseline phase-3.2/build-evidence/bandit-baseline.json] \
         [--auto-level high] \
@@ -56,6 +57,11 @@ if _TOOLS_DIR not in sys.path:
 from sprint_loop.config import phase_path  # noqa: E402
 
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
+
+# How much of a validator's result text review-summary.json carries. Enough
+# for a rejecting seat's reasoning to reach the seat that must act on it,
+# bounded so the summary stays a summary.
+REVIEW_FINDING_TEXT_LIMIT = 4000
 
 
 def _import_adapter(framework_root: str):
@@ -100,8 +106,11 @@ def step1_produce_evidence(args) -> dict:
         "--python",
         args.pilot_python,
     ]
-    if args.full_suite:
+    full_suite_command = args.full_suite_command or ""
+    if args.full_suite or full_suite_command:
         cmd.append("--full-suite")
+    if full_suite_command:
+        cmd.extend(["--full-suite-command", full_suite_command])
     if args.security_scan:
         cmd.extend(["--security-scan"])
         if args.security_allowlist:
@@ -122,6 +131,27 @@ def step1_produce_evidence(args) -> dict:
     print(f"  Tests: {tests.get('passed', 0)} passed, {tests.get('failed', 0)} failed")
     print(f"  Locked SHA: {bundle.get('change', {}).get('locked_test_sha_observed', 'NONE')}")
     print(f"  Green: {tests.get('failed', 0) == 0 and tests.get('suite_exit_code', 1) == 0}")
+
+    # This step REWRITES the bundle at --evidence-output, so a bundle the
+    # runner already produced with regression evidence is replaced by this
+    # one. Refuse to hand validators a bundle missing the regression section
+    # they were told to judge: absent tests.full_suite reads to a validator as
+    # "no independent regression evidence", which is a REJECT it cannot
+    # distinguish from a real regression.
+    full_suite = tests.get("full_suite") or {}
+    if (args.full_suite or full_suite_command) and not full_suite:
+        print(
+            "  ERROR: --full-suite was requested but the bundle carries no "
+            "tests.full_suite section",
+            file=sys.stderr,
+        )
+        return {"ok": False, "error": "bundle has no tests.full_suite section"}
+    if full_suite:
+        print(
+            f"  Full suite: {full_suite.get('passed', 0)} passed, "
+            f"{full_suite.get('failed', 0)} failed, "
+            f"exit {full_suite.get('suite_exit_code')}"
+        )
 
     return {"ok": True, "bundle": bundle}
 
@@ -501,6 +531,13 @@ def main() -> int:
         help="If set, step 1 produces a bundle. If not, skip step 1.",
     )
     parser.add_argument("--full-suite", action="store_true")
+    parser.add_argument(
+        "--full-suite-command",
+        default="",
+        help="The chunk's declared regression command, passed straight through "
+        "to the evidence producer as --full-suite-command (implies --full-suite). "
+        "Without it, --full-suite runs bare pytest from the pilot root.",
+    )
     parser.add_argument("--security-scan", action="store_true")
     parser.add_argument("--security-allowlist", default=None)
     parser.add_argument("--security-baseline", default=None)
@@ -659,6 +696,11 @@ def main() -> int:
                 "thinking": v.get("thinking_tokens", 0),
                 "retry_count": v.get("retry_count", 0),
                 "stray_writes": v.get("stray_writes"),
+                "envelope_path": v.get("envelope_path", ""),
+                # A REJECT_TEST verdict is only actionable if the seat
+                # that must fix the test can read WHY it was rejected;
+                # the summary is the only artifact the runner parses.
+                "finding_text": (v.get("result_text") or "")[:REVIEW_FINDING_TEXT_LIMIT],
             }
             for v in validators
         ],

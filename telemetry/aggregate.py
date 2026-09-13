@@ -26,7 +26,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-SCHEMA_VERSION = "v1"
+ACCEPTED_SCHEMA_VERSIONS = {"v1", "v2", "v3"}
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -179,19 +179,20 @@ def main() -> int:
     dispositions = read_jsonl(data_dir / "dispositions.jsonl")
 
     if args.schema_check:
+        accepted = ", ".join(sorted(ACCEPTED_SCHEMA_VERSIONS))
         bad = [
             r
             for r in (runs + findings + dispositions)
-            if r.get("schema_version") != SCHEMA_VERSION
+            if r.get("schema_version") not in ACCEPTED_SCHEMA_VERSIONS
         ]
         if bad:
             print(
-                f"# {len(bad)} rows have schema_version != {SCHEMA_VERSION}; "
+                f"# {len(bad)} rows have schema_version not in {{{accepted}}}; "
                 "stopping.",
                 file=sys.stderr,
             )
             return 1
-        print(f"# schema_version={SCHEMA_VERSION} ok on all rows")
+        print(f"# schema_version in {{{accepted}}} ok on all rows")
         return 0
 
     yield_table = table_per_reviewer_yield(findings, runs)

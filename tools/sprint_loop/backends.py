@@ -118,6 +118,7 @@ class LocalBackend:
         enabled_tools: str | None = None,
         auto_level: str = "high",
         evidence_source: str = "bundle",
+        full_suite_command: str = "",
         **extra: Any,
     ) -> BackendResult:
         # Check chunk keys first — the more specific programmer error.
@@ -236,6 +237,14 @@ class LocalBackend:
             "--run-label",
             run_label,
         ]
+        # ``orchestrate-review.py`` step 1 re-produces the bundle at
+        # ``--evidence-output`` — the same path the runner already wrote. Without
+        # the chunk's regression command here, that rewrite drops the
+        # ``tests.full_suite`` section the runner produced, and the validators
+        # correctly reject a chunk for having no regression evidence.
+        if full_suite_command:
+            argv += ["--full-suite-command", full_suite_command]
+
         # KI-2 fix: bundle-mode validators get no Execute tool (Track B + Track C
         # both rely on this). The runner passes --enabled-tools explicitly
         # when needed; otherwise the orchestrator's bundle-mode default

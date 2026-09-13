@@ -10,7 +10,10 @@ This module is **the** orchestration of one chunk's full ADR loop:
         ↓
   LocalBackend.validate → gate decision
         ↓
-  REJECT?  → feedback to executor, retry up to retry_threshold
+  REJECT_IMPLEMENTATION? → feedback to executor, retry up to retry_threshold
+  REJECT_TEST?           → feedback to test-designer, regenerate the locked
+                           test, re-establish RED; bounded by the same
+                           threshold on its own budget
   ACCEPT?  → next chunk (or branch+commit when last chunk)
 
 Composition discipline (OPERATING-RULES §14): every external call in
@@ -52,6 +55,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -62,8 +66,14 @@ if _TOOLS_DIR not in sys.path:
 
 from sprint_loop.backends import BackendResult, LocalBackend  # noqa: E402
 from sprint_loop.config import phase_path  # noqa: E402
-from sprint_loop.droid import InvokeOptions, invoke_droid  # noqa: E402
+from sprint_loop.droid import (  # noqa: E402
+    InvokeOptions,
+    RunRecord,
+    append_run_record,
+    invoke_droid,
+)
 from sprint_loop.prompts.render import render_to_file  # noqa: E402
+from sprint_loop.provenance import _git_branch, _git_sha, run_provenance  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     Role,
@@ -276,16 +286,41 @@ def produce_evidence(
     security_allowlist: str = "",
     security_baseline: str = "",
     full_suite: bool = False,
+    full_suite_command: str = "",
 ) -> dict:
     """Run ``phase-3.2/evidence/local_backend.py`` to produce a signed
     EvidenceBundle. Returns the bundle dict (parsed).
+
+    ``full_suite_command`` is the chunk's declared regression command and is
+    what the producer runs for ``tests.full_suite``. Passing ``full_suite``
+    alone leaves the producer running bare ``pytest`` from the pilot root,
+    which collects nothing in a pilot whose tests live in a subdirectory.
 
     Asserts the bundle signature against EVIDENCE_SIGNING_KEY — the
     producer signs, the consumer verifies; this side verifies too
     so the orchestrator catches a stale-signature signing-key change
     before passing the bundle to validators.
     """
+    full_suite = full_suite or bool(full_suite_command)
     if dry_run:
+        tests: dict = {
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "suite_exit_code": 0,
+            "failures": [],
+            "scope": "locked-test",
+        }
+        if full_suite:
+            tests["full_suite"] = {
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0,
+                "suite_exit_code": 0,
+                "failures": [],
+                "scope": "full-suite",
+                "command": full_suite_command,
+            }
         bundle = {
             "bundle_schema_version": "v1",
             "producer": "local-dry-run",
@@ -293,13 +328,7 @@ def produce_evidence(
                 "commit_sha": "0000000000000000000000000000000000000000",
                 "locked_test_sha_observed": chunk.locked_test_sha or "",
             },
-            "tests": {
-                "passed": 1,
-                "failed": 0,
-                "skipped": 0,
-                "suite_exit_code": 0,
-                "failures": [],
-            },
+            "tests": tests,
             "provenance": {
                 "producer_run_id": "dry-run",
                 "started_at": "1970-01-01T00:00:00Z",
@@ -338,6 +367,8 @@ def produce_evidence(
     ]
     if full_suite:
         cmd.append("--full-suite")
+    if full_suite_command:
+        cmd.extend(["--full-suite-command", full_suite_command])
     if security_scan:
         cmd.append("--security-scan")
         if security_allowlist:
@@ -364,10 +395,21 @@ def produce_evidence(
     observed = bundle.get("change", {}).get("locked_test_sha_observed")
     if not observed:
         raise RuntimeError("bundle has no locked_test_sha_observed — fail-closed per §7")
+
     if observed != chunk.locked_test_sha:
         raise RuntimeError(
             f"locked_test_sha_observed mismatch: bundle={observed} "
             f"manifest={chunk.locked_test_sha} (PRD §4.1 fail-closed)"
+        )
+
+    # A chunk whose regression run is not in the bundle leaves the
+    # validator with no evidence for "existing behaviour unchanged", and
+    # the executor's prose claim is not evidence (§7).
+    if full_suite and not (bundle.get("tests") or {}).get("full_suite"):
+        raise RuntimeError(
+            f"chunk '{chunk.chunk_id}' defines a full-suite command but the "
+            f"bundle at {evidence_output_path} carries no tests.full_suite "
+            f"section — the validator would have no regression evidence"
         )
 
     # Verify the signature against the signing key the backend used.
@@ -402,6 +444,21 @@ def produce_evidence(
 # ── per-role invocations ─────────────────────────────────────────────────
 
 
+def _emit_seat_row(rr: RunRecord, chunk: ChunkState, rs: RunState, phase_step: str) -> None:
+    """Stamp v3 funnel/provenance fields on a per-chunk seat record and
+    append it to ``runs.jsonl``."""
+    rr.chunk_id = chunk.chunk_id
+    rr.run_label = rs.run_label
+    rr.phase_step = phase_step
+    rr.provenance = run_provenance(rs)
+    append_run_record(
+        rr,
+        phase="phase-4.5",
+        branch=_git_branch(rs.framework_root),
+        telemetry_path=os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
+    )
+
+
 def invoke_test_designer(
     chunk: ChunkState,
     rs: RunState,
@@ -410,6 +467,7 @@ def invoke_test_designer(
     rendered_prompt_path: str,
     envelope_path: str,
     dry_run: bool = False,
+    phase_step: str = "test-design",
 ) -> dict:
     """Invoke the test_designer droid role for this chunk.
 
@@ -445,6 +503,7 @@ def invoke_test_designer(
     rs.test_designer.envelope_path = rr.envelope_path
     rs.test_designer.run_id = rr.run_id
     chunk.test_designer_run_id = rr.run_id
+    _emit_seat_row(rr, chunk, rs, phase_step)
     # The accepted assertion was emitted by the test-designer; the
     # runner parses it out of the result text. For dry-run / chunk that
     # was loaded via chunks_file, the assertion is already in
@@ -494,25 +553,53 @@ def invoke_executor(
     rs.executor.envelope_path = rr.envelope_path
     rs.executor.run_id = rr.run_id
     chunk.executor_run_id = rr.run_id
+    # Stamp the feedback source on the seat row so a finding-carrying
+    # retry is distinguishable from a gate-reason-only one in runs.jsonl.
+    # Only set on a retry (retry_count > 0); a first attempt has no prior
+    # rejection to carry.
+    if chunk.retry_count > 0 and chunk.rejection_feedback_source:
+        tag = f"retry_feedback_source={chunk.rejection_feedback_source}"
+        rr.note = f"{rr.note}; {tag}" if rr.note else tag
+    _emit_seat_row(rr, chunk, rs, "execute")
     return {"record": rr, "result_text": _read_envelope_result_text(rr.envelope_path)}
 
 
 def run_validators(
-    chunk: ChunkState, rs: RunState, *, evidence_output_dir: str, dry_run: bool = False
+    chunk: ChunkState,
+    rs: RunState,
+    *,
+    evidence_output_dir: str,
+    dry_run: bool = False,
+    full_suite_command: str | None = None,
 ) -> BackendResult:
     """Run the cross-family validator panel via LocalBackend.
 
     Returns a ``BackendResult`` with ``gate`` and ``reason`` already set.
     The orchestrator propagates gate decisions into chunk.gate_decision
     and decides retry-via-executor or move-on.
+
+    ``full_suite_command`` is the same regression command the evidence step
+    ran; it has to reach ``orchestrate-review.py`` because that script
+    re-produces the bundle in place, and a re-production without it strips
+    the regression section out from under the validators. ``None`` derives it
+    from the chunk so a caller cannot silently skip it.
     """
+    if full_suite_command is None:
+        full_suite_command = chunk_full_suite_command(chunk)
     backend = LocalBackend(dry_run=dry_run)
     validators_csv = [
         f"{v.pinned_model_id}:{v.pinned_provider}:{v.pinned_family}:{v.pinned_model_id}"
         for v in rs.validators
     ]
-    prompt_template = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "prompts", "validator.md"
+    review_output_dir = os.path.join(evidence_output_dir, "reviews")
+    # The validator prompt is rendered (not handed over as a raw template)
+    # and archived next to the validator envelopes, like every other seat's
+    # prompt. Passing the template path here is what let both validator
+    # seats run on literal ``{{...}}`` placeholders.
+    rendered_prompt = render_validator_prompt(
+        chunk,
+        rs,
+        output_path=os.path.join(review_output_dir, f"{chunk.chunk_id}-va-prompt.md"),
     )
     # Per §17.5 — validators get ``Read,Glob,Grep,LS`` in bundle mode.
     # ``Execute`` is NOT in the allowlist (KI-2 preventive fix).
@@ -520,7 +607,7 @@ def run_validators(
         chunk={
             "test_file": chunk.locked_test_files[0],
             "lock_file": chunk.lock_manifest_path,
-            "review_output_dir": os.path.join(evidence_output_dir, "reviews"),
+            "review_output_dir": review_output_dir,
             "scope": chunk.scope,
         },
         evidence_bundle=chunk.evidence_bundle_path,
@@ -530,9 +617,10 @@ def run_validators(
         signing_key_env=rs.signing_key_env,
         validators=validators_csv,
         run_label=f"{rs.run_id}-{chunk.chunk_id}",
-        prompt_template_path=prompt_template,
+        prompt_template_path=rendered_prompt,
         enabled_tools="Read,Glob,Grep,LS",
         evidence_source="bundle",
+        full_suite_command=full_suite_command,
         run_id=rs.run_id,
         phase=rs.run_id.split("-")[0] if "-" in rs.run_id else "phase-4.5",
         branch="factory/phase-4.5-loop-runner",
@@ -541,6 +629,241 @@ def run_validators(
         v.get("label") or v.get("model") or "<unknown>" for v in res.validators
     ]
     return res
+
+
+# ── rejection routing ────────────────────────────────────────────────────
+
+# Verdicts that name the LOCKED TEST, not the implementation, as the thing
+# at fault. ``orchestrate-review.py:step4_parse_verdicts`` recognises the
+# full vocabulary (ACCEPT, ACCEPT-WITH-NITS, REJECT_IMPLEMENTATION,
+# REJECT_TEST, REJECT, HUMAN_DECISION) but collapses every REJECT* to one
+# ``REJECT`` gate, so the distinction survives only in the per-validator
+# verdicts the summary carries.
+TEST_DIRECTED_VERDICTS: frozenset = frozenset({"REJECT_TEST"})
+
+REJECTION_TEST = "test"
+REJECTION_IMPLEMENTATION = "implementation"
+
+_NO_TEST_REJECTION_FEEDBACK = "(no prior test rejection — author the test from the chunk spec)"
+_NO_IMPL_REJECTION_FEEDBACK = (
+    "This is the first attempt at this chunk — no previous implementation was "
+    "rejected. Implement from the chunk spec."
+)
+
+# Mirrors ``orchestrate-review.py``'s REVIEW_FINDING_TEXT_LIMIT: that is
+# what the review summary already clips a seat's prose to, so a per-seat
+# block in a prompt cannot usefully carry more, and a runaway review must
+# not be able to crowd the chunk spec out of the prompt.
+REVIEW_FINDING_TEXT_LIMIT = 4000
+
+# Which telemetry answer a retry's prompt earned. ``validator-finding``
+# means the rejecting seats' own prose reached the executor;
+# ``gate-reason`` means only the one-line gate string was available
+# (dry-run, or a rejection that never reached the validator panel).
+FEEDBACK_SOURCE_VALIDATOR_FINDING = "validator-finding"
+FEEDBACK_SOURCE_GATE_REASON = "gate-reason"
+
+
+def _clip_finding(text: str, limit: int = REVIEW_FINDING_TEXT_LIMIT) -> str:
+    """Length-cap a seat's prose without flattening it to one line.
+
+    ``sprint-loop.py:_clip`` flattens whitespace because it renders
+    findings into single-line console output; a prompt block keeps the
+    reviewer's paragraphs, so only the cap carries over.
+    """
+    body = (text or "").strip()
+    if len(body) <= limit:
+        return body
+    return body[: limit - 1].rstrip() + "…"
+
+
+def _defuse_placeholders(text: str) -> str:
+    """Break ``{{...}}`` sequences inside seat-supplied prose.
+
+    A validator that quotes a prompt template — which KI-10's reviews did
+    verbatim — would otherwise plant a live-looking placeholder in the
+    next seat's prompt and trip ``assert_prompt_fully_rendered`` on text
+    that was never a placeholder at all.
+    """
+    return (text or "").replace("{{", "{ {").replace("}}", "} }")
+
+
+def _is_test_directed(verdict: str) -> bool:
+    return verdict in TEST_DIRECTED_VERDICTS
+
+
+def _is_implementation_directed(verdict: str) -> bool:
+    """A rejecting verdict the EXECUTOR can act on.
+
+    A ``REJECT_TEST`` seat on a mixed panel is deliberately excluded: its
+    finding asks for a different locked test, which the executor is
+    forbidden to touch (invariant #3). Handing it over invites the seat
+    to argue with the contract instead of meeting it; that finding goes
+    to the test-designer's own block.
+    """
+    return verdict.startswith("REJECT") and not _is_test_directed(verdict)
+
+
+def _format_rejecting_seats(result: BackendResult, predicate, *, why_label: str) -> list[str]:
+    """One markdown block per rejecting seat, attributed to its model id.
+
+    Order is the panel order the backend reports (which is the configured
+    validator order), so two runs over the same panel render the seats
+    the same way. Seats that accepted are skipped entirely: an approval
+    beside a refusal reads as permission to change nothing.
+    """
+    parts: list[str] = []
+    for v in result.validators or []:
+        verdict = str((v or {}).get("verdict") or "").strip().upper()
+        if not predicate(verdict):
+            continue
+        text = _clip_finding(v.get("finding_text") or "")
+        if not text:
+            # A verdict with no reasoning tells the next seat nothing;
+            # the gate reason the caller falls back to is more useful
+            # than a bare label.
+            continue
+        label = v.get("label") or v.get("model") or "(unlabelled validator)"
+        body = [f"### {label} — {verdict}"]
+        if v.get("model"):
+            body.append(f"- **Model**: {v['model']} ({v.get('family') or 'unknown family'})")
+        body.append(f"- **{why_label}**:")
+        body.append("")
+        body.append(_defuse_placeholders(text))
+        if v.get("envelope_path"):
+            body.append(f"- **Full review envelope**: {v['envelope_path']}")
+        parts.append("\n".join(body))
+    return parts
+
+
+def classify_rejection(validators: list[dict]) -> str:
+    """Which seat a validator panel's rejection is directed at.
+
+    Returns ``"test"`` when every rejecting verdict is test-directed,
+    ``"implementation"`` when at least one rejects the code, and ``""``
+    when nothing was rejected.
+
+    A mixed panel routes to the implementation: one seat holding the
+    locked test to be a fair contract means the code has to change, and
+    regenerating the test would discard that finding.
+    """
+    verdicts = [str((v or {}).get("verdict") or "").strip().upper() for v in (validators or [])]
+    rejects = [v for v in verdicts if v.startswith("REJECT")]
+    if not rejects:
+        return ""
+    if all(v in TEST_DIRECTED_VERDICTS for v in rejects):
+        return REJECTION_TEST
+    return REJECTION_IMPLEMENTATION
+
+
+def format_test_rejection_feedback(result: BackendResult) -> str:
+    """Render the test-directed findings for the test-designer prompt.
+
+    Same spirit as the planner's prior-findings block: without the
+    rejecting seat's actual reasoning the designer regenerates a
+    near-identical test and the next validator round re-finds the same
+    gap. Never raises — this is prompt context, not flow control.
+    """
+    try:
+        parts = _format_rejecting_seats(
+            result, _is_test_directed, why_label="Why the locked test was rejected"
+        )
+        if not parts:
+            # The gate reason is the only thing left when a backend
+            # reports no per-validator text (e.g. dry-run).
+            reason = (result.reason or "").strip()
+            return reason or _NO_TEST_REJECTION_FEEDBACK
+        header = (
+            f"The validator panel rejected the PREVIOUS locked test as "
+            f"inadequate ({len(parts)} test-directed verdict(s)). The "
+            f"implementation was NOT found at fault. Regenerate the test so "
+            f"it actually locks what the chunk claims."
+        )
+        return header + "\n\n" + "\n\n".join(parts)
+    except Exception:
+        return _NO_TEST_REJECTION_FEEDBACK
+
+
+def format_implementation_rejection_feedback(result: BackendResult) -> str:
+    """Render the implementation-directed findings for the executor prompt.
+
+    Sibling to ``format_test_rejection_feedback``: same structure (one
+    attributed block per rejecting seat, clipped, skipping acceptors), a
+    different header. Without the rejecting seat's own reasoning the
+    executor re-runs the most expensive seat in the pipeline with no
+    knowledge of why the previous attempt was refused (KI-16). Never
+    raises — this is prompt context, not flow control.
+
+    A ``REJECT_TEST`` verdict on a mixed panel is deliberately skipped:
+    its finding asks for a different locked test, which the executor is
+    forbidden to touch (invariant #3); the test-designer carries it.
+    """
+    try:
+        parts = _format_rejecting_seats(
+            result,
+            _is_implementation_directed,
+            why_label="Why the implementation was rejected",
+        )
+        if not parts:
+            reason = (result.reason or "").strip()
+            return reason or _NO_IMPL_REJECTION_FEEDBACK
+        header = (
+            f"The validator panel rejected the PREVIOUS implementation "
+            f"({len(parts)} implementation-directed verdict(s)). The locked "
+            f"test is a fair contract — the CODE is at fault. Read each "
+            f"finding and fix the gap it names; do not duplicate the rejected "
+            f"work."
+        )
+        return header + "\n\n" + "\n\n".join(parts)
+    except Exception:
+        return _NO_IMPL_REJECTION_FEEDBACK
+
+
+def implementation_rejection_has_finding(result: BackendResult) -> bool:
+    """True if at least one implementation-directed seat carried finding text.
+
+    Used to stamp the telemetry source so a finding-carrying retry is
+    distinguishable from one that only had the gate-reason fallback.
+    """
+    for v in result.validators or []:
+        verdict = str((v or {}).get("verdict") or "").strip().upper()
+        if _is_implementation_directed(verdict) and (v.get("finding_text") or "").strip():
+            return True
+    return False
+
+
+def archive_superseded_test(
+    chunk: ChunkState,
+    rs: RunState,
+    *,
+    evidence_output_dir: str,
+    round_index: int,
+) -> dict:
+    """Move the rejected locked test and the review that rejected it aside.
+
+    Failed-run evidence is renamed, never deleted: both artifacts are the
+    proof that the panel rejected THIS test text, and the next round
+    overwrites the review directory and the test file in place. The test
+    is moved out of the pilot tree (not copied) because its absence is
+    what makes the test-designer auto-fire path re-author it.
+    """
+    dest = os.path.join(evidence_output_dir, f"superseded-test-round{round_index}")
+    os.makedirs(dest, exist_ok=True)
+    moved: dict = {}
+    if chunk.locked_test_files:
+        test_abs = os.path.join(rs.pilot_root, chunk.locked_test_files[0])
+        if os.path.isfile(test_abs):
+            target = os.path.join(dest, os.path.basename(test_abs))
+            shutil.move(test_abs, target)
+            moved["locked_test"] = target
+    reviews_dir = os.path.join(evidence_output_dir, "reviews")
+    if os.path.isdir(reviews_dir):
+        target = os.path.join(dest, "reviews")
+        if os.path.exists(target):
+            target = os.path.join(dest, f"reviews-{len(os.listdir(dest))}")
+        shutil.move(reviews_dir, target)
+        moved["reviews"] = target
+    return moved
 
 
 # ── helpers ──────────────────────────────────────────────────────────────
@@ -562,15 +885,29 @@ def _read_envelope_result_text(envelope_path: str) -> str:
 def render_test_designer_prompt(
     chunk: ChunkState, rs: RunState, pilot_spec_text: str, output_path: str
 ) -> str:
-    """Render the test_designer role prompt for this chunk."""
+    """Render the test_designer role prompt for this chunk.
+
+    Carries ``chunk.test_design_feedback`` — the validator findings that
+    rejected a previous locked test — so a re-fired designer knows which
+    part of the chunk the superseded test failed to lock.
+    """
+    test_rel = chunk.locked_test_files[0]
+    sibling_dir = os.path.dirname(test_rel) or "."
     return render_to_file(
         "test-designer",
         {
+            "prior_test_rejection": (
+                "\n\n".join(t for t in chunk.test_design_feedback if t)
+                or _NO_TEST_REJECTION_FEEDBACK
+            ),
             "chunk_spec": _format_chunk_spec(chunk),
             "pilot_root": rs.pilot_root,
-            "test_file_path": os.path.join(rs.pilot_root, chunk.locked_test_files[0]),
-            "pytest_baseline_path": "",
-            "sibling_tests_pattern": "",
+            "pilot_spec": pilot_spec_text,
+            "test_file_path": os.path.join(rs.pilot_root, test_rel),
+            "pytest_baseline_path": (
+                chunk.commands[0] if chunk.commands else "(no baseline command in chunk spec)"
+            ),
+            "sibling_tests_pattern": os.path.join(rs.pilot_root, sibling_dir),
         },
         output_path,
     )
@@ -584,6 +921,11 @@ def render_executor_prompt(chunk: ChunkState, rs: RunState,
     When ``verify_and_harden=True`` (§5.3 verify mode), the prompt
     context instructs the executor to verify and harden the existing
     implementation rather than build from scratch.
+
+    Carries ``chunk.rejection_feedback`` — the implementation-directed
+    validator findings that rejected a previous attempt — so a re-fired
+    executor knows which criterion the previous diff failed. Without it
+    a retry is the same dice roll at full cost (KI-16).
     """
     verify_directive = ""
     if verify_and_harden:
@@ -598,7 +940,17 @@ def render_executor_prompt(chunk: ChunkState, rs: RunState,
             "> existing implementation is already correct and complete,\n"
             "> make minimal or no changes — the validator will confirm.\n"
         )
-    return render_to_file(
+    # The rejection_feedback list carries the formatted findings from the
+    # previous round's implementation-directed rejection. On a first
+    # attempt (or an ACCEPT that cleared it) the list is empty — pass an
+    # empty string so the {{...}} placeholder resolves to nothing and no
+    # prior-rejection section appears. When findings exist, wrap them in
+    # a heading so the section is self-contained in the rendered prompt.
+    prior_body = "\n\n".join(t for t in chunk.rejection_feedback if t)
+    prior_rejection = (
+        "## Prior rejection feedback\n\n" + prior_body if prior_body else ""
+    )
+    rendered_path = render_to_file(
         "executor",
         {
             "chunk_spec": _format_chunk_spec(chunk),
@@ -606,9 +958,94 @@ def render_executor_prompt(chunk: ChunkState, rs: RunState,
             "test_file_path": os.path.join(rs.pilot_root, chunk.locked_test_files[0]),
             "commands": "\n".join(chunk.commands),
             "verify_and_harden_directive": verify_directive,
+            "prior_implementation_rejection": prior_rejection,
         },
         output_path,
     )
+    with open(rendered_path) as f:
+        assert_prompt_fully_rendered(
+            f.read(), prompt_path=rendered_path, role="executor"
+        )
+    return rendered_path
+
+
+def render_validator_prompt(chunk: ChunkState, rs: RunState, output_path: str) -> str:
+    """Render the validator role prompt for this chunk.
+
+    Returns the absolute path of the rendered file, which is what the
+    backend must hand to ``droid exec`` — never the template.
+    """
+    rendered_path = render_to_file(
+        "validator",
+        {
+            "chunk_spec": _format_chunk_spec(chunk),
+            "branch": _git_branch(rs.pilot_root),
+            "commit": _commit_under_review(chunk, rs),
+            "pilot_root": rs.pilot_root,
+            "test_file_path": os.path.join(rs.pilot_root, chunk.locked_test_files[0]),
+            "evidence_bundle_path": chunk.evidence_bundle_path,
+        },
+        output_path,
+    )
+    with open(rendered_path) as f:
+        assert_prompt_fully_rendered(f.read(), prompt_path=rendered_path, role="validator")
+    return rendered_path
+
+
+_PLACEHOLDER_RE = re.compile(r"\{\{[^{}]*\}\}")
+
+
+def assert_prompt_fully_rendered(rendered: str, *, prompt_path: str, role: str) -> None:
+    """Raise if a rendered prompt still carries ``{{...}}`` placeholders.
+
+    A seat handed an unrendered template has no spec, no diff and no
+    bundle: whatever verdict it emits is unsound. §7 — that must be a
+    loud failure, never a silent one.
+    """
+    if "{{" not in rendered:
+        return
+    unresolved = sorted(set(_PLACEHOLDER_RE.findall(rendered)))
+    named = ", ".join(unresolved) if unresolved else "{{ (unparseable placeholder)"
+    raise RuntimeError(
+        f"{role} prompt at {prompt_path} still contains unresolved "
+        f"placeholders: {named}. Refusing to invoke the {role} seat on an "
+        f"unrendered template — it would review nothing and its verdict "
+        f"would be unsound (§7)."
+    )
+
+
+def _commit_under_review(chunk: ChunkState, rs: RunState) -> str:
+    """The commit the evidence bundle attests, falling back to pilot HEAD.
+
+    The bundle's ``change.commit_sha`` is authoritative: it is the commit
+    the producer actually hashed and ran against, which is what the
+    validator must review.
+    """
+    try:
+        with open(chunk.evidence_bundle_path) as f:
+            bundle = json.load(f)
+        commit = (bundle.get("change") or {}).get("commit_sha") or ""
+    except (OSError, TypeError, json.JSONDecodeError):
+        commit = ""
+    return commit or _git_sha(rs.pilot_root)
+
+
+def chunk_full_suite_command(chunk: ChunkState) -> str:
+    """The chunk's regression command, if it names one distinct from the
+    locked test.
+
+    A pytest command that does not name any locked test file runs more
+    than the locked test — that is the chunk's "existing behaviour
+    unchanged" evidence, and the bundle has to carry its outcome or the
+    validator cannot evidence that criterion.
+    """
+    locked = [f for f in chunk.locked_test_files if f]
+    for cmd in chunk.commands:
+        if "pytest" not in cmd:
+            continue
+        if not any(f in cmd for f in locked):
+            return cmd
+    return ""
 
 
 def _format_chunk_spec(chunk: ChunkState) -> str:
@@ -633,4 +1070,8 @@ def _format_chunk_spec(chunk: ChunkState) -> str:
             lines.append(f"  - {c}")
     if chunk.rollback:
         lines.append(f"ROLLBACK: {chunk.rollback}")
+    if chunk.accepted_assertion:
+        # verify-green greps the locked test source for this phrase;
+        # a designer who never sees it cannot satisfy the gate.
+        lines.append(f"ACCEPTED_ASSERTION: {chunk.accepted_assertion}")
     return "\n".join(lines)

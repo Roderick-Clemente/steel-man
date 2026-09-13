@@ -45,6 +45,24 @@
         "failed": { "type": "integer", "minimum": 0 },
         "skipped": { "type": "integer", "minimum": 0 },
         "suite_exit_code": { "type": "integer" },
+        "scope": {
+          "type": "string",
+          "enum": ["locked-test", "full-suite"],
+          "description": "Optional (additive; absent in pre-existing bundles). What the top-level counters measured. 'locked-test' = the chunk's locked test only."
+        },
+        "full_suite": {
+          "type": "object",
+          "description": "Optional (additive; absent in pre-existing bundles). The chunk's regression run, recorded SEPARATELY from the locked-test counters so a validator can evidence 'existing behaviour unchanged' without confusing the two.",
+          "required": ["passed", "failed", "skipped", "suite_exit_code"],
+          "properties": {
+            "passed": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "skipped": { "type": "integer", "minimum": 0 },
+            "suite_exit_code": { "type": "integer" },
+            "scope": { "type": "string", "const": "full-suite" },
+            "failures": { "type": "array" }
+          }
+        },
         "failures": {
           "type": "array",
           "items": {

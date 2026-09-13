@@ -57,6 +57,8 @@ import os
 import re
 import subprocess
 import sys
+import time
+from typing import Any
 
 # Make ``tools/`` importable + ``adapters``+``sprint_loop`` packages
 # resolvable. Same pattern as ``tools/orchestrate-review.py``.
@@ -79,15 +81,32 @@ from sprint_loop.droid import (  # noqa: E402
     invoke_droid,
 )
 from sprint_loop.per_chunk import (  # noqa: E402
+    FEEDBACK_SOURCE_GATE_REASON,
+    FEEDBACK_SOURCE_VALIDATOR_FINDING,
+    REJECTION_IMPLEMENTATION,
+    REJECTION_TEST,
+    archive_superseded_test,
+    chunk_full_suite_command,
+    classify_rejection,
+    format_implementation_rejection_feedback,
+    format_test_rejection_feedback,
+    implementation_rejection_has_finding,
     invoke_executor,
+    invoke_test_designer,
     lock_test,
     produce_evidence,
     render_executor_prompt,
+    render_test_designer_prompt,
     run_validators,
     validate_red,
     verify_green,
 )
 from sprint_loop.prompts.render import render_to_file  # noqa: E402
+from sprint_loop.provenance import (  # noqa: E402
+    _git_branch,
+    _git_sha,
+    run_provenance,
+)
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
@@ -184,6 +203,10 @@ def load_checkpoint(path: str) -> RunState:
     rs.force_accept = bool(data.get("force_accept", False))
     rs.force_accept_reason = data.get("force_accept_reason", "")
     rs.force_accept_disposition = data.get("force_accept_disposition", "")
+    rs.skip_reconcile = bool(data.get("skip_reconcile", False))
+    rs.unattended = bool(data.get("unattended", False))
+    rs.run_label = data.get("run_label", "") or rs.run_id
+    rs.reached_phase_step = data.get("reached_phase_step", "start")
     if data.get("plan_findings"):
         rs.plan_findings = [
             Finding(
@@ -200,6 +223,8 @@ def load_checkpoint(path: str) -> RunState:
                 first_seen_in_panel_position=f.get("first_seen_in_panel_position", 1),
                 status=f.get("status", "open"),
                 disposition_rationale=f.get("disposition_rationale", ""),
+                plan_section=f.get("plan_section", ""),
+                risk_if_ignored=f.get("risk_if_ignored", ""),
             )
             for f in data["plan_findings"]
         ]
@@ -214,6 +239,12 @@ def load_checkpoint(path: str) -> RunState:
             cs.evidence_bundle_path = c.get("evidence_bundle_path", "")
             cs.status = ChunkStatus(c.get("status", "PENDING"))
             cs.verify_mode = bool(c.get("verify_mode", False)) or rs.verify_mode
+            # A resume must not silently hand the test-design budget back:
+            # the bounces already spent are part of the chunk's state.
+            cs.rejection_kind = c.get("rejection_kind", "")
+            cs.test_design_feedback = c.get("test_design_feedback", [])
+            cs.test_design_retry_count = int(c.get("test_design_retry_count", 0))
+            cs.rejection_feedback_source = c.get("rejection_feedback_source", "")
             rs.chunks.append(cs)
     return rs
 
@@ -234,6 +265,245 @@ def state_status(rs: RunState, what: str) -> None:
 
 # ── steps: planner ───────────────────────────────────────────────────────
 
+# The eight sections planner.md requires, in order. Each entry is the
+# section NAME plus the alternative spellings a model plausibly emits
+# for it; matching is on the name, never on our punctuation.
+_PLAN_REQUIRED_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Sprint Metadata", ("sprint metadata",)),
+    ("Objectives", ("objectives",)),
+    ("Current state", ("current state",)),
+    ("Risk assessment", ("risk assessment",)),
+    ("Acceptance criteria", ("acceptance criteria",)),
+    ("Test strategy", ("test strategy",)),
+    ("Chunk plan", ("chunk plan", "chunks")),
+    ("Open questions", ("open questions",)),
+)
+
+# Heuristic only: phrases a seat uses when it narrates having produced a
+# document instead of producing one. Keep this list short — it exists to
+# label a shape we have actually observed, not to police prose.
+_PLAN_REPORT_MARKERS: tuple[str, ...] = (
+    "successfully generated",
+    "has been saved",
+    "saved to the required location",
+    "output artifact",
+)
+
+# A real §5.2 plan with eight sections and a per-chunk chunk plan does not
+# fit in a few kilobytes. The plan observed on the failing run was ~1KB of
+# chat summary; the genuine document the same seat composed was ~8.5KB.
+# 3000 sits well clear of the summary and well under any real plan.
+_PLAN_MIN_CHARS = 3000
+
+
+def _plan_section_present(plan_md: str, aliases: tuple[str, ...]) -> bool:
+    """True when any alias appears as a heading-ish line in ``plan_md``.
+
+    Tolerant by design: accepts ATX headings (``## Objectives``),
+    bold headings (``**Objectives**``), and numbered headings
+    (``3. Current state / root cause / opportunity``), and matches on a
+    prefix so a longer heading still counts.
+    """
+    for raw_line in plan_md.splitlines():
+        line = raw_line.strip().lower()
+        if not line:
+            continue
+        line = line.lstrip("#").strip()
+        line = re.sub(r"^\d+[.)]\s*", "", line)
+        line = line.replace("*", "").replace("_", "").replace("`", "").strip()
+        line = line.rstrip(":").strip()
+        for alias in aliases:
+            if line.startswith(alias):
+                return True
+    return False
+
+
+def _validate_plan_document(plan_md: str) -> list[str]:
+    """Return human-readable problems with a candidate plan document.
+
+    The planner seat is read-only by design (no write tool), so the only
+    plan the runner can trust is the envelope ``result`` — the text the
+    model actually emitted. A seat that believes it must write a file can
+    fail that write and still close with "the document has been saved",
+    at which point the runner happily hashes a chat summary as the plan
+    and two cross-family reviewers burn a call each rejecting it. This
+    check makes that shape fail here, loudly, instead of downstream.
+
+    Empty list means the document is structurally plausible; this is a
+    shape check, not a quality review — the reviewers do quality.
+    """
+    problems: list[str] = []
+
+    missing = [
+        name
+        for name, aliases in _PLAN_REQUIRED_SECTIONS
+        if not _plan_section_present(plan_md, aliases)
+    ]
+    if missing:
+        problems.append("missing required section(s): " + ", ".join(missing))
+
+    lowered = plan_md.lower()
+    if missing and any(marker in lowered for marker in _PLAN_REPORT_MARKERS):
+        problems.append("reads as a report about a plan rather than a plan")
+
+    if len(plan_md) < _PLAN_MIN_CHARS:
+        problems.append(
+            f"too short to be a plan: {len(plan_md)} characters, "
+            f"minimum {_PLAN_MIN_CHARS}"
+        )
+
+    return problems
+
+
+_NO_AUTHORED_CHUNKS = "(none supplied — propose a chunking)"
+
+
+def _format_authored_chunks(chunks_path: str | None) -> str:
+    """Render the operator's authored chunks JSON as a markdown contract.
+
+    Execution is driven entirely by this file, so a planner that never
+    sees it invents chunk boundaries, file paths and locked tests that
+    will never run — and the plan reviewers then audit the invention
+    instead of the contract. Rendering it as markdown (rather than a
+    JSON blob) is deliberate: the planner reads it as a contract to
+    conform to.
+
+    Returns the sentinel when no usable contract is available; this is
+    a prompt-context helper and must never be the reason a run aborts.
+    """
+    if not chunks_path or not os.path.isfile(chunks_path):
+        return _NO_AUTHORED_CHUNKS
+    try:
+        with open(chunks_path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return _NO_AUTHORED_CHUNKS
+
+    if isinstance(data, dict):
+        chunks = data.get("chunks") or data.get("items") or []
+    else:
+        chunks = data
+    if not isinstance(chunks, list) or not chunks:
+        return _NO_AUTHORED_CHUNKS
+
+    def _lines(label: str, value: Any) -> list[str]:
+        if not value:
+            return []
+        out = [f"- **{label}**:"]
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if item:
+                    out.append(f"  - {key}: `{item}`")
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                out.append(f"  - `{item}`")
+        else:
+            out = [f"- **{label}**: `{value}`"]
+        return out
+
+    parts: list[str] = []
+    for index, chunk in enumerate(chunks, start=1):
+        if not isinstance(chunk, dict):
+            parts.append(f"### Chunk {index}\n\n- (unreadable chunk entry: `{chunk}`)")
+            continue
+        chunk_id = chunk.get("chunk_id") or chunk.get("id") or chunk.get("name") or f"chunk-{index}"
+        body = [f"### {chunk_id}"]
+        scope = chunk.get("scope") or chunk.get("name")
+        if scope:
+            body.append(f"- **Scope**: {scope}")
+        criteria = chunk.get("observable_criteria") or chunk.get("criteria") or []
+        if isinstance(criteria, str):
+            criteria = [criteria]
+        if criteria:
+            body.append("- **Observable criteria**:")
+            for item in criteria:
+                body.append(f"  - {item}")
+        body += _lines("allowed_files", chunk.get("allowed_files"))
+        body += _lines("locked_test_files", chunk.get("locked_test_files"))
+        body += _lines("commands", chunk.get("commands"))
+        for key, label in (
+            ("red_command", "RED command"),
+            ("green_command", "GREEN command"),
+            ("full_suite_command", "full-suite command"),
+            ("lint_command", "lint command"),
+            ("build_command", "build command"),
+        ):
+            body += _lines(label, chunk.get(key))
+        if chunk.get("accepted_assertion"):
+            body.append(f"- **accepted_assertion**: {chunk['accepted_assertion']}")
+        if chunk.get("rollback"):
+            body.append(f"- **rollback**: `{chunk['rollback']}`")
+        parts.append("\n".join(body))
+
+    header = (
+        f"The operator authored {len(chunks)} chunk(s) in `{chunks_path}`. "
+        f"This is the contract the runner executes verbatim."
+    )
+    return header + "\n\n" + "\n\n".join(parts)
+
+
+_NO_PRIOR_FINDINGS = "(first round — no prior findings)"
+
+# blocker|high are what §5.3 blocks acceptance on, so they lead.
+_SEVERITY_ORDER = ("blocker", "high", "medium", "low")
+
+
+def _format_prior_findings(findings: list[Finding]) -> str:
+    """Render the previous review round's findings for the planner.
+
+    Without this the looped planner regenerates a near-identical plan and
+    the next round's reviewer calls are spent re-finding the same defects.
+    Each entry carries the plan's claim AND ``risk_if_ignored`` because
+    the claim alone reads as agreement; the risk is the thing to fix.
+
+    Returns the sentinel on an empty list and never raises: this is
+    prompt context and must not be why a run aborts.
+    """
+    try:
+        rows = [f for f in (findings or []) if f is not None]
+        if not rows:
+            return _NO_PRIOR_FINDINGS
+
+        def _key(item: tuple[int, Finding]) -> tuple[int, int]:
+            index, finding = item
+            sev = (finding.severity or "").lower()
+            rank = _SEVERITY_ORDER.index(sev) if sev in _SEVERITY_ORDER else len(_SEVERITY_ORDER)
+            return (rank, index)
+
+        ordered = [f for _, f in sorted(enumerate(rows), key=_key)]
+        blocking = sum(
+            1 for f in ordered if (f.severity or "").lower() in ("blocker", "high")
+        )
+        parts = [
+            f"A previous review round raised {len(ordered)} finding(s), "
+            f"{blocking} of them blocker|high. They are listed "
+            f"blocker|high first."
+        ]
+        for finding in ordered:
+            body = [
+                f"### {finding.finding_id or '(unlabelled)'} — "
+                f"{(finding.severity or 'unknown').lower()} / "
+                f"{(finding.category or 'unknown').lower()}"
+            ]
+            if finding.source_model_id:
+                body.append(f"- **Raised by**: {finding.source_model_id}")
+            if finding.plan_section:
+                body.append(f"- **Plan section**: {finding.plan_section}")
+            if finding.claim:
+                body.append(f"- **The plan claimed**: {finding.claim}")
+            if finding.risk_if_ignored:
+                body.append(f"- **Risk if ignored**: {finding.risk_if_ignored}")
+            if finding.evidence:
+                body.append("- **Evidence**:")
+                for item in finding.evidence:
+                    body.append(f"  - {item}")
+            if finding.recommended_change:
+                body.append(f"- **Recommended change**: {finding.recommended_change}")
+            parts.append("\n".join(body))
+        return "\n\n".join(parts)
+    except Exception:
+        return _NO_PRIOR_FINDINGS
+
 
 def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_run: bool) -> dict:
     """Fire the planner role and produce the plan document."""
@@ -247,9 +517,27 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
         {
             "pilot_spec_path": rs.pilot_spec_file or "(no --pilot-spec-file)",
             "plan_output_path": plan_doc_path,
+            "authored_chunks": _format_authored_chunks(rs.chunks_file),
+            "prior_findings": _format_prior_findings(rs.plan_findings),
         },
         os.path.join(evidence_dir, "plan-prompt.md"),
     )
+
+    # A finding is raised against one plan_sha256. The plan about to be
+    # produced replaces the one they were raised against, so they become
+    # "superseded" (§5.3 binds findings to the exact plan hash). They stay
+    # on rs.plan_findings — the audit trail and the next round's prompt
+    # need them — but they must stop counting toward the §5.3 open
+    # blocker|high ledger, or round 2 could never be accepted no matter
+    # what the planner fixed, and the re-review would be spent for
+    # nothing.
+    for prior in rs.plan_findings:
+        if prior.status == "open":
+            prior.status = "superseded"
+            prior.disposition_rationale = (
+                f"superseded: raised against the plan reviewed in round "
+                f"{rs.plan_round - 1}, which this round replaces"
+            )
 
     env_path = os.path.join(evidence_dir, "planner-envelope.json")
     stderr_path = os.path.join(evidence_dir, "planner-stderr.log")
@@ -281,10 +569,13 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     rs.planner.is_error = record.is_error
     rs.planner.envelope_path = record.envelope_path
     rs.planner.run_id = record.run_id
+    record.provenance = run_provenance(rs)
+    record.run_label = rs.run_label
+    record.phase_step = "plan"
     append_run_record(
         record,
         phase="phase-4.5",
-        branch="factory/phase-4.5-loop-runner",
+        branch=_git_branch(rs.framework_root),
         telemetry_path=os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
     )
 
@@ -318,6 +609,22 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
         except (OSError, json.JSONDecodeError) as e:
             raise RuntimeError(f"planner envelope unreadable for plan: {e}") from None
 
+        problems = _validate_plan_document(plan_md)
+        if problems:
+            raise RuntimeError(
+                "planner returned text that is not a plan document; refusing "
+                "to hash-bind it and spend cross-family review on it. "
+                "Problems: "
+                + "; ".join(problems)
+                + f". The planner has no file-writing tool, so its final "
+                f"message IS the plan — a seat that tried to write a file "
+                f"may have reported success while that write failed, and "
+                f"this is what the runner actually received. Envelope: "
+                f"{record.envelope_path}; stderr: {record.stderr_path}; "
+                f"intended plan path: {plan_doc_path}. (Accepting a summary "
+                f"as the plan is the silent-green defect shape.)"
+            )
+
     os.makedirs(os.path.dirname(plan_doc_path) or ".", exist_ok=True)
     with open(plan_doc_path, "w") as f:
         f.write(plan_md)
@@ -332,10 +639,36 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
 # ── steps: plan reviewer ─────────────────────────────────────────────────
 
 _VERDICT_RE = re.compile(r"\bVERDICT:\s*(APPROVE|APPROVE-WITH-NITS|REJECT)\b", re.IGNORECASE)
+# The executor emits a literal "RESULT: SPEC_OR_TEST_BLOCKED" line when it
+# believes the locked test is contradictory or the spec is unimplementable
+# (see tools/sprint_loop/prompts/executor.md). Same anchored-literal pattern
+# as _VERDICT_RE so the match is robust against surrounding prose.
+_SPEC_OR_TEST_BLOCKED_RE = re.compile(
+    r"\bRESULT:\s*SPEC_OR_TEST_BLOCKED\b", re.IGNORECASE
+)
 _FINDING_ID_RE = re.compile(
     r'"finding_id"\s*:\s*"F-[a-z0-9]+"',
     re.IGNORECASE,
 )
+
+# Cap for the two fields the next planner round must act on
+# (``risk_if_ignored``, ``recommended_change``). Generous on purpose:
+# these are fed back into the planner prompt verbatim, so the cap exists
+# only to stop a runaway seat from blowing up the prompt, not to fit a
+# terminal line.
+_FINDING_ACTIONABLE_MAX = 1200
+
+
+def _is_spec_or_test_blocked(result_text: str) -> bool:
+    """True when the executor's result text carries a
+    ``RESULT: SPEC_OR_TEST_BLOCKED`` signal.
+
+    The executor emits this when it believes the locked test is
+    contradictory or the spec is unimplementable (see
+    ``tools/sprint_loop/prompts/executor.md``). Uses the same
+    anchored-regex pattern as ``_VERDICT_RE``.
+    """
+    return bool(_SPEC_OR_TEST_BLOCKED_RE.search(result_text or ""))
 
 
 def _parse_finding_block(
@@ -393,15 +726,21 @@ def _parse_finding_block(
             finding_id=obj.get("finding_id", f"F-unlabeled-{reviewer_label}"),
             severity=(obj.get("severity") or "medium").lower(),
             category=(obj.get("category") or "spec-deviation").lower(),
-            claim=obj.get("claim", "")[:240],
+            claim=(obj.get("claim") or "")[:240],
             evidence=obj.get("evidence", []) or [],
-            recommended_change=obj.get("recommended_change", "")[:240],
+            # 240 was enough for a display snippet but not for text a
+            # looped planner has to act on: the next round's prompt
+            # carries these two verbatim, and a sentence clipped
+            # mid-clause is an instruction the planner cannot execute.
+            recommended_change=(obj.get("recommended_change") or "")[:_FINDING_ACTIONABLE_MAX],
             source_role="reviewer",
             source_run_id=source_run_id,
             source_model_id=source_model,
             source_family=source_family,
             first_seen_in_panel_position=panel_position,
             status="open",
+            plan_section=(obj.get("plan_section") or "")[:240],
+            risk_if_ignored=(obj.get("risk_if_ignored") or "")[:_FINDING_ACTIONABLE_MAX],
         )
         findings.append(f)
     return findings
@@ -473,10 +812,13 @@ def run_plan_reviewer(
     reviewer.is_error = record.is_error
     reviewer.envelope_path = record.envelope_path
     reviewer.run_id = record.run_id
+    record.provenance = run_provenance(rs)
+    record.run_label = rs.run_label
+    record.phase_step = "plan-review"
     append_run_record(
         record,
         phase="phase-4.5",
-        branch="factory/phase-4.5-loop-runner",
+        branch=_git_branch(rs.framework_root),
         telemetry_path=os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
     )
 
@@ -527,6 +869,106 @@ def run_plan_reviewer(
     return {"record": record, "verdict": verdict, "findings": findings}
 
 
+def _append_disposition_rows(rs: RunState, findings: list[Finding],
+                             disposition: str, reason: str,
+                             telemetry_path: str) -> None:
+    """Append ``dispositions.jsonl`` rows (SCHEMA.md §dispositions).
+
+    A force-accept override IS a disposition: the operator saw the finding
+    and chose to proceed. Recording it here is what makes
+    findings-upheld-vs-overridden queryable; left only in the checkpoint
+    prose, reviewer precision cannot be measured at all.
+    """
+    if not findings:
+        return
+    os.makedirs(os.path.dirname(os.path.abspath(telemetry_path)) or ".",
+                exist_ok=True)
+    prov = run_provenance(rs)
+    with open(telemetry_path, "a") as f:
+        for finding in findings:
+            row = {
+                "schema_version": "v3",
+                "ts": now_iso(),
+                "finding_id": finding.finding_id,
+                "phase": "phase-4.5",
+                "disposition": disposition,
+                "disposition_reason": reason,
+                "disposition_commit_sha": prov["pilot_head"],
+                "disposition_model_id": "(operator)",
+                "disposition_at": now_iso(),
+                "severity": finding.severity,
+                "category": finding.category,
+                "source_run_id": finding.source_run_id,
+                "source_model_id": finding.source_model_id,
+                "run_label": prov["run_label"],
+                "framework_sha": prov["framework_sha"],
+                "plan_sha256": prov["plan_sha256"],
+            }
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def append_run_summary_row(rs: RunState, exit_code: int,
+                           telemetry_path: str) -> None:
+    """One ``role="run"`` row per run: how far it got and how it ended.
+
+    Per-call rows cannot answer "where do runs die"; that needs a
+    run-level record. Emitted on every exit path, including refusals.
+    """
+    sev_counts: dict[str, int] = {}
+    for f in rs.plan_findings:
+        sev_counts[f.severity] = sev_counts.get(f.severity, 0) + 1
+    prov = run_provenance(rs)
+    row = {
+        "schema_version": "v3",
+        "ts": now_iso(),
+        "run_id": f"r-run-{int(time.time() * 1000)}",
+        "phase": "phase-4.5",
+        "branch": prov["framework_branch"],
+        "role": "run",
+        "model_id": "(n/a)",
+        "provider": "(n/a)",
+        "family": "(n/a)",
+        "exit_code": exit_code,
+        "run_status": rs.status.value if rs.status else "UNKNOWN",
+        "status_message": rs.status_message,
+        "reached_phase_step": rs.reached_phase_step,
+        "findings_total": len(rs.plan_findings),
+        "findings_by_severity": sev_counts,
+        "plan_reviewer_verdicts": [
+            {"model_id": v.get("model_id"), "verdict": v.get("verdict"),
+             "bound_to_plan": v.get("plan_sha256_at_time_of_review") == rs.plan_sha256}
+            for v in rs.plan_reviewer_verdicts
+        ],
+        "chunk_statuses": [
+            {"chunk_id": c.chunk_id,
+             "status": c.status.value if c.status else None,
+             "gate_decision": c.gate_decision.value if c.gate_decision else None,
+             "retry_count": c.retry_count}
+            for c in rs.chunks
+        ],
+        "force_accept_disposition": rs.force_accept_disposition,
+        # A test-design cycle and an executor-retry cycle cost different
+        # seats, so counting them together makes seat/model comparisons
+        # wrong. ``chunk_statuses[].retry_count`` is the executor budget;
+        # these rows carry the test-design budget beside it. Additive —
+        # v1/v2 readers ignore the keys.
+        "test_design_retries_total": sum(c.test_design_retry_count for c in rs.chunks),
+        "reject_cycles_by_chunk": [
+            {"chunk_id": c.chunk_id,
+             "executor_retry_count": c.retry_count,
+             "test_design_retry_count": c.test_design_retry_count,
+             "last_rejection_kind": c.rejection_kind,
+             "executor_feedback_source": c.rejection_feedback_source}
+            for c in rs.chunks
+        ],
+    }
+    row.update(prov)
+    os.makedirs(os.path.dirname(os.path.abspath(telemetry_path)) or ".",
+                exist_ok=True)
+    with open(telemetry_path, "a") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def _append_finding_rows(findings: list[Finding], telemetry_path: str) -> None:
     """Append findings to ``telemetry/findings.jsonl`` per §10."""
     if not findings:
@@ -549,6 +991,8 @@ def _append_finding_rows(findings: list[Finding], telemetry_path: str) -> None:
                 "panel_size_at_surfacing": 2,
                 "first_seen_in_panel_position": finding.first_seen_in_panel_position,
                 "raw_text_first_240": finding.claim[:240],
+                "plan_section": finding.plan_section,
+                "risk_if_ignored": finding.risk_if_ignored,
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -624,6 +1068,61 @@ def recheck_family_guard_post_resolution(cfg: Config, rs: RunState, which: str) 
         rs.family_guard_notes = f"§17.2 family guard OK at pref + post-resolution ({which})"
 
 
+# ── finding rendering ────────────────────────────────────────────────────
+
+
+def _clip(text: str, limit: int) -> str:
+    """One-line, length-capped rendering of reviewer prose."""
+    flat = " ".join((text or "").split())
+    return flat if len(flat) <= limit else flat[: limit - 1].rstrip() + "…"
+
+
+def _format_finding_for_human(
+    finding: Finding,
+    *,
+    detailed: bool = False,
+    indent: str = "    ",
+) -> str:
+    """Render one finding so a reader cannot mistake it for an approval.
+
+    A reviewer finding carries both the plan's assertion (``claim``) and
+    the defect (``risk_if_ignored``). Printing the claim alone produces
+    lines that read as praise under a REFUSED banner — observed live,
+    where "The second command is a 'wider backend suite' regression
+    gate" was rendered as the reason the gate refused. The risk leads;
+    the claim is labelled as the plan's words, not the reviewer's.
+
+    ``risk_if_ignored`` is empty on findings from older runs and from
+    seats that do not emit it, so ``claim`` remains the fallback.
+    """
+    inner = indent + "  "
+    sev = finding.severity.upper()
+    if detailed and finding.category:
+        sev = f"{sev}/{finding.category}"
+    head = f"{indent}[{sev}] {finding.finding_id}"
+    if finding.source_model_id:
+        head += f" ({finding.source_model_id})"
+    if finding.plan_section:
+        head += f" in {_clip(finding.plan_section, 80)}"
+    if finding.status and finding.status != "open":
+        # Only open findings block §5.3, so a non-open one listed next to
+        # open ones must say which it is.
+        head += f" [{finding.status}]"
+    lines = [head]
+    risk_width = 400 if detailed else 200
+    if finding.risk_if_ignored:
+        lines.append(f"{inner}risk: {_clip(finding.risk_if_ignored, risk_width)}")
+        if detailed and finding.claim:
+            lines.append(f"{inner}plan claims: {_clip(finding.claim, 200)}")
+    else:
+        # No risk field: say "finding", never "risk", so the fallback
+        # line is not read as a risk statement the reviewer never made.
+        lines.append(f"{inner}finding: {_clip(finding.claim, risk_width)}")
+    if detailed and finding.recommended_change:
+        lines.append(f"{inner}fix: {_clip(finding.recommended_change, 300)}")
+    return "\n".join(lines)
+
+
 # ── step: reconcile (human gate) ────────────────────────────────────────
 
 
@@ -681,11 +1180,12 @@ def reconcile_human_gate(
     print("═" * 64)
     print("  RECONCILE GATE — human pause")
     print(f"  packet: {packet_path}")
-    print(f"  round: {rs.plan_round + 1} / max {rs.max_review_rounds}")
+    # main() increments plan_round before the round runs, so it is
+    # already 1-based by the time the gate reports it.
+    print(f"  round: {rs.plan_round} / max {rs.max_review_rounds}")
     print(f"  findings ({len(rs.plan_findings)}):")
     for f in rs.plan_findings[-10:]:
-        sev = f.severity.upper()
-        print(f"    [{sev}] {f.finding_id} ({f.source_model_id}): {f.claim[:120]}")
+        print(_format_finding_for_human(f))
     print()
     print("  ── plan_doc ──")
     print(f"    path: {rs.plan_doc_path}")
@@ -735,9 +1235,10 @@ def reconcile_human_gate(
                         f"Overridden blocker|high findings ({len(open_blockers)}):"
                     )
                     for f in open_blockers:
-                        disposition_lines.append(
-                            f"  - {f.finding_id} ({f.severity}/{f.category}) "
-                            f"by {f.source_model_id}: {f.claim[:200]}"
+                        disposition_lines.extend(
+                            _format_finding_for_human(
+                                f, detailed=True, indent="  "
+                            ).splitlines()
                         )
                 elif e.code == 5:
                     disposition_lines.append(
@@ -747,6 +1248,11 @@ def reconcile_human_gate(
                 rs.force_accept = True
                 rs.force_accept_reason = force_accept_reason
                 rs.force_accept_disposition = disposition
+                _append_disposition_rows(
+                    rs, open_blockers, "overridden",
+                    force_accept_reason or "(not provided)",
+                    os.path.join(rs.framework_root, "telemetry", "dispositions.jsonl"),
+                )
                 print(
                     f"  [force-accept] §5.3 refused (exit {e.code}); "
                     f"operator override active. Disposition recorded.",
@@ -759,7 +1265,44 @@ def reconcile_human_gate(
                 write_checkpoint(rs, cp_path)
                 return ReconcileDecision.ACCEPT
 
-            if unattended:
+            if unattended and e.code == 4:
+                # §5.3 forbids ACCEPTING a plan with open blocker|high
+                # findings; it does not forbid iterating. Refusing on
+                # the first refusal spent one of the configured review
+                # rounds and then quit, so an ordinary adversarial cycle
+                # — plan, get findings, revise, re-review — could never
+                # complete unattended. REJECT loops the planner, which
+                # reads rs.plan_findings on its next invocation.
+                open_bh = len(
+                    [
+                        f for f in rs.plan_findings
+                        if f.status == "open" and f.severity in ("blocker", "high")
+                    ]
+                )
+                if rs.plan_round < rs.max_review_rounds:
+                    rs.status_message = (
+                        f"reject: §5.3 refused with {open_bh} open blocker|high "
+                        f"finding(s) at review round {rs.plan_round} of "
+                        f"{rs.max_review_rounds}; looping the planner"
+                    )
+                    print(
+                        f"  [unattended] §5.3 refused (exit 4) with {open_bh} open "
+                        f"blocker|high finding(s) at review round {rs.plan_round} "
+                        f"of {rs.max_review_rounds}; rounds remain, so the plan is "
+                        f"REJECTED back to the planner (looping is not accepting).",
+                        file=sys.stderr,
+                    )
+                    return ReconcileDecision.REJECT
+                cp_path = os.path.join(evidence_dir, "checkpoint.json")
+                write_checkpoint(rs, cp_path)
+                print(
+                    f"  [unattended] §5.3 refused (exit 4) with {open_bh} open "
+                    f"blocker|high finding(s); review rounds exhausted "
+                    f"(round {rs.plan_round} of {rs.max_review_rounds}); "
+                    f"checkpoint at {cp_path}; resume with --resume-from",
+                    file=sys.stderr,
+                )
+            elif unattended:
                 cp_path = os.path.join(evidence_dir, "checkpoint.json")
                 write_checkpoint(rs, cp_path)
                 print(
@@ -796,7 +1339,7 @@ def reconcile_human_gate(
         # rubber stamp — Phase 0's KNOWN silent-green defect.
         try:
             _enforce_5_3_preconditions(rs)
-        except SystemExit:
+        except SystemExit as e:
             if force_accept and e.code in (4, 5):
                 open_blockers = [
                     f for f in rs.plan_findings
@@ -812,9 +1355,10 @@ def reconcile_human_gate(
                         f"Overridden blocker|high findings ({len(open_blockers)}):"
                     )
                     for f in open_blockers:
-                        disposition_lines.append(
-                            f"  - {f.finding_id} ({f.severity}/{f.category}) "
-                            f"by {f.source_model_id}: {f.claim[:200]}"
+                        disposition_lines.extend(
+                            _format_finding_for_human(
+                                f, detailed=True, indent="  "
+                            ).splitlines()
                         )
                 elif e.code == 5:
                     disposition_lines.append(
@@ -823,6 +1367,11 @@ def reconcile_human_gate(
                 rs.force_accept = True
                 rs.force_accept_reason = force_accept_reason
                 rs.force_accept_disposition = "\n".join(disposition_lines)
+                _append_disposition_rows(
+                    rs, open_blockers, "overridden",
+                    force_accept_reason or "(not provided)",
+                    os.path.join(rs.framework_root, "telemetry", "dispositions.jsonl"),
+                )
                 print(
                     f"  [force-accept] §5.3 refused (exit {e.code}); "
                     f"operator override active. Disposition recorded.",
@@ -869,10 +1418,7 @@ def _enforce_5_3_preconditions(rs: RunState) -> None:
             file=sys.stderr,
         )
         for f in open_blocker_or_high:
-            print(
-                f"    - {f.finding_id} ({f.source_model_id}): {f.claim[:160]}",
-                file=sys.stderr,
-            )
+            print(_format_finding_for_human(f, detailed=True), file=sys.stderr)
         raise SystemExit(4)
 
     bound_approves = [
@@ -899,16 +1445,12 @@ def _write_reconcile_packet(rs: RunState, path: str) -> None:
         f"started_at={rs.started_at}",
         f"plan_doc={rs.plan_doc_path}",
         f"plan_sha256={rs.plan_sha256}",
-        f"plan_round={rs.plan_round + 1} / max={rs.max_review_rounds}",
+        f"plan_round={rs.plan_round} / max={rs.max_review_rounds}",
         f"validators configured: {[v.pinned_model_id for v in rs.validators]}",
         f"findings ({len(rs.plan_findings)}):",
     ]
     for f in rs.plan_findings:
-        lines.append(
-            f"  [{f.severity.upper()}/{f.category}] {f.finding_id} "
-            f"(by {f.source_model_id}@{f.first_seen_in_panel_position}): "
-            f"{f.claim[:200]}"
-        )
+        lines.append(_format_finding_for_human(f, detailed=True, indent="  "))
     if not rs.plan_findings:
         lines.append("  (no findings — clean null per PRD §13)")
     lines.append("")
@@ -971,8 +1513,16 @@ def run_chunk_with_retries(
     Per PRD §5.7:
       - 1 retry by default (retry_threshold=1)
       - Above the threshold → ``HUMAN_DECISION`` and the run pauses.
+
+    ``REJECT_TEST`` is routed to the test-designer instead, on its own
+    budget of ``retry_threshold`` bounces: an inadequate locked test is
+    not the executor's failure, so a test-design cycle must not spend the
+    executor's retries, and it must still be bounded rather than looping
+    while the panel keeps rejecting each regenerated test.
     """
     attempts_left = rs.retry_threshold + 1  # first try + retries
+    # Bounces already spent (e.g. before a pause/resume) stay spent.
+    test_design_bounces_left = max(0, rs.retry_threshold - chunk.test_design_retry_count)
     while attempts_left > 0:
         chunk.status = (
             ChunkStatus.TEST_DESIGNING if chunk.retry_count == 0 else ChunkStatus.RETRYING
@@ -985,11 +1535,22 @@ def run_chunk_with_retries(
         if chunk.gate_decision in (GateDecision.ACCEPT, GateDecision.ACCEPT_WITH_NITS):
             chunk.status = ChunkStatus.ACCEPTED
             chunk.rejection_feedback = []  # cleared on ACCEPT
+            # rejection_feedback_source persists: it records what the last
+            # retry's prompt carried, so the run summary can answer "did
+            # feeding the finding help?" even after the chunk accepts.
             return chunk
 
         if chunk.gate_decision == GateDecision.STOP:
             chunk.status = ChunkStatus.HUMAN_DECISION
             rs.status_message = f"STOP in chunk {chunk.chunk_id}: {chunk.gate_reason}"
+            return chunk
+
+        # SPEC_OR_TEST_BLOCKED: the executor claims the contract itself
+        # is at fault. This is NOT a retryable rejection — retrying the
+        # executor burns credits on an impossible task. Return the chunk
+        # immediately so the caller writes a checkpoint and exits with
+        # the distinct BLOCKED code.
+        if chunk.status == ChunkStatus.BLOCKED:
             return chunk
 
         # REJECT or similar — retry if we have attempts left.
@@ -998,9 +1559,48 @@ def run_chunk_with_retries(
         # dereferencing None.
         decision_label = (chunk.gate_decision.value if chunk.gate_decision
                           else f"NO-GATE/{chunk.status.value}")
+
+        if chunk.rejection_kind == REJECTION_TEST:
+            # Test-directed rejection: the test-designer runs again, and
+            # the round is charged to the test-design budget rather than
+            # the executor's (hence attempts_left is restored).
+            # Clear any stale implementation feedback so a previous
+            # REJECT_IMPLEMENTATION's findings do not bleed into the
+            # executor's prompt on a later test-design round.
+            chunk.rejection_feedback = []
+            chunk.rejection_feedback_source = ""
+            if test_design_bounces_left > 0:
+                test_design_bounces_left -= 1
+                chunk.test_design_retry_count += 1
+                attempts_left += 1
+                chunk.status = ChunkStatus.RETRYING
+                print(
+                    f"  REJECT_TEST ({decision_label}); routing to the "
+                    f"test-designer, bounce "
+                    f"{chunk.test_design_retry_count}/{rs.retry_threshold}"
+                )
+                continue
+            chunk.status = ChunkStatus.HUMAN_DECISION
+            rs.status_message = (
+                f"chunk {chunk.chunk_id} reached HUMAN_DECISION: test-design "
+                f"retry budget exhausted after {chunk.test_design_retry_count} "
+                f"regeneration(s) — the validator panel returned REJECT_TEST "
+                f"against every locked test. The chunk spec and the test it "
+                f"asks for are the thing to reconcile, not the code: "
+                f"{chunk.gate_reason or '(no gate reason)'}"
+            )
+            return chunk
         if attempts_left > 0:
             chunk.retry_count += 1
-            chunk.rejection_feedback = [chunk.gate_reason or rs.status_message]
+            # rejection_feedback was already set by run_chunk_inner when
+            # the validator panel rejected the implementation (carrying
+            # the rejecting seats' own finding text). Only fall back to
+            # the gate reason when no validator classification ran — e.g.
+            # RED_REJECTED, which sets gate_decision=REJECT before the
+            # validation step and never reaches the formatter.
+            if not chunk.rejection_feedback:
+                chunk.rejection_feedback = [chunk.gate_reason or rs.status_message]
+                chunk.rejection_feedback_source = FEEDBACK_SOURCE_GATE_REASON
             print(
                 f"  REJECT ({decision_label}); retrying "
                 f"({rs.retry_threshold + 1 - attempts_left}/{rs.retry_threshold + 1})"
@@ -1018,6 +1618,17 @@ def run_chunk_with_retries(
     return chunk
 
 
+def _read_pilot_spec_text(rs: RunState) -> str:
+    """Return the pilot spec text for role prompts, or a placeholder."""
+    if rs.pilot_spec_file:
+        try:
+            with open(rs.pilot_spec_file) as f:
+                return f.read()
+        except OSError:
+            pass
+    return "(no pilot spec file configured)"
+
+
 def run_chunk_inner(
     rs: RunState, chunk: ChunkState, evidence_output_dir: str, dry_run: bool, cfg: Config
 ) -> None:
@@ -1025,19 +1636,74 @@ def run_chunk_inner(
     test-designer → lock → valid-red → executor → verify-green →
     evidence → validation → gate decision.
     """
-    # 1. test-designer writes the test (handled by humans in the Phase 3
-    # pilot; for sprints where the chunk spec gives the test file in
-    # advance we skip the droid test_designer round). The runner
-    # supports both modes by checking whether chunk.locked_test_files
-    # already includes the file (pre-authored) or not.
+    # 1. test-designer writes the test. The chunk spec must NAME the
+    # locked test file; a chunk with no named file is unspecifiable
+    # (nothing to lock, nothing to grep for the accepted assertion).
     if not chunk.locked_test_files:
-        # Fire the test_designer role (composition: nice-to-have, not
-        # required for the minimum end-to-end run; logged in KNOWN-ISSUES).
         raise RuntimeError(
-            f"chunk {chunk.chunk_id} has no locked_test_files; the runner "
-            f"does not yet auto-fire the test_designer droid role for "
-            f"auto-chunks. See phase-4.5/KNOWN-ISSUES.md."
+            f"chunk {chunk.chunk_id} has no locked_test_files; the chunk "
+            f"spec must name the test file the test_designer is to "
+            f"author. See phase-4.5/KNOWN-ISSUES.md."
         )
+
+    # A test-directed rejection (REJECT_TEST) from the previous round
+    # means the locked test does not lock what the chunk claims. The
+    # response is to regenerate the test — re-running the executor
+    # against the same inadequate test cannot fix that. The superseded
+    # test is archived out of the pilot tree, which is what makes the
+    # auto-fire path below re-author it.
+    redesign_round = chunk.rejection_kind == REJECTION_TEST
+    chunk.rejection_kind = ""
+    if redesign_round:
+        moved = archive_superseded_test(
+            chunk,
+            rs,
+            evidence_output_dir=evidence_output_dir,
+            round_index=chunk.test_design_retry_count,
+        )
+        print(
+            f"  REJECT_TEST → routing back to the test-designer for "
+            f"{chunk.chunk_id}; superseded evidence preserved: "
+            f"{sorted(moved.values()) or '(nothing to archive)'}"
+        )
+
+    # The named file may be pre-authored by a human (skip the droid
+    # round) or may not exist yet (fire the test_designer). dry_run
+    # short-circuits: invoke_test_designer writes no file under
+    # dry_run, and lock_test / validate_red synthesize their results
+    # without touching disk, so there is nothing to author — except on
+    # a redesign round, where the whole point of the round is the
+    # designer call.
+    test_file_abs = os.path.join(rs.pilot_root, chunk.locked_test_files[0])
+    if redesign_round or (not dry_run and not os.path.isfile(test_file_abs)):
+        chunk.status = ChunkStatus.TEST_DESIGNING
+        rs.reached_phase_step = "test-design"
+        td_prompt_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-td-prompt.md")
+        td_envelope_path = os.path.join(
+            evidence_output_dir, f"{chunk.chunk_id}-td-envelope.json"
+        )
+        render_test_designer_prompt(
+            chunk, rs, _read_pilot_spec_text(rs), output_path=td_prompt_path
+        )
+        invoke_test_designer(
+            chunk,
+            rs,
+            evidence_output_dir=evidence_output_dir,
+            rendered_prompt_path=td_prompt_path,
+            envelope_path=td_envelope_path,
+            dry_run=dry_run,
+            phase_step="test-design-rerun" if redesign_round else "test-design",
+        )
+        if not dry_run and (
+            not os.path.isfile(test_file_abs) or os.path.getsize(test_file_abs) == 0
+        ):
+            raise RuntimeError(
+                f"test_designer for chunk {chunk.chunk_id} reported no error "
+                f"but wrote no locked test at {test_file_abs} — refusing to "
+                f"lock a missing test (silent-green is the defect shape). "
+                f"Envelope: {td_envelope_path}; stderr: "
+                f"{os.path.join(evidence_output_dir, 'stderr-test-designer.log')}"
+            )
 
     # 2. lock
     chunk.status = ChunkStatus.LOCKING
@@ -1052,6 +1718,7 @@ def run_chunk_inner(
 
     # 3. valid-red
     chunk.status = ChunkStatus.VALIDATING_RED
+    rs.reached_phase_step = "red-gate"
     already_green = False
     try:
         validate_red(
@@ -1062,7 +1729,7 @@ def run_chunk_inner(
             dry_run=dry_run,
         )
     except RuntimeError as e:
-        if chunk.verify_mode:
+        if chunk.verify_mode or redesign_round:
             # §5.3 verify-and-harden relaxation: the chunk scope says
             # "changes already exist, verify and harden." If the locked
             # test is already passing at HEAD (no valid RED because the
@@ -1109,23 +1776,65 @@ def run_chunk_inner(
             chunk.gate_reason = rs.status_message
             return
 
-    # 4. executor
-    chunk.status = ChunkStatus.EXECUTING
-    ex_prompt_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-prompt.md")
-    render_executor_prompt(chunk, rs, output_path=ex_prompt_path,
-                           verify_and_harden=already_green or chunk.verify_mode)
-    invoke_executor(
-        chunk,
-        rs,
-        evidence_output_dir=evidence_output_dir,
-        rendered_prompt_path=ex_prompt_path,
-        envelope_path=os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-envelope.json"),
-        dry_run=dry_run,
-    )
-    recheck_family_guard_post_resolution(cfg, rs, "after-executor")
+    # 4. executor. Skipped on a redesign round whose regenerated test is
+    # already GREEN: the rejection was against the test, the
+    # implementation under review is unchanged, and it already satisfies
+    # the new contract — so there is nothing for the most expensive seat
+    # in the pipeline to do. A regenerated test that is RED still needs it.
+    if redesign_round and already_green:
+        print(
+            f"  [reject-test] regenerated test is already GREEN against the "
+            f"preserved implementation for chunk {chunk.chunk_id}; skipping "
+            f"the executor seat and re-validating."
+        )
+    else:
+        chunk.status = ChunkStatus.EXECUTING
+        rs.reached_phase_step = "execute"
+        ex_prompt_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-prompt.md")
+        render_executor_prompt(chunk, rs, output_path=ex_prompt_path,
+                               verify_and_harden=already_green or chunk.verify_mode)
+        ex_result = invoke_executor(
+            chunk,
+            rs,
+            evidence_output_dir=evidence_output_dir,
+            rendered_prompt_path=ex_prompt_path,
+            envelope_path=os.path.join(evidence_output_dir, f"{chunk.chunk_id}-ex-envelope.json"),
+            dry_run=dry_run,
+        )
+        recheck_family_guard_post_resolution(cfg, rs, "after-executor")
+
+        # SPEC_OR_TEST_BLOCKED: the executor claims the locked test is
+        # contradictory or the spec is unimplementable. This is NOT a
+        # REJECT_IMPLEMENTATION — it is a claim that the contract itself
+        # is at fault. Do NOT call verify_green (it would crash with
+        # RuntimeError: GREFUSED against an empty/unchanged diff), do NOT
+        # retry the executor, and do NOT produce evidence or validate.
+        # The claim must be adjudicated by the operator or routed to the
+        # test-designer; the runner exits with a distinct code so that
+        # routing is automatable.
+        if _is_spec_or_test_blocked(ex_result.get("result_text") or ""):
+            chunk.status = ChunkStatus.BLOCKED
+            chunk.gate_decision = GateDecision.REJECT
+            ex_envelope = os.path.join(
+                evidence_output_dir, f"{chunk.chunk_id}-ex-envelope.json"
+            )
+            chunk.gate_reason = (
+                f"SPEC_OR_TEST_BLOCKED: executor claims the locked test or "
+                f"spec is unimplementable for chunk {chunk.chunk_id}. "
+                f"Rationale in the executor envelope: {ex_envelope}. "
+                f"This claim must be adjudicated by the operator or routed "
+                f"to the test-designer — do NOT retry the executor."
+            )
+            rs.status_message = chunk.gate_reason
+            print(
+                f"  [BLOCKED] {chunk.gate_reason}",
+                file=sys.stderr,
+            )
+            return
 
     # 5. verify-green
     chunk.status = ChunkStatus.VERIFYING_GREEN
+    rs.reached_phase_step = "verify-green"
     verify_green(
         chunk,
         framework_root=rs.framework_root,
@@ -1137,6 +1846,10 @@ def run_chunk_inner(
     # 6. evidence
     chunk.status = ChunkStatus.EVIDENCING
     bundle_path = os.path.join(evidence_output_dir, f"{chunk.chunk_id}-bundle.json")
+    # Derived once and threaded to both steps: the validation step re-produces
+    # the bundle at the same path, so if the two disagree about the regression
+    # command the second production silently wins.
+    full_suite_command = chunk_full_suite_command(chunk)
     produce_evidence(
         chunk,
         framework_root=rs.framework_root,
@@ -1144,15 +1857,34 @@ def run_chunk_inner(
         pilot_python=rs.pilot_python,
         evidence_output_path=bundle_path,
         dry_run=dry_run,
+        full_suite_command=full_suite_command,
     )
 
     # 7. validation
     chunk.status = ChunkStatus.VALIDATING
+    rs.reached_phase_step = "validate"
     backend_result = run_validators(
-        chunk, rs, evidence_output_dir=evidence_output_dir, dry_run=dry_run
+        chunk,
+        rs,
+        evidence_output_dir=evidence_output_dir,
+        dry_run=dry_run,
+        full_suite_command=full_suite_command,
     )
     chunk.gate_decision = backend_result.gate
     chunk.gate_reason = backend_result.reason
+    # The gate collapses every REJECT* verdict to one REJECT; which seat
+    # the rejection is directed at survives only in the per-validator
+    # verdicts, so classify here and let run_chunk_with_retries route on it.
+    chunk.rejection_kind = classify_rejection(backend_result.validators)
+    if chunk.rejection_kind == REJECTION_TEST:
+        chunk.test_design_feedback = [format_test_rejection_feedback(backend_result)]
+    elif chunk.rejection_kind == REJECTION_IMPLEMENTATION:
+        chunk.rejection_feedback = [format_implementation_rejection_feedback(backend_result)]
+        chunk.rejection_feedback_source = (
+            FEEDBACK_SOURCE_VALIDATOR_FINDING
+            if implementation_rejection_has_finding(backend_result)
+            else FEEDBACK_SOURCE_GATE_REASON
+        )
 
 
 # ── step: branch + commit ───────────────────────────────────────────────
@@ -1296,16 +2028,45 @@ def commit_chunk_change(
 # ── main flow ────────────────────────────────────────────────────────────
 
 
-def guard_in_uncommitted_state() -> None:
+def guard_in_uncommitted_state(evidence_dir: str = "") -> None:
     """OPERATING-RULES §7 + §15 — refuse to run a sprint if the working
-    tree has uncommitted changes unless the operator opts in."""
+    tree has uncommitted changes unless the operator opts in.
+
+    Scoped to the case the guard can actually protect. What it protects
+    against is ``commit_chunk_change`` sweeping unrelated dirty state into
+    an audit commit. That commit only happens when the evidence tree lives
+    *inside* ``_REPO_ROOT``; with a per-pilot overlay the evidence dir sits
+    outside it, nothing is staged and the audit commit is skipped entirely
+    (finding H-9 / KI-3). Refusing in that layout blocks a run over a
+    hazard that cannot occur, and the only escape hatch on offer
+    (``--no-fail-closed``) also disables the §17.2 family guard's
+    fail-closed refusal — trading away the guard that does bind.
+    """
     status = _git("status", "--porcelain", cwd=_REPO_ROOT)
-    if status.strip():
-        raise SystemExit(
-            f"FATAL: framework_root has uncommitted changes. Commit, "
-            f"stash, or clean before launching a sprint. §7 / §15: "
-            f"git history is reality; never race it.\n{status}"
-        )
+    if not status.strip():
+        return
+
+    if evidence_dir:
+        try:
+            rel = os.path.relpath(os.path.abspath(evidence_dir), _REPO_ROOT)
+        except ValueError:  # different drive; certainly outside
+            rel = ".."
+        if rel.startswith(".."):
+            print(
+                f"  [§7] framework_root has uncommitted changes, but the "
+                f"evidence tree is outside it ({evidence_dir}); no audit "
+                f"commit will be staged here, so the run proceeds. The "
+                f"pilot repo owns its own archival.",
+                file=sys.stderr,
+            )
+            return
+
+    raise SystemExit(
+        f"FATAL: framework_root has uncommitted changes and the evidence "
+        f"tree lives inside it, so an audit commit would sweep them up. "
+        f"Commit, stash, or clean before launching a sprint. §7 / §15: "
+        f"git history is reality; never race it.\n{status}"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1397,6 +2158,10 @@ def _runner_argparser() -> argparse.ArgumentParser:
                         help="In unattended mode, override the §5.3 reconcile gate "
                              "refusal. Records an explicit operator disposition in "
                              "the checkpoint and proceeds with ACCEPT.")
+    parser.add_argument("--run-label", default="",
+                        help="Experiment arm / run label stamped on every telemetry "
+                             "row of this run (SCHEMA.md v3 ``run_label``). "
+                             "Defaults to the run_id.")
     return parser
 
 
@@ -1533,14 +2298,55 @@ def _format_build_config_help_synthetic() -> str:
     return p.format_help()
 
 
+# The RunState of the in-flight run, so the exit wrapper can emit the
+# run-summary row after ``_main_inner`` has unwound (including on
+# SystemExit / uncaught exceptions). None until argv parsing succeeds.
+_CURRENT_RUN_STATE: RunState | None = None
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: F811
     """Top-level runner entrypoint.
+
+    Thin wrapper around ``_main_inner`` whose only job is to guarantee
+    one ``role="run"`` telemetry row per run, on every exit path. A
+    refusal that leaves no row is invisible to the funnel, which is
+    exactly the "where do runs die" question the row exists to answer.
+    """
+    global _CURRENT_RUN_STATE
+    _CURRENT_RUN_STATE = None
+    exit_code = 1
+    try:
+        exit_code = _main_inner(argv)
+        return exit_code
+    except SystemExit as e:
+        exit_code = e.code if isinstance(e.code, int) else 1
+        raise
+    except Exception:
+        exit_code = 1
+        raise
+    finally:
+        rs = _CURRENT_RUN_STATE
+        if rs is not None:
+            try:
+                append_run_summary_row(
+                    rs, exit_code,
+                    os.path.join(rs.framework_root, "telemetry", "runs.jsonl"),
+                )
+            except Exception as tel_err:  # noqa: BLE001
+                # Telemetry must never mask the run's real outcome.
+                print(f"  [telemetry] run-summary row not written: {tel_err}",
+                      file=sys.stderr)
+
+
+def _main_inner(argv: list[str] | None = None) -> int:
+    """Runner body; see ``main`` for the exit-path wrapper.
 
     Pass-r3 H-8: render both the runner-only flag table and the
     Config-side flag table when --help is requested. Otherwise, route
     runner-only flags through _runner_argparser and Config-side flags
     through build_config (after stripping the runner-only ones).
     """
+    global _CURRENT_RUN_STATE
     raw_argv = sys.argv[1:] if argv is None else argv
     if "--help" in raw_argv or "-h" in raw_argv:
         runner_help = _runner_argparser().format_help()
@@ -1567,8 +2373,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         if skip_next:
             skip_next = False
             continue
-        if a == "--resume-from":
+        if a in ("--resume-from", "--run-label"):
             skip_next = True
+            continue
+        if a.startswith("--resume-from=") or a.startswith("--run-label="):
             continue
         peer_argv.append(a)
     cfg = build_config(peer_argv)
@@ -1613,8 +2421,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         pilot_root=cfg.pilot_root,
         pilot_python=cfg.pilot_python or sys.executable,
         pilot_spec_file=cfg.pilot_spec_file,
+        chunks_file=cfg.chunks_file,
         dry_run=cfg.dry_run,
         skip_reconcile=cfg.skip_reconcile,
+        unattended=cfg.unattended,
+        run_label=ns.run_label or run_id,
         create_pr=cfg.create_pr,
         validation_backend=cfg.validation_backend,
         signing_key_env=cfg.signing_key_env,
@@ -1674,15 +2485,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
             )
         ],
     )
+    _CURRENT_RUN_STATE = rs
 
     # Preflight
     if not cfg.dry_run and "--no-fail-closed" not in (argv or sys.argv):
-        guard_in_uncommitted_state()
+        guard_in_uncommitted_state(cfg.default_evidence_dir(rs.run_id))
     preflight_family_guard(cfg, rs)
 
     # If resuming from a checkpoint, restore run state.
     if ns.resume_from:
         rs = load_checkpoint(ns.resume_from)
+        if ns.run_label:
+            rs.run_label = ns.run_label
+        _CURRENT_RUN_STATE = rs
 
     # Per-chunk evidence dir
     evidence_dir = cfg.default_evidence_dir(rs.run_id)
@@ -1702,6 +2517,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
             return 2
 
         # 1. Planner
+        rs.reached_phase_step = "planner"
         run_planner(
             rs,
             pilot_spec_text="(see --pilot-spec-file)",
@@ -1710,6 +2526,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         )
 
         # 2. Plan reviewer (always); 2nd reviewer if configured.
+        rs.reached_phase_step = "plan-review"
         reviewer1 = run_plan_reviewer(
             rs, reviewer_index=1, evidence_dir=evidence_dir, dry_run=cfg.dry_run
         )
@@ -1756,6 +2573,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         # --skip-reconcile additionally prints a louder banner.
         if cfg.skip_reconcile:
             print("  --skip-reconcile: skipping stdin pause; running §5.3 preconditions check")
+        rs.reached_phase_step = "reconcile"
         decision = reconcile_human_gate(
             rs,
             evidence_dir=evidence_dir,
@@ -1776,6 +2594,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
 
     # ── Chunking ───────────────────────────────────────────────────
     rs.status = RunStatus.CHUNKING
+    rs.reached_phase_step = "chunking"
     if not cfg.chunks_file:
         # For now require a chunks file. Auto-chunking via the planner
         # is a follow-on (KNOWN-ISSUES).
@@ -1796,6 +2615,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
 
     # ── Per-chunk loop ─────────────────────────────────────────────
     rs.status = RunStatus.RUNNING_CHUNKS
+    rs.reached_phase_step = "chunk-execution"
     for i in range(len(rs.chunks)):
         rs.current_chunk_index = i
         chunk = rs.chunks[i]
@@ -1803,6 +2623,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
         chunk_evidence_dir = os.path.join(evidence_dir, chunk.chunk_id)
         os.makedirs(chunk_evidence_dir, exist_ok=True)
         chunk = run_chunk_with_retries(rs, chunk, chunk_evidence_dir, cfg.dry_run, cfg)
+        if chunk.status == ChunkStatus.BLOCKED:
+            # SPEC_OR_TEST_BLOCKED: the executor claims the locked test or
+            # spec is unimplementable. Checkpoint and exit with a distinct
+            # code (6) so the operator can route it to adjudication or the
+            # test-designer rather than treating it as a retryable failure.
+            print(
+                f"  chunk {chunk.chunk_id} BLOCKED (SPEC_OR_TEST_BLOCKED); "
+                f"exiting with code 6"
+            )
+            rs.status = RunStatus.AWAITING_HUMAN_DECISION
+            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
+            return 6
         if chunk.status != ChunkStatus.ACCEPTED:
             print(f"  chunk {chunk.chunk_id} did NOT accept; pausing")
             rs.status = RunStatus.AWAITING_HUMAN_DECISION
@@ -1820,6 +2653,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: F811
 
     # ── Final state ────────────────────────────────────────────────
     rs.status = RunStatus.COMPLETED
+    rs.reached_phase_step = "completed"
     write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
     print()
     print("═" * 64)
