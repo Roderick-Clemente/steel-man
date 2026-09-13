@@ -987,6 +987,32 @@ without an input it needs, produces a plausible artifact anyway, and every succe
 signal the framework owns reports normal. The pattern to grep for is a retry or
 re-invocation path that does not carry forward the reason it was triggered.
 
+## Issue KI-17: Warnings summary misclassified as a collection failure
+
+- **Status:** FIXED.
+- **Surface:** `tools/phase-1-scripts/valid-red.py` `outside_failures_region()`.
+- **Filed:** 2026-09-13.
+- **Numbering:** KI-17 was unused when this review-cleanup pass was filed;
+  entries 14 through 16 and KI-18 were already assigned on the branch this
+  stack repackages.
+
+### Symptom
+An executed failing test with a pytest warnings summary that cited
+`tests/conftest.py:5` was rejected as `Invalid RED: conftest error`.
+The test had collected and reached its assertion; the warning was unrelated
+to collection.
+
+### Root cause
+The structure-first fallback scanned all output outside the `FAILURES`
+section for collection-phase signatures. Pytest prints warnings summaries
+outside that section, so a file path in a deprecation warning matched the
+`conftest\.py` signature.
+
+### Fix
+Exclude pytest's warnings-summary section from the fallback scan. The
+regression fixture records the observed one-test failure and conftest warning,
+and verifies that it remains a valid RED.
+
 ## Issue KI-18: Test-designer bounce does not re-lock the redesigned test
 
 - **Status:** OPEN.

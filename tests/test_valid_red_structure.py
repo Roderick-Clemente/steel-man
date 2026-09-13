@@ -190,6 +190,31 @@ FAILED tests/test_widgets.py::test_widget_totals
 ============================== 1 failed in 0.03s ===============================
 """
 
+EXECUTED_FAILURE_WITH_CONFTST_WARNING = """\
+============================= test session starts ==============================
+collected 1 item
+
+tests/test_widgets.py::test_widget_totals FAILED                         [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_widget_totals ______________________________
+
+    def test_widget_totals():
+>       assert widget_totals([1, 2]) == [1, 3]
+E       AssertionError: widget totals preserve the final value
+
+tests/test_widgets.py:7: AssertionError
+=============================== warnings summary ===============================
+tests/conftest.py:5
+  /pilot/tests/conftest.py:5: PytestDeprecationWarning: legacy fixture scope
+    @pytest.fixture
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_widgets.py::test_widget_totals - AssertionError: widget totals preserve the final value
+========================= 1 failed, 1 warning in 0.03s =========================
+"""
+
 
 # --- the regression that motivated the fix -----------------------------------
 
@@ -254,6 +279,14 @@ def test_missing_accepted_assertion_is_invalid(vr):
     result = vr.classify(1, EXECUTED_FAILURE_WITHOUT_ACCEPTED_ASSERTION, "", "homes_store")
     assert result["valid"] is False
     assert result["reason"] == "Invalid RED: failure does not match accepted assertion"
+
+
+def test_warnings_summary_does_not_make_an_executed_failure_a_conftest_error(vr):
+    result = vr.classify(
+        1, EXECUTED_FAILURE_WITH_CONFTST_WARNING, "", "widget totals preserve the final value"
+    )
+    assert result["valid"] is True, result["reason"]
+    assert "conftest.py" not in vr.outside_failures_region(EXECUTED_FAILURE_WITH_CONFTST_WARNING)
 
 
 # --- signature list shape ----------------------------------------------------
