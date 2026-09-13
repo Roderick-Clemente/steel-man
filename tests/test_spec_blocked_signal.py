@@ -23,6 +23,7 @@ if _TOOLS not in sys.path:
 
 import pytest  # noqa: E402
 from sprint_loop.config import Config  # noqa: E402
+from sprint_loop import vocab  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
@@ -151,6 +152,39 @@ def test_is_spec_or_test_blocked_rejects_other_signals():
     assert mod._is_spec_or_test_blocked("RESULT: RED") is False
     assert mod._is_spec_or_test_blocked("") is False
     assert mod._is_spec_or_test_blocked("executor ok") is False
+
+
+def test_narrated_blocked_token_does_not_override_final_green_result():
+    mod = _load_runner_module()
+    result_text = (
+        "I considered SPEC_OR_TEST_BLOCKED while reviewing the contract.\n"
+        "An earlier draft said RESULT: SPEC_OR_TEST_BLOCKED.\n"
+        "RESULT: GREEN"
+    )
+    assert mod._is_spec_or_test_blocked(result_text) is False
+
+
+def test_bare_blocked_token_is_not_a_protocol_result():
+    mod = _load_runner_module()
+    assert mod._is_spec_or_test_blocked("SPEC_OR_TEST_BLOCKED") is False
+    assert mod._is_spec_or_test_blocked(
+        "The final assessment is SPEC_OR_TEST_BLOCKED"
+    ) is False
+
+
+def test_executor_prompt_result_block_exactly_matches_vocab():
+    prompt_path = os.path.join(
+        _TOOLS, "sprint_loop", "prompts", "executor.md"
+    )
+    with open(prompt_path) as f:
+        result_lines = [
+            line
+            for line in f.read().splitlines()
+            if line.startswith("RESULT:")
+        ]
+    assert result_lines == [
+        f"RESULT: {signal}" for signal in vocab.EXECUTOR_RESULT_SIGNALS
+    ]
 
 
 # ── run_chunk_with_retries end-to-end ────────────────────────────────────

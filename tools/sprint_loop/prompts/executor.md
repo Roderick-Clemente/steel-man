@@ -30,7 +30,7 @@ that preflight.
 - The **locked test** at ``{{test_file_path}}`` — READ-ONLY. The
   runner has set up a hook that blocks writes to this file. If you
   believe the locked test is wrong, your only escape is to report
-  ``SPEC_OR_TEST_BLOCKED`` (PRD §13 §5.6); you do NOT modify the
+  ``RESULT: SPEC_OR_TEST_BLOCKED`` (PRD §13 §5.6); you do NOT modify the
   test. PRD §13 §5.6: a test change is a separate transition through
   the test-designer + validator, not an in-place edit.
 - The **acceptance criteria**: must hold observable from the
@@ -55,7 +55,7 @@ output. If GREEN REFUSED, the runner loops back to you (up to
 
 If the runner reports "GREEN REFUSED because locked_test_sha changed",
 that means you accidentally edited the test file. STOP. Report
-``SPEC_OR_TEST_BLOCKED`` with rationale. Do NOT try to fix.
+``RESULT: SPEC_OR_TEST_BLOCKED`` with rationale. Do NOT try to fix.
 
 ## What you must NOT do
 
@@ -72,8 +72,12 @@ that means you accidentally edited the test file. STOP. Report
 Your normal droid exec output — keep the changes minimal, focused on
 the GREEN path. Emit a literal final line:
 
+Choose exactly one:
+
 ```
-RESULT: GREEN  (or RED if the test still fails for legitimate reasons, or SPEC_OR_TEST_BLOCKED)
+RESULT: GREEN
+RESULT: RED
+RESULT: SPEC_OR_TEST_BLOCKED
 ```
 
 The runner parses this line and feeds it into verify-green.py.

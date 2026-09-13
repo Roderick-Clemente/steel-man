@@ -682,12 +682,12 @@ _VERDICT_RE = re.compile(
     vocab.tagged_line_pattern("VERDICT", vocab.PLAN_REVIEW_VERDICTS),
     re.IGNORECASE | re.MULTILINE,
 )
-# The executor emits a literal "RESULT: SPEC_OR_TEST_BLOCKED" line when it
-# believes the locked test is contradictory or the spec is unimplementable
-# (see tools/sprint_loop/prompts/executor.md). Same anchored-literal pattern
-# as _VERDICT_RE so the match is robust against surrounding prose.
-_SPEC_OR_TEST_BLOCKED_RE = re.compile(
-    r"\bRESULT:\s*SPEC_OR_TEST_BLOCKED\b", re.IGNORECASE
+# Executor results follow the same last-tagged-line discipline as verdicts.
+# Parsing all supported signals prevents an earlier example or superseded
+# result from overriding the executor's final protocol line.
+_EXECUTOR_RESULT_RE = re.compile(
+    vocab.tagged_line_pattern("RESULT", vocab.EXECUTOR_RESULT_SIGNALS),
+    re.IGNORECASE | re.MULTILINE,
 )
 _FINDING_ID_RE = re.compile(
     r'"finding_id"\s*:\s*"F-[a-z0-9]+"',
@@ -703,15 +703,16 @@ _FINDING_ACTIONABLE_MAX = 1200
 
 
 def _is_spec_or_test_blocked(result_text: str) -> bool:
-    """True when the executor's result text carries a
-    ``RESULT: SPEC_OR_TEST_BLOCKED`` signal.
+    """True when the executor's last RESULT line is SPEC_OR_TEST_BLOCKED.
 
     The executor emits this when it believes the locked test is
     contradictory or the spec is unimplementable (see
-    ``tools/sprint_loop/prompts/executor.md``). Uses the same
-    anchored-regex pattern as ``_VERDICT_RE``.
+    ``tools/sprint_loop/prompts/executor.md``). Narrating the token or
+    superseding an earlier blocked result with ``RESULT: GREEN`` does not
+    block the chunk.
     """
-    return bool(_SPEC_OR_TEST_BLOCKED_RE.search(result_text or ""))
+    results = _EXECUTOR_RESULT_RE.findall(result_text or "")
+    return bool(results) and results[-1].upper() == vocab.RESULT_SPEC_OR_TEST_BLOCKED
 
 
 def _parse_finding_block(
