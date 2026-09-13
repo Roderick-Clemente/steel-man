@@ -51,6 +51,7 @@ OPERATING-RULES applied (see tools/OPERATING-RULES.md for the full list):
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import json
 import os
@@ -167,46 +168,45 @@ def load_checkpoint(path: str) -> RunState:
         raise SystemExit(f"--resume-from file missing: {path}")
     with open(path) as f:
         data = json.load(f)
-    # Restore minimal RunState (we only need the fields the runner
-    # looks at after a pause — start_at, run_id, status, current
-    # chunk, plan path/chunks, etc.). Full re-resolve of every role
-    # assignment is reconstructed from the Config at runtime.
+
+    # Required constructor args.
     rs = RunState(
         run_id=data["run_id"],
         started_at=data["started_at"],
         framework_root=data["framework_root"],
         pilot_root=data["pilot_root"],
         pilot_python=data["pilot_python"],
-        current_chunk_index=data.get("current_chunk_index", 0),
     )
-    rs.plan_doc_path = data.get("plan_doc_path", "")
-    rs.plan_sha256 = data.get("plan_sha256", "")
-    rs.status = RunStatus(data.get("status", "PENDING"))
-    rs.output_branch = data.get("output_branch", "")
-    rs.commit_count = data.get("commit_count", 0)
-    # Pass-r3 finding H-5 fix: persist on write_checkpoint already;
-    # restore here. Without this, ``plan_round`` resets to 0 (so the
-    # resume restarts the planner + reviewers at full cost),
-    # ``plan_reviewer_verdicts`` is empty (so §5.3 enforcement
-    # SystemExit(5)s and the resume never accepts), and ``dry_run``
-    # defaults to False (so a ``--dry-run --resume-from`` run
-    # performs real git commits against code that was simulated).
-    rs.plan_round = data.get("plan_round", 0)
-    rs.plan_reviewer_verdicts = data.get("plan_reviewer_verdicts", [])
-    rs.dry_run = bool(data.get("dry_run", False))
-    rs.max_review_rounds = int(data.get("max_review_rounds", 2))
-    rs.retry_threshold = int(data.get("retry_threshold", 1))
-    rs.max_auto_retries = int(data.get("max_auto_retries", 2))
-    rs.retry_delay_seconds = int(data.get("retry_delay_seconds", 5))
-    rs.per_call_timeout_seconds = int(data.get("per_call_timeout_seconds", 0))
-    rs.verify_mode = bool(data.get("verify_mode", False))
-    rs.force_accept = bool(data.get("force_accept", False))
-    rs.force_accept_reason = data.get("force_accept_reason", "")
-    rs.force_accept_disposition = data.get("force_accept_disposition", "")
-    rs.skip_reconcile = bool(data.get("skip_reconcile", False))
-    rs.unattended = bool(data.get("unattended", False))
-    rs.run_label = data.get("run_label", "") or rs.run_id
-    rs.reached_phase_step = data.get("reached_phase_step", "start")
+
+    # Field-driven restore: iterate dataclass fields so any future
+    # RunState field round-trips automatically. Role assignments are
+    # reconstructed from the Config at runtime; plan_findings and chunks
+    # need special-case deserialization (nested dataclasses / enums).
+    _SKIP = frozenset({
+        # Required constructor args (already set above).
+        "run_id", "started_at", "framework_root", "pilot_root", "pilot_python",
+        # Role assignments: reconstructed from Config at runtime.
+        "planner", "plan_reviewer", "plan_reviewer_2",
+        "test_designer", "executor", "validators",
+        # Complex nested types handled below.
+        "plan_findings", "chunks",
+    })
+    _ENUM_MAP: dict[str, type] = {"status": RunStatus}
+
+    for fld in dataclasses.fields(RunState):
+        if fld.name in _SKIP or fld.name not in data:
+            continue
+        raw = data[fld.name]
+        if fld.name in _ENUM_MAP:
+            setattr(rs, fld.name, _ENUM_MAP[fld.name](raw))
+        else:
+            setattr(rs, fld.name, raw)
+
+    # run_label: default to run_id when missing or empty.
+    if not rs.run_label:
+        rs.run_label = rs.run_id
+
+    # plan_findings: nested Finding dataclasses.
     if data.get("plan_findings"):
         rs.plan_findings = [
             Finding(
@@ -228,6 +228,8 @@ def load_checkpoint(path: str) -> RunState:
             )
             for f in data["plan_findings"]
         ]
+
+    # chunks: nested ChunkState dataclasses with enum fields.
     if data.get("chunks"):
         for c in data["chunks"]:
             cs = ChunkState(chunk_id=c["chunk_id"], scope=c.get("scope", ""))
@@ -246,6 +248,7 @@ def load_checkpoint(path: str) -> RunState:
             cs.test_design_retry_count = int(c.get("test_design_retry_count", 0))
             cs.rejection_feedback_source = c.get("rejection_feedback_source", "")
             rs.chunks.append(cs)
+
     return rs
 
 
