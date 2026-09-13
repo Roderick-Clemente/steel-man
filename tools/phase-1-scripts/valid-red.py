@@ -84,11 +84,6 @@ ENVIRONMENT_SIGNATURES = [
     ),
 ]
 
-# Retained for callers and docs that refer to the combined list.
-INVALID_RED_SIGNATURES = (
-    COLLECTION_PHASE_SIGNATURES + TEST_QUALITY_SIGNATURES + ENVIRONMENT_SIGNATURES
-)
-
 # pytest section banners, e.g. `======= FAILURES =======`.
 _BANNER_RE = re.compile(r"^=+ (.*?) =+$", re.MULTILINE)
 

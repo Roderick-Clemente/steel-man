@@ -292,9 +292,11 @@ def test_warnings_summary_does_not_make_an_executed_failure_a_conftest_error(vr)
 # --- signature list shape ----------------------------------------------------
 
 
-def test_signature_groups_partition_the_original_list(vr):
-    combined = (
-        vr.COLLECTION_PHASE_SIGNATURES + vr.TEST_QUALITY_SIGNATURES + vr.ENVIRONMENT_SIGNATURES
+def test_signature_groups_are_disjoint(vr):
+    groups = (
+        vr.COLLECTION_PHASE_SIGNATURES,
+        vr.TEST_QUALITY_SIGNATURES,
+        vr.ENVIRONMENT_SIGNATURES,
     )
-    assert vr.INVALID_RED_SIGNATURES == combined
-    assert len(combined) == len(set(combined))
+    signatures = [signature for group in groups for signature in group]
+    assert len(signatures) == len(set(signatures))
