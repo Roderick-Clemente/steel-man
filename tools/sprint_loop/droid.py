@@ -104,7 +104,7 @@ class RunRecord:
                                  # | transient-exhausted | dry-run
     run_label: str = ""          # experiment arm / run label
     chunk_id: str = ""
-    phase_step: str = ""         # plan | plan-review | red-gate | execute | validate
+    phase_step: str = ""         # plan | plan-review | test-design | execute
     verdict_text_first_240: str = ""
     provenance: dict[str, Any] = field(default_factory=dict)
 
