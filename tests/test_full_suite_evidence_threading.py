@@ -39,6 +39,7 @@ if _TOOLS not in sys.path:
 
 from sprint_loop import per_chunk  # noqa: E402
 from sprint_loop.backends import LocalBackend  # noqa: E402
+from sprint_loop.regression import PYTEST_EXIT_NO_TESTS_COLLECTED  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     GateDecision,
@@ -145,6 +146,15 @@ _VACUOUS_FULL_SUITE = {
     "failed": 0,
     "skipped": 0,
     "suite_exit_code": 5,
+    "failures": [],
+    "scope": "full-suite",
+}
+
+_ALL_SKIPPED_FULL_SUITE = {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 4,
+    "suite_exit_code": 0,
     "failures": [],
     "scope": "full-suite",
 }
@@ -424,7 +434,7 @@ def test_producer_runs_the_declared_command_where_bare_pytest_collects_nothing(t
 
     bare = producer.run_pytest(str(pilot), "", sys.executable)
     assert bare["passed"] == 0
-    assert bare["suite_exit_code"] == producer.PYTEST_EXIT_NO_TESTS_COLLECTED
+    assert bare["suite_exit_code"] == PYTEST_EXIT_NO_TESTS_COLLECTED
 
     declared = producer.run_pytest_command(
         str(pilot), "python -m pytest suite -q", sys.executable
@@ -476,6 +486,92 @@ def test_producer_accepts_a_genuinely_green_regression_run():
     )
 
 
+def test_producer_refuses_an_all_skipped_regression_run():
+    producer = _load_producer_module()
+    reason = producer.regression_refusal_reason(dict(_ALL_SKIPPED_FULL_SUITE))
+    assert "0 tests passed" in reason
+    assert "4 skipped" in reason
+
+
+def test_producer_main_exits_nonzero_for_an_all_skipped_regression_run(
+    tmp_path, monkeypatch
+):
+    producer = _load_producer_module()
+    pilot = tmp_path / "pilot"
+    (pilot / "suite").mkdir(parents=True)
+    locked_test = pilot / "test_locked.py"
+    locked_test.write_text(
+        "def test_locked():\n"
+        '    assert True, "locked behavior remains green"\n'
+    )
+    (pilot / "suite" / "test_skipped.py").write_text(
+        "import pytest\n\n"
+        "def test_unavailable():\n"
+        '    pytest.skip("not available in this environment")\n'
+    )
+    subprocess.run(["git", "init", "-q"], cwd=pilot, check=True)
+    subprocess.run(["git", "add", "."], cwd=pilot, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "baseline",
+        ],
+        cwd=pilot,
+        check=True,
+    )
+
+    lock_file = tmp_path / "lock.json"
+    lock_file.write_text(
+        json.dumps(
+            {
+                "sha256": producer.compute_sha256(str(locked_test)),
+                "accepted_assertion": "locked behavior remains green",
+            }
+        )
+    )
+    output = tmp_path / "bundle.json"
+    monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "test-only-signing-key")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "local_backend.py",
+            "--pilot-root",
+            str(pilot),
+            "--framework-root",
+            _REPO,
+            "--test-file",
+            "test_locked.py",
+            "--lock-file",
+            str(lock_file),
+            "--output",
+            str(output),
+            "--python",
+            sys.executable,
+            "--full-suite-command",
+            f"{sys.executable} -m pytest suite -q",
+        ],
+    )
+
+    assert producer.main() == 1
+    full_suite = json.loads(output.read_text())["tests"]["full_suite"]
+    assert full_suite["passed"] == 0
+    assert full_suite["skipped"] == 1
+    assert full_suite["suite_exit_code"] == 0
+
+
+def test_producer_and_consumer_share_the_regression_refusal_policy():
+    producer = _load_producer_module()
+    consumer = _load_consumer_module()
+    assert producer.regression_refusal_reason is consumer.regression_refusal_reason
+
+
 def test_consumer_rejects_a_regression_run_that_collected_nothing():
     consumer = _load_consumer_module()
     key = b"k"
@@ -484,6 +580,21 @@ def test_consumer_rejects_a_regression_run_that_collected_nothing():
     assert result["evidence_verdict"] == "REJECT"
     assert "5" in result["reason"]
     assert "collected no tests" in result["reason"]
+
+
+def test_consumer_rejects_an_all_skipped_regression_run():
+    consumer = _load_consumer_module()
+    key = b"k"
+    bundle = _sign(
+        _bundle_with(
+            {**_GREEN_LOCKED, "full_suite": dict(_ALL_SKIPPED_FULL_SUITE)}
+        ),
+        key,
+    )
+    result = consumer.ValidatorConsumer().consume(bundle, key)
+    assert result["evidence_verdict"] == "REJECT"
+    assert "0 tests passed" in result["reason"]
+    assert "4 skipped" in result["reason"]
 
 
 def test_gate_fails_closed_on_a_regression_run_that_collected_nothing(tmp_path):
@@ -496,6 +607,23 @@ def test_gate_fails_closed_on_a_regression_run_that_collected_nothing(tmp_path):
     assert result["gate_decision"] == "FAIL_CLOSED"
     assert "full-suite regression" in result["reason"]
     assert "5" in result["reason"]
+
+
+def test_gate_fails_closed_on_an_all_skipped_regression_run(tmp_path):
+    consumer = _load_consumer_module()
+    key = b"k"
+    lock_file = tmp_path / "lock.json"
+    lock_file.write_text(json.dumps({"sha256": "b" * 64}))
+    bundle = _sign(
+        _bundle_with(
+            {**_GREEN_LOCKED, "full_suite": dict(_ALL_SKIPPED_FULL_SUITE)}
+        ),
+        key,
+    )
+    result = consumer.OrchestratorGate().gate(bundle, str(lock_file), key)
+    assert result["gate_decision"] == "FAIL_CLOSED"
+    assert "full-suite regression" in result["reason"]
+    assert "0 tests passed" in result["reason"]
 
 
 def test_a_green_regression_run_still_passes_and_stays_distinguishable(tmp_path):

@@ -76,6 +76,7 @@ from sprint_loop.evidence_timeout import (  # noqa: E402
     TOOL_VERSION_TIMEOUT_SECONDS,
     VERIFY_GREEN_TIMEOUT_SECONDS,
 )
+from sprint_loop.regression import regression_refusal_reason  # noqa: E402
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -171,12 +172,6 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
     return run_pytest_args(pilot_root, args, python)
 
 
-# pytest's documented exit codes. 5 = no tests were collected, which for a
-# regression suite means the run proved nothing; 2/3/4 are interrupt, internal
-# error and usage error. None of them are a pass.
-PYTEST_EXIT_NO_TESTS_COLLECTED = 5
-PYTEST_EXIT_HARD_ERRORS = (2, 3, 4)
-
 # Reporting flags this producer must own: it parses the per-test
 # ``PASSED/FAILED/SKIPPED`` lines, so a declared command's ``-q`` (or a
 # different ``--tb`` style) would silently zero out every counter.
@@ -225,31 +220,6 @@ def pytest_args_from_command(command: str) -> list[str]:
 def run_pytest_command(pilot_root: str, command: str, python: str) -> dict:
     """Run the chunk's declared regression command and parse its result."""
     return run_pytest_args(pilot_root, pytest_args_from_command(command), python)
-
-
-def regression_refusal_reason(fs: dict) -> str:
-    """Why a regression run is not evidence, or "" when it is real and green.
-
-    A run that collected nothing is the dangerous case: ``failed == 0`` reads
-    as a pass while nothing was executed, so it is refused by exit code rather
-    than by counter.
-    """
-    exit_code = fs.get("suite_exit_code", 1)
-    failed = fs.get("failed", 0)
-    collected = fs.get("passed", 0) + failed + fs.get("skipped", 0)
-    if failed:
-        return f"{failed} failure(s) (pytest exit {exit_code})"
-    if exit_code == PYTEST_EXIT_NO_TESTS_COLLECTED or collected == 0:
-        return (
-            f"collected no tests (pytest exit {exit_code}) — a regression run "
-            f"that executed nothing is not evidence that existing behaviour "
-            f"is unchanged"
-        )
-    if exit_code in PYTEST_EXIT_HARD_ERRORS:
-        return f"pytest did not complete (pytest exit {exit_code})"
-    if exit_code != 0:
-        return f"pytest exit {exit_code}"
-    return ""
 
 
 def run_pytest_args(pilot_root: str, args: list[str], python: str) -> dict:

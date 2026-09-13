@@ -31,34 +31,11 @@ import json
 import os
 import sys
 
-# pytest exit 5 = no tests collected. A regression section reporting zero
-# collected tests has ``failed == 0``, so a counter-only check reads it as a
-# pass; the exit code is the only thing that distinguishes it from a real
-# green run.
-PYTEST_EXIT_NO_TESTS_COLLECTED = 5
+_TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
 
-
-def regression_refusal_reason(full_suite: dict) -> str:
-    """Why the bundle's regression section is not evidence, or "".
-
-    Empty / absent section returns "" — bundles produced before the
-    ``tests.full_suite`` section existed are not retroactively red.
-    """
-    if not full_suite:
-        return ""
-    exit_code = full_suite.get("suite_exit_code", 1)
-    failed = full_suite.get("failed", 0)
-    collected = failed + full_suite.get("passed", 0) + full_suite.get("skipped", 0)
-    if failed > 0:
-        return f"{failed} failure(s), suite exit {exit_code}"
-    if exit_code == PYTEST_EXIT_NO_TESTS_COLLECTED or collected == 0:
-        return (
-            f"the regression run collected no tests (suite exit {exit_code}) "
-            f"— it proves nothing about existing behaviour"
-        )
-    if exit_code != 0:
-        return f"suite exit {exit_code}"
-    return ""
+from sprint_loop.regression import regression_refusal_reason  # noqa: E402
 
 
 # ── signature verification ───────────────────────────────────────────────
