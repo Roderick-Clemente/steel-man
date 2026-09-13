@@ -1949,7 +1949,8 @@ def run_chunk_inner(
     # The gate collapses every REJECT* verdict to one REJECT; which seat
     # the rejection is directed at survives only in the per-validator
     # verdicts, so classify here and let run_chunk_with_retries route on it.
-    chunk.rejection_kind = classify_rejection(backend_result.validators)
+    validators = getattr(backend_result, "validators", [])
+    chunk.rejection_kind = classify_rejection(validators)
     if chunk.rejection_kind == REJECTION_TEST:
         chunk.test_design_feedback = [format_test_rejection_feedback(backend_result)]
     elif chunk.rejection_kind == REJECTION_IMPLEMENTATION:

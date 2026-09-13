@@ -108,8 +108,9 @@ def step1_produce_evidence(args) -> dict:
         "--python",
         args.pilot_python,
     ]
-    full_suite_command = args.full_suite_command or ""
-    if args.full_suite or full_suite_command:
+    full_suite_command = getattr(args, "full_suite_command", "") or ""
+    full_suite_requested = bool(getattr(args, "full_suite", False))
+    if full_suite_requested or full_suite_command:
         cmd.append("--full-suite")
     if full_suite_command:
         cmd.extend(["--full-suite-command", full_suite_command])
@@ -121,7 +122,7 @@ def step1_produce_evidence(args) -> dict:
             cmd.extend(["--security-baseline", args.security_baseline])
 
     timeout = local_backend_timeout_seconds(
-        full_suite=args.full_suite, security_scan=args.security_scan
+        full_suite=full_suite_requested, security_scan=args.security_scan
     )
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -149,7 +150,7 @@ def step1_produce_evidence(args) -> dict:
     # "no independent regression evidence", which is a REJECT it cannot
     # distinguish from a real regression.
     full_suite = tests.get("full_suite") or {}
-    if (args.full_suite or full_suite_command) and not full_suite:
+    if (full_suite_requested or full_suite_command) and not full_suite:
         print(
             "  ERROR: --full-suite was requested but the bundle carries no "
             "tests.full_suite section",
