@@ -631,6 +631,16 @@ def test_droid_live_record_preserves_curated_family_label(tmp_path, monkeypatch)
     assert row["provider"] != row["family"]
 
 
+def test_droid_live_record_notes_success_exit_code(tmp_path, monkeypatch):
+    record = _invoke_live_record(
+        monkeypatch,
+        tmp_path,
+        model_id="gpt-5.4-mini",
+        provider_lock="openai",
+    )
+    assert record.note == "droid exec returned exit=0"
+
+
 def test_post_resolution_recheck_refuses_same_family_collision_from_live_record(
     tmp_path, monkeypatch
 ):

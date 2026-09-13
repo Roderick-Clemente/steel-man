@@ -478,7 +478,7 @@ def invoke_droid(
         envelope_raw_bytes=os.path.getsize(envelope_path_abs),
         started_at=started_at,
         finished_at=finished_at,
-        note=f"droid exec returned exit={result.returncode}" if "result" in locals() else "",
+        note=f"droid exec returned exit={result.returncode}",
         seat_outcome="ok",
     )
 
