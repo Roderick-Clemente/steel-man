@@ -8,7 +8,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 
 | key            | type    | required | note |
 |---             |---      |---       |---   |
-| `schema_version` | string | yes | `"v2"` for rows written from Phase 3.2 onward; `"v1"` for legacy rows. |
+| `schema_version` | string | yes | `"v3"` for rows written by the Phase 4.5 runner; `"v2"` for older Phase 3.2+ rows; `"v1"` for legacy rows. |
 | `ts`             | ISO-8601 datetime UTC | yes | the time the row was appended. |
 
 ## runs.jsonl — one row per `droid exec` invocation

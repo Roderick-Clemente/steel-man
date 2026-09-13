@@ -60,6 +60,10 @@ def _load_sprint_loop_module():
     return mod
 
 
+def _schema_md() -> str:
+    return open(os.path.join(_REPO, "telemetry", "SCHEMA.md")).read()
+
+
 def _make_rs(tmp_path, **overrides) -> RunState:
     kwargs = dict(
         run_id="r-phase45-test",
@@ -270,6 +274,14 @@ def test_aggregate_schema_check_rejects_unknown_version(tmp_path):
     r = _run_schema_check(tmp_path)
     assert r.returncode == 1
     assert "1 rows have schema_version" in r.stderr
+
+
+def test_schema_front_matter_declares_v3_rows():
+    schema = _schema_md()
+    assert (
+        '| `schema_version` | string | yes | `"v3"` for rows written by the Phase 4.5 runner; '
+        '`"v2"` for older Phase 3.2+ rows; `"v1"` for legacy rows. |'
+    ) in schema
 
 
 # ── (e) RunRecord.to_telemetry_row v3 shape ──────────────────────────────
