@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +27,8 @@ if _TOOLS not in sys.path:
 import pytest  # noqa: E402
 from sprint_loop.backends import BackendResult  # noqa: E402
 from sprint_loop.config import Config  # noqa: E402
+from sprint_loop.droid import RunRecord  # noqa: E402
+from sprint_loop import per_chunk as per_chunk_module  # noqa: E402
 from sprint_loop.per_chunk import (  # noqa: E402
     FEEDBACK_SOURCE_GATE_REASON,
     FEEDBACK_SOURCE_VALIDATOR_FINDING,
@@ -396,6 +399,130 @@ def test_reject_impl_retry_renders_finding_into_executor_prompt(tmp_path, monkey
     assert _FINDING_A in prompt
     assert "The implementation looks correct." not in prompt
     assert "{{" not in prompt
+
+
+def test_live_reject_impl_retry_crosses_real_red_gate_with_finding(
+    tmp_path, monkeypatch
+):
+    """A live retry starts from the GREEN implementation just rejected.
+
+    Only the droid-backed executor and validator seats are replaced. Locking,
+    validate-red, verify-green, evidence production, prompt rendering, and
+    the retry controller all run through their real subprocess-backed paths.
+    """
+    mod = _load_runner_module("sprint_loop_runner_live_reject_impl")
+    pilot = tmp_path / "pilot"
+    pilot.mkdir()
+    (pilot / "app.py").write_text('def value():\n    return "not-fixed"\n')
+    (pilot / "test_feature.py").write_text(
+        "from app import value\n\n"
+        "def test_value():\n"
+        '    assert value() == "fixed", "implementation returns fixed"\n'
+    )
+    subprocess.run(["git", "init", "-q"], cwd=pilot, check=True)
+    subprocess.run(["git", "add", "."], cwd=pilot, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "baseline",
+        ],
+        cwd=pilot,
+        check=True,
+    )
+
+    # Keep every generated artifact under tmp_path while using the real
+    # framework scripts through symlinks.
+    framework = tmp_path / "framework"
+    (framework / "tools").mkdir(parents=True)
+    (framework / "telemetry").mkdir()
+    os.symlink(
+        os.path.join(_TOOLS, "phase-1-scripts"),
+        framework / "tools" / "phase-1-scripts",
+    )
+    evidence_code = framework / "tools" / "phase-3.2-evidence"
+    evidence_code.mkdir()
+    producer_source = open(
+        os.path.join(_TOOLS, "phase-3.2-evidence", "local_backend.py")
+    ).read()
+    # The repository's mandated test interpreter is Python 3.9, while this
+    # standalone producer intentionally retains a PEP-604 annotation pinned
+    # by the layout tests. Defer annotation evaluation in the temporary copy
+    # so this test can exercise the producer logic rather than that known
+    # interpreter compatibility boundary.
+    producer_source = producer_source.replace(
+        "\nimport argparse\n",
+        "\nfrom __future__ import annotations\n\nimport argparse\n",
+        1,
+    )
+    (evidence_code / "local_backend.py").write_text(producer_source)
+    os.symlink(
+        os.path.join(_TOOLS, "sprint_loop"),
+        framework / "tools" / "sprint_loop",
+    )
+    (framework / "tools" / "phase-1-locks").mkdir()
+
+    rs = _run_state(str(pilot), framework_root=str(framework))
+    rs.pilot_python = sys.executable
+    chunk = ChunkState(
+        chunk_id="c-live-ri",
+        scope="return the fixed value",
+        observable_criteria=["value() returns fixed"],
+        allowed_files=["app.py"],
+        locked_test_files=["test_feature.py"],
+        commands=[f"{sys.executable} -m pytest test_feature.py -q"],
+        accepted_assertion="implementation returns fixed",
+    )
+    monkeypatch.setenv("EVIDENCE_SIGNING_KEY", "test-only-signing-key")
+
+    executor_prompts: list[str] = []
+
+    def fake_droid(role, *, options, envelope_path, stderr_path, **kwargs):
+        assert role is Role.EXECUTOR
+        executor_prompts.append(open(options.prompt_file).read())
+        if len(executor_prompts) == 1:
+            (pilot / "app.py").write_text('def value():\n    return "fixed"\n')
+        with open(envelope_path, "w") as f:
+            json.dump({"result": "RESULT: GREEN"}, f)
+        return RunRecord(
+            run_id=f"r-executor-{len(executor_prompts)}",
+            role="executor",
+            model_id=rs.executor.pinned_model_id,
+            provider=rs.executor.pinned_provider,
+            family=rs.executor.pinned_family,
+            provider_lock=rs.executor.pinned_provider,
+            api_provider_lock=rs.executor.pinned_provider,
+            envelope_path=envelope_path,
+            stderr_path=stderr_path,
+        )
+
+    validator_results = [_reject_impl_one_rejects(), _accept_result()]
+
+    class FakeValidatorBackend:
+        def __init__(self, dry_run=False):
+            assert dry_run is False
+
+        def validate(self, **kwargs):
+            return validator_results.pop(0)
+
+    monkeypatch.setattr(per_chunk_module, "invoke_droid", fake_droid)
+    monkeypatch.setattr(per_chunk_module, "LocalBackend", FakeValidatorBackend)
+
+    ev = tmp_path / "evidence"
+    result = mod.run_chunk_with_retries(rs, chunk, str(ev), False, Config())
+
+    assert result.status == ChunkStatus.ACCEPTED
+    assert result.retry_count == 1
+    assert len(executor_prompts) == 2
+    assert "Prior rejection feedback" not in executor_prompts[0]
+    assert _FINDING_A in executor_prompts[1]
+    assert "verify-and-harden" in executor_prompts[1].lower()
+    assert validator_results == []
 
 
 def test_reject_impl_retry_stamps_feedback_source_on_chunk(tmp_path, monkeypatch):

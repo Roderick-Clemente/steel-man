@@ -819,7 +819,9 @@ git reset --hard <sha>^
 
 ## Issue KI-14: An invalid RED still retries the executor
 
-- **Status:** OPEN — narrow follow-up to the KI-13-adjacent routing work.
+- **Status:** PARTIALLY FIXED — implementation retries now recognize their
+  expected GREEN starting state; first-attempt invalid RED classification
+  remains a separate routing follow-up.
 - **Surface:** `tools/sprint-loop.py` — the `RED_REJECTED` branches set `chunk.status` and `chunk.gate_decision` but never `chunk.rejection_kind`.
 - **Filed:** 2026-09-12.
 
@@ -850,6 +852,16 @@ failure caused by the *environment* (collection error, missing dependency) is
 neither a test nor an implementation defect and should still stop for a human rather
 than burn either budget — see the `ENVIRONMENT_SIGNATURES` split in
 `tools/phase-1-scripts/valid-red.py` (KI-9).
+
+### Partial fix
+KI-16 exposed a narrower live failure with the same symptom. After
+`REJECT_IMPLEMENTATION`, the locked test is necessarily GREEN because the
+validator runs only after `verify_green`. The retry used to re-enter the RED
+gate, classify that expected GREEN as `RED_REJECTED`, and spend its remaining
+executor budget without ever invoking the executor. Implementation-directed
+retry rounds now confirm the existing GREEN state and continue as a
+verify-and-harden pass. A subprocess-backed regression test exercises the
+real lock, RED, GREEN, and evidence gates across both rounds.
 
 ## Issue KI-15: The evidence bundle is produced twice, and the second one wins
 
@@ -941,7 +953,7 @@ command records real counts; breaking one unrelated test yields producer exit 1 
 
 ## Issue KI-16: The executor retries blind after an implementation rejection
 
-- **Status:** FIXED (pending commit).
+- **Status:** FIXED.
 - **Surface:** `tools/sprint_loop/prompts/executor.md` (no prior-rejection section); `tools/sprint-loop.py` (`chunk.rejection_feedback` set to the gate string and never rendered).
 - **Filed:** 2026-09-12.
 
@@ -986,6 +998,20 @@ Fourth instance of the KI-7 shape (KI-7, KI-10, KI-15, KI-16): a seat is invoked
 without an input it needs, produces a plausible artifact anyway, and every success
 signal the framework owns reports normal. The pattern to grep for is a retry or
 re-invocation path that does not carry forward the reason it was triggered.
+
+### Follow-up: the retry was unreachable live
+The initial feedback fix covered prompt rendering and retry routing with
+stubbed deterministic gates, but a live implementation retry never reached
+that prompt. `REJECT_IMPLEMENTATION` is emitted only after `verify_green`, so
+the next round begins with the locked test GREEN. `validate_red` rejected that
+state and the retry burned its budget at the RED gate.
+
+The RED relaxation now includes implementation-directed retry rounds. It
+still verifies that the test is genuinely GREEN before proceeding, then
+re-invokes the executor in verify-and-harden mode with the rejecting
+validator's finding. The regression test stubs only the droid-backed seats;
+lock, RED validation, GREEN verification, evidence production, prompt
+rendering, and retry control all execute through the real paths.
 
 ## Issue KI-17: Warnings summary misclassified as a collection failure
 

@@ -1693,6 +1693,7 @@ def run_chunk_inner(
     # test is archived out of the pilot tree, which is what makes the
     # auto-fire path below re-author it.
     redesign_round = chunk.rejection_kind == REJECTION_TEST
+    implementation_retry_round = chunk.rejection_kind == REJECTION_IMPLEMENTATION
     chunk.rejection_kind = ""
     if redesign_round:
         moved = archive_superseded_test(
@@ -1785,17 +1786,25 @@ def run_chunk_inner(
             dry_run=dry_run,
         )
     except RuntimeError as e:
-        if chunk.verify_mode or redesign_round:
-            # §5.3 verify-and-harden relaxation: the chunk scope says
-            # "changes already exist, verify and harden." If the locked
-            # test is already passing at HEAD (no valid RED because the
-            # implementation already exists), accept that as the starting
-            # state instead of treating it as a blocker. The executor
-            # still runs as a verify-and-harden pass.
+        if chunk.verify_mode or redesign_round or implementation_retry_round:
+            # A verify-and-harden chunk, a regenerated test, and an
+            # implementation retry may all be GREEN at HEAD. In particular,
+            # REJECT_IMPLEMENTATION happens only after verify_green succeeds,
+            # so GREEN is the required starting state for its retry rather
+            # than an invalid RED to route elsewhere. Confirm GREEN before
+            # relaxing the gate; every other validate-red failure remains a
+            # refusal.
+            relaxation = (
+                "implementation-retry"
+                if implementation_retry_round
+                else "test-redesign"
+                if redesign_round
+                else "verify-mode"
+            )
             print(
-                f"  [verify-mode] validate_red raised: {e}. "
+                f"  [{relaxation}] validate_red raised: {e}. "
                 f"Checking whether the test is already GREEN at HEAD "
-                f"(changes already exist → verify-and-harden pass).",
+                f"(expected existing implementation → verify-and-harden pass).",
                 file=sys.stderr,
             )
             try:
@@ -1806,7 +1815,7 @@ def run_chunk_inner(
                              dry_run=dry_run)
                 already_green = True
                 print(
-                    f"  [verify-mode] test already GREEN at HEAD for "
+                    f"  [{relaxation}] test already GREEN at HEAD for "
                     f"chunk {chunk.chunk_id}; executor will run as "
                     f"verify-and-harden pass.",
                     file=sys.stderr,
@@ -1817,7 +1826,7 @@ def run_chunk_inner(
                 # RED_REJECTED, even in verify mode.
                 chunk.status = ChunkStatus.RED_REJECTED
                 rs.status_message = (
-                    f"chunk {chunk.chunk_id} RED_REJECTED (verify-mode): "
+                    f"chunk {chunk.chunk_id} RED_REJECTED ({relaxation}): "
                     f"test not RED and not GREEN — {e}"
                 )
                 chunk.gate_decision = GateDecision.REJECT
