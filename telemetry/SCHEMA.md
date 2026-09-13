@@ -67,7 +67,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 | key                       | type     | required | note |
 |---                        |---       |---       |---   |
 | `finding_id`              | string   | yes | matches `findings.jsonl` |
-| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` / `deferred` / `wontfix` / `reverted` |
+| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` / `deferred` / `wontfix` / `reverted` / `overridden` |
 | `disposition_reason`      | string   | when `wontfix-with-reason` | the explicit reason |
 | `disposition_commit_sha`  | string   | yes | the commit that closed (or tracked) the finding |
 | `disposition_model_id`    | string   | yes | the model that wrote the fix |

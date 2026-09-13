@@ -284,6 +284,14 @@ def test_schema_front_matter_declares_v3_rows():
     ) in schema
 
 
+def test_schema_disposition_enum_documents_overridden():
+    schema = _schema_md()
+    assert (
+        '| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` '
+        '/ `deferred` / `wontfix` / `reverted` / `overridden` |'
+    ) in schema
+
+
 # ── (e) RunRecord.to_telemetry_row v3 shape ──────────────────────────────
 
 
