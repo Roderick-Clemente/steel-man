@@ -55,6 +55,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from sprint_loop.config import phase_path  # noqa: E402
+from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
 
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
 
@@ -118,7 +119,15 @@ def step1_produce_evidence(args) -> dict:
         if args.security_baseline:
             cmd.extend(["--security-baseline", args.security_baseline])
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    timeout = local_backend_timeout_seconds(
+        full_suite=args.full_suite, security_scan=args.security_scan
+    )
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        message = f"local_backend.py timed out after {timeout}s; evidence was not produced"
+        print(f"  ERROR: {message}", file=sys.stderr)
+        return {"ok": False, "error": message}
     print(result.stderr, file=sys.stderr)
 
     if result.returncode != 0:

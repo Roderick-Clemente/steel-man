@@ -68,6 +68,14 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from sprint_loop.config import SCRIPTS_ROOT, phase_path  # noqa: E402
+from sprint_loop.evidence_timeout import (  # noqa: E402
+    BANDIT_TIMEOUT_SECONDS,
+    COVERAGE_TIMEOUT_SECONDS,
+    GIT_METADATA_TIMEOUT_SECONDS,
+    PYTEST_TIMEOUT_SECONDS,
+    TOOL_VERSION_TIMEOUT_SECONDS,
+    VERIFY_GREEN_TIMEOUT_SECONDS,
+)
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -86,7 +94,12 @@ def compute_sha256(path: str) -> str:
 
 def get_tool_version(cmd: list[str], flag: str = "--version") -> str:
     try:
-        r = subprocess.run(cmd + [flag], capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            cmd + [flag],
+            capture_output=True,
+            text=True,
+            timeout=TOOL_VERSION_TIMEOUT_SECONDS,
+        )
         return r.stdout.strip().split("\n")[0] if r.stdout else r.stderr.strip()
     except Exception:
         return "unknown"
@@ -124,7 +137,9 @@ def run_verify_green(
         "--python",
         python,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=VERIFY_GREEN_TIMEOUT_SECONDS
+    )
 
     # verify-green.py prints "GREEN ACCEPTED" + sha on success
     output = result.stdout + result.stderr
@@ -240,7 +255,7 @@ def regression_refusal_reason(fs: dict) -> str:
 def run_pytest_args(pilot_root: str, args: list[str], python: str) -> dict:
     """Run pytest with this producer's reporting flags plus ``args``."""
     cmd = [python, "-m", "pytest", "-v", "--tb=line", "--no-header", *args]
-    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=PYTEST_TIMEOUT_SECONDS)
     output = result.stdout + result.stderr
 
     passed = failed = skipped = 0
@@ -298,7 +313,13 @@ def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:
     """Attempt coverage via pytest-cov. Returns None if unavailable."""
     cmd = [python, "-m", "pytest", test_file, "--cov", "--cov-report=term", "-q"]
     try:
-        result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(
+            cmd,
+            cwd=pilot_root,
+            capture_output=True,
+            text=True,
+            timeout=COVERAGE_TIMEOUT_SECONDS,
+        )
         output = result.stdout
         # Parse "TOTAL  XX%"
         m = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", output)
@@ -330,7 +351,9 @@ def run_bandit(pilot_root: str, python: str) -> dict:
         "json",
         "-q",
     ]
-    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        cmd, cwd=pilot_root, capture_output=True, text=True, timeout=BANDIT_TIMEOUT_SECONDS
+    )
     try:
         report = json.loads(result.stdout)
     except (json.JSONDecodeError, TypeError):
@@ -568,6 +591,7 @@ def main() -> int:
         cwd=args.pilot_root,
         capture_output=True,
         text=True,
+        timeout=GIT_METADATA_TIMEOUT_SECONDS,
     ).stdout.strip()
 
     tool_versions = {

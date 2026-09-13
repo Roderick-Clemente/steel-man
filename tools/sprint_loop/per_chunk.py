@@ -74,6 +74,7 @@ from sprint_loop.droid import (  # noqa: E402
 )
 from sprint_loop.prompts.render import render_to_file  # noqa: E402
 from sprint_loop.provenance import _git_branch, _git_sha, run_provenance  # noqa: E402
+from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     Role,
@@ -375,7 +376,13 @@ def produce_evidence(
             cmd.extend(["--security-allowlist", security_allowlist])
         if security_baseline:
             cmd.extend(["--security-baseline", security_baseline])
-    r = _run_step(cmd, "local_backend.py", timeout=300)
+    r = _run_step(
+        cmd,
+        "local_backend.py",
+        timeout=local_backend_timeout_seconds(
+            full_suite=full_suite, security_scan=security_scan
+        ),
+    )
     if r.returncode != 0:
         print(f"[evidence] local_backend.py stderr: {r.stderr[:300]!r}", file=sys.stderr)
         # local_backend.py exits non-zero on RED; surface a structured failure.
