@@ -86,6 +86,7 @@ from sprint_loop.vocab import (  # noqa: E402
     PHASE_EXECUTE,
     PHASE_TEST_DESIGN,
     TEST_DIRECTED_VERDICTS,
+    VERDICT_REPLAN,
 )
 
 # ── subprocess helpers ──────────────────────────────────────────────────
@@ -649,11 +650,16 @@ def run_validators(
 
 REJECTION_TEST = "test"
 REJECTION_IMPLEMENTATION = "implementation"
+REJECTION_PLAN = "plan"
 
 _NO_TEST_REJECTION_FEEDBACK = "(no prior test rejection — author the test from the chunk spec)"
 _NO_IMPL_REJECTION_FEEDBACK = (
     "This is the first attempt at this chunk — no previous implementation was "
     "rejected. Implement from the chunk spec."
+)
+_NO_REPLAN_REJECTION_FEEDBACK = (
+    "(no prior replan rejection — plan from the pilot spec and the authored "
+    "chunk contract)"
 )
 
 # Mirrors ``orchestrate-review.py``'s REVIEW_FINDING_TEXT_LIMIT: that is
@@ -696,6 +702,11 @@ def _defuse_placeholders(text: str) -> str:
 
 def _is_test_directed(verdict: str) -> bool:
     return verdict in TEST_DIRECTED_VERDICTS
+
+
+def _is_plan_directed(verdict: str) -> bool:
+    """A rejecting verdict directed at the PLAN, not the chunk's work."""
+    return verdict == VERDICT_REPLAN
 
 
 def _is_implementation_directed(verdict: str) -> bool:
@@ -746,17 +757,27 @@ def classify_rejection(validators: list[dict]) -> str:
     """Which seat a validator panel's rejection is directed at.
 
     Returns ``"test"`` when every rejecting verdict is test-directed,
-    ``"implementation"`` when at least one rejects the code, and ``""``
-    when nothing was rejected.
+    ``"implementation"`` when at least one rejects the code,
+    ``"plan"`` when any verdict is ``REPLAN`` (the plan is the root
+    artifact the other two derive from, so a plan-directed finding
+    dominates), and ``""`` when nothing was rejected.
 
-    A mixed panel routes to the implementation: one seat holding the
-    locked test to be a fair contract means the code has to change, and
-    regenerating the test would discard that finding.
+    A mixed test/implementation panel routes to the implementation: one
+    seat holding the locked test to be a fair contract means the code
+    has to change, and regenerating the test would discard that finding.
+    A ``REPLAN`` verdict dominates every other rejection kind: neither
+    an executor nor a test-designer round can satisfy a seat that holds
+    the plan itself to be defective, and dropping the finding would
+    re-spend the two most expensive seats against a plan the panel has
+    rejected.
     """
     verdicts = [str((v or {}).get("verdict") or "").strip().upper() for v in (validators or [])]
     rejects = [v for v in verdicts if v.startswith("REJECT")]
-    if not rejects:
+    replans = [v for v in verdicts if v == VERDICT_REPLAN]
+    if not rejects and not replans:
         return ""
+    if replans:
+        return REJECTION_PLAN
     if all(v in TEST_DIRECTED_VERDICTS for v in rejects):
         return REJECTION_TEST
     return REJECTION_IMPLEMENTATION
@@ -838,6 +859,39 @@ def implementation_rejection_has_finding(result: BackendResult) -> bool:
     return False
 
 
+def format_replan_rejection_feedback(result: BackendResult) -> str:
+    """Render the plan-directed finding for the planner prompt.
+
+    Sibling to ``format_test_rejection_feedback`` and
+    ``format_implementation_rejection_feedback``: same structure (one
+    attributed block per REPLAN seat, clipped, skipping every verdict
+    that is not plan-directed), a different header. Without the
+    rejecting seat's own reasoning the re-fired planner would
+    regenerate a near-identical plan and the replan round's seats
+    would be spent re-finding the same defect. Never raises — this is
+    prompt context, not flow control.
+    """
+    try:
+        parts = _format_rejecting_seats(
+            result, _is_plan_directed, why_label="Why the plan was found defective"
+        )
+        if not parts:
+            # The gate reason is the only thing left when a backend
+            # reports no per-validator text (e.g. dry-run).
+            reason = (result.reason or "").strip()
+            return reason or _NO_REPLAN_REJECTION_FEEDBACK
+        header = (
+            f"A chunk validator returned REPLAN ({len(parts)} plan-directed "
+            f"verdict(s)): the deficiency is in the PLAN the chunk was "
+            f"derived from, not in the implementation or the locked test. "
+            f"Revise the plan so the chunk's spec becomes coherent and "
+            f"verifiable; do not re-plan around the finding."
+        )
+        return header + "\n\n" + "\n\n".join(parts)
+    except Exception:
+        return _NO_REPLAN_REJECTION_FEEDBACK
+
+
 def archive_superseded_test(
     chunk: ChunkState,
     rs: RunState,
@@ -869,6 +923,43 @@ def archive_superseded_test(
             target = os.path.join(dest, f"reviews-{len(os.listdir(dest))}")
         shutil.move(reviews_dir, target)
         moved["reviews"] = target
+    return moved
+
+
+def archive_superseded_replan_evidence(
+    chunk: ChunkState,
+    *,
+    evidence_output_dir: str,
+    round_index: int,
+) -> dict:
+    """Preserve the evidence of the chunk round that produced a REPLAN verdict.
+
+    The replan route re-derives every chunk's state from a fresh
+    ``load_chunks`` pass, so the next attempt at this chunk re-uses
+    ``<chunk>/reviews`` and the per-chunk bundle path in place — without
+    this move, the rejecting review and the bundle it judged would be
+    overwritten and the run would lose the proof of WHY the batch was
+    replanned. Renamed, never deleted (same discipline as
+    ``archive_superseded_test``); round-indexed per replan round.
+    """
+    dest = os.path.join(evidence_output_dir, f"superseded-replan-round{round_index}")
+    os.makedirs(dest, exist_ok=True)
+    moved: dict = {}
+    reviews_dir = os.path.join(evidence_output_dir, "reviews")
+    if os.path.isdir(reviews_dir):
+        target = os.path.join(dest, "reviews")
+        if os.path.exists(target):
+            target = os.path.join(dest, f"reviews-{len(os.listdir(dest))}")
+        shutil.move(reviews_dir, target)
+        moved["reviews"] = target
+    bundle = chunk.evidence_bundle_path
+    if bundle and os.path.isfile(bundle) and os.path.abspath(
+        bundle
+    ) != os.path.abspath(evidence_output_dir):
+        target = os.path.join(dest, os.path.basename(bundle))
+        shutil.move(bundle, target)
+        moved["bundle"] = target
+        chunk.evidence_bundle_path = ""
     return moved
 
 

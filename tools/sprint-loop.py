@@ -31,6 +31,7 @@ CLI:
         --validation-backend  : 'local' (default) or 'ci' (stub)
         --resume-from <path>  : resume from a checkpoint JSON
         --chunks-file <path>  : JSON file with the chunk list to drive
+        --replan-budget N     : max REPLAN replans (default 1; exhaustion exits 7)
 
 OPERATING-RULES applied (see tools/OPERATING-RULES.md for the full list):
 
@@ -85,11 +86,14 @@ from sprint_loop.per_chunk import (  # noqa: E402
     FEEDBACK_SOURCE_GATE_REASON,
     FEEDBACK_SOURCE_VALIDATOR_FINDING,
     REJECTION_IMPLEMENTATION,
+    REJECTION_PLAN,
     REJECTION_TEST,
+    archive_superseded_replan_evidence,
     archive_superseded_test,
     chunk_full_suite_command,
     classify_rejection,
     format_implementation_rejection_feedback,
+    format_replan_rejection_feedback,
     format_test_rejection_feedback,
     implementation_rejection_has_finding,
     invoke_executor,
@@ -110,6 +114,7 @@ from sprint_loop.provenance import (  # noqa: E402
     run_provenance,
 )
 from sprint_loop.state import (  # noqa: E402
+    DEFAULT_ENABLED_TOOLS,
     ChunkState,
     ChunkStatus,
     Finding,
@@ -487,6 +492,33 @@ _NO_PRIOR_FINDINGS = "(first round — no prior findings)"
 _SEVERITY_ORDER = ("blocker", "high", "medium", "low")
 
 
+def _format_replan_feedback(feedback: list[str]) -> str:
+    """Render the chunk validator's REPLAN finding for the planner.
+
+    The route mirrors the REJECT_TEST feedback threading: the rejecting
+    seat's own prose is what lets the planner fix the defect instead of
+    regenerating a near-identical plan. Returns the sentinel on an
+    empty list and never raises; this is prompt context and must not
+    be why a run aborts.
+    """
+    try:
+        parts = [t for t in (feedback or []) if t]
+        if not parts:
+            return "(no replan in progress — plan from the pilot spec and prior findings)"
+        header = (
+            "This replan round exists because a CHUNK VALIDATOR returned "
+            "REPLAN against the previously accepted plan. The finding below "
+            "is the rejecting seat's own reasoning. Address it directly: "
+            "either revise the plan (and the chunk spec it re-derives) so "
+            "the defect no longer applies, or explain under **Open "
+            "questions** why the validator is wrong — an unaddressed REPLAN "
+            "finding is a failed round."
+        )
+        return header + "\n\n" + "\n\n".join(parts)
+    except Exception:
+        return "(no replan in progress — plan from the pilot spec and prior findings)"
+
+
 def _format_prior_findings(findings: list[Finding]) -> str:
     """Render the previous review round's findings for the planner.
 
@@ -552,6 +584,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
 
     rnd = rs.plan_round
     plan_doc_path = os.path.join(evidence_dir, f"plan-r{rnd}.md")
+    replan_round = bool(rs.replan_feedback)
     rendered_path = render_to_file(
         "planner",
         {
@@ -559,6 +592,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
             "plan_output_path": plan_doc_path,
             "authored_chunks": _format_authored_chunks(rs.chunks_file),
             "prior_findings": _format_prior_findings(rs.plan_findings),
+            "replan_feedback": _format_replan_feedback(rs.replan_feedback),
         },
         os.path.join(evidence_dir, f"plan-prompt-r{rnd}.md"),
     )
@@ -611,7 +645,13 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     rs.planner.run_id = record.run_id
     record.provenance = run_provenance(rs)
     record.run_label = rs.run_label
-    record.phase_step = vocab.PHASE_PLAN
+    # A replan round is a distinct funnel step: the planner is re-fired
+    # because a chunk validator returned REPLAN, and the review budget
+    # the run spends on it must be countable apart from first-round
+    # planning (mirrors test-design-rerun vs test-design).
+    record.phase_step = (
+        vocab.PHASE_PLAN_REPLAN if replan_round else vocab.PHASE_PLAN
+    )
     append_run_record(
         record,
         phase="phase-4.5",
@@ -1006,6 +1046,11 @@ def append_run_summary_row(rs: RunState, exit_code: int,
              "executor_feedback_source": c.rejection_feedback_source}
             for c in rs.chunks
         ],
+        # The REPLAN route's own budget, beside the other two so a run
+        # that died replanning is countable from telemetry. Additive —
+        # rows from before the route omit the keys.
+        "replan_budget": rs.replan_budget,
+        "replans_spent": rs.replans_spent,
     }
     row.update(prov)
     os.makedirs(os.path.dirname(os.path.abspath(telemetry_path)) or ".",
@@ -1554,6 +1599,12 @@ def run_chunk_with_retries(
     not the executor's failure, so a test-design cycle must not spend the
     executor's retries, and it must still be bounded rather than looping
     while the panel keeps rejecting each regenerated test.
+
+    ``REPLAN`` is not retried at all: it is directed at the plan, not at
+    this chunk's work. The chunk stops fail-closed, its evidence is
+    archived, and the finding is carried on ``rs.replan_feedback`` for
+    the caller, which re-enters the plan loop within ``replan_budget``
+    (or escalates to HUMAN_DECISION when the budget is spent).
     """
     attempts_left = rs.retry_threshold + 1  # first try + retries
     # Bounces already spent (e.g. before a pause/resume) stay spent.
@@ -1623,6 +1674,60 @@ def run_chunk_with_retries(
                 f"against every locked test. The chunk spec and the test it "
                 f"asks for are the thing to reconcile, not the code: "
                 f"{chunk.gate_reason or '(no gate reason)'}"
+            )
+            return chunk
+        if chunk.rejection_kind == REJECTION_PLAN:
+            # Plan-directed rejection: the panel judged the PLAN the chunk
+            # was derived from to be defective — not the code, not the
+            # locked test. No chunk-local seat can fix that, so the chunk
+            # stops here, fail-closed: the executor and test-designer are
+            # NOT re-invoked against a plan the panel has rejected.
+            #
+            # Budgeted like the test-design bounce: ``replan_budget``
+            # replans per run (default 1). Within budget, the finding is
+            # handed to the caller (on rs.replan_feedback) and the run
+            # re-enters plan -> plan-review -> reconcile, where the
+            # planner prompt renders it. At exhaustion the chunk escalates
+            # to HUMAN_DECISION; the caller exits with the distinct code.
+            chunk.rejection_feedback = []
+            chunk.rejection_feedback_source = ""
+            if rs.replans_spent >= rs.replan_budget:
+                archive_superseded_replan_evidence(
+                    chunk,
+                    evidence_output_dir=evidence_output_dir,
+                    round_index=rs.replans_spent + 1,
+                )
+                chunk.status = ChunkStatus.HUMAN_DECISION
+                rs.status_message = (
+                    f"chunk {chunk.chunk_id} reached HUMAN_DECISION: replan "
+                    f"budget exhausted after {rs.replans_spent} replan "
+                    f"round(s) of {rs.replan_budget} — the validator panel "
+                    f"returned REPLAN against the plan again. The plan, "
+                    f"the chunk contract, and the validator's finding must "
+                    f"be reconciled by the operator: "
+                    f"{chunk.gate_reason or '(no gate reason)'}"
+                )
+                return chunk
+            rs.replans_spent += 1
+            rs.replan_feedback = list(chunk.replan_feedback)
+            chunk.status = ChunkStatus.REPLAN
+            archive_superseded_replan_evidence(
+                chunk,
+                evidence_output_dir=evidence_output_dir,
+                round_index=rs.replans_spent,
+            )
+            rs.status_message = (
+                f"chunk {chunk.chunk_id} REPLAN: a chunk validator judged "
+                f"the PLAN defective (not the code or the locked test). "
+                f"Chunk execution stops fail-closed; the finding is "
+                f"rendered into the next planner prompt and the chunk list "
+                f"is re-derived against the revised plan. "
+                f"{chunk.gate_reason or '(no gate reason)'}"
+            )
+            print(
+                f"  REPLAN ({decision_label}); routing to the planner, "
+                f"replan {rs.replans_spent}/{rs.replan_budget}. Superseded "
+                f"chunk evidence preserved under {evidence_output_dir}"
             )
             return chunk
         if attempts_left > 0:
@@ -1950,6 +2055,12 @@ def run_chunk_inner(
             if implementation_rejection_has_finding(backend_result)
             else FEEDBACK_SOURCE_GATE_REASON
         )
+    elif chunk.rejection_kind == REJECTION_PLAN:
+        # Plan-directed rejection: no chunk-local seat can act on it.
+        # The formatted finding is carried by run_chunk_with_retries
+        # into rs.replan_feedback, from where the next planner prompt
+        # renders it.
+        chunk.replan_feedback = [format_replan_rejection_feedback(backend_result)]
 
 
 # ── step: branch + commit ───────────────────────────────────────────────
@@ -2197,6 +2308,17 @@ def _runner_argparser() -> argparse.ArgumentParser:
                         help="Experiment arm / run label stamped on every telemetry "
                              "row of this run (SCHEMA.md v3 ``run_label``). "
                              "Defaults to the run_id.")
+    parser.epilog = (
+        "Exit codes:\n"
+        "  0   completed\n"
+        "  1   error / uncaught failure\n"
+        "  2   plan-review rounds exhausted -> AWAITING_HUMAN_DECISION\n"
+        "  3   a chunk did not accept -> paused with a checkpoint\n"
+        "  4/5 reconcile-gate refusal under §5.3 (open blocker|high /\n"
+        "      no APPROVE bound to the current plan hash)\n"
+        "  6   a chunk was BLOCKED (SPEC_OR_TEST_BLOCKED)\n"
+        "  7   REPLAN budget exhausted -> AWAITING_HUMAN_DECISION\n"
+    )
     return parser
 
 
@@ -2250,6 +2372,13 @@ def _format_build_config_help_synthetic() -> str:
     )
     p.add_argument("--max-review-rounds", type=int, default=-1)
     p.add_argument("--retry-threshold", type=int, default=-1)
+    p.add_argument(
+        "--replan-budget",
+        type=int,
+        default=-1,
+        help="How many REPLAN verdicts may re-enter the plan loop per "
+        "run (default 1). Exhaustion exits with code 7.",
+    )
     p.add_argument("--max-auto-retries", type=int, default=-1)
     p.add_argument("--retry-delay-seconds", type=int, default=-1)
     p.add_argument(
@@ -2313,6 +2442,212 @@ def _format_build_config_help_synthetic() -> str:
 # run-summary row after ``_main_inner`` has unwound (including on
 # SystemExit / uncaught exceptions). None until argv parsing succeeds.
 _CURRENT_RUN_STATE: RunState | None = None
+
+
+def _plan_review_reconcile_loop(
+    rs: RunState, cfg: Config, ns: argparse.Namespace, evidence_dir: str
+) -> int | None:
+    """Plan → plan-review → reconcile until the gate accepts the plan.
+
+    Returns 2 when the review-round bound is exhausted (the caller exits
+    with that code, consistent with plan-review exhaustion) and None once
+    the gate accepts. On acceptance, a pending REPLAN finding is consumed:
+    it was rendered into this round's planner prompt and the accepted
+    plan supersedes it. A REJECT verdict loops the planner with the
+    findings; replan rounds re-enter this loop the same way, with the
+    chunk validator's finding carried on ``rs.replan_feedback``.
+    """
+    # ── Plan → Review → Reconcile loop ──────────────────────────────
+    while True:
+        rs.plan_round += 1
+        if rs.plan_round > rs.max_review_rounds:
+            print(
+                f"  max_review_rounds ({rs.max_review_rounds}) exceeded — "
+                f"escalating. Per PRD §5.3: at exhaustion, hand off to "
+                f"a human with a concise decision packet."
+            )
+            rs.status = RunStatus.AWAITING_HUMAN_DECISION
+            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+            return 2
+
+        # 1. Planner
+        rs.reached_phase_step = "planner"
+        run_planner(
+            rs,
+            pilot_spec_text="(see --pilot-spec-file)",
+            evidence_dir=evidence_dir,
+            dry_run=cfg.dry_run,
+        )
+
+        # 2. Plan reviewer (always); 2nd reviewer if configured.
+        rs.reached_phase_step = "plan-review"
+        reviewer1 = run_plan_reviewer(
+            rs, reviewer_index=1, evidence_dir=evidence_dir, dry_run=cfg.dry_run
+        )
+        if rs.plan_reviewer_2:
+            reviewer2 = run_plan_reviewer(
+                rs,
+                reviewer_index=2,
+                evidence_dir=evidence_dir,
+                dry_run=cfg.dry_run,
+                is_second_reviewer=True,
+            )
+        else:
+            reviewer2 = None
+
+        # Panel-finding F-2: re-run family-guard with the *resolved*
+        # families of planner + reviewer(s) substituted. The recheck
+        # implements what FamilyGuardOutcome's docstring claimed but
+        # the preflight-only implementation did not deliver — a model
+        # that the operator *configured* but the channel *resolved
+        # to* a different family still gets the §4/§17.2 fail-closed
+        # treatment.
+        recheck_family_guard_post_resolution(cfg, rs, "after-plan-review")
+
+        # Sanity print so the operator sees the verdict storage the
+        # reconcile gate will consult (panel-finding F-7).
+        bound_approves = sum(
+            1
+            for v in rs.plan_reviewer_verdicts
+            if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
+            and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
+        )
+        print(
+            f"  reviewer verdicts bound to current plan_sha256: "
+            f"{bound_approves}/{len(rs.plan_reviewer_verdicts)} APPROVE"
+        )
+
+        # Silence unused-variable lint — reviewer1/reviewer2 are
+        # diagnostics; the source of truth lives on rs.plan_reviewer_verdicts.
+        _ = (reviewer1, reviewer2)
+
+        # 3. Reconcile gate. Pass-r3 chunk-13 cleanup: --skip-reconcile,
+        # --non-interactive, and --unattended all collapse to
+        # gate_auto_decide=… via parameters passed through; only
+        # --skip-reconcile additionally prints a louder banner.
+        if cfg.skip_reconcile:
+            print("  --skip-reconcile: skipping stdin pause; running §5.3 preconditions check")
+        rs.reached_phase_step = "reconcile"
+        decision = reconcile_human_gate(
+            rs,
+            evidence_dir=evidence_dir,
+            dry_run=cfg.dry_run,
+            gate_auto_decide=(cfg.skip_reconcile or cfg.gate_auto_decide),
+            unattended=cfg.unattended,
+            no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False),
+            force_accept=cfg.force_accept,
+            force_accept_reason=cfg.force_accept_reason,
+        )
+
+        if decision in (ReconcileDecision.ACCEPT, ReconcileDecision.AMEND):
+            # A REPLAN finding carried this far was rendered into the
+            # planner prompt above; the accepted plan supersedes it.
+            rs.replan_feedback = []
+            return None
+        if decision == ReconcileDecision.REJECT:
+            # Loop back to the planner with feedback (the planner reads
+            # rs.plan_findings on its next invocation).
+            continue
+
+
+def _chunking_and_chunk_loop(
+    rs: RunState, cfg: Config, evidence_dir: str
+) -> tuple[int | None, bool]:
+    """Chunk the accepted plan and drive the per-chunk loop.
+
+    Returns ``(exit_code, replan_requested)``. ``exit_code`` is non-None
+    when the run must terminate NOW (3 = chunk pause, 6 =
+    SPEC_OR_TEST_BLOCKED, 7 = replan-budget exhaustion). When a chunk
+    stops with ``ChunkStatus.REPLAN``, the loop breaks immediately and
+    ``replan_requested=True`` tells the caller to re-enter planning;
+    every chunk's state is re-derived from the chunks file on the next
+    pass, so nothing derived from the rejected plan runs against the
+    revised one.
+    """
+    # ── Chunking ───────────────────────────────────────────────────
+    rs.status = RunStatus.CHUNKING
+    rs.reached_phase_step = "chunking"
+    if not cfg.chunks_file:
+        # For now require a chunks file. Auto-chunking via the planner
+        # is a follow-on (KNOWN-ISSUES).
+        # Pass-r3 H-7 fix: the operator-facing entrypoint
+        # (``<PILOT_REPO>/.adversarial-sprint/bin/run-sprint``) sets
+        # --chunks-file to ``$OVERLAY_DIR/chunks.json`` by default;
+        # this FATAL message is for debug invocation only.
+        raise SystemExit(
+            "FATAL: --chunks-file is required. The runner does not "
+            "yet auto-extract chunks from the planner's plan document. "
+            "For per-pilot use, copy templates/overlay/sprint-loop-chunks-example.template.json "
+            "into <PILOT_REPO>/.adversarial-sprint/chunks.json and invoke "
+            "<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --chunks-file <path>."
+        )
+    rs.chunks = load_chunks(rs, cfg.chunks_file)
+    rs.status = RunStatus.CHUNKING_DONE
+    print(f"  loaded {len(rs.chunks)} chunk(s) from {cfg.chunks_file}")
+
+    # ── Per-chunk loop ─────────────────────────────────────────────
+    rs.status = RunStatus.RUNNING_CHUNKS
+    rs.reached_phase_step = "chunk-execution"
+    replan_requested = False
+    for i in range(len(rs.chunks)):
+        rs.current_chunk_index = i
+        chunk = rs.chunks[i]
+        status_banner(f"STEP 4 · Chunk {i + 1}/{len(rs.chunks)}: {chunk.chunk_id}")
+        chunk_evidence_dir = os.path.join(evidence_dir, chunk.chunk_id)
+        os.makedirs(chunk_evidence_dir, exist_ok=True)
+        chunk = run_chunk_with_retries(rs, chunk, chunk_evidence_dir, cfg.dry_run, cfg)
+
+        if chunk.status == ChunkStatus.REPLAN:
+            # A validator judged the plan defective. The budget was
+            # already charged inside run_chunk_with_retries; hand
+            # control back so the caller re-enters the plan loop with
+            # the finding on rs.replan_feedback.
+            replan_requested = True
+            break
+        if chunk.status == ChunkStatus.BLOCKED:
+            # SPEC_OR_TEST_BLOCKED: the executor claims the locked test or
+            # spec is unimplementable. Checkpoint and exit with a distinct
+            # code (6) so the operator can route it to adjudication or the
+            # test-designer rather than treating it as a retryable failure.
+            print(
+                f"  chunk {chunk.chunk_id} BLOCKED (SPEC_OR_TEST_BLOCKED); "
+                f"exiting with code 6"
+            )
+            rs.status = RunStatus.AWAITING_HUMAN_DECISION
+            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
+            return (6, False)
+        if chunk.status != ChunkStatus.ACCEPTED:
+            if chunk.rejection_kind == REJECTION_PLAN:
+                # Replan-budget exhaustion (charged in
+                # run_chunk_with_retries). Distinct exit code so an
+                # unattended run is routable: the plan and the chunk
+                # contract need operator reconciliation, not a retry.
+                print(
+                    f"  chunk {chunk.chunk_id} REPLAN budget exhausted; "
+                    f"exiting with code 7"
+                )
+                rs.status = RunStatus.AWAITING_HUMAN_DECISION
+                write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+                commit_chunk_change(
+                    rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir
+                )
+                return (7, False)
+            print(f"  chunk {chunk.chunk_id} did NOT accept; pausing")
+            rs.status = RunStatus.AWAITING_HUMAN_DECISION
+            # Pass-r3 H-10 fix: write_checkpoint must fire BEFORE
+            # commit so the chunk's git commit captures it. Use a
+            # provisional rs here for the checkpoint (the chunk was
+            # NOT accepted; plan/round not bumped).
+            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
+            return (3, False)
+        # Pass-r3 H-10 fix: write run-level checkpoint BEFORE
+        # commit_chunk_change so the chunk commit captures it.
+        write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
+        commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
+
+    return (None, replan_requested)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2413,16 +2748,18 @@ def _main_inner(argv: list[str] | None = None) -> int:
     run_id = f"r-phase45-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
     validate_run_id(run_id)
 
-    def _make_role(
-        role: Role, model_id: str, auto_level: str, enabled_tools: str
-    ) -> RoleAssignment:
+    def _make_role(role: Role, model_id: str, auto_level: str) -> RoleAssignment:
+        # Per-role tool allowlist comes from the single source of truth in
+        # state.py, never a live literal: the prompts render
+        # ``{{enabled_tools}}`` from the same dict, so a seat can only be
+        # handed tools its prompt advertises (KI-7 / N-1).
         return RoleAssignment(
             role=role,
             pinned_model_id=model_id,
             pinned_family=cfg.provider_family(model_id)[1],
             pinned_provider=cfg.provider_family(model_id)[0],
             auto_level=auto_level,
-            enabled_tools=enabled_tools,
+            enabled_tools=DEFAULT_ENABLED_TOOLS[role],
         )
 
     rs = RunState(
@@ -2442,6 +2779,7 @@ def _main_inner(argv: list[str] | None = None) -> int:
         signing_key_env=cfg.signing_key_env,
         max_review_rounds=cfg.max_review_rounds,
         retry_threshold=cfg.retry_threshold,
+        replan_budget=cfg.replan_budget,
         max_auto_retries=cfg.max_auto_retries,
         retry_delay_seconds=cfg.retry_delay_seconds,
         per_call_timeout_seconds=cfg.per_call_timeout_seconds,
@@ -2449,20 +2787,18 @@ def _main_inner(argv: list[str] | None = None) -> int:
         force_accept=cfg.force_accept,
         force_accept_reason=cfg.force_accept_reason,
         planner=_make_role(
-            Role.PLANNER, cfg.planner_model, cfg.planner_auto_level, "Read,Glob,Grep,LS,Execute"
+            Role.PLANNER, cfg.planner_model, cfg.planner_auto_level
         ),
         plan_reviewer=_make_role(
             Role.PLAN_REVIEWER,
             cfg.plan_reviewer_model,
             cfg.plan_reviewer_auto_level,
-            "Read,Glob,Grep,LS,Execute",
         ),
         plan_reviewer_2=(
             _make_role(
                 Role.PLAN_REVIEWER,
                 cfg.plan_reviewer_2_model,
                 cfg.plan_reviewer_2_auto_level,
-                "Read,Glob,Grep,LS,Execute",
             )
             if cfg.plan_reviewer_2_model
             else None
@@ -2471,13 +2807,11 @@ def _main_inner(argv: list[str] | None = None) -> int:
             Role.TEST_DESIGNER,
             cfg.test_designer_model,
             cfg.test_designer_auto_level,
-            "Read,Glob,Grep,LS,Edit,Create,Execute",
         ),
         executor=_make_role(
             Role.EXECUTOR,
             cfg.executor_model,
             cfg.executor_auto_level,
-            "Read,Glob,Grep,LS,Edit,Create,Execute",
         ),
         validators=[
             RoleAssignment(
@@ -2485,7 +2819,7 @@ def _main_inner(argv: list[str] | None = None) -> int:
                 pinned_model_id=v.split(":")[0],
                 pinned_family=_parse_validator_inline(v, cfg)["pinned_family"],
                 pinned_provider=_parse_validator_inline(v, cfg)["pinned_provider"],
-                enabled_tools="Read,Glob,Grep,LS",
+                enabled_tools=DEFAULT_ENABLED_TOOLS[Role.VALIDATOR],
             )
             for v in (
                 cfg.validators
@@ -2514,153 +2848,27 @@ def _main_inner(argv: list[str] | None = None) -> int:
     evidence_dir = cfg.default_evidence_dir(rs.run_id)
     os.makedirs(evidence_dir, exist_ok=True)
 
-    # ── Plan → Review → Reconcile loop ──────────────────────────────
+    # ── Plan/chunks outer loop: a chunk REPLAN re-enters planning ───
     while True:
-        rs.plan_round += 1
-        if rs.plan_round > rs.max_review_rounds:
-            print(
-                f"  max_review_rounds ({rs.max_review_rounds}) exceeded — "
-                f"escalating. Per PRD §5.3: at exhaustion, hand off to "
-                f"a human with a concise decision packet."
-            )
-            rs.status = RunStatus.AWAITING_HUMAN_DECISION
-            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-            return 2
+        exit_code = _plan_review_reconcile_loop(rs, cfg, ns, evidence_dir)
+        if exit_code is not None:
+            return exit_code
 
-        # 1. Planner
-        rs.reached_phase_step = "planner"
-        run_planner(
-            rs,
-            pilot_spec_text="(see --pilot-spec-file)",
-            evidence_dir=evidence_dir,
-            dry_run=cfg.dry_run,
-        )
-
-        # 2. Plan reviewer (always); 2nd reviewer if configured.
-        rs.reached_phase_step = "plan-review"
-        reviewer1 = run_plan_reviewer(
-            rs, reviewer_index=1, evidence_dir=evidence_dir, dry_run=cfg.dry_run
-        )
-        if rs.plan_reviewer_2:
-            reviewer2 = run_plan_reviewer(
-                rs,
-                reviewer_index=2,
-                evidence_dir=evidence_dir,
-                dry_run=cfg.dry_run,
-                is_second_reviewer=True,
-            )
-        else:
-            reviewer2 = None
-
-        # Panel-finding F-2: re-run family-guard with the *resolved*
-        # families of planner + reviewer(s) substituted. The recheck
-        # implements what FamilyGuardOutcome's docstring claimed but
-        # the preflight-only implementation did not deliver — a model
-        # that the operator *configured* but the channel *resolved
-        # to* a different family still gets the §4/§17.2 fail-closed
-        # treatment.
-        recheck_family_guard_post_resolution(cfg, rs, "after-plan-review")
-
-        # Sanity print so the operator sees the verdict storage the
-        # reconcile gate will consult (panel-finding F-7).
-        bound_approves = sum(
-            1
-            for v in rs.plan_reviewer_verdicts
-            if v["verdict"] in ("APPROVE", "APPROVE-WITH-NITS")
-            and v["plan_sha256_at_time_of_review"] == rs.plan_sha256
-        )
-        print(
-            f"  reviewer verdicts bound to current plan_sha256: "
-            f"{bound_approves}/{len(rs.plan_reviewer_verdicts)} APPROVE"
-        )
-
-        # Silence unused-variable lint — reviewer1/reviewer2 are
-        # diagnostics; the source of truth lives on rs.plan_reviewer_verdicts.
-        _ = (reviewer1, reviewer2)
-
-        # 3. Reconcile gate. Pass-r3 chunk-13 cleanup: --skip-reconcile,
-        # --non-interactive, and --unattended all collapse to
-        # gate_auto_decide=… via parameters passed through; only
-        # --skip-reconcile additionally prints a louder banner.
-        if cfg.skip_reconcile:
-            print("  --skip-reconcile: skipping stdin pause; running §5.3 preconditions check")
-        rs.reached_phase_step = "reconcile"
-        decision = reconcile_human_gate(
-            rs,
-            evidence_dir=evidence_dir,
-            dry_run=cfg.dry_run,
-            gate_auto_decide=(cfg.skip_reconcile or cfg.gate_auto_decide),
-            unattended=cfg.unattended,
-            no_dry_auto_decide=getattr(ns, "no_dry_auto_decide", False),
-            force_accept=cfg.force_accept,
-            force_accept_reason=cfg.force_accept_reason,
-        )
-
-        if decision in (ReconcileDecision.ACCEPT, ReconcileDecision.AMEND):
+        exit_code, replan_requested = _chunking_and_chunk_loop(rs, cfg, evidence_dir)
+        if exit_code is not None:
+            return exit_code
+        if not replan_requested:
             break
-        if decision == ReconcileDecision.REJECT:
-            # loop back to planner with feedback (the planner reads
-            # rs.plan_findings on its next invocation).
-            continue
 
-    # ── Chunking ───────────────────────────────────────────────────
-    rs.status = RunStatus.CHUNKING
-    rs.reached_phase_step = "chunking"
-    if not cfg.chunks_file:
-        # For now require a chunks file. Auto-chunking via the planner
-        # is a follow-on (KNOWN-ISSUES).
-        # Pass-r3 H-7 fix: the operator-facing entrypoint
-        # (``<PILOT_REPO>/.adversarial-sprint/bin/run-sprint``) sets
-        # --chunks-file to ``$OVERLAY_DIR/chunks.json`` by default;
-        # this FATAL message is for debug invocation only.
-        raise SystemExit(
-            "FATAL: --chunks-file is required. The runner does not "
-            "yet auto-extract chunks from the planner's plan document. "
-            "For per-pilot use, copy templates/overlay/sprint-loop-chunks-example.template.json "
-            "into <PILOT_REPO>/.adversarial-sprint/chunks.json and invoke "
-            "<PILOT_REPO>/.adversarial-sprint/bin/run-sprint --chunks-file <path>."
+        # A chunk validator returned REPLAN: re-enter planning with the
+        # finding already rendered into the planner prompt context. The
+        # chunk loop's next pass re-derives every chunk from the chunks
+        # file — nothing derived from the rejected plan is reused.
+        print(
+            f"  REPLAN: re-entering planning with the validator's finding "
+            f"(replan {rs.replans_spent}/{rs.replan_budget}); the chunk "
+            f"list will be re-derived from {cfg.chunks_file}"
         )
-    rs.chunks = load_chunks(rs, cfg.chunks_file)
-    rs.status = RunStatus.CHUNKING_DONE
-    print(f"  loaded {len(rs.chunks)} chunk(s) from {cfg.chunks_file}")
-
-    # ── Per-chunk loop ─────────────────────────────────────────────
-    rs.status = RunStatus.RUNNING_CHUNKS
-    rs.reached_phase_step = "chunk-execution"
-    for i in range(len(rs.chunks)):
-        rs.current_chunk_index = i
-        chunk = rs.chunks[i]
-        status_banner(f"STEP 4 · Chunk {i + 1}/{len(rs.chunks)}: {chunk.chunk_id}")
-        chunk_evidence_dir = os.path.join(evidence_dir, chunk.chunk_id)
-        os.makedirs(chunk_evidence_dir, exist_ok=True)
-        chunk = run_chunk_with_retries(rs, chunk, chunk_evidence_dir, cfg.dry_run, cfg)
-        if chunk.status == ChunkStatus.BLOCKED:
-            # SPEC_OR_TEST_BLOCKED: the executor claims the locked test or
-            # spec is unimplementable. Checkpoint and exit with a distinct
-            # code (6) so the operator can route it to adjudication or the
-            # test-designer rather than treating it as a retryable failure.
-            print(
-                f"  chunk {chunk.chunk_id} BLOCKED (SPEC_OR_TEST_BLOCKED); "
-                f"exiting with code 6"
-            )
-            rs.status = RunStatus.AWAITING_HUMAN_DECISION
-            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
-            return 6
-        if chunk.status != ChunkStatus.ACCEPTED:
-            print(f"  chunk {chunk.chunk_id} did NOT accept; pausing")
-            rs.status = RunStatus.AWAITING_HUMAN_DECISION
-            # Pass-r3 H-10 fix: write_checkpoint must fire BEFORE
-            # commit so the chunk's git commit captures it. Use a
-            # provisional rs here for the checkpoint (the chunk was
-            # NOT accepted; plan/round not bumped).
-            write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-            commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
-            return 3
-        # Pass-r3 H-10 fix: write run-level checkpoint BEFORE
-        # commit_chunk_change so the chunk commit captures it.
-        write_checkpoint(rs, os.path.join(evidence_dir, "checkpoint.json"))
-        commit_chunk_change(rs, chunk, chunk_evidence_dir, run_evidence_dir=evidence_dir)
 
     # ── Final state ────────────────────────────────────────────────
     rs.status = RunStatus.COMPLETED

@@ -16,7 +16,7 @@ On the full pipeline, Arm A totaled **1,077,891 credits** vs Arm B's **751,567**
 
 On code quality, no defect was found by either validator in either arm; independent review of the two diffs is pending. Arm B's REJECT was purely procedural (a lock-manifest SHA mismatch after the test-designer bounce), not a code-quality judgment — grok explicitly said the implementation "looks criterion-complete."
 
-**Run-to-run variance caveat.** The plan-reviewer seats received substantially identical inputs yet varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~50–94% variance on comparable-input seats is the noise floor a single run cannot rise above; the full-pipeline totals should be read with that in mind.
+**Run-to-run variance caveat.** The plan-reviewer seats received substantially identical inputs yet varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~38–94% variance on comparable-input seats is the noise floor a single run cannot rise above; the full-pipeline totals should be read with that in mind.
 
 ---
 
@@ -86,7 +86,7 @@ Key observations:
 - Arm B had **more total turns (73 vs 60)** but **fewer total credits (751,567 vs 1,077,891)**. Its turns were cheaper because the heavy-token seats (executor, gemini validator) did far less work.
 - The two big deltas are the **executor** (Arm A +286K credits) and the **gemini validator** (Arm A +209K credits). The executor gap is an intrinsic efficiency signal; the gemini validator gap is confounded (see next bullet).
 - Arm A's gemini validator gap is a manual-re-run artifact: its envelope shows `retry_count=1` and 273,114 input tokens (vs Arm B's 65,216), consistent with the post-crash manual re-run reading a much larger context. Excluding both gemini validator seats, the full-pipeline gap narrows from ~30% to ~15%. The executor-only comparison (4.4× in favor of gpt-5.2) is the cleanest signal this run provides.
-- **Run-to-run variance caveat.** The plan-reviewer seats (which received substantially identical inputs) varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~50–94% variance on comparable-input seats is the noise floor a single run cannot rise above.
+- **Run-to-run variance caveat.** The plan-reviewer seats (which received substantially identical inputs) varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~38–94% variance on comparable-input seats is the noise floor a single run cannot rise above.
 
 ---
 
@@ -165,7 +165,7 @@ The three hypotheses were:
 
 - **Executor-only cost:** Arm A 371,917 vs Arm B 85,394 credits (~4.4×). kimi emitted 32,747 output tokens vs gpt's 6,339 across 20 vs 13 turns, and produced *fewer* net lines (578 vs 764 insertions). The cheap model's per-token advantage was swamped by its output volume and turn count.
 - **Full-pipeline cost:** Arm A 1,077,891 vs Arm B 751,567 credits (~30% headline gap). Excluding the confounded gemini validator seats (~209K delta from a manual re-run), the gap narrows to ~15%. Arm B absorbed a 146,924-credit test-designer bounce that Arm A never hit and still came out cheaper.
-- **Run-to-run variance:** Plan-reviewer seats with comparable inputs varied ~50–94% between arms (Section 3). A single run cannot separate signal from noise at that level.
+- **Run-to-run variance:** Plan-reviewer seats with comparable inputs varied ~38–94% between arms (Section 3). A single run cannot separate signal from noise at that level.
 
 **The sharper transferable insight:** credits = price-per-token × volume, and **volume dominated**. kimi-k3 produced 32,747 output tokens across 20 turns; gpt-5.2 produced 6,339 across 13 turns — a 5.2× output ratio that swamped any per-token price advantage. The "cheap executor" hypothesis was ill-posed: it assumed executor cost was primarily a function of model price tier, when it was primarily a function of output efficiency. A "cheap" model that talks five times as much is not cheap.
 

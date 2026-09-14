@@ -21,18 +21,24 @@ PLAN_REVIEW_VERDICTS = (
     VERDICT_APPROVE_WITH_NITS,
 )
 
-# Per-chunk validator verdicts. REPLAN is deliberately absent: the chunk
-# lifecycle has no transition back through plan review and reconciliation.
+# Per-chunk validator verdicts. REPLAN directs the rejection at the
+# PLANNED WORK rather than the code or the locked test: the chunk stops
+# fail-closed and the runner re-enters plan -> plan-review -> reconcile
+# with the validator's finding rendered into the planner prompt. It was
+# removed while unsupported (KI-19) and returns here with the routing,
+# bounded budget, and exit code it requires.
 VERDICT_ACCEPT = "ACCEPT"
 VERDICT_ACCEPT_WITH_NITS = "ACCEPT-WITH-NITS"
 VERDICT_REJECT_IMPLEMENTATION = "REJECT_IMPLEMENTATION"
 VERDICT_REJECT_TEST = "REJECT_TEST"
 VERDICT_HUMAN_DECISION = "HUMAN_DECISION"
+VERDICT_REPLAN = "REPLAN"
 VALIDATOR_VERDICTS = (
     VERDICT_ACCEPT,
     VERDICT_ACCEPT_WITH_NITS,
     VERDICT_REJECT_IMPLEMENTATION,
     VERDICT_REJECT_TEST,
+    VERDICT_REPLAN,
     VERDICT_HUMAN_DECISION,
 )
 TEST_DIRECTED_VERDICTS = frozenset({VERDICT_REJECT_TEST})
@@ -49,12 +55,14 @@ EXECUTOR_RESULT_SIGNALS = (
 
 # Per-seat telemetry phase_step values.
 PHASE_PLAN = "plan"
+PHASE_PLAN_REPLAN = "plan-replan"
 PHASE_PLAN_REVIEW = "plan-review"
 PHASE_TEST_DESIGN = "test-design"
 PHASE_TEST_DESIGN_RERUN = "test-design-rerun"
 PHASE_EXECUTE = "execute"
 PHASE_STEPS = (
     PHASE_PLAN,
+    PHASE_PLAN_REPLAN,
     PHASE_PLAN_REVIEW,
     PHASE_TEST_DESIGN,
     PHASE_TEST_DESIGN_RERUN,

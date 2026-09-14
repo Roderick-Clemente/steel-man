@@ -853,6 +853,16 @@ neither a test nor an implementation defect and should still stop for a human ra
 than burn either budget — see the `ENVIRONMENT_SIGNATURES` split in
 `tools/phase-1-scripts/valid-red.py` (KI-9).
 
+### Note (PR 7, REPLAN route): first-attempt invalid-RED classification is unaffected
+
+The REPLAN route changes what `classify_rejection` returns for a panel that
+reaches the validation gate, but a first-attempt invalid RED never reaches
+that gate: `run_chunk_inner` returns `RED_REJECTED` before the validation
+step, with no rejection classification, and `run_chunk_with_retries` still
+takes the generic executor-retry path. The status above is unchanged — the
+REPLAN work neither fixes nor worsens it, and the fix direction here stands
+as written.
+
 ### Partial fix
 KI-16 exposed a narrower live failure with the same symptom. After
 `REJECT_IMPLEMENTATION`, the locked test is necessarily GREEN because the
@@ -1041,7 +1051,11 @@ and verifies that it remains a valid RED.
 
 ## Issue KI-18: Test-designer bounce does not re-lock the redesigned test
 
-- **Status:** OPEN.
+- **Status:** FIXED — closed incidentally by commit `b4b687a`
+  ("feat(gate): route a test-directed rejection to the test-designer",
+  review-cleanup stack, PR 4) while the live incident was being
+  diagnosed; the mechanism was verified by trace and pinned by an
+  end-to-end regression test on `factory/plan-defect-route` (PR 7).
 - **Surface:** `tools/sprint-loop.py` `run_chunk_with_retries`; `tools/sprint_loop/per_chunk.py` `lock_test`.
 - **Filed:** 2026-09-13.
 
@@ -1073,6 +1087,28 @@ After a test-designer rewrite is accepted and the new test is written to disk,
 `lock_test()` must be re-invoked to regenerate the lock manifest with the new SHA.
 The re-lock should happen in `run_chunk_with_retries` after the test-designer
 completes its redesign round, before the executor re-runs.
+
+### Resolution (PR 7)
+The fix direction turned out to be already implemented, not missing. The
+redesign round added by `b4b687a` re-enters `run_chunk_inner`, whose step 2
+("lock") calls `lock_test` unconditionally on every entry — so the redesigned
+suite is re-locked (manifest regenerated on disk, SHA re-read from the
+manifest per §7) **before** the next validation round reads
+`locked_test_sha`. The trace covers every path:
+
+- the in-run bounce (REJECT_TEST → designer rewrite → lock → validation);
+- a resume from a checkpoint written mid-bounce: chunk
+  `rejection_kind="test"` round-trips through the field-driven checkpoint
+  restore, the resumed round re-fires the designer, and the lock step runs
+  again before the validation round.
+
+Pin: `tests/test_lock_relock_on_redesign.py` drives the real `lock.py`
+script through the Arm B sequence (pre-locked 7-test suite → `REJECT_TEST` →
+designer writes a 20-test suite → assert the manifest SHA equals the
+redesigned suite's SHA at the next validation) plus the
+resume-mid-bounce variant. A regression back to a stale manifest fails both
+tests loudly instead of surfacing as a split validator verdict.
+
 ## Issue KI-19: Validator advertises an unsupported REPLAN verdict
 
 - **Status:** FIXED. Accepted residual: removing `REPLAN` leaves
@@ -1106,3 +1142,83 @@ that point back through planning, plan review, reconciliation, and chunk
 replacement. Parsing `REPLAN` without that lifecycle would only disguise it
 as an executor retry or a human pause. Removing the unsupported promise is
 fail-closed and keeps a future planner transition explicit.
+
+### Update (PR 7, branch factory/plan-defect-route): the route is now implemented
+
+The fast follow closed the residual. `REPLAN` is reintroduced as a
+first-class validator verdict through the same shared vocabulary this entry
+introduced (`tools/sprint_loop/vocab.py`), so the prompt block
+(`validator.md`), the `orchestrate-review.py` parser, and the routing set
+cannot drift again; the contract test that formerly pinned "REPLAN is not
+advertised" now pins the opposite.
+
+Semantics as implemented:
+
+- a `REPLAN` verdict stops the chunk fail-closed (no executor /
+  test-designer re-fire), archives the rejecting evidence at
+  `superseded-replan-round<N>`, and carries the validator's finding on
+  `rs.replan_feedback` into the planner prompt of the next plan round;
+- plan → plan-review → reconcile re-run with the finding rendered (the
+  REJECT_TEST feedback-threading pattern), and every chunk's state is
+  re-derived from the chunks file so nothing derived from the rejected
+  plan runs against the revised one;
+- bounded by `--replan-budget` (default 1, mirrors the test-design
+  bounce bound); exhaustion → `HUMAN_DECISION` + checkpoint + distinct
+  exit code 7 (documented in `--help`, consistent with code 6 for
+  SPEC_OR_TEST_BLOCKED and code 2 for plan-review exhaustion);
+- the budget and finding round-trip the checkpoint (pinned both by the
+  programmatic round-trip sweep and a named sentinel test);
+- telemetry: planner seat rows on a replan round carry
+  `phase_step="plan-replan"` (vocab + SCHEMA.md + tripwire updated
+  together); the `role="run"` row carries `replans_spent` /
+  `replan_budget`.
+
+Pin: `tests/test_replan_routing.py` (routing, evidence preservation,
+budget, planner-prompt threading, re-chunking, exit code 7) plus the
+updated contract tests in `tests/test_vocab_contract.py`.
+
+## Issue KI-20: REPLAN route validated on single-chunk runs; multi-chunk replan pass re-runs accepted chunks and fails their RED gate
+
+- **Status:** OPEN. Severity: design gap.
+- **Surface:** `tools/sprint-loop.py` `_chunking_and_chunk_loop` (the
+  replan pass re-derives every chunk from index 0 with no record of
+  which chunks this run already accepted).
+- **Filed:** 2026-09-13 (final frontier review finding N-2).
+
+### Symptom
+
+On a replan round, `_chunking_and_chunk_loop` re-derives **every** chunk
+from the chunks file and iterates from index 0. An accepted chunk's
+implementation is committed at pilot HEAD (KI-13), so on the replan
+pass its fresh `ChunkState` sees the test file exist, the test-designer
+is skipped, and `validate_red` returns "Invalid RED: test passed". The
+GREEN relaxation does not apply (fresh chunk, empty `rejection_kind` —
+not an implementation retry), so the chunk takes the generic
+`RED_REJECTED` executor-retry path, burns the budget, and escalates to
+HUMAN_DECISION (exit 3). Net effect in a live multi-chunk run: a REPLAN
+on chunk N bricks the run at chunk 1 of the replan pass, after spending
+the replan budget and a full plan/review round.
+
+### Why the tests did not catch it
+
+The REPLAN e2e tests run `--dry-run` (synthesized valid RED) against a
+single-chunk file — the current pilot shape. The first live
+multi-chunk replan will hit this.
+
+### Fix directions (pick one, document the choice)
+
+1. Record accepted chunk ids on `RunState` and skip them on a replan
+   pass unless the revised plan touches them.
+2. Extend the GREEN-at-HEAD relaxation to chunks re-entered on a replan
+   pass (mirrors the implementation-retry reasoning: GREEN is the
+   expected starting state).
+3. Skip chunks whose scope is unchanged in the revised plan when
+   re-deriving the replan-pass chunk list.
+
+### Decision
+
+Filed, not fixed, in the PR 7 fast follow: the pilot currently runs
+single-chunk, so the REPLAN route is valid for its actual use case.
+Filing honestly beats shipping an untested multi-chunk fix under time
+pressure — the fix needs its own design pass and an end-to-end test
+against a real multi-chunk RED gate.

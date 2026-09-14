@@ -228,6 +228,33 @@ def test_checkpoint_round_trips_all_chunkstate_fields(tmp_path):
         )
 
 
+def test_checkpoint_preserves_replan_budget_and_finding(tmp_path):
+    """Resume must not hand the REPLAN budget back or drop the finding.
+
+    The programmatic sweeps above already pin the fields, but the replan
+    route's bound is a safety budget: this named test keeps its sentinel
+    semantics explicit (2 replans already charged of 3, plus the finding
+    the re-fired planner must see).
+    """
+    mod = _load_runner()
+    rs = _fully_populated_rs(tmp_path)
+    rs.replan_budget = 3
+    rs.replans_spent = 2
+    rs.replan_feedback = [
+        "validator-a: the chunk criterion cannot be verified by any "
+        "implementation of the scope the plan names"
+    ]
+    rs.chunks = []
+
+    cp = tmp_path / "checkpoint.json"
+    mod.write_checkpoint(rs, str(cp))
+    restored = mod.load_checkpoint(str(cp))
+
+    assert restored.replan_budget == 3
+    assert restored.replans_spent == 2
+    assert restored.replan_feedback == rs.replan_feedback
+
+
 def test_checkpoint_preserves_executor_retry_count_and_rejection_feedback(tmp_path):
     """Resume keeps the retry budget spent and the finding for the next seat."""
     mod = _load_runner()

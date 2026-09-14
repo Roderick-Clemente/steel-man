@@ -978,6 +978,8 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
         "plan_output_path": "/tmp/plan-out.md",
         "authored_chunks": "(none supplied — propose a chunking)",
         "prior_findings": "(first round — no prior findings)",
+        "replan_feedback": "(no replan in progress — plan from the pilot "
+        "spec and prior findings)",
         "prior_test_rejection": "(no prior test rejection)",
         "panel_position": "1",
         "chunk_spec": "scope: add /llms.txt route; acceptance: GET returns 200 ...",

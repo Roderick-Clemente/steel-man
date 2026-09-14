@@ -178,6 +178,10 @@ class Config:
     # Tuning
     max_review_rounds: int = 2
     retry_threshold: int = 1
+    # Bounded REPLAN route (KI-19 fast follow): how many times a chunk
+    # validator's REPLAN verdict may re-enter the plan loop per run.
+    # Exhaustion escalates to HUMAN_DECISION with exit code 7.
+    replan_budget: int = 1
     max_auto_retries: int = 2
     retry_delay_seconds: int = 5
     per_call_timeout_seconds: int = 0  # 0 = use InvokeOptions default (1800)
@@ -421,6 +425,13 @@ def build_config(argv: list[str] | None = None, config_path_override: str | None
 
     parser.add_argument("--max-review-rounds", type=int, default=-1)
     parser.add_argument("--retry-threshold", type=int, default=-1)
+    parser.add_argument(
+        "--replan-budget",
+        type=int,
+        default=-1,
+        help="How many REPLAN verdicts may re-enter the plan loop per "
+        "run (default 1). Exhaustion exits with code 7.",
+    )
     parser.add_argument("--max-auto-retries", type=int, default=-1)
     parser.add_argument("--retry-delay-seconds", type=int, default=-1)
 
@@ -560,6 +571,8 @@ def build_config(argv: list[str] | None = None, config_path_override: str | None
         cfg.max_review_rounds = args.max_review_rounds
     if args.retry_threshold >= 0:
         cfg.retry_threshold = args.retry_threshold
+    if args.replan_budget >= 0:
+        cfg.replan_budget = args.replan_budget
     if args.max_auto_retries >= 0:
         cfg.max_auto_retries = args.max_auto_retries
     if args.retry_delay_seconds >= 0:
@@ -679,6 +692,8 @@ def _validate_config(cfg: Config) -> None:
         raise SystemExit("ERROR: --max-review-rounds must be >= 1 (PRD §5.3)")
     if cfg.retry_threshold < 0:
         raise SystemExit("ERROR: --retry-threshold must be >= 0")
+    if cfg.replan_budget < 0:
+        raise SystemExit("ERROR: --replan-budget must be >= 0")
     if cfg.max_auto_retries < 0:
         raise SystemExit("ERROR: --max-auto-retries must be >= 0")
     if cfg.retry_delay_seconds < 0:

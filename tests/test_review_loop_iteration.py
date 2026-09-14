@@ -266,6 +266,8 @@ def test_planner_prompt_carries_prior_findings_on_a_later_round(tmp_path):
             "plan_output_path": "/tmp/plan.md",
             "authored_chunks": "(none supplied — propose a chunking)",
             "prior_findings": mod._format_prior_findings([_finding()]),
+            "replan_feedback": "(no replan in progress — plan from the pilot "
+            "spec and prior findings)",
         },
         str(out),
     )
@@ -312,6 +314,8 @@ def test_planner_prompt_carries_sentinel_on_the_first_round(tmp_path):
             "plan_output_path": "/tmp/plan.md",
             "authored_chunks": "(none supplied — propose a chunking)",
             "prior_findings": mod._format_prior_findings([]),
+            "replan_feedback": "(no replan in progress — plan from the pilot "
+            "spec and prior findings)",
         },
         str(out),
     )

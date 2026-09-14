@@ -166,9 +166,9 @@ Framework branch: `factory/schema-v3-and-subagent-executor`.
 | 7–8 | refusal | Plan-review loop iterated for the first time (KI-8 fix). Contract tightened from 10 to 15 criteria on reviewer evidence. | KI-7: planner accepted a chat summary as the plan. KI-8: planner planned against a guess, not the authored contract. KI-9: RED classifier rejected a valid RED for explaining itself. |
 | 9 | REJECT_IMPL | **KI-10 proven fixed live.** Both validators reviewed the same rendered prompt (9,514 bytes, zero surviving placeholders) for the first time. They immediately caught a real defect: regression evidence missing from the bundle. | KI-15: bundle produced twice (second overwrites first), wrong command runs (bare pytest, zero tests collected), exit 5 counts as pass. |
 | 10 | REJECT_IMPL | **KI-11/KI-15 proven fixed live.** Bundle shows `full_suite: 35 passed, exit 0` with the declared command recorded. grok caught a real bug the test suite endorsed: implementation silently weakened criterion 9 (reported as "substituted fallback" instead of "reported as such"). gemini accepted the same code. | KI-16: executor retried blind after rejection — no feedback rendered into retry prompt. KI-13 reproduced: rejected commit `7f9d467` on pilot branch before gate. KI-14 filed: invalid RED retries executor instead of test-designer. |
-| 11 | pending | Will test KI-16 fix live: executor should fix criterion 9 on first retry because grok's finding is now rendered into its prompt. | Awaiting model availability window. |
+| 11 | completed | Two-arm executor experiment ran instead of the planned KI-16 first-retry gate: Arm A `r-phase45-20260913-005223` (executor kimi-k3), Arm B `r-phase45-20260913-012823` (executor gpt-5.2). Full results in `tools/EXPERIMENT-cheap-vs-expensive-executor.md` (PR 5). | KI-16 remained unproven live: neither arm took a REJECT_IMPL executor retry, so feedback rendering never fired. KI-18 found live in Arm B (redesign did not re-lock; since fixed). |
 
-**Summary: 19 known issues found (KI-1 through KI-19), 13 fixed (KI-1, KI-2, KI-3, KI-4, KI-7, KI-8, KI-9, KI-10, KI-11, KI-15, KI-16, KI-17, KI-19), 3 open (KI-5, KI-13, KI-18), 1 partially fixed (KI-14), 1 closed as documented limitation (KI-12), 1 withdrawn (KI-6). Every refusal so far has been a genuine defect caught before it did damage.**
+**Summary: 20 known issues found (KI-1 through KI-20), 14 fixed (KI-1, KI-2, KI-3, KI-4, KI-7, KI-8, KI-9, KI-10, KI-11, KI-15, KI-16, KI-17, KI-18, KI-19), 3 open (KI-5, KI-13, KI-20), 1 partially fixed (KI-14), 1 closed as documented limitation (KI-12), 1 withdrawn (KI-6). Every refusal so far has been a genuine defect caught before it did damage.**
 
 ## Per-seat cost breakdown — attempt 6 (kimi-k3 executor)
 
@@ -204,7 +204,7 @@ Findings: F-1 (`--force-accept` works), F-2 (`--verify-mode` works), F-3 (`--for
 
 ## The KI-7 shape — recurring architectural pattern
 
-Four of the sixteen issues share the same structural defect:
+Four of the twenty issues share the same structural defect:
 
 | Instance | Seat | What was missing | What happened |
 |----------|------|------------------|---------------|
@@ -219,9 +219,20 @@ Four of the sixteen issues share the same structural defect:
 
 **The pattern to grep for:** any retry or re-invocation path that does not carry forward the reason it was triggered. If the retry prompt is identical to the first-attempt prompt, the retry is not a retry.
 
-## Upcoming: two-arm executor experiment
+## Two-arm executor experiment — completed (was "Upcoming")
 
-The next phase measures whether a cheap executor (kimi-k3, moonshot-family) produces cheaper full-cycle results than an expensive executor (gpt-5.2, openai-family), or whether executor quality shifts cost to the validators.
+The experiment ran and is reported with run ids in
+`tools/EXPERIMENT-cheap-vs-expensive-executor.md` (PR 5): Arm A
+`r-phase45-20260913-005223` (executor kimi-k3, moonshot family) vs Arm B
+`r-phase45-20260913-012823` (executor gpt-5.2, openai family) — same
+plan, same locked tests, same validators, different executor.
 
-Same plan, same locked tests, same validators, different executor. Two arms. The fixed framework (KI-10, KI-15, KI-16, verdict-aware routing) is the prerequisite — without it, the validator data is unsound and the comparison is meaningless. Attempt 11 (pending) is the last gate: if the executor fixes criterion 9 on its first retry via KI-16's feedback loop and both validators ACCEPT, the experiment can run.
+Directional n=1 result: gpt-5.2 leaned cheaper (executor-only ~4.4×;
+full pipeline ~30% headline, narrowing to ~15% once a confounded
+validator re-run is excluded), with plan-reviewer costs varying widely
+between arms on comparable inputs as the noise floor. The rerun
+criterion stands: ≥3 runs per arm with KI-18 fixed so the locked suite
+is a true constant. One prerequisite did not complete: KI-16's
+executor-retry feedback never fired live (neither arm took a REJECT_IMPL
+retry), so that check remains open rather than gating the experiment.
 

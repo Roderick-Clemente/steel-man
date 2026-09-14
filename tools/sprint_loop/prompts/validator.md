@@ -93,11 +93,26 @@ VERDICT: ACCEPT
 VERDICT: ACCEPT-WITH-NITS
 VERDICT: REJECT_IMPLEMENTATION
 VERDICT: REJECT_TEST
+VERDICT: REPLAN
 VERDICT: HUMAN_DECISION
 ```
 
 The runner parses the verdict with a regex on the last
 ``VERDICT:`` line. Be decisive; the loop's automation depends on it.
+
+- `REJECT_IMPLEMENTATION` — the locked test is a fair contract and the
+  CODE fails it. The executor runs again with your finding.
+- `REJECT_TEST` — the locked test does not lock what the chunk claims.
+  The test-designer regenerates it with your finding.
+- `REPLAN` — neither the code nor the test can fix the rejection: the
+  PLAN the chunk was derived from is defective (the chunk spec is
+  incoherent or unverifiable as written). Use this rarely, and only
+  when no implementation or test change could satisfy the spec. The
+  runner stops the chunk fail-closed and re-enters planning with your
+  finding rendered into the planner prompt; it does NOT re-run the
+  executor or the test-designer.
+- `HUMAN_DECISION` — a genuine holder conflict that automation must
+  not decide; the run pauses for the operator.
 
 ## Findings schema
 

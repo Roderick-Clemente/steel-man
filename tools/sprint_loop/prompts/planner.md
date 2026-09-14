@@ -40,6 +40,10 @@ You are NOT the executor. You write a document; you do not write code.
 
 {{authored_chunks}}
 
+## Validator replan finding
+
+{{replan_feedback}}
+
 ## Prior review findings
 
 {{prior_findings}}

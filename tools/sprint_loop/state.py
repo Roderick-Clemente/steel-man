@@ -64,9 +64,15 @@ DEFAULT_ENABLED_TOOLS: dict[Role, str] = {
     # accepts. One unknown id rejects the whole call ("Unknown tool
     # identifier(s)"), which surfaces as a 0-byte envelope and — because
     # the family is then read from an unparseable envelope — as a misleading
-    # §17.2 "family=unknown" refusal. `MultiEdit` and `Write` are NOT valid.
-    Role.TEST_DESIGNER: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
-    Role.EXECUTOR: "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
+    # §17.2 "family=unknown" refusal. Verified against the installed CLI
+    # (droid 0.197.0, `droid exec --list-tools`): `Read`, `Glob`, `Grep`,
+    # `LS`, `Edit`, `Create`, `Execute` are valid ids; `ApplyPatch`,
+    # `MultiEdit`, and `Write` are NOT in the registry (KI-2), so they must
+    # not appear here — this dict is the single source both the live seats
+    # in ``sprint-loop.py::_main_inner`` and the prompt ``{{enabled_tools}}``
+    # rendering derive from (N-1).
+    Role.TEST_DESIGNER: "Read,Glob,Grep,LS,Edit,Create,Execute",
+    Role.EXECUTOR: "Read,Glob,Grep,LS,Edit,Create,Execute",
     Role.VALIDATOR: "Read,Glob,Grep,LS,Execute",
 }
 
@@ -129,6 +135,7 @@ class ChunkStatus(str, enum.Enum):
     RETRYING = "RETRYING"
     HUMAN_DECISION = "HUMAN_DECISION"
     BLOCKED = "BLOCKED"
+    REPLAN = "REPLAN"
     SKIPPED = "SKIPPED"
 
 
@@ -203,10 +210,13 @@ class ChunkState:
     # means the locked test is a fair contract and the executor runs
     # again; ``REJECT_TEST`` means the locked test does not lock what the
     # chunk claims, so re-running the executor against it cannot fix
-    # anything — the test-designer runs again instead.
-    rejection_kind: str = ""  # "" | "implementation" | "test"
+    # anything — the test-designer runs again instead; ``REPLAN`` means
+    # the PLAN the chunk was derived from is defective, so the chunk
+    # stops fail-closed and the runner re-enters the plan loop.
+    rejection_kind: str = ""  # "" | "implementation" | "test" | "plan"
     test_design_feedback: list[str] = field(default_factory=list)  # fed back to test-designer
     test_design_retry_count: int = 0  # bounces charged to the test-design budget
+    replan_feedback: list[str] = field(default_factory=list)  # fed back to the planner
 
     # Verify-and-harden mode: when True (set from Config.verify_mode
     # or the chunk JSON's "verify_mode" field), the runner relaxes
@@ -317,6 +327,14 @@ class RunState:
     retry_delay_seconds: int = 5
     per_call_timeout_seconds: int = 0    # 0 = use InvokeOptions default (1800)
 
+    # Bounded REPLAN route (KI-19 fast follow): how many times a chunk
+    # validator's REPLAN verdict may re-enter the plan loop per run, and
+    # how many have already been spent. Exhaustion escalates to
+    # HUMAN_DECISION with a distinct exit code. Both round-trip through
+    # the field-driven checkpoint restore.
+    replan_budget: int = 1
+    replans_spent: int = 0
+
     # Status flow
     status: RunStatus = RunStatus.PENDING
     status_message: str = ""
@@ -333,6 +351,11 @@ class RunState:
     # converge rule: at least one APPROVE bound to current
     # plan_sha256 + zero open blocker|high findings.
     plan_reviewer_verdicts: list[dict] = field(default_factory=list)
+
+    # A chunk REPLAN verdict's formatted finding, rendered into the next
+    # planner prompt. Cleared once the replan round's reconcile gate
+    # accepts the revised plan.
+    replan_feedback: list[str] = field(default_factory=list)
 
     # Chunks (filled after reconcile accepts)
     chunks: list[ChunkState] = field(default_factory=list)

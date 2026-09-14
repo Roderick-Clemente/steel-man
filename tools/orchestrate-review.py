@@ -9,7 +9,7 @@ runs the full cycle:
   step 3: check stray writes after each validator (KI-2 mitigation)
   step 4: parse verdicts from envelopes
   step 5: append telemetry rows to runs.jsonl
-  step 6: report gate decision (any REJECT blocks; STOP only on error)
+  step 6: report gate decision (any REJECT* or REPLAN blocks; STOP only on error)
 
 No asking. No waiting. No "should I merge?" questions. It runs, it reports,
 it stops only if something breaks. The human reviews the output, not the
@@ -440,7 +440,12 @@ def step5_append_telemetry(args, validators: list[dict]):
 
 
 def step6_gate_decision(validators: list[dict]) -> str:
-    """Aggregate verdicts and report the gate decision."""
+    """Aggregate verdicts and report the gate decision.
+
+    A ``REPLAN`` verdict blocks with ``gate=REJECT`` exactly like a
+    ``REJECT*`` verdict; the per-validator verdicts the summary carries
+    are what the runner's ``classify_rejection`` routes on.
+    """
     print("\n" + "=" * 60)
     print("STEP 6: Gate decision")
     print("=" * 60)
@@ -448,6 +453,7 @@ def step6_gate_decision(validators: list[dict]) -> str:
     verdicts = [v.get("verdict", "UNKNOWN") for v in validators]
     errors = [v for v in validators if not v.get("ok") or v.get("is_error", False)]
     rejects = [v for v in verdicts if v.startswith("REJECT")]
+    replans = [v for v in verdicts if v == "REPLAN"]
     accepts = [v for v in verdicts if v.startswith("ACCEPT")]
     humans = [v for v in verdicts if v == "HUMAN_DECISION"]
     unknowns = [v for v in verdicts if v == "UNKNOWN"]
@@ -455,18 +461,30 @@ def step6_gate_decision(validators: list[dict]) -> str:
 
     print(f"  Validators: {len(validators)}")
     print(
-        f"  ACCEPT: {len(accepts)} | REJECT: {len(rejects)} | HUMAN_DECISION: {len(humans)} | ERROR: {len(errors)} | UNKNOWN: {len(unknowns)}"
+        f"  ACCEPT: {len(accepts)} | REJECT: {len(rejects)} | REPLAN: {len(replans)} | HUMAN_DECISION: {len(humans)} | ERROR: {len(errors)} | UNKNOWN: {len(unknowns)}"
     )
     if strays:
         print(f"  Stray writes: {len(strays)} (KI-2 violation)")
 
-    # Gate logic: any REJECT blocks, any ERROR stops, HUMAN_DECISION escalates
+    # Gate logic: any REJECT or REPLAN blocks (the runner routes on the
+    # preserved per-validator verdicts), any ERROR stops, HUMAN_DECISION
+    # escalates. REPLAN must block: it is a plan-defect judgment the
+    # runner re-enters planning for (KI-19); treating it as an accept
+    # would be the exact silent-green defect its removal once masked.
     if errors:
         gate = "STOP"
         reason = f"{len(errors)} validator(s) failed to run"
-    elif rejects:
+    elif rejects or replans:
         gate = "REJECT"
-        reason = f"{len(rejects)} validator(s) returned REJECT"
+        kinds = []
+        if rejects:
+            kinds.append("REJECT")
+        if replans:
+            kinds.append("REPLAN")
+        reason = (
+            f"{len(rejects) + len(replans)} validator(s) returned "
+            f"{' or '.join(kinds)}"
+        )
     elif unknowns:
         gate = "STOP"
         reason = f"{len(unknowns)} validator(s) had unparseable verdicts"
@@ -489,7 +507,7 @@ def step6_gate_decision(validators: list[dict]) -> str:
     print(f"\n  GATE: {gate}")
     print(f"  REASON: {reason}")
 
-    return gate
+    return gate, reason
 
 
 # ── main ─────────────────────────────────────────────────────────────────
@@ -685,7 +703,7 @@ def main() -> int:
     step5_append_telemetry(args, validators)
 
     # Step 6: gate decision
-    gate = step6_gate_decision(validators)
+    gate, gate_reason = step6_gate_decision(validators)
 
     # Write summary
     summary = {
@@ -694,6 +712,11 @@ def main() -> int:
         "evidence_source": args.evidence_source,
         "treatment": args.treatment,
         "run_label": args.run_label,
+        # The gate's reason string, so the runner's BackendResult carries
+        # the verdict-kind breakdown (e.g. "1 validator(s) returned
+        # REPLAN") instead of the generic "reject gate returned" the
+        # summary historically left for it.
+        "note": gate_reason,
         "validators": [
             {
                 "label": v["label"],

@@ -303,6 +303,7 @@ def test_schema_disposition_enum_documents_overridden():
 def test_schema_phase_step_enum_matches_current_emitters():
     assert _schema_enum_members("phase_step") == [
         "plan",
+        "plan-replan",
         "plan-review",
         "test-design",
         "test-design-rerun",

@@ -142,7 +142,7 @@ aggregator accepts `schema_version` in `{v1, v2, v3}`.
    | `finished_at`       | ISO-8601 | wall-clock end of the invocation |
    | `run_label`         | string | experiment arm / operator label (`--run-label`; defaults to the run_id) |
    | `chunk_id`          | string | set on per-chunk seats (`test-designer`, `executor`); absent on plan-level seats |
-   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `test-design-rerun` / `execute` |
+   | `phase_step`        | enum   | `plan` / `plan-replan` / `plan-review` / `test-design` / `test-design-rerun` / `execute` |
    | `verdict_text_first_240` | string | existing key, carried on the in-memory `RunRecord`; emitted only when non-empty. The Phase 4.5 runner does not yet populate it (the reviewer verdict is parsed after the row is appended). |
 
    `branch` is now the actual `git branch --show-current` of the framework
@@ -172,6 +172,8 @@ aggregator accepts `schema_version` in `{v1, v2, v3}`.
    | `findings_by_severity`  | object   | `{severity: count}` |
    | `plan_reviewer_verdicts`| object[] | `{model_id, verdict, bound_to_plan}`; `bound_to_plan` is whether the verdict's plan_sha256 matches the final plan |
    | `chunk_statuses`        | object[] | `{chunk_id, status, gate_decision, retry_count}` |
+   | `replan_budget`         | int      | configured REPLAN budget (default 1). Absent on runs from before the REPLAN route (KI-19 fast follow); readers treat missing as 1 |
+   | `replans_spent`         | int      | REPLAN rounds actually charged this run. Absent on runs from before the REPLAN route; readers treat missing as 0 |
    | `force_accept_disposition` | string | the operator disposition text, if a force-accept fired |
    | + provenance keys       |          | see (2) |
 
