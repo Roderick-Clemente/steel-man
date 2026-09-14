@@ -28,8 +28,8 @@ in ``phase-N/KNOWN-ISSUES.md``).
 ```
 
 - The **pilot repo** at ``{{pilot_root}}`` — read-only context; any
-  write to the pilot goes through your ``Write`` / ``Edit`` /
-  ``ApplyPatch`` tools ONLY against the locked test file.
+  write to the pilot goes through your enabled tools
+  (``{{enabled_tools}}``) ONLY against the locked test file.
 - The **PRD §5.4** rules for a valid RED: behaviour-changing work
   cannot begin until the intended assertion has run and failed for
   the expected reason. The runner runs ``tools/phase-1-scripts/valid-red.py``

@@ -25,8 +25,8 @@ that preflight.
 
 - The **chunk spec** (from the approved plan): ``{{chunk_spec}}``
 - The **pilot repo** at ``{{pilot_root}}`` — your full worktree; you
-  may ``Read``, ``Write``, ``Edit``, ``Create``, ``ApplyPatch``,
-  ``MultiEdit`` any non-locked file in the scope.
+  may use your enabled tools (``{{enabled_tools}}``) on any non-locked
+  file in the scope.
 - The **locked test** at ``{{test_file_path}}`` — READ-ONLY. The
   runner has set up a hook that blocks writes to this file. If you
   believe the locked test is wrong, your only escape is to report

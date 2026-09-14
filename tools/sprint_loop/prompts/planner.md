@@ -144,4 +144,7 @@ End the document with a literal line:
 PLAN_HASH: <sha256 placeholder — runner computes real value after rendering>
 ```
 
-The runner replaces the placeholder before hashing.
+The runner hashes your final message **verbatim** — including this
+literal ``PLAN_HASH:`` line — and stores the computed SHA-256 separately
+as the plan's binding hash. It does not substitute the placeholder into
+your message.

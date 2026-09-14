@@ -76,6 +76,7 @@ from sprint_loop.prompts.render import render_to_file  # noqa: E402
 from sprint_loop.provenance import _git_branch, _git_sha, run_provenance  # noqa: E402
 from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
+    DEFAULT_ENABLED_TOOLS,
     ChunkState,
     Role,
     RunState,
@@ -936,6 +937,7 @@ def render_test_designer_prompt(
             "pilot_root": rs.pilot_root,
             "pilot_spec": pilot_spec_text,
             "test_file_path": os.path.join(rs.pilot_root, test_rel),
+            "enabled_tools": DEFAULT_ENABLED_TOOLS[Role.TEST_DESIGNER],
             "pytest_baseline_path": (
                 chunk.commands[0] if chunk.commands else "(no baseline command in chunk spec)"
             ),
@@ -989,6 +991,7 @@ def render_executor_prompt(chunk: ChunkState, rs: RunState,
             "pilot_root": rs.pilot_root,
             "test_file_path": os.path.join(rs.pilot_root, chunk.locked_test_files[0]),
             "commands": "\n".join(chunk.commands),
+            "enabled_tools": DEFAULT_ENABLED_TOOLS[Role.EXECUTOR],
             "verify_and_harden_directive": verify_directive,
             "prior_implementation_rejection": prior_rejection,
         },

@@ -12,7 +12,6 @@ not retried, and ``_main_inner`` exits with code 6.
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import sys
 
@@ -21,52 +20,19 @@ _TOOLS = os.path.join(_REPO, "tools")
 if _TOOLS not in sys.path:
     sys.path.insert(0, _TOOLS)
 
-import pytest  # noqa: E402
-from sprint_loop.config import Config  # noqa: E402
+from conftest import (  # noqa: E402
+    _load_runner_module,
+    _observed,
+    _run_state,
+    _stub_loop,
+)
 from sprint_loop import vocab  # noqa: E402
+from sprint_loop.config import Config  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     ChunkStatus,
     GateDecision,
-    Role,
-    RoleAssignment,
-    RunState,
 )
-
-
-def _load_runner_module(name: str = "sprint_loop_runner_spec_blocked"):
-    """Load sprint-loop.py as a module without running main()."""
-    runner_path = os.path.join(_REPO, "tools", "sprint-loop.py")
-    spec = importlib.util.spec_from_file_location(name, runner_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _mk(role: Role, model: str, family: str, provider: str = "x") -> RoleAssignment:
-    return RoleAssignment(
-        role=role, pinned_model_id=model, pinned_family=family, pinned_provider=provider
-    )
-
-
-def _run_state(pilot_root: str, framework_root: str = "/tmp/fw") -> RunState:
-    rs = RunState(
-        run_id="r-spec-blocked",
-        started_at="2026-09-13T00:00:00Z",
-        framework_root=framework_root,
-        pilot_root=pilot_root,
-        pilot_python="/usr/bin/true",
-        run_label="arm-spec-blocked",
-    )
-    rs.planner = _mk(Role.PLANNER, "claude-opus-5", "claude-family")
-    rs.plan_reviewer = _mk(Role.PLAN_REVIEWER, "grok-4.5", "grok-family")
-    rs.test_designer = _mk(Role.TEST_DESIGNER, "claude-opus-5", "claude-family")
-    rs.executor = _mk(Role.EXECUTOR, "gpt-5.4-mini", "openai-family")
-    rs.validators = [
-        _mk(Role.VALIDATOR, "grok-4.5", "grok-family"),
-        _mk(Role.VALIDATOR, "gemini-3.1-pro-preview", "gemini-family"),
-    ]
-    return rs
 
 
 def _chunk() -> ChunkState:
@@ -78,59 +44,6 @@ def _chunk() -> ChunkState:
         commands=["/usr/bin/true -m pytest test/test_devices.py -v"],
         accepted_assertion="deleted reference reported",
     )
-
-
-def _stub_loop(mod, monkeypatch, chunk, tmp_path, observed):
-    """Stub every seat + subprocess step so the test exercises the
-    SPEC_OR_TEST_BLOCKED signal path only."""
-    test_abs = os.path.join(str(tmp_path / "pilot"), chunk.locked_test_files[0])
-
-    def fake_lock_test(*a, **k):
-        observed["lock_test"] += 1
-        chunk.lock_manifest_path = str(tmp_path / "lock.json")
-        chunk.locked_test_sha = "lock-sha"
-        return {"sha256": "lock-sha"}
-
-    def fake_invoke_test_designer(*a, **k):
-        observed["invoke_test_designer"] += 1
-        os.makedirs(os.path.dirname(test_abs), exist_ok=True)
-        with open(test_abs, "w") as f:
-            f.write("def test_devices():\n    assert False\n")
-        return {"result_text": "STATUS: TEST_AUTHORED"}
-
-    def fake_invoke_executor(*a, **k):
-        observed["invoke_executor"] += 1
-        return {"result_text": "RESULT: SPEC_OR_TEST_BLOCKED\n\nThe spec is contradictory."}
-
-    def fake_validate_red(*a, **k):
-        return {"valid": True}
-
-    monkeypatch.setattr(mod, "lock_test", fake_lock_test)
-    monkeypatch.setattr(mod, "validate_red", fake_validate_red)
-    monkeypatch.setattr(mod, "invoke_test_designer", fake_invoke_test_designer)
-    monkeypatch.setattr(mod, "invoke_executor", fake_invoke_executor)
-    # verify_green is intentionally NOT stubbed — the test asserts it is
-    # never called by checking ``observed``.
-    monkeypatch.setattr(mod, "verify_green", lambda *a, **k: observed.__setitem__(
-        "verify_green", observed.get("verify_green", 0) + 1) or (_ for _ in ()).throw(
-        AssertionError("verify_green should not be called on SPEC_OR_TEST_BLOCKED")
-    ))
-    monkeypatch.setattr(mod, "produce_evidence", lambda *a, **k: observed.__setitem__(
-        "produce_evidence", observed.get("produce_evidence", 0) + 1) or {})
-    monkeypatch.setattr(mod, "run_validators", lambda *a, **k: observed.__setitem__(
-        "run_validators", observed.get("run_validators", 0) + 1) or None)
-    monkeypatch.setattr(mod, "recheck_family_guard_post_resolution", lambda *a, **k: None)
-
-
-def _observed() -> dict:
-    return {
-        "lock_test": 0,
-        "invoke_test_designer": 0,
-        "invoke_executor": 0,
-        "verify_green": 0,
-        "produce_evidence": 0,
-        "run_validators": 0,
-    }
 
 
 # ── _is_spec_or_test_blocked unit test ───────────────────────────────────
@@ -202,7 +115,14 @@ def test_spec_blocked_does_not_call_verify_green(tmp_path, monkeypatch):
     rs = _run_state(str(pilot))
     chunk = _chunk()
     observed = _observed()
-    _stub_loop(mod, monkeypatch, chunk, tmp_path, observed)
+    _stub_loop(
+        mod, monkeypatch, chunk, tmp_path, observed,
+        regenerated_test_is_green=False,
+        executor_result="RESULT: SPEC_OR_TEST_BLOCKED\n\nThe spec is contradictory.",
+        verify_green_fails=True,
+        produce_bundle=False,
+        stub_run_validators=True,
+    )
 
     ev = tmp_path / "ev"
     chunk = mod.run_chunk_with_retries(rs, chunk, str(ev), False, Config())
@@ -233,7 +153,14 @@ def test_spec_blocked_is_not_retried(tmp_path, monkeypatch):
     rs.retry_threshold = 3  # generous budget that must NOT be spent
     chunk = _chunk()
     observed = _observed()
-    _stub_loop(mod, monkeypatch, chunk, tmp_path, observed)
+    _stub_loop(
+        mod, monkeypatch, chunk, tmp_path, observed,
+        regenerated_test_is_green=False,
+        executor_result="RESULT: SPEC_OR_TEST_BLOCKED\n\nThe spec is contradictory.",
+        verify_green_fails=True,
+        produce_bundle=False,
+        stub_run_validators=True,
+    )
 
     ev = tmp_path / "ev"
     chunk = mod.run_chunk_with_retries(rs, chunk, str(ev), False, Config())
@@ -254,7 +181,14 @@ def test_spec_blocked_gate_reason_points_to_envelope(tmp_path, monkeypatch):
     rs = _run_state(str(pilot))
     chunk = _chunk()
     observed = _observed()
-    _stub_loop(mod, monkeypatch, chunk, tmp_path, observed)
+    _stub_loop(
+        mod, monkeypatch, chunk, tmp_path, observed,
+        regenerated_test_is_green=False,
+        executor_result="RESULT: SPEC_OR_TEST_BLOCKED\n\nThe spec is contradictory.",
+        verify_green_fails=True,
+        produce_bundle=False,
+        stub_run_validators=True,
+    )
 
     ev = tmp_path / "ev"
     ev.mkdir()
@@ -288,7 +222,14 @@ def test_main_exits_6_on_blocked(tmp_path, monkeypatch):
     chunk = _chunk()
     rs.chunks = [chunk]
     observed = _observed()
-    _stub_loop(mod, monkeypatch, chunk, tmp_path, observed)
+    _stub_loop(
+        mod, monkeypatch, chunk, tmp_path, observed,
+        regenerated_test_is_green=False,
+        executor_result="RESULT: SPEC_OR_TEST_BLOCKED\n\nThe spec is contradictory.",
+        verify_green_fails=True,
+        produce_bundle=False,
+        stub_run_validators=True,
+    )
 
     # Stub the pre-chunk steps that _main_inner runs before the loop.
     monkeypatch.setattr(mod, "write_checkpoint", lambda *a, **k: None)

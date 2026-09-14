@@ -990,6 +990,7 @@ def test_prompt_templates_render_against_minimal_context(tmp_path):
         "commit": "abc1234",
         "evidence_bundle_path": "/tmp/bundle.json",
         "commands": "pytest test/test_x.py -v",
+        "enabled_tools": "Read,Glob,Grep,LS,Edit,Create,ApplyPatch,Execute",
         "verify_and_harden_directive": "",
         "prior_implementation_rejection": "",
     }

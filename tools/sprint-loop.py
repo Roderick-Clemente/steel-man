@@ -1171,6 +1171,63 @@ def _format_finding_for_human(
 # ── step: reconcile (human gate) ────────────────────────────────────────
 
 
+def _apply_force_accept_disposition(
+    rs: RunState,
+    *,
+    exit_code: int,
+    force_accept_reason: str,
+    checkpoint_path: str | None = None,
+) -> None:
+    """Record an explicit operator disposition for a §5.3 force-accept override.
+
+    Builds the audit record (which findings were overridden + the operator's
+    reason), stamps it on ``RunState``, appends telemetry rows, and surfaces
+    the disposition to stderr. If ``checkpoint_path`` is set, the disposition
+    is also persisted to a checkpoint before the gate proceeds — the caller
+    decides whether this override branch is resumable.
+    """
+    open_blockers = [
+        f for f in rs.plan_findings
+        if f.status == "open" and f.severity in ("blocker", "high")
+    ]
+    disposition_lines = [
+        f"FORCE-ACCEPT DISPOSITION — {now_iso()}",
+        f"Operator reason: {force_accept_reason or '(not provided)'}",
+        f"§5.3 refusal code: {exit_code}",
+    ]
+    if exit_code == 4:
+        disposition_lines.append(
+            f"Overridden blocker|high findings ({len(open_blockers)}):"
+        )
+        for f in open_blockers:
+            disposition_lines.extend(
+                _format_finding_for_human(f, detailed=True, indent="  ").splitlines()
+            )
+    elif exit_code == 5:
+        disposition_lines.append(
+            "Overridden: no reviewer APPROVE bound to current plan_sha256."
+        )
+    rs.force_accept = True
+    rs.force_accept_reason = force_accept_reason
+    rs.force_accept_disposition = "\n".join(disposition_lines)
+    _append_disposition_rows(
+        rs,
+        open_blockers,
+        "overridden",
+        force_accept_reason or "(not provided)",
+        os.path.join(rs.framework_root, "telemetry", "dispositions.jsonl"),
+    )
+    print(
+        f"  [force-accept] §5.3 refused (exit {exit_code}); "
+        f"operator override active. Disposition recorded.",
+        file=sys.stderr,
+    )
+    for line in disposition_lines:
+        print(f"    {line}", file=sys.stderr)
+    if checkpoint_path:
+        write_checkpoint(rs, checkpoint_path)
+
+
 def reconcile_human_gate(
     rs: RunState,
     *,
@@ -1266,48 +1323,12 @@ def reconcile_human_gate(
             # with ACCEPT. The disposition is stamped on the RunState
             # so the checkpoint captures it (§11 audit trail).
             if force_accept and unattended and e.code in (4, 5):
-                open_blockers = [
-                    f for f in rs.plan_findings
-                    if f.status == "open" and f.severity in ("blocker", "high")
-                ]
-                disposition_lines = [
-                    f"FORCE-ACCEPT DISPOSITION — {now_iso()}",
-                    f"Operator reason: {force_accept_reason or '(not provided)'}",
-                    f"§5.3 refusal code: {e.code}",
-                ]
-                if e.code == 4:
-                    disposition_lines.append(
-                        f"Overridden blocker|high findings ({len(open_blockers)}):"
-                    )
-                    for f in open_blockers:
-                        disposition_lines.extend(
-                            _format_finding_for_human(
-                                f, detailed=True, indent="  "
-                            ).splitlines()
-                        )
-                elif e.code == 5:
-                    disposition_lines.append(
-                        "Overridden: no reviewer APPROVE bound to current plan_sha256."
-                    )
-                disposition = "\n".join(disposition_lines)
-                rs.force_accept = True
-                rs.force_accept_reason = force_accept_reason
-                rs.force_accept_disposition = disposition
-                _append_disposition_rows(
-                    rs, open_blockers, "overridden",
-                    force_accept_reason or "(not provided)",
-                    os.path.join(rs.framework_root, "telemetry", "dispositions.jsonl"),
+                _apply_force_accept_disposition(
+                    rs,
+                    exit_code=e.code,
+                    force_accept_reason=force_accept_reason,
+                    checkpoint_path=os.path.join(evidence_dir, "checkpoint.json"),
                 )
-                print(
-                    f"  [force-accept] §5.3 refused (exit {e.code}); "
-                    f"operator override active. Disposition recorded.",
-                    file=sys.stderr,
-                )
-                for line in disposition_lines:
-                    print(f"    {line}", file=sys.stderr)
-                # Write checkpoint with the disposition before proceeding.
-                cp_path = os.path.join(evidence_dir, "checkpoint.json")
-                write_checkpoint(rs, cp_path)
                 return ReconcileDecision.ACCEPT
 
             if unattended and e.code == 4:
@@ -1386,41 +1407,10 @@ def reconcile_human_gate(
             _enforce_5_3_preconditions(rs)
         except SystemExit as e:
             if force_accept and e.code in (4, 5):
-                open_blockers = [
-                    f for f in rs.plan_findings
-                    if f.status == "open" and f.severity in ("blocker", "high")
-                ]
-                disposition_lines = [
-                    f"FORCE-ACCEPT DISPOSITION — {now_iso()}",
-                    f"Operator reason: {force_accept_reason or '(not provided)'}",
-                    f"§5.3 refusal code: {e.code}",
-                ]
-                if e.code == 4:
-                    disposition_lines.append(
-                        f"Overridden blocker|high findings ({len(open_blockers)}):"
-                    )
-                    for f in open_blockers:
-                        disposition_lines.extend(
-                            _format_finding_for_human(
-                                f, detailed=True, indent="  "
-                            ).splitlines()
-                        )
-                elif e.code == 5:
-                    disposition_lines.append(
-                        "Overridden: no reviewer APPROVE bound to current plan_sha256."
-                    )
-                rs.force_accept = True
-                rs.force_accept_reason = force_accept_reason
-                rs.force_accept_disposition = "\n".join(disposition_lines)
-                _append_disposition_rows(
-                    rs, open_blockers, "overridden",
-                    force_accept_reason or "(not provided)",
-                    os.path.join(rs.framework_root, "telemetry", "dispositions.jsonl"),
-                )
-                print(
-                    f"  [force-accept] §5.3 refused (exit {e.code}); "
-                    f"operator override active. Disposition recorded.",
-                    file=sys.stderr,
+                _apply_force_accept_disposition(
+                    rs,
+                    exit_code=e.code,
+                    force_accept_reason=force_accept_reason,
                 )
                 return ReconcileDecision.ACCEPT
             raise
@@ -2144,36 +2134,6 @@ def guard_in_uncommitted_state(evidence_dir: str = "") -> None:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    # Pass-r3 finding H-8 fix: when ``--help`` is requested, surface
-    # BOTH the runner-only flags AND the Config-side flags by calling
-    # each parser's formatter separately. argparse's stock ``--help``
-    # only sees the first parser, and the runner previously exposed
-    # operator-critical flags (--validators, --planner-model,
-    # --allow-single-family, …) only via build_config's hidden parser.
-    raw_argv = sys.argv[1:] if argv is None else argv
-    if "--help" in raw_argv or "-h" in raw_argv:
-        runner_help = _runner_argparser().format_help()
-        # Render build_config's parser help too.
-        try:
-            from sprint_loop.config import build_config  # noqa: F401
-
-            argparse.ArgumentParser(prog="(config)")
-            # Reuse the same parser that build_config uses.
-            cfg_help_parser_help = _format_build_config_help()
-        except Exception:
-            cfg_help_parser_help = ""
-        print(runner_help)
-        if cfg_help_parser_help:
-            print()
-            print("-- Below: Config-side flags (also accepted) --")
-            print(cfg_help_parser_help)
-        return 0
-
-    parser = _runner_argparser()
-    ns, _unknown = parser.parse_known_args(argv)
-
-
 def _runner_argparser() -> argparse.ArgumentParser:
     """The runner-only flag set: anything not seen by build_config's
     parser. Lives here so the ``--help`` surface and the actual
@@ -2238,30 +2198,6 @@ def _runner_argparser() -> argparse.ArgumentParser:
                              "row of this run (SCHEMA.md v3 ``run_label``). "
                              "Defaults to the run_id.")
     return parser
-
-
-def _format_build_config_help() -> str:
-    """Render build_config's parser help text for ``--help`` output.
-
-    The pattern: instantiate the parser via a no-args call, capture
-    ``.format_help()``. This must match build_config()'s parser shape
-    exactly; the cleanest way is to refactor build_config() to call a
-    helper that returns a parser. Pass-r3 was right that the
-    operator-visible surface is the test bar; the test pins what an
-    operator sees.
-    """
-    try:
-        build_config(["--help-empty-shell"])
-    except SystemExit:
-        # build_config's parser does NOT consume --help-empty-shell
-        # usefully; we want to render the help text without consuming
-        # real argv. Build a synthetic parser that mirrors build_config's
-        # argument set. The simplest faithful approach: call build_config
-        # with the absolute minimum argv to drive its parser, then catch
-        # SystemExit(0) from --help, but parse with an alternative we
-        # assemble here.
-        return _format_build_config_help_synthetic()
-    return ""
 
 
 def _format_build_config_help_synthetic() -> str:
@@ -2379,7 +2315,7 @@ def _format_build_config_help_synthetic() -> str:
 _CURRENT_RUN_STATE: RunState | None = None
 
 
-def main(argv: list[str] | None = None) -> int:  # noqa: F811
+def main(argv: list[str] | None = None) -> int:
     """Top-level runner entrypoint.
 
     Thin wrapper around ``_main_inner`` whose only job is to guarantee
