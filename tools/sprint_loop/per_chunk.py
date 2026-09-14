@@ -623,7 +623,7 @@ def run_validators(
         full_suite_command=full_suite_command,
         run_id=rs.run_id,
         phase=rs.run_id.split("-")[0] if "-" in rs.run_id else "phase-4.5",
-        branch="factory/phase-4.5-loop-runner",
+        branch=_git_branch(rs.framework_root),
     )
     chunk.validator_run_ids = [
         v.get("label") or v.get("model") or "<unknown>" for v in res.validators

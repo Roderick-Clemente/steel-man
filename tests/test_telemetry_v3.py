@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -58,6 +59,17 @@ def _load_sprint_loop_module():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def _schema_md() -> str:
+    return open(os.path.join(_REPO, "telemetry", "SCHEMA.md")).read()
+
+
+def _schema_enum_members(field_name: str) -> list[str]:
+    schema = _schema_md()
+    match = re.search(rf"\| `{re.escape(field_name)}`\s+\| enum\s+\| ([^\n|]+) \|", schema)
+    assert match, f"{field_name} enum row missing from SCHEMA.md"
+    return re.findall(r"`([^`]+)`", match.group(1))
 
 
 def _make_rs(tmp_path, **overrides) -> RunState:
@@ -270,6 +282,47 @@ def test_aggregate_schema_check_rejects_unknown_version(tmp_path):
     r = _run_schema_check(tmp_path)
     assert r.returncode == 1
     assert "1 rows have schema_version" in r.stderr
+
+
+def test_schema_front_matter_declares_v3_rows():
+    schema = _schema_md()
+    assert (
+        '| `schema_version` | string | yes | `"v3"` for rows written by the Phase 4.5 runner; '
+        '`"v2"` for older Phase 3.2+ rows; `"v1"` for legacy rows. |'
+    ) in schema
+
+
+def test_schema_disposition_enum_documents_overridden():
+    schema = _schema_md()
+    assert (
+        '| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` '
+        '/ `deferred` / `wontfix` / `reverted` / `overridden` |'
+    ) in schema
+
+
+def test_schema_phase_step_enum_matches_current_emitters():
+    assert _schema_enum_members("phase_step") == [
+        "plan",
+        "plan-review",
+        "test-design",
+        "execute",
+    ]
+
+
+def test_schema_reached_phase_step_enum_matches_current_emitters():
+    assert _schema_enum_members("reached_phase_step") == [
+        "start",
+        "planner",
+        "plan-review",
+        "reconcile",
+        "chunking",
+        "chunk-execution",
+        "red-gate",
+        "execute",
+        "verify-green",
+        "validate",
+        "completed",
+    ]
 
 
 # ── (e) RunRecord.to_telemetry_row v3 shape ──────────────────────────────

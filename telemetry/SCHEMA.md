@@ -8,7 +8,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 
 | key            | type    | required | note |
 |---             |---      |---       |---   |
-| `schema_version` | string | yes | `"v2"` for rows written from Phase 3.2 onward; `"v1"` for legacy rows. |
+| `schema_version` | string | yes | `"v3"` for rows written by the Phase 4.5 runner; `"v2"` for older Phase 3.2+ rows; `"v1"` for legacy rows. |
 | `ts`             | ISO-8601 datetime UTC | yes | the time the row was appended. |
 
 ## runs.jsonl — one row per `droid exec` invocation
@@ -67,7 +67,7 @@ The aggregator (`telemetry/aggregate.py`) reads these paths from `$TELEMETRY_DAT
 | key                       | type     | required | note |
 |---                        |---       |---       |---   |
 | `finding_id`              | string   | yes | matches `findings.jsonl` |
-| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` / `deferred` / `wontfix` / `reverted` |
+| `disposition`             | enum     | yes | `fixed` / `wontfix-with-reason` / `deferred` / `wontfix` / `reverted` / `overridden` |
 | `disposition_reason`      | string   | when `wontfix-with-reason` | the explicit reason |
 | `disposition_commit_sha`  | string   | yes | the commit that closed (or tracked) the finding |
 | `disposition_model_id`    | string   | yes | the model that wrote the fix |
@@ -142,7 +142,7 @@ aggregator accepts `schema_version` in `{v1, v2, v3}`.
    | `finished_at`       | ISO-8601 | wall-clock end of the invocation |
    | `run_label`         | string | experiment arm / operator label (`--run-label`; defaults to the run_id) |
    | `chunk_id`          | string | set on per-chunk seats (`test-designer`, `executor`); absent on plan-level seats |
-   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `execute` / `validate` |
+   | `phase_step`        | enum   | `plan` / `plan-review` / `test-design` / `execute` |
    | `verdict_text_first_240` | string | existing key, carried on the in-memory `RunRecord`; emitted only when non-empty. The Phase 4.5 runner does not yet populate it (the reviewer verdict is parsed after the row is appended). |
 
    `branch` is now the actual `git branch --show-current` of the framework

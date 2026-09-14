@@ -631,6 +631,16 @@ def test_droid_live_record_preserves_curated_family_label(tmp_path, monkeypatch)
     assert row["provider"] != row["family"]
 
 
+def test_droid_live_record_notes_success_exit_code(tmp_path, monkeypatch):
+    record = _invoke_live_record(
+        monkeypatch,
+        tmp_path,
+        model_id="gpt-5.4-mini",
+        provider_lock="openai",
+    )
+    assert record.note == "droid exec returned exit=0"
+
+
 def test_post_resolution_recheck_refuses_same_family_collision_from_live_record(
     tmp_path, monkeypatch
 ):
@@ -1209,6 +1219,75 @@ def test_per_chunk_local_backend_dry_run_propagates_gate(tmp_path):
     assert "dry-run" in res.reason
     assert os.path.isfile(res.summary_path)
     assert len(res.validators) == 2
+
+
+def test_run_validators_passes_real_framework_branch_to_backend(tmp_path, monkeypatch):
+    from sprint_loop import per_chunk
+    from sprint_loop.backends import BackendResult
+    from sprint_loop.state import ChunkState, GateDecision, Role, RoleAssignment, RunState
+
+    fw_root = tmp_path / "fw"
+    pilot_root = tmp_path / "pilot"
+    fw_root.mkdir()
+    pilot_root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(fw_root), check=True, capture_output=True)
+    subprocess.run(
+        ["git", "checkout", "-q", "-b", "factory/validator-real-branch"],
+        cwd=str(fw_root),
+        check=True,
+        capture_output=True,
+    )
+
+    chunk = ChunkState(
+        chunk_id="c1",
+        scope="add /llms.txt",
+        locked_test_files=["test/test_x.py"],
+        lock_manifest_path=str(tmp_path / "fake.lock.json"),
+        locked_test_sha="dry-run-sha",
+        evidence_bundle_path=str(tmp_path / "fake-bundle.json"),
+    )
+    rs = RunState(
+        run_id="r-test",
+        started_at="2026-08-09T00:00:00Z",
+        framework_root=str(fw_root),
+        pilot_root=str(pilot_root),
+        pilot_python="/usr/bin/python3",
+        validators=[
+            RoleAssignment(
+                role=Role.VALIDATOR,
+                pinned_model_id="grok-4.5",
+                pinned_family="grok-family",
+                pinned_provider="xai",
+                enabled_tools="Read,Glob,Grep,LS",
+            ),
+        ],
+    )
+
+    captured: dict[str, str] = {}
+
+    class FakeBackend:
+        def __init__(self, dry_run: bool = False):
+            self.dry_run = dry_run
+
+        def validate(self, **kwargs):
+            captured["branch"] = kwargs["branch"]
+            return BackendResult(
+                gate=GateDecision.ACCEPT,
+                reason="ok",
+                validators=[{"label": "grok-4.5"}],
+            )
+
+    monkeypatch.setattr(per_chunk, "LocalBackend", FakeBackend)
+
+    res = per_chunk.run_validators(
+        chunk,
+        rs,
+        evidence_output_dir=str(tmp_path / "evidence"),
+        dry_run=False,
+    )
+
+    assert captured["branch"] == "factory/validator-real-branch"
+    assert res.gate == GateDecision.ACCEPT
 
 
 # ── sprint-loop runner end-to-end (Chunk 5) ─────────────────────────────

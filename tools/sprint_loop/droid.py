@@ -104,7 +104,7 @@ class RunRecord:
                                  # | transient-exhausted | dry-run
     run_label: str = ""          # experiment arm / run label
     chunk_id: str = ""
-    phase_step: str = ""         # plan | plan-review | red-gate | execute | validate
+    phase_step: str = ""         # plan | plan-review | test-design | execute
     verdict_text_first_240: str = ""
     provenance: dict[str, Any] = field(default_factory=dict)
 
@@ -478,7 +478,7 @@ def invoke_droid(
         envelope_raw_bytes=os.path.getsize(envelope_path_abs),
         started_at=started_at,
         finished_at=finished_at,
-        note=f"droid exec returned exit={result.returncode}" if "result" in locals() else "",
+        note=f"droid exec returned exit={result.returncode}",
         seat_outcome="ok",
     )
 
