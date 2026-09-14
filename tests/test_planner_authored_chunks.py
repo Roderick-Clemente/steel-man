@@ -179,7 +179,7 @@ def _render_plan_prompt(mod, monkeypatch, tmp_path, *, chunks_file: str) -> str:
         evidence_dir=str(evidence_dir),
         dry_run=False,
     )
-    return (evidence_dir / "plan-prompt.md").read_text()
+    return (evidence_dir / f"plan-prompt-r{rs.plan_round}.md").read_text()
 
 
 def test_rendered_prompt_contains_the_authored_contract(tmp_path, monkeypatch):

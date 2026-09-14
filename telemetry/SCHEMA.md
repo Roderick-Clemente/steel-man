@@ -167,7 +167,7 @@ aggregator accepts `schema_version` in `{v1, v2, v3}`.
    | `exit_code`             | int      | process exit code |
    | `run_status`            | string   | final `RunStatus` value |
    | `status_message`        | string   | last operator-facing status text |
-   | `reached_phase_step`    | enum     | furthest step reached: `start` / `planner` / `plan-review` / `reconcile` / `chunking` / `chunk-execution` / `red-gate` / `execute` / `verify-green` / `validate` / `completed` |
+   | `reached_phase_step`    | enum     | furthest step reached: `start` / `planner` / `plan-review` / `reconcile` / `chunking` / `chunk-execution` / `test-design` / `red-gate` / `execute` / `verify-green` / `validate` / `completed` |
    | `findings_total`        | int      | plan-level findings count |
    | `findings_by_severity`  | object   | `{severity: count}` |
    | `plan_reviewer_verdicts`| object[] | `{model_id, verdict, bound_to_plan}`; `bound_to_plan` is whether the verdict's plan_sha256 matches the final plan |

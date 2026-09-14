@@ -296,7 +296,7 @@ def test_planner_supersedes_prior_findings_so_round_two_can_accept(tmp_path):
     assert rs.plan_findings[0].status == "superseded"
     assert "superseded" in rs.plan_findings[0].disposition_rationale
     # ... and the finding is still there, in the prompt the planner saw.
-    prompt = (tmp_path / "plan-prompt.md").read_text()
+    prompt = (tmp_path / "plan-prompt-r2.md").read_text()
     assert OBSERVED_RISK in prompt
 
 

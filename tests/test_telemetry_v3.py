@@ -317,6 +317,7 @@ def test_schema_reached_phase_step_enum_matches_current_emitters():
         "reconcile",
         "chunking",
         "chunk-execution",
+        "test-design",
         "red-gate",
         "execute",
         "verify-green",

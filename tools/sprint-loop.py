@@ -51,6 +51,7 @@ OPERATING-RULES applied (see tools/OPERATING-RULES.md for the full list):
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import json
 import os
@@ -94,6 +95,7 @@ from sprint_loop.per_chunk import (  # noqa: E402
     invoke_executor,
     invoke_test_designer,
     lock_test,
+    parse_accepted_assertion,
     produce_evidence,
     render_executor_prompt,
     render_test_designer_prompt,
@@ -167,46 +169,45 @@ def load_checkpoint(path: str) -> RunState:
         raise SystemExit(f"--resume-from file missing: {path}")
     with open(path) as f:
         data = json.load(f)
-    # Restore minimal RunState (we only need the fields the runner
-    # looks at after a pause — start_at, run_id, status, current
-    # chunk, plan path/chunks, etc.). Full re-resolve of every role
-    # assignment is reconstructed from the Config at runtime.
+
+    # Required constructor args.
     rs = RunState(
         run_id=data["run_id"],
         started_at=data["started_at"],
         framework_root=data["framework_root"],
         pilot_root=data["pilot_root"],
         pilot_python=data["pilot_python"],
-        current_chunk_index=data.get("current_chunk_index", 0),
     )
-    rs.plan_doc_path = data.get("plan_doc_path", "")
-    rs.plan_sha256 = data.get("plan_sha256", "")
-    rs.status = RunStatus(data.get("status", "PENDING"))
-    rs.output_branch = data.get("output_branch", "")
-    rs.commit_count = data.get("commit_count", 0)
-    # Pass-r3 finding H-5 fix: persist on write_checkpoint already;
-    # restore here. Without this, ``plan_round`` resets to 0 (so the
-    # resume restarts the planner + reviewers at full cost),
-    # ``plan_reviewer_verdicts`` is empty (so §5.3 enforcement
-    # SystemExit(5)s and the resume never accepts), and ``dry_run``
-    # defaults to False (so a ``--dry-run --resume-from`` run
-    # performs real git commits against code that was simulated).
-    rs.plan_round = data.get("plan_round", 0)
-    rs.plan_reviewer_verdicts = data.get("plan_reviewer_verdicts", [])
-    rs.dry_run = bool(data.get("dry_run", False))
-    rs.max_review_rounds = int(data.get("max_review_rounds", 2))
-    rs.retry_threshold = int(data.get("retry_threshold", 1))
-    rs.max_auto_retries = int(data.get("max_auto_retries", 2))
-    rs.retry_delay_seconds = int(data.get("retry_delay_seconds", 5))
-    rs.per_call_timeout_seconds = int(data.get("per_call_timeout_seconds", 0))
-    rs.verify_mode = bool(data.get("verify_mode", False))
-    rs.force_accept = bool(data.get("force_accept", False))
-    rs.force_accept_reason = data.get("force_accept_reason", "")
-    rs.force_accept_disposition = data.get("force_accept_disposition", "")
-    rs.skip_reconcile = bool(data.get("skip_reconcile", False))
-    rs.unattended = bool(data.get("unattended", False))
-    rs.run_label = data.get("run_label", "") or rs.run_id
-    rs.reached_phase_step = data.get("reached_phase_step", "start")
+
+    # Field-driven restore: iterate dataclass fields so any future
+    # RunState field round-trips automatically. Role assignments are
+    # reconstructed from the Config at runtime; plan_findings and chunks
+    # need special-case deserialization (nested dataclasses / enums).
+    _SKIP = frozenset({
+        # Required constructor args (already set above).
+        "run_id", "started_at", "framework_root", "pilot_root", "pilot_python",
+        # Role assignments: reconstructed from Config at runtime.
+        "planner", "plan_reviewer", "plan_reviewer_2",
+        "test_designer", "executor", "validators",
+        # Complex nested types handled below.
+        "plan_findings", "chunks",
+    })
+    _ENUM_MAP: dict[str, type] = {"status": RunStatus}
+
+    for fld in dataclasses.fields(RunState):
+        if fld.name in _SKIP or fld.name not in data:
+            continue
+        raw = data[fld.name]
+        if fld.name in _ENUM_MAP:
+            setattr(rs, fld.name, _ENUM_MAP[fld.name](raw))
+        else:
+            setattr(rs, fld.name, raw)
+
+    # run_label: default to run_id when missing or empty.
+    if not rs.run_label:
+        rs.run_label = rs.run_id
+
+    # plan_findings: nested Finding dataclasses.
     if data.get("plan_findings"):
         rs.plan_findings = [
             Finding(
@@ -228,16 +229,52 @@ def load_checkpoint(path: str) -> RunState:
             )
             for f in data["plan_findings"]
         ]
+
+    # chunks: field-driven restore mirroring the RunState approach.
+    _CHUNK_SKIP = frozenset({"chunk_id", "scope", "findings", "verify_mode"})
+    _CHUNK_ENUM_MAP: dict[str, type] = {"status": ChunkStatus}
+
     if data.get("chunks"):
         for c in data["chunks"]:
             cs = ChunkState(chunk_id=c["chunk_id"], scope=c.get("scope", ""))
-            for k in ("observable_criteria", "allowed_files", "locked_test_files", "commands"):
-                setattr(cs, k, c.get(k, []))
-            cs.accepted_assertion = c.get("accepted_assertion", "")
-            cs.lock_manifest_path = c.get("lock_manifest_path", "")
-            cs.locked_test_sha = c.get("locked_test_sha", "")
-            cs.evidence_bundle_path = c.get("evidence_bundle_path", "")
-            cs.status = ChunkStatus(c.get("status", "PENDING"))
+            for fld in dataclasses.fields(ChunkState):
+                if fld.name in _CHUNK_SKIP or fld.name not in c:
+                    continue
+                raw = c[fld.name]
+                if fld.name in _CHUNK_ENUM_MAP:
+                    setattr(cs, fld.name, _CHUNK_ENUM_MAP[fld.name](raw))
+                elif fld.name == "gate_decision":
+                    # gate_decision is GateDecision | None; serialized as
+                    # a string value or null.
+                    setattr(cs, fld.name, GateDecision(raw) if raw else None)
+                else:
+                    setattr(cs, fld.name, raw)
+            # findings: nested Finding dataclasses, same shape as
+            # plan_findings.
+            if c.get("findings"):
+                cs.findings = [
+                    Finding(
+                        finding_id=f.get("finding_id", ""),
+                        severity=f.get("severity", ""),
+                        category=f.get("category", ""),
+                        claim=f.get("claim", ""),
+                        evidence=f.get("evidence", []),
+                        recommended_change=f.get("recommended_change", ""),
+                        source_role=f.get("source_role", "reviewer"),
+                        source_run_id=f.get("source_run_id", ""),
+                        source_model_id=f.get("source_model_id", ""),
+                        source_family=f.get("source_family", ""),
+                        first_seen_in_panel_position=f.get(
+                            "first_seen_in_panel_position", 1
+                        ),
+                        status=f.get("status", "open"),
+                        disposition_rationale=f.get("disposition_rationale", ""),
+                        plan_section=f.get("plan_section", ""),
+                        risk_if_ignored=f.get("risk_if_ignored", ""),
+                    )
+                    for f in c["findings"]
+                ]
+            # verify_mode: inherit from run-level flag (deliberate OR).
             cs.verify_mode = bool(c.get("verify_mode", False)) or rs.verify_mode
             # A resume must not silently hand the test-design budget back:
             # the bounces already spent are part of the chunk's state.
@@ -246,6 +283,7 @@ def load_checkpoint(path: str) -> RunState:
             cs.test_design_retry_count = int(c.get("test_design_retry_count", 0))
             cs.rejection_feedback_source = c.get("rejection_feedback_source", "")
             rs.chunks.append(cs)
+
     return rs
 
 
@@ -511,7 +549,8 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     status_banner("STEP 1 · Planner (GROK)")
     state_status(rs, "planner role active")
 
-    plan_doc_path = os.path.join(evidence_dir, "plan.md")
+    rnd = rs.plan_round
+    plan_doc_path = os.path.join(evidence_dir, f"plan-r{rnd}.md")
     rendered_path = render_to_file(
         "planner",
         {
@@ -520,7 +559,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
             "authored_chunks": _format_authored_chunks(rs.chunks_file),
             "prior_findings": _format_prior_findings(rs.plan_findings),
         },
-        os.path.join(evidence_dir, "plan-prompt.md"),
+        os.path.join(evidence_dir, f"plan-prompt-r{rnd}.md"),
     )
 
     # A finding is raised against one plan_sha256. The plan about to be
@@ -539,8 +578,8 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
                 f"{rs.plan_round - 1}, which this round replaces"
             )
 
-    env_path = os.path.join(evidence_dir, "planner-envelope.json")
-    stderr_path = os.path.join(evidence_dir, "planner-stderr.log")
+    env_path = os.path.join(evidence_dir, f"planner-envelope-r{rnd}.json")
+    stderr_path = os.path.join(evidence_dir, f"planner-stderr-r{rnd}.log")
     options = InvokeOptions(
         model_id=rs.planner.pinned_model_id or "claude-opus-5",
         auto_level=rs.planner.auto_level,
@@ -768,7 +807,8 @@ def run_plan_reviewer(
     )
     state_status(rs, f"reviewer {reviewer_index} role active")
 
-    reviewer_prompt_out = os.path.join(evidence_dir, f"{label}-prompt.md")
+    rnd = rs.plan_round
+    reviewer_prompt_out = os.path.join(evidence_dir, f"{label}-r{rnd}-prompt.md")
     rendered_path = render_to_file(
         "plan-reviewer",
         {
@@ -783,8 +823,8 @@ def run_plan_reviewer(
     # see the first reviewer's output. The runner does NOT inject the
     # prior findings into the prompt; the test on that is in KNOWN-ISSUES.
 
-    env_path = os.path.join(evidence_dir, f"{label}-envelope.json")
-    stderr_path = os.path.join(evidence_dir, f"{label}-stderr.log")
+    env_path = os.path.join(evidence_dir, f"{label}-r{rnd}-envelope.json")
+    stderr_path = os.path.join(evidence_dir, f"{label}-r{rnd}-stderr.log")
     options = InvokeOptions(
         model_id=reviewer.pinned_model_id,
         auto_level=reviewer.auto_level,
@@ -1685,7 +1725,7 @@ def run_chunk_inner(
         render_test_designer_prompt(
             chunk, rs, _read_pilot_spec_text(rs), output_path=td_prompt_path
         )
-        invoke_test_designer(
+        td_result = invoke_test_designer(
             chunk,
             rs,
             evidence_output_dir=evidence_output_dir,
@@ -1694,6 +1734,22 @@ def run_chunk_inner(
             dry_run=dry_run,
             phase_step="test-design-rerun" if redesign_round else "test-design",
         )
+        # Parse the ACCEPTED_ASSERTION from the designer's result text.
+        # The chunk spec may already carry one (from chunks_file); the
+        # designer's emit overrides it — the designer is the authority
+        # on what phrase appears in the test it just wrote.
+        parsed = parse_accepted_assertion(td_result.get("result_text", ""))
+        if parsed:
+            chunk.accepted_assertion = parsed
+        elif not chunk.accepted_assertion:
+            print(
+                f"  [warn] test-designer for chunk {chunk.chunk_id} did "
+                f"not emit ACCEPTED_ASSERTION and no assertion was "
+                f"pre-set; lock_test / validate_red will use the chunk "
+                f"scope as a fallback.",
+                file=sys.stderr,
+            )
+
         if not dry_run and (
             not os.path.isfile(test_file_abs) or os.path.getsize(test_file_abs) == 0
         ):

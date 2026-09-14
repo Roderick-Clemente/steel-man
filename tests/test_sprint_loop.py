@@ -1370,10 +1370,10 @@ def test_sprint_loop_dry_run_end_to_end(tmp_path):
     runs = list(evidence_root.glob("r-phase45-*"))
     assert runs, f"no evidence dir under {evidence_root}"
     run_dir = runs[0]
-    assert (run_dir / "plan.md").is_file()  # plan was written
-    assert (run_dir / "planner-envelope.json").is_file()
-    assert (run_dir / "plan-reviewer-1-envelope.json").is_file()
-    assert (run_dir / "plan-reviewer-2-envelope.json").is_file()
+    assert (run_dir / "plan-r1.md").is_file()  # plan was written
+    assert (run_dir / "planner-envelope-r1.json").is_file()
+    assert (run_dir / "plan-reviewer-1-r1-envelope.json").is_file()
+    assert (run_dir / "plan-reviewer-2-r1-envelope.json").is_file()
     assert (run_dir / "reconcile-packet.txt").is_file()
     assert (run_dir / "c1" / "c1-bundle.json").is_file()  # evidence produced
     assert (run_dir / "c1" / "reviews" / "review-summary.json").is_file()  # validators ran

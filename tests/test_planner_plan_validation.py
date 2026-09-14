@@ -130,7 +130,9 @@ def _run_planner_with_result(mod, monkeypatch, tmp_path, result: str):
     stderr_path.write_text("")
 
     def fake_invoke(role, **kwargs):
-        return _fake_planner_record(kwargs["envelope_path"], str(stderr_path), result)
+        return _fake_planner_record(
+            kwargs["envelope_path"], kwargs.get("stderr_path", str(stderr_path)), result
+        )
 
     monkeypatch.setattr(mod, "invoke_droid", fake_invoke)
     monkeypatch.setattr(mod, "append_run_record", lambda record, **kwargs: None)
@@ -155,9 +157,9 @@ def test_run_planner_refuses_the_observed_stub(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError) as exc:
         _run_planner_with_result(mod, monkeypatch, tmp_path, OBSERVED_STUB)
     message = str(exc.value)
-    assert "planner-envelope.json" in message
-    assert "planner-stderr.log" in message
-    assert "plan.md" in message
+    assert "planner-envelope-r0.json" in message
+    assert "planner-stderr-r0.log" in message
+    assert "plan-r0.md" in message
     assert "may have reported success" in message
     assert "reads as a report about a plan rather than a plan" in message
 

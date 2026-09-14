@@ -58,7 +58,7 @@ SEPARATION_BINDING_ROLES: frozenset[Role] = frozenset(
 
 # Per-role default --enabled-tools allowlists (PRD §17.5).
 DEFAULT_ENABLED_TOOLS: dict[Role, str] = {
-    Role.PLANNER: "Read,Glob,Grep,LS,Execute",
+    Role.PLANNER: "Read,Glob,Grep,LS",
     Role.PLAN_REVIEWER: "Read,Glob,Grep,LS,Execute",
     # NOTE: every identifier here must be one the installed droid CLI
     # accepts. One unknown id rejects the whole call ("Unknown tool
