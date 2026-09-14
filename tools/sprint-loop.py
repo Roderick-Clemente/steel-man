@@ -124,6 +124,7 @@ from sprint_loop.state import (  # noqa: E402
     now_iso,
     validate_run_id,
 )
+from sprint_loop import vocab  # noqa: E402
 
 # ── git helpers (assert-on-reality per OPERATING-RULES §7/§15) ───────────
 
@@ -610,7 +611,7 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
     rs.planner.run_id = record.run_id
     record.provenance = run_provenance(rs)
     record.run_label = rs.run_label
-    record.phase_step = "plan"
+    record.phase_step = vocab.PHASE_PLAN
     append_run_record(
         record,
         phase="phase-4.5",
@@ -677,13 +678,16 @@ def run_planner(rs: RunState, *, pilot_spec_text: str, evidence_dir: str, dry_ru
 
 # ── steps: plan reviewer ─────────────────────────────────────────────────
 
-_VERDICT_RE = re.compile(r"\bVERDICT:\s*(APPROVE|APPROVE-WITH-NITS|REJECT)\b", re.IGNORECASE)
-# The executor emits a literal "RESULT: SPEC_OR_TEST_BLOCKED" line when it
-# believes the locked test is contradictory or the spec is unimplementable
-# (see tools/sprint_loop/prompts/executor.md). Same anchored-literal pattern
-# as _VERDICT_RE so the match is robust against surrounding prose.
-_SPEC_OR_TEST_BLOCKED_RE = re.compile(
-    r"\bRESULT:\s*SPEC_OR_TEST_BLOCKED\b", re.IGNORECASE
+_VERDICT_RE = re.compile(
+    vocab.tagged_line_pattern("VERDICT", vocab.PLAN_REVIEW_VERDICTS),
+    re.IGNORECASE | re.MULTILINE,
+)
+# Executor results follow the same last-tagged-line discipline as verdicts.
+# Parsing all supported signals prevents an earlier example or superseded
+# result from overriding the executor's final protocol line.
+_EXECUTOR_RESULT_RE = re.compile(
+    vocab.tagged_line_pattern("RESULT", vocab.EXECUTOR_RESULT_SIGNALS),
+    re.IGNORECASE | re.MULTILINE,
 )
 _FINDING_ID_RE = re.compile(
     r'"finding_id"\s*:\s*"F-[a-z0-9]+"',
@@ -699,15 +703,16 @@ _FINDING_ACTIONABLE_MAX = 1200
 
 
 def _is_spec_or_test_blocked(result_text: str) -> bool:
-    """True when the executor's result text carries a
-    ``RESULT: SPEC_OR_TEST_BLOCKED`` signal.
+    """True when the executor's last RESULT line is SPEC_OR_TEST_BLOCKED.
 
     The executor emits this when it believes the locked test is
     contradictory or the spec is unimplementable (see
-    ``tools/sprint_loop/prompts/executor.md``). Uses the same
-    anchored-regex pattern as ``_VERDICT_RE``.
+    ``tools/sprint_loop/prompts/executor.md``). Narrating the token or
+    superseding an earlier blocked result with ``RESULT: GREEN`` does not
+    block the chunk.
     """
-    return bool(_SPEC_OR_TEST_BLOCKED_RE.search(result_text or ""))
+    results = _EXECUTOR_RESULT_RE.findall(result_text or "")
+    return bool(results) and results[-1].upper() == vocab.RESULT_SPEC_OR_TEST_BLOCKED
 
 
 def _parse_finding_block(
@@ -854,7 +859,7 @@ def run_plan_reviewer(
     reviewer.run_id = record.run_id
     record.provenance = run_provenance(rs)
     record.run_label = rs.run_label
-    record.phase_step = "plan-review"
+    record.phase_step = vocab.PHASE_PLAN_REVIEW
     append_run_record(
         record,
         phase="phase-4.5",
@@ -1693,6 +1698,7 @@ def run_chunk_inner(
     # test is archived out of the pilot tree, which is what makes the
     # auto-fire path below re-author it.
     redesign_round = chunk.rejection_kind == REJECTION_TEST
+    implementation_retry_round = chunk.rejection_kind == REJECTION_IMPLEMENTATION
     chunk.rejection_kind = ""
     if redesign_round:
         moved = archive_superseded_test(
@@ -1732,7 +1738,11 @@ def run_chunk_inner(
             rendered_prompt_path=td_prompt_path,
             envelope_path=td_envelope_path,
             dry_run=dry_run,
-            phase_step="test-design-rerun" if redesign_round else "test-design",
+            phase_step=(
+                vocab.PHASE_TEST_DESIGN_RERUN
+                if redesign_round
+                else vocab.PHASE_TEST_DESIGN
+            ),
         )
         # Parse the ACCEPTED_ASSERTION from the designer's result text.
         # The chunk spec may already carry one (from chunks_file); the
@@ -1785,17 +1795,25 @@ def run_chunk_inner(
             dry_run=dry_run,
         )
     except RuntimeError as e:
-        if chunk.verify_mode or redesign_round:
-            # §5.3 verify-and-harden relaxation: the chunk scope says
-            # "changes already exist, verify and harden." If the locked
-            # test is already passing at HEAD (no valid RED because the
-            # implementation already exists), accept that as the starting
-            # state instead of treating it as a blocker. The executor
-            # still runs as a verify-and-harden pass.
+        if chunk.verify_mode or redesign_round or implementation_retry_round:
+            # A verify-and-harden chunk, a regenerated test, and an
+            # implementation retry may all be GREEN at HEAD. In particular,
+            # REJECT_IMPLEMENTATION happens only after verify_green succeeds,
+            # so GREEN is the required starting state for its retry rather
+            # than an invalid RED to route elsewhere. Confirm GREEN before
+            # relaxing the gate; every other validate-red failure remains a
+            # refusal.
+            relaxation = (
+                "implementation-retry"
+                if implementation_retry_round
+                else "test-redesign"
+                if redesign_round
+                else "verify-mode"
+            )
             print(
-                f"  [verify-mode] validate_red raised: {e}. "
+                f"  [{relaxation}] validate_red raised: {e}. "
                 f"Checking whether the test is already GREEN at HEAD "
-                f"(changes already exist → verify-and-harden pass).",
+                f"(expected existing implementation → verify-and-harden pass).",
                 file=sys.stderr,
             )
             try:
@@ -1806,7 +1824,7 @@ def run_chunk_inner(
                              dry_run=dry_run)
                 already_green = True
                 print(
-                    f"  [verify-mode] test already GREEN at HEAD for "
+                    f"  [{relaxation}] test already GREEN at HEAD for "
                     f"chunk {chunk.chunk_id}; executor will run as "
                     f"verify-and-harden pass.",
                     file=sys.stderr,
@@ -1817,7 +1835,7 @@ def run_chunk_inner(
                 # RED_REJECTED, even in verify mode.
                 chunk.status = ChunkStatus.RED_REJECTED
                 rs.status_message = (
-                    f"chunk {chunk.chunk_id} RED_REJECTED (verify-mode): "
+                    f"chunk {chunk.chunk_id} RED_REJECTED ({relaxation}): "
                     f"test not RED and not GREEN — {e}"
                 )
                 chunk.gate_decision = GateDecision.REJECT
@@ -1931,7 +1949,8 @@ def run_chunk_inner(
     # The gate collapses every REJECT* verdict to one REJECT; which seat
     # the rejection is directed at survives only in the per-validator
     # verdicts, so classify here and let run_chunk_with_retries route on it.
-    chunk.rejection_kind = classify_rejection(backend_result.validators)
+    validators = getattr(backend_result, "validators", [])
+    chunk.rejection_kind = classify_rejection(validators)
     if chunk.rejection_kind == REJECTION_TEST:
         chunk.test_design_feedback = [format_test_rejection_feedback(backend_result)]
     elif chunk.rejection_kind == REJECTION_IMPLEMENTATION:

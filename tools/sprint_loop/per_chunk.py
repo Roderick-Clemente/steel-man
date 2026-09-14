@@ -74,11 +74,17 @@ from sprint_loop.droid import (  # noqa: E402
 )
 from sprint_loop.prompts.render import render_to_file  # noqa: E402
 from sprint_loop.provenance import _git_branch, _git_sha, run_provenance  # noqa: E402
+from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
 from sprint_loop.state import (  # noqa: E402
     ChunkState,
     Role,
     RunState,
     hash_text,
+)
+from sprint_loop.vocab import (  # noqa: E402
+    PHASE_EXECUTE,
+    PHASE_TEST_DESIGN,
+    TEST_DIRECTED_VERDICTS,
 )
 
 # ── subprocess helpers ──────────────────────────────────────────────────
@@ -375,7 +381,13 @@ def produce_evidence(
             cmd.extend(["--security-allowlist", security_allowlist])
         if security_baseline:
             cmd.extend(["--security-baseline", security_baseline])
-    r = _run_step(cmd, "local_backend.py", timeout=300)
+    r = _run_step(
+        cmd,
+        "local_backend.py",
+        timeout=local_backend_timeout_seconds(
+            full_suite=full_suite, security_scan=security_scan
+        ),
+    )
     if r.returncode != 0:
         print(f"[evidence] local_backend.py stderr: {r.stderr[:300]!r}", file=sys.stderr)
         # local_backend.py exits non-zero on RED; surface a structured failure.
@@ -467,7 +479,7 @@ def invoke_test_designer(
     rendered_prompt_path: str,
     envelope_path: str,
     dry_run: bool = False,
-    phase_step: str = "test-design",
+    phase_step: str = PHASE_TEST_DESIGN,
 ) -> dict:
     """Invoke the test_designer droid role for this chunk.
 
@@ -561,7 +573,7 @@ def invoke_executor(
     if chunk.retry_count > 0 and chunk.rejection_feedback_source:
         tag = f"retry_feedback_source={chunk.rejection_feedback_source}"
         rr.note = f"{rr.note}; {tag}" if rr.note else tag
-    _emit_seat_row(rr, chunk, rs, "execute")
+    _emit_seat_row(rr, chunk, rs, PHASE_EXECUTE)
     return {"record": rr, "result_text": _read_envelope_result_text(rr.envelope_path)}
 
 
@@ -633,14 +645,6 @@ def run_validators(
 
 
 # ── rejection routing ────────────────────────────────────────────────────
-
-# Verdicts that name the LOCKED TEST, not the implementation, as the thing
-# at fault. ``orchestrate-review.py:step4_parse_verdicts`` recognises the
-# full vocabulary (ACCEPT, ACCEPT-WITH-NITS, REJECT_IMPLEMENTATION,
-# REJECT_TEST, REJECT, HUMAN_DECISION) but collapses every REJECT* to one
-# ``REJECT`` gate, so the distinction survives only in the per-validator
-# verdicts the summary carries.
-TEST_DIRECTED_VERDICTS: frozenset = frozenset({"REJECT_TEST"})
 
 REJECTION_TEST = "test"
 REJECTION_IMPLEMENTATION = "implementation"

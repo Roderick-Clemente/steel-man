@@ -84,11 +84,6 @@ ENVIRONMENT_SIGNATURES = [
     ),
 ]
 
-# Retained for callers and docs that refer to the combined list.
-INVALID_RED_SIGNATURES = (
-    COLLECTION_PHASE_SIGNATURES + TEST_QUALITY_SIGNATURES + ENVIRONMENT_SIGNATURES
-)
-
 # pytest section banners, e.g. `======= FAILURES =======`.
 _BANNER_RE = re.compile(r"^=+ (.*?) =+$", re.MULTILINE)
 
@@ -122,14 +117,20 @@ def collection_error_region(text: str) -> str:
 
 
 def outside_failures_region(text: str) -> str:
-    """Return the output minus the FAILURES bodies and minus every ``FAILED``
-    line. What is left is where a collection-phase signature cannot have come
-    from an assertion message: pytest's short summary repeats the assertion
-    text on its ``FAILED`` lines, so those are dropped too."""
+    """Return collection-relevant output, excluding failures and warnings.
+
+    Pytest's warnings summary routinely names source files such as
+    ``tests/conftest.py``. That is not collection evidence, so it must not
+    trigger a collection-phase signature for an otherwise executed failure.
+    """
     banners = list(_BANNER_RE.finditer(text))
     head = text[: banners[0].start()] if banners else text
     parts = [head]
-    parts.extend(body for title, body in pytest_sections(text) if title != "FAILURES")
+    parts.extend(
+        body
+        for title, body in pytest_sections(text)
+        if title != "FAILURES" and not title.lower().startswith("warnings summary")
+    )
     kept = "\n".join(parts).splitlines()
     return "\n".join(line for line in kept if not re.match(r"\s*FAILED\b", line))
 

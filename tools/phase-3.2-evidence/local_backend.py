@@ -68,6 +68,15 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from sprint_loop.config import SCRIPTS_ROOT, phase_path  # noqa: E402
+from sprint_loop.evidence_timeout import (  # noqa: E402
+    BANDIT_TIMEOUT_SECONDS,
+    COVERAGE_TIMEOUT_SECONDS,
+    GIT_METADATA_TIMEOUT_SECONDS,
+    PYTEST_TIMEOUT_SECONDS,
+    TOOL_VERSION_TIMEOUT_SECONDS,
+    VERIFY_GREEN_TIMEOUT_SECONDS,
+)
+from sprint_loop.regression import regression_refusal_reason  # noqa: E402
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -86,7 +95,12 @@ def compute_sha256(path: str) -> str:
 
 def get_tool_version(cmd: list[str], flag: str = "--version") -> str:
     try:
-        r = subprocess.run(cmd + [flag], capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            cmd + [flag],
+            capture_output=True,
+            text=True,
+            timeout=TOOL_VERSION_TIMEOUT_SECONDS,
+        )
         return r.stdout.strip().split("\n")[0] if r.stdout else r.stderr.strip()
     except Exception:
         return "unknown"
@@ -124,7 +138,9 @@ def run_verify_green(
         "--python",
         python,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=VERIFY_GREEN_TIMEOUT_SECONDS
+    )
 
     # verify-green.py prints "GREEN ACCEPTED" + sha on success
     output = result.stdout + result.stderr
@@ -155,12 +171,6 @@ def run_pytest(pilot_root: str, test_file: str, python: str) -> dict:
     args = [test_file] if test_file else []
     return run_pytest_args(pilot_root, args, python)
 
-
-# pytest's documented exit codes. 5 = no tests were collected, which for a
-# regression suite means the run proved nothing; 2/3/4 are interrupt, internal
-# error and usage error. None of them are a pass.
-PYTEST_EXIT_NO_TESTS_COLLECTED = 5
-PYTEST_EXIT_HARD_ERRORS = (2, 3, 4)
 
 # Reporting flags this producer must own: it parses the per-test
 # ``PASSED/FAILED/SKIPPED`` lines, so a declared command's ``-q`` (or a
@@ -212,35 +222,10 @@ def run_pytest_command(pilot_root: str, command: str, python: str) -> dict:
     return run_pytest_args(pilot_root, pytest_args_from_command(command), python)
 
 
-def regression_refusal_reason(fs: dict) -> str:
-    """Why a regression run is not evidence, or "" when it is real and green.
-
-    A run that collected nothing is the dangerous case: ``failed == 0`` reads
-    as a pass while nothing was executed, so it is refused by exit code rather
-    than by counter.
-    """
-    exit_code = fs.get("suite_exit_code", 1)
-    failed = fs.get("failed", 0)
-    collected = fs.get("passed", 0) + failed + fs.get("skipped", 0)
-    if failed:
-        return f"{failed} failure(s) (pytest exit {exit_code})"
-    if exit_code == PYTEST_EXIT_NO_TESTS_COLLECTED or collected == 0:
-        return (
-            f"collected no tests (pytest exit {exit_code}) — a regression run "
-            f"that executed nothing is not evidence that existing behaviour "
-            f"is unchanged"
-        )
-    if exit_code in PYTEST_EXIT_HARD_ERRORS:
-        return f"pytest did not complete (pytest exit {exit_code})"
-    if exit_code != 0:
-        return f"pytest exit {exit_code}"
-    return ""
-
-
 def run_pytest_args(pilot_root: str, args: list[str], python: str) -> dict:
     """Run pytest with this producer's reporting flags plus ``args``."""
     cmd = [python, "-m", "pytest", "-v", "--tb=line", "--no-header", *args]
-    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=PYTEST_TIMEOUT_SECONDS)
     output = result.stdout + result.stderr
 
     passed = failed = skipped = 0
@@ -298,7 +283,13 @@ def run_coverage(pilot_root: str, test_file: str, python: str) -> dict | None:
     """Attempt coverage via pytest-cov. Returns None if unavailable."""
     cmd = [python, "-m", "pytest", test_file, "--cov", "--cov-report=term", "-q"]
     try:
-        result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(
+            cmd,
+            cwd=pilot_root,
+            capture_output=True,
+            text=True,
+            timeout=COVERAGE_TIMEOUT_SECONDS,
+        )
         output = result.stdout
         # Parse "TOTAL  XX%"
         m = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", output)
@@ -330,7 +321,9 @@ def run_bandit(pilot_root: str, python: str) -> dict:
         "json",
         "-q",
     ]
-    result = subprocess.run(cmd, cwd=pilot_root, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        cmd, cwd=pilot_root, capture_output=True, text=True, timeout=BANDIT_TIMEOUT_SECONDS
+    )
     try:
         report = json.loads(result.stdout)
     except (json.JSONDecodeError, TypeError):
@@ -568,6 +561,7 @@ def main() -> int:
         cwd=args.pilot_root,
         capture_output=True,
         text=True,
+        timeout=GIT_METADATA_TIMEOUT_SECONDS,
     ).stdout.strip()
 
     tool_versions = {

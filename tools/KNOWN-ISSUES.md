@@ -819,7 +819,9 @@ git reset --hard <sha>^
 
 ## Issue KI-14: An invalid RED still retries the executor
 
-- **Status:** OPEN — narrow follow-up to the KI-13-adjacent routing work.
+- **Status:** PARTIALLY FIXED — implementation retries now recognize their
+  expected GREEN starting state; first-attempt invalid RED classification
+  remains a separate routing follow-up.
 - **Surface:** `tools/sprint-loop.py` — the `RED_REJECTED` branches set `chunk.status` and `chunk.gate_decision` but never `chunk.rejection_kind`.
 - **Filed:** 2026-09-12.
 
@@ -850,6 +852,16 @@ failure caused by the *environment* (collection error, missing dependency) is
 neither a test nor an implementation defect and should still stop for a human rather
 than burn either budget — see the `ENVIRONMENT_SIGNATURES` split in
 `tools/phase-1-scripts/valid-red.py` (KI-9).
+
+### Partial fix
+KI-16 exposed a narrower live failure with the same symptom. After
+`REJECT_IMPLEMENTATION`, the locked test is necessarily GREEN because the
+validator runs only after `verify_green`. The retry used to re-enter the RED
+gate, classify that expected GREEN as `RED_REJECTED`, and spend its remaining
+executor budget without ever invoking the executor. Implementation-directed
+retry rounds now confirm the existing GREEN state and continue as a
+verify-and-harden pass. A subprocess-backed regression test exercises the
+real lock, RED, GREEN, and evidence gates across both rounds.
 
 ## Issue KI-15: The evidence bundle is produced twice, and the second one wins
 
@@ -941,7 +953,7 @@ command records real counts; breaking one unrelated test yields producer exit 1 
 
 ## Issue KI-16: The executor retries blind after an implementation rejection
 
-- **Status:** FIXED (pending commit).
+- **Status:** FIXED.
 - **Surface:** `tools/sprint_loop/prompts/executor.md` (no prior-rejection section); `tools/sprint-loop.py` (`chunk.rejection_feedback` set to the gate string and never rendered).
 - **Filed:** 2026-09-12.
 
@@ -987,6 +999,46 @@ without an input it needs, produces a plausible artifact anyway, and every succe
 signal the framework owns reports normal. The pattern to grep for is a retry or
 re-invocation path that does not carry forward the reason it was triggered.
 
+### Follow-up: the retry was unreachable live
+The initial feedback fix covered prompt rendering and retry routing with
+stubbed deterministic gates, but a live implementation retry never reached
+that prompt. `REJECT_IMPLEMENTATION` is emitted only after `verify_green`, so
+the next round begins with the locked test GREEN. `validate_red` rejected that
+state and the retry burned its budget at the RED gate.
+
+The RED relaxation now includes implementation-directed retry rounds. It
+still verifies that the test is genuinely GREEN before proceeding, then
+re-invokes the executor in verify-and-harden mode with the rejecting
+validator's finding. The regression test stubs only the droid-backed seats;
+lock, RED validation, GREEN verification, evidence production, prompt
+rendering, and retry control all execute through the real paths.
+
+## Issue KI-17: Warnings summary misclassified as a collection failure
+
+- **Status:** FIXED.
+- **Surface:** `tools/phase-1-scripts/valid-red.py` `outside_failures_region()`.
+- **Filed:** 2026-09-13.
+- **Numbering:** KI-17 was unused when this review-cleanup pass was filed;
+  entries 14 through 16 and KI-18 were already assigned on the branch this
+  stack repackages.
+
+### Symptom
+An executed failing test with a pytest warnings summary that cited
+`tests/conftest.py:5` was rejected as `Invalid RED: conftest error`.
+The test had collected and reached its assertion; the warning was unrelated
+to collection.
+
+### Root cause
+The structure-first fallback scanned all output outside the `FAILURES`
+section for collection-phase signatures. Pytest prints warnings summaries
+outside that section, so a file path in a deprecation warning matched the
+`conftest\.py` signature.
+
+### Fix
+Exclude pytest's warnings-summary section from the fallback scan. The
+regression fixture records the observed one-test failure and conftest warning,
+and verifies that it remains a valid RED.
+
 ## Issue KI-18: Test-designer bounce does not re-lock the redesigned test
 
 - **Status:** OPEN.
@@ -1021,3 +1073,34 @@ After a test-designer rewrite is accepted and the new test is written to disk,
 `lock_test()` must be re-invoked to regenerate the lock manifest with the new SHA.
 The re-lock should happen in `run_chunk_with_retries` after the test-designer
 completes its redesign round, before the executor re-runs.
+## Issue KI-19: Validator advertises an unsupported REPLAN verdict
+
+- **Status:** FIXED.
+- **Surface:** `tools/sprint_loop/prompts/validator.md`,
+  `tools/orchestrate-review.py`, and `tools/sprint_loop/per_chunk.py`.
+- **Filed:** 2026-09-13.
+- **Numbering:** KI-18 is assigned in the adjacent experiment-doc stack, so
+  this review-cleanup finding uses the next available number.
+
+### Symptom
+The validator prompt offered `VERDICT: REPLAN`, but the orchestrator's parser
+did not recognize it. Depending on surrounding prose, the result became
+`UNKNOWN` or was mistaken for another untagged verdict word.
+
+### Root cause
+The prompt, parser, routing set, executor signals, and telemetry phase names
+each maintained independent string literals. There was no structural check
+that a value advertised by one process was accepted by the next.
+
+### Fix
+Add `tools/sprint_loop/vocab.py` as the shared protocol vocabulary and derive
+the validator parser and test-directed routing set from it. Contract tests
+compare the prompt's complete verdict block to the vocabulary and exercise
+every parsed value.
+
+`REPLAN` is removed. A chunk validator runs after the approved plan has been
+chunked and after implementation; the runtime has no safe transition from
+that point back through planning, plan review, reconciliation, and chunk
+replacement. Parsing `REPLAN` without that lifecycle would only disguise it
+as an executor retry or a human pause. Removing the unsupported promise is
+fail-closed and keeps a future planner transition explicit.

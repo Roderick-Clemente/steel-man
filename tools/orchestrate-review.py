@@ -55,6 +55,8 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from sprint_loop.config import phase_path  # noqa: E402
+from sprint_loop.evidence_timeout import local_backend_timeout_seconds  # noqa: E402
+from sprint_loop.vocab import VALIDATOR_VERDICTS, tagged_line_pattern  # noqa: E402
 
 DROID_BIN = os.path.expanduser("~/.local/bin/droid")
 
@@ -106,8 +108,9 @@ def step1_produce_evidence(args) -> dict:
         "--python",
         args.pilot_python,
     ]
-    full_suite_command = args.full_suite_command or ""
-    if args.full_suite or full_suite_command:
+    full_suite_command = getattr(args, "full_suite_command", "") or ""
+    full_suite_requested = bool(getattr(args, "full_suite", False))
+    if full_suite_requested or full_suite_command:
         cmd.append("--full-suite")
     if full_suite_command:
         cmd.extend(["--full-suite-command", full_suite_command])
@@ -118,7 +121,15 @@ def step1_produce_evidence(args) -> dict:
         if args.security_baseline:
             cmd.extend(["--security-baseline", args.security_baseline])
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    timeout = local_backend_timeout_seconds(
+        full_suite=full_suite_requested, security_scan=args.security_scan
+    )
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        message = f"local_backend.py timed out after {timeout}s; evidence was not produced"
+        print(f"  ERROR: {message}", file=sys.stderr)
+        return {"ok": False, "error": message}
     print(result.stderr, file=sys.stderr)
 
     if result.returncode != 0:
@@ -139,7 +150,7 @@ def step1_produce_evidence(args) -> dict:
     # "no independent regression evidence", which is a REJECT it cannot
     # distinguish from a real regression.
     full_suite = tests.get("full_suite") or {}
-    if (args.full_suite or full_suite_command) and not full_suite:
+    if (full_suite_requested or full_suite_command) and not full_suite:
         print(
             "  ERROR: --full-suite was requested but the bundle carries no "
             "tests.full_suite section",
@@ -348,8 +359,8 @@ def step4_parse_verdicts(validators: list[dict]) -> list[dict]:
     print("=" * 60)
 
     verdict_pattern = re.compile(
-        r"\b(ACCEPT-WITH-NITS|ACCEPT|REJECT_IMPLEMENTATION|REJECT_TEST|REJECT|HUMAN_DECISION)\b",
-        re.IGNORECASE,
+        tagged_line_pattern("VERDICT", VALIDATOR_VERDICTS),
+        re.IGNORECASE | re.MULTILINE,
     )
 
     for v in validators:
