@@ -168,7 +168,7 @@ Framework branch: `factory/schema-v3-and-subagent-executor`.
 | 10 | REJECT_IMPL | **KI-11/KI-15 proven fixed live.** Bundle shows `full_suite: 35 passed, exit 0` with the declared command recorded. grok caught a real bug the test suite endorsed: implementation silently weakened criterion 9 (reported as "substituted fallback" instead of "reported as such"). gemini accepted the same code. | KI-16: executor retried blind after rejection — no feedback rendered into retry prompt. KI-13 reproduced: rejected commit `7f9d467` on pilot branch before gate. KI-14 filed: invalid RED retries executor instead of test-designer. |
 | 11 | pending | Will test KI-16 fix live: executor should fix criterion 9 on first retry because grok's finding is now rendered into its prompt. | Awaiting model availability window. |
 
-**Summary: 16 known issues found, 12 fixed, 2 open (KI-13, KI-14), 2 closed as documented limitations (KI-5, KI-12). Every refusal so far has been a genuine defect caught before it did damage.**
+**Summary: 19 known issues found (KI-1 through KI-19), 13 fixed (KI-1, KI-2, KI-3, KI-4, KI-7, KI-8, KI-9, KI-10, KI-11, KI-15, KI-16, KI-17, KI-19), 3 open (KI-5, KI-13, KI-18), 1 partially fixed (KI-14), 1 closed as documented limitation (KI-12), 1 withdrawn (KI-6). Every refusal so far has been a genuine defect caught before it did damage.**
 
 ## Per-seat cost breakdown — attempt 6 (kimi-k3 executor)
 

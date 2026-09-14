@@ -1075,7 +1075,9 @@ The re-lock should happen in `run_chunk_with_retries` after the test-designer
 completes its redesign round, before the executor re-runs.
 ## Issue KI-19: Validator advertises an unsupported REPLAN verdict
 
-- **Status:** FIXED.
+- **Status:** FIXED. Accepted residual: removing `REPLAN` leaves
+  `HUMAN_DECISION` as the only outlet for a plan-defect judgment from chunk
+  validation. An implemented plan-defect route is planned as a fast follow.
 - **Surface:** `tools/sprint_loop/prompts/validator.md`,
   `tools/orchestrate-review.py`, and `tools/sprint_loop/per_chunk.py`.
 - **Filed:** 2026-09-13.

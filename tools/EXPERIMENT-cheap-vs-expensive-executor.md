@@ -8,7 +8,15 @@ Arm B run id: `r-phase45-20260913-012823` (executor gpt-5.2)
 
 ## 1. Executive summary
 
-The expensive executor won on **both** executor-only cost and full-pipeline cost, so **outcome 2 materialized: gpt-5.2 wins on total cost — the "cheap executor" hypothesis is busted.** Arm B's gpt-5.2 executor cost **85,394 credits** across 13 turns (34,726 in / 6,339 out), while Arm A's kimi-k3 cost **371,917 credits** across 20 turns (63,623 in / 32,747 out) — the "cheap" model was ~4.4× **more** expensive for the executor seat because it emitted ~5.2× the output tokens over more turns to produce a similar (actually smaller) result. On the full pipeline, Arm A totaled **1,077,891 credits** vs Arm B's **751,567**, so Arm B was ~30% cheaper even after absorbing a test-designer bounce (146,924 credits) that Arm A never incurred. On code quality, the arms are at **parity**: neither validator found a bug in either arm, and both implementations were accepted on their merits. Arm B's REJECT was purely procedural (a lock-manifest SHA mismatch after the test-designer bounce), not a code-quality judgment — grok explicitly said the implementation "looks criterion-complete." The adversarial structure did not "compensate" for anything here; both executors cleared the same bar, and the cost difference came down to token/output efficiency, not correctness.
+In a single paired run (n=1 per arm), the data leans toward gpt-5.2 having lower total cost of ownership, but several confounds prevent a conclusive verdict. These are directional findings; the experiment will be rerun (≥3 runs per arm, KI-18 fixed so the locked suite is a true constant) before any confirmed result.
+
+The clearest signal is the **executor-only** comparison: Arm B's gpt-5.2 cost **85,394 credits** across 13 turns (34,726 in / 6,339 out), while Arm A's kimi-k3 cost **371,917 credits** across 20 turns (63,623 in / 32,747 out) — a 4.4× gap. The underlying driver is output volume, not per-token price: kimi emitted 32,747 output tokens vs gpt's 6,339 (5.2× ratio) across more turns (20 vs 13) to produce a similar (actually smaller) diff. Credits = price-per-token × volume, and volume dominated.
+
+On the full pipeline, Arm A totaled **1,077,891 credits** vs Arm B's **751,567**, but that headline carries two caveats (detailed in Section 7): (i) Arm A's gemini validator was manually re-run after an orchestration crash, inflating its cost by ~209K credits beyond Arm B's equivalent seat; excluding both gemini validator seats narrows the full-pipeline gap from ~30% to ~15%. (ii) KI-18 broke the controlled variable: Arm B's test-designer bounce replaced the 7-test locked suite with a 20-test suite that was never re-locked, so the two arms did not run against identical tests — this contaminates the lines-produced and code-quality comparisons in Sections 5 and 1.
+
+On code quality, no defect was found by either validator in either arm; independent review of the two diffs is pending. Arm B's REJECT was purely procedural (a lock-manifest SHA mismatch after the test-designer bounce), not a code-quality judgment — grok explicitly said the implementation "looks criterion-complete."
+
+**Run-to-run variance caveat.** The plan-reviewer seats received substantially identical inputs yet varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~50–94% variance on comparable-input seats is the noise floor a single run cannot rise above; the full-pipeline totals should be read with that in mind.
 
 ---
 
@@ -76,8 +84,9 @@ Notes on the table:
 Key observations:
 
 - Arm B had **more total turns (73 vs 60)** but **fewer total credits (751,567 vs 1,077,891)**. Its turns were cheaper because the heavy-token seats (executor, gemini validator) did far less work.
-- The two big deltas are the **executor** (Arm A +286K credits) and the **gemini validator** (Arm A +209K credits).
-- Arm A's gemini validator gap is likely a manual-re-run artifact: its envelope shows `retry_count=1` and 273,114 input tokens (vs Arm B's 65,216), consistent with the post-crash manual re-run reading a much larger context.
+- The two big deltas are the **executor** (Arm A +286K credits) and the **gemini validator** (Arm A +209K credits). The executor gap is an intrinsic efficiency signal; the gemini validator gap is confounded (see next bullet).
+- Arm A's gemini validator gap is a manual-re-run artifact: its envelope shows `retry_count=1` and 273,114 input tokens (vs Arm B's 65,216), consistent with the post-crash manual re-run reading a much larger context. Excluding both gemini validator seats, the full-pipeline gap narrows from ~30% to ~15%. The executor-only comparison (4.4× in favor of gpt-5.2) is the cleanest signal this run provides.
+- **Run-to-run variance caveat.** The plan-reviewer seats (which received substantially identical inputs) varied between arms: grok-4.5 cost 176,320 (Arm A) vs 128,100 (Arm B) credits; glm-5.2 cost 66,206 (Arm A) vs 128,299 (Arm B) credits. This ~50–94% variance on comparable-input seats is the noise floor a single run cannot rise above.
 
 ---
 
@@ -95,7 +104,7 @@ Key observations:
 - **grok-4.5 — `REJECT_TEST` (round 2).** This was **not** a code-quality judgment. Grok confirmed evidence integrity except one thing: `locked_test_sha_observed` (`806a9855…`) did not match the lock-manifest SHA (`fd2f24ba…`). Checklist item 3 requires a match; "Accept is forbidden on that ground alone, regardless of green counters." It explicitly stated: "Against the on-disk redesigned suite, **the implementation looks criterion-complete**," and "That does not authorize ACCEPT while the lock identity is broken." Root cause: after round 1's `REJECT_TEST` redesign, the replacement test (20 tests) was **not re-locked** — the manifest still pointed at the pre-redesign SHA.
 - **gemini-3.1-pro-preview — `ACCEPT`.** Reviewed spec conformance, test quality, GREEN-evidence integrity, and no-regression all as passing, and issued a clean ACCEPT. It did **not** flag the lock-manifest SHA mismatch that grok caught.
 
-**Agreement:** the validators diverged, but only on process integrity. Grok caught a real framework defect (the un-re-locked test) that gemini missed; on the code itself they both judged it acceptable. The gate fail-closed on the split.
+**Agreement:** the validators diverged, but only on process integrity. Grok caught a real framework defect (the un-re-locked test) that gemini missed; on the code itself they both judged it acceptable. The gate fail-closed on the split. Note: Arm B's validators reviewed code written against a 20-test suite (post-redesign) while Arm A's reviewed code against the original 7-test suite (KI-18), so the two verdict sets are not directly comparable on code quality.
 
 ---
 
@@ -118,6 +127,8 @@ Key observations:
 | Insertions | 578 | 764 |
 | Deletions | 108 | 152 |
 
+\* **KI-18 caveat on lines comparison.** Arm B ran against a 20-test redesigned suite while Arm A ran against the original 7-test suite. The larger test surface may have driven the larger diff (764 vs 578 insertions); this comparison is contaminated until the experiment is rerun with the locked suite as a true constant.
+
 Full diffs are saved for operator review:
 - `/Users/factory/work/experiment-evidence/arm-a-diff.txt`
 - `/Users/factory/work/experiment-evidence/arm-b-diff.txt`
@@ -136,6 +147,10 @@ Both executors solved the problem the same way at a high level — a new `Home` 
 - **Model shape.** Arm B adds `created_at`; Arm A does not. This is extra state the spec did not appear to require.
 - **Defensive scaffolding.** Arm B's `DeleteResult`, `HomeNotFound`, and `HomeNotFoundRead` types are explicit return/exception contracts; Arm A leans on `home_exists` + dict results. Arm B's `cache_service.py` (+385 lines) and `home_service.py` (+238) are the largest single files; Arm A's are +285 and +147 respectively.
 
+### Code quality assessment
+
+No defect was found by either validator in either arm; independent review of the two diffs is pending. The "no defects" signal rests on two validators (who disagreed procedurally on Arm B) finding no bugs — it is not a confirmed parity claim. Additionally, Arm B's code was written against a 20-test redesigned suite (KI-18) while Arm A's was written against the original 7-test suite, so the two implementations were not tested under identical conditions.
+
 ---
 
 ## 6. Outcome determination
@@ -146,12 +161,15 @@ The three hypotheses were:
 2. **gpt-5.2 wins on total cost** — hypothesis busts
 3. **Costs are similar** — executor model doesn't matter much
 
-**Result: hypothesis 2.** The "expensive" executor won decisively.
+**Directional result: the data leans toward hypothesis 2, but a single run with known confounds cannot confirm it.**
 
 - **Executor-only cost:** Arm A 371,917 vs Arm B 85,394 credits (~4.4×). kimi emitted 32,747 output tokens vs gpt's 6,339 across 20 vs 13 turns, and produced *fewer* net lines (578 vs 764 insertions). The cheap model's per-token advantage was swamped by its output volume and turn count.
-- **Full-pipeline cost:** Arm A 1,077,891 vs Arm B 751,567 credits (~30% gap). Arm B absorbed a 146,924-credit test-designer bounce that Arm A never hit, and a split-verdict second validation round, and *still* came out cheaper because its executor and gemini validator did so much less work.
+- **Full-pipeline cost:** Arm A 1,077,891 vs Arm B 751,567 credits (~30% headline gap). Excluding the confounded gemini validator seats (~209K delta from a manual re-run), the gap narrows to ~15%. Arm B absorbed a 146,924-credit test-designer bounce that Arm A never hit and still came out cheaper.
+- **Run-to-run variance:** Plan-reviewer seats with comparable inputs varied ~50–94% between arms (Section 3). A single run cannot separate signal from noise at that level.
 
-Caveat for the operator: Arm A's executor gap is a real, intrinsic efficiency signal, but part of its full-pipeline gap is confounded — Arm A's gemini validator ran with `retry_count=1` and 273K input tokens during the manual re-run after the orchestration crash, inflating validator cost beyond a clean run. The **executor-only** comparison is the cleanest signal and it unambiguously favors gpt-5.2. Code quality is at parity (no bug found in either arm), so the experiment did not demonstrate cheaper-is-equivalent: it demonstrated that token/output efficiency, not headline model price tier, drove cost, and gpt-5.2 was dramatically more efficient on this chunk.
+**The sharper transferable insight:** credits = price-per-token × volume, and **volume dominated**. kimi-k3 produced 32,747 output tokens across 20 turns; gpt-5.2 produced 6,339 across 13 turns — a 5.2× output ratio that swamped any per-token price advantage. The "cheap executor" hypothesis was ill-posed: it assumed executor cost was primarily a function of model price tier, when it was primarily a function of output efficiency. A "cheap" model that talks five times as much is not cheap.
+
+**Rerun plan.** Before any confirmed verdict: ≥3 runs per arm, KI-18 fixed so the locked suite is a true constant across arms, and the gemini validator re-run confound eliminated. The executor-only signal (4.4× in favor of gpt-5.2) is strong enough to justify the rerun; it is not strong enough, from n=1, to confirm.
 
 ---
 
@@ -162,7 +180,7 @@ Caveat for the operator: Arm A's executor gap is a real, intrinsic efficiency si
 - **KI-16 (executor retry feedback) — DID NOT FIRE.** Neither arm took a `REJECT_IMPL` → executor retry (Arm A `retry_count=0`; Arm B's `retry_count=1` was a `REJECT_TEST` → test-designer bounce). There was no executor-retry round in which to exercise feedback rendering, so KI-16 remains unproven live.
 - **REJECT_TEST routing — WORKED.** Arm B round 1's `REJECT_TEST` correctly routed to the test-designer (glm-5.2), which rewrote the test (7 → 20 tests).
 - **New finding (KI-18): the test-designer bounce does not re-lock the redesigned test.** After the redesign, the lock manifest still recorded `fd2f24ba…` while the on-disk suite was `806a9855…` (20 tests). This made round 2's SHA cross-check fail in grok's eyes and forced a fail-closed REJECT that was *not* about code. This is a framework defect to fix: after a test-designer rewrite is accepted, the manifest must be re-generated so the redesigned test is the lock.
-- **Validator orchestration transient crash (Arm A).** The pipeline reached validators but `orchestrate-review.py` exited 1; the 300-char stderr truncation hid the root cause. Validators were re-run manually and both accepted. Diagnosed as environmental and not reproducible. Operator action item: lift the 300-char stderr truncation so future transient failures leave a diagnosable trace.
+- **Validator orchestration transient crash (Arm A).** The pipeline reached validators but `orchestrate-review.py` exited 1; the 300-char stderr truncation hid the root cause. Validators were re-run manually and both accepted. Diagnosed as environmental and not reproducible. Operator action item: lift the 300-char stderr truncation so future transient failures leave a diagnosable trace. **Cost impact on the full-pipeline comparison:** Arm A's gemini validator cost 289,313 credits (273K input tokens, `retry_count=1`) vs Arm B's 80,220 credits (65K input tokens) — a ~209K delta attributable to the re-run, not to the executor choice. Full-pipeline totals excluding gemini validator seats: Arm A 788,578 vs Arm B 671,347 (~15% gap, down from the ~30% headline).
 - **Experimental-integrity note.** The "same locked tests" controlled constant did not hold for Arm B: its test-designer bounce silently replaced the 7-test locked suite with a 20-test suite that was never re-locked. Arm A ran the original 7 locked tests; Arm B effectively ran a different, larger test. KI-18 is therefore also an experiment-validity issue, not just a pipeline cosmetic bug.
 
 ---
