@@ -1145,7 +1145,13 @@ def test_per_chunk_invoke_runs_dry_run_then_writes_envelope(tmp_path):
     rs = RunState(
         run_id="r-test",
         started_at="2026-08-09T00:00:00Z",
-        framework_root="/tmp/fw",
+        # framework_root is a WRITE root: invoke_executor -> append_run_record
+        # appends to <framework_root>/telemetry/runs.jsonl, including on a
+        # dry run. A shared absolute path here is not inert. "/tmp/fw" made
+        # this test depend on which user on the box created that directory
+        # first; once another account owned it the append raised EACCES and
+        # the publish gauntlet refused to publish (2026-09-13).
+        framework_root=str(tmp_path / "fw"),
         pilot_root="/tmp/pilot",
         pilot_python="/usr/bin/python3",
         executor=RoleAssignment(
