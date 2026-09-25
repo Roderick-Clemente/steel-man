@@ -48,7 +48,7 @@ def test_to_envelope_reads_top_level_fields():
         envelope_path=FIXTURE_DIR / "envelope.json",
         session_jsonl_path=FIXTURE_DIR / "session.jsonl",
     )
-    assert envelope["session_id"] == "4fe0ceb2-8871-4aa2-b36c-5b8ebbd15a69"
+    assert envelope["session_id"] == "00000000-0000-0000-0000-000000000000"
     assert envelope["is_error"] is False
     assert envelope["num_turns"] == 3
     assert envelope["duration_ms"] == 2168
@@ -86,13 +86,7 @@ def test_to_envelope_extracts_the_real_failed_tool_call():
     assert envelope["tool_calls"] == [
         {
             "name": "Read",
-            "args": {
-                "file_path": (
-                    "/private/tmp/claude-501/-Users-dev-Work-life/"
-                    "8bb4cc28-6cd0-4c17-8eac-55b03b3a1b4e/scratchpad/"
-                    "claude-adapter-probe/test.txt"
-                )
-            },
+            "args": {"file_path": "/home/example/claude-code-probe/test.txt"},
             "is_error": True,
         }
     ]

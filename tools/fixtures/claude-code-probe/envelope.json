@@ -6,7 +6,7 @@
     "duration_api_ms": 2120,
     "num_turns": 3,
     "result": "hello",
-    "session_id": "4fe0ceb2-8871-4aa2-b36c-5b8ebbd15a69",
+    "session_id": "00000000-0000-0000-0000-000000000000",
     "total_cost_usd": 0.061561500000000005,
     "usage": {
         "input_tokens": 10,
