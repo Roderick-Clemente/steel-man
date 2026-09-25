@@ -12,7 +12,7 @@ Expected: **233 passed, 3 skipped**. The skips are honest. `telemetry/runs.jsonl
 
 ## Markers
 
-Two markers, declared in `/Users/factory/work/adversarial-sprint-dev/pytest.ini`:
+Two markers, declared in `~/work/adversarial-sprint-dev/pytest.ini`:
 
 - `unit` — pure data tests. No subprocess, no git state, no network. These are the default and the bulk of the suite.
 - `integration` — tests that shell out to subprocess or read git state. They are slower and depend on the working tree being a real checkout.
@@ -21,7 +21,7 @@ Select with `-m unit` or `-m integration`. The `--strict-markers` flag in `pytes
 
 ## What the tests cover
 
-The suite is spread across `/Users/factory/work/adversarial-sprint-dev/tests/`. The load-bearing files:
+The suite is spread across `~/work/adversarial-sprint-dev/tests/`. The load-bearing files:
 
 - `test_sprint_loop.py` — the runner state machine. The largest file. Covers the per-chunk inner loop, the reconcile gate, invoke options, and the family guard: planner/reviewer collisions, test-designer/executor collisions, validator/executor collisions, the two-distinct-validator-families requirement, and the unknown-model-resolves-to-unknown-family refusal.
 - `test_plan_lint.py` — the deterministic pre-review tier in `tools/plan-lint.py`. Seven rules, each pinned by its own test.
@@ -35,7 +35,7 @@ The suite is spread across `/Users/factory/work/adversarial-sprint-dev/tests/`. 
 
 Tests assert on artifacts, not on exit codes or plausible strings. If you are pinning a behavior, write a test that fails when the behavior breaks, not one that passes when the runner exits 0. The silent-green failure mode is the thing the suite exists to catch.
 
-Negative fixtures live in `/Users/factory/work/adversarial-sprint-dev/tests/fixtures/` and are excluded from collection by `norecursedirs` in `pytest.ini`. They are inputs, never tests. Do not move them into `testpaths`.
+Negative fixtures live in `~/work/adversarial-sprint-dev/tests/fixtures/` and are excluded from collection by `norecursedirs` in `pytest.ini`. They are inputs, never tests. Do not move them into `testpaths`.
 
 ## Where to read next
 

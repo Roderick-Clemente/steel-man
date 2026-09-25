@@ -13,7 +13,7 @@ The overlay is the only operator-facing entrypoint. `tools/sprint-loop.py --help
 
 ## Install the overlay (one-time per pilot)
 
-From the framework repo at `/Users/factory/work/adversarial-sprint-dev`:
+From the framework repo at `~/work/adversarial-sprint-dev`:
 
 ```bash
 mkdir -p <PILOT_REPO>/.adversarial-sprint/bin
@@ -53,7 +53,7 @@ Set `EVIDENCE_SIGNING_KEY` in your shell before you launch. The config reference
 The agent-facing skill assets install in one command from the framework repo:
 
 ```bash
-/Users/factory/work/adversarial-sprint-dev/tools/install-skill.sh all
+~/work/adversarial-sprint-dev/tools/install-skill.sh all
 ```
 
 This drops the canonical adversarial-sprint skill into each agent's install path. No per-agent body copies are maintained. See `tools/conventions/skill-distribution.md` for the per-agent recipes.

@@ -16,8 +16,8 @@
         "test/test_public_routes.py"
       ],
       "commands": [
-        "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest test/test_public_routes.py -v",
-        "/Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest -v"
+        "~/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest test/test_public_routes.py -v",
+        "~/work/quantum-bank--llms-txt-pilot/.venv/bin/python -m pytest -v"
       ],
       "rollback": "git checkout HEAD -- app.py api/llms_txt.py",
       "accepted_assertion": "body contains 'Quantum Bank'"

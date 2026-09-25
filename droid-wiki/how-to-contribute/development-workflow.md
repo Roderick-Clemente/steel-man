@@ -2,7 +2,7 @@
 
 This repo is worked by three agents, not one. Factory Droid, Codex, and Claude Code share a single working tree, and the conventions exist to keep that from turning into a merge war. The short version: branch by author, commit is the baton, and never edit the same file at the same time as another agent.
 
-The full conventions live in `/Users/factory/work/adversarial-sprint-dev/AGENTS.md`. This page is the onramp. Read it before your first commit, then come back here when you need the recipe.
+The full conventions live in `~/work/adversarial-sprint-dev/AGENTS.md`. This page is the onramp. Read it before your first commit, then come back here when you need the recipe.
 
 ## Branch by author
 

@@ -130,8 +130,8 @@ Key observations:
 \* **KI-18 caveat on lines comparison.** Arm B ran against a 20-test redesigned suite while Arm A ran against the original 7-test suite. The larger test surface may have driven the larger diff (764 vs 578 insertions); this comparison is contaminated until the experiment is rerun with the locked suite as a true constant.
 
 Full diffs are saved for operator review:
-- `/Users/factory/work/experiment-evidence/arm-a-diff.txt`
-- `/Users/factory/work/experiment-evidence/arm-b-diff.txt`
+- `~/work/experiment-evidence/arm-a-diff.txt`
+- `~/work/experiment-evidence/arm-b-diff.txt`
 
 ### Architectural approach
 

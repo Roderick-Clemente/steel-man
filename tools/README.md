@@ -189,7 +189,7 @@ configuration-contract intent. Flagged, not fixed.
 A canonical re-execution flow:
 
 ```
-cd /Users/factory/work/adversarial-sprint-dev
+cd ~/work/adversarial-sprint-dev
 # rung 1
 python3 tools/fixtures/rung1-grep-gate.py --exit-loud
 

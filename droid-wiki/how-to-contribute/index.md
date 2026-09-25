@@ -6,7 +6,7 @@ This is a multi-model adversarial coding framework. The interesting part is not 
 
 ## Contribute to the framework
 
-The framework lives at `/Users/factory/work/adversarial-sprint-dev`. It is a normal Python repo with a test suite, a runner, and a set of gates. If you can write Python and read a spec, you can work here.
+The framework lives at `~/work/adversarial-sprint-dev`. It is a normal Python repo with a test suite, a runner, and a set of gates. If you can write Python and read a spec, you can work here.
 
 Start with [getting started](../overview/getting-started.md) to clone and run the suite. Then read [development workflow](development-workflow.md) for the branch-by-author convention, the commit body recipe, and how the three agents hand work off to each other. The [testing](testing.md) page explains what the 233 tests actually cover and how to run them.
 
