@@ -55,7 +55,7 @@ You need: a pilot repo with tests, Factory API keys (or model API keys for each 
 | Sprint loop runner | `tools/sprint-loop.py` |
 | Runner package | `tools/sprint_loop/` |
 | Agent-facing skill | `skills/adversarial-sprint/SKILL.md` |
-| Alias skill (project name) | `skills/steel-man/SKILL.md` |
+| Brand-name alias skill | `skills/steel-man/SKILL.md` |
 | Sprint invocation skill | `skills/sprint-invocation/SKILL.md` |
 | CI workflow | `.github/workflows/adversarial-sprint-ci.yml` |
 
