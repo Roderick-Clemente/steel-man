@@ -59,7 +59,7 @@ templates/                 canonical GROK → CHUNK → EXECUTE method + the per
 skills/                    agent-facing skill assets (digest + index + rehydration)
 planning/                  per-phase plans, prompts and run records + the roadmap review
 evidence/                  the build record: probes, envelopes, findings, signed chunk tokens
-tests/                     261 tests over the gates, runner, plan lint, and repo layout
+tests/                     510 tests over the gates, runner, plan lint, and repo layout
 planning/pilots/           the method run against external tasks, validator outputs included
 droid-wiki/                curated wiki: findings, method, probes, how to contribute
 ```
@@ -73,7 +73,7 @@ version message.
 
 The runner is invoked through the per-pilot overlay (`.adversarial-sprint/bin/run-sprint` in a pilot repo), not the framework CLI. `tools/sprint-loop.py --help` is the debugging surface. See [`skills/adversarial-sprint/SKILL.md`](./skills/adversarial-sprint/SKILL.md) for the agent-facing rules digest.
 
-On a fresh clone the suite reports **255 passed, 6 skipped**. The skips are honest, not broken: `telemetry/runs.jsonl` is the system-of-record and is gitignored, so tests that assert on its contents have nothing to assert against outside a real run.
+On a fresh clone the suite reports **504 passed, 6 skipped**. The skips are honest, not broken. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
 
 ## CI
 
