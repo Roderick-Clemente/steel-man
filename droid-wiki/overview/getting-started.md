@@ -12,8 +12,8 @@
 ## Clone and test
 
 ```bash
-git clone https://github.com/Roderick-Clemente/adversarial-sprint.git
-cd adversarial-sprint
+git clone https://github.com/Roderick-Clemente/steel-man.git
+cd steel-man
 pip install -r requirements.txt
 python3 -m pytest -q
 ```
