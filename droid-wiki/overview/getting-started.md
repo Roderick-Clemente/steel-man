@@ -12,13 +12,13 @@
 ## Clone and test
 
 ```bash
-git clone https://github.com/Roderick-Clemente/adversarial-sprint.git
-cd adversarial-sprint
+git clone https://github.com/Roderick-Clemente/steel-man.git
+cd steel-man
 pip install -r requirements.txt
 python3 -m pytest -q
 ```
 
-Expected: **233 passed, 3 skipped**. The skips are honest: `telemetry/runs.jsonl` is the system-of-record and is gitignored, so tests that assert on its contents have nothing to assert against outside a real run.
+Expected: **496 passed, 6 skipped**. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
 
 ## Run a sprint (adopt the method on your own project)
 
@@ -55,6 +55,7 @@ You need: a pilot repo with tests, Factory API keys (or model API keys for each 
 | Sprint loop runner | `tools/sprint-loop.py` |
 | Runner package | `tools/sprint_loop/` |
 | Agent-facing skill | `skills/adversarial-sprint/SKILL.md` |
+| Brand-name alias skill | `skills/steel-man/SKILL.md` |
 | Sprint invocation skill | `skills/sprint-invocation/SKILL.md` |
 | CI workflow | `.github/workflows/adversarial-sprint-ci.yml` |
 

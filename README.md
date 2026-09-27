@@ -2,6 +2,8 @@
 
 *Multi-model adversarial planning, execution, and validation for agentic coding — built on Factory primitives.*
 
+**Steel-man** — hardening AI-built code through adversarial sprints.
+
 For months I ran an adversarial coding process by hand. One model plans. A different family attacks the plan. Both audit the test strategy. A cheap agent implements small chunks, and an independent agent validates each one. The quality was real — and so was the contradiction: a *manual* agentic workflow. I was the middleware, copy-pasting between frontier models, and at some point you notice that the human is the bottleneck the whole setup was supposed to remove.
 
 This repo is that process, automated. It runs on Factory primitives today — `droid exec`, hooks, pinned model seats — but the platform sits behind a one-file vendor adapter ([`tools/adapters/`](./tools/adapters/)), so the gates assert on a vendor-neutral envelope shape and swapping in another CLI or API is a new adapter, not a rewrite.
