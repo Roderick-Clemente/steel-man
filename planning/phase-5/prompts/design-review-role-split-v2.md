@@ -25,7 +25,7 @@ you have not seen the discussion that produced it. Judge it on its own merits an
 against what is actually on disk.
 
 **Artifact under review:** `phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`
-(branch `factory/role-split-and-signals`, tip `945871f`)
+(branch `factory/role-split-and-signals`, tip `aa52aa6`)
 
 **Grounding — read these before judging, and cite them:**
 

@@ -63,13 +63,13 @@ they're not durable handles).
 
 | rung | what                                                       | gate (commit)                              |
 |------|------------------------------------------------------------|--------------------------------------------|
-|  1   | pin the bug-present state (BASE, HEAD, diff_sha256)        | `rung1-grep-gate.py` (commit `d27b720`)    |
-|  2   | render the blind spec+diff prompt; canary transcript-leaks | `rung2-canary-check.py` (commit `e14aa30`) |
-|  3   | invoke the validator via `droid exec`; capture envelope    | `rung3-gate.py` + digest (commit `ce2513e`)|
-|  4   | family-collide gate (validator≠executor family)            | `rung4-family-gate.py` (commit `11121b0`) |
-|  5   | tool-call event gate (paired tool_use ↔ tool_result, required-source coverage) | `rung5-gate.py` (commit `629dec7`) |
-|  6   | decision invariant (decision ≠ ACCEPT + finding shape)     | `rung6-gate.py` (commit `5e927bc`)         |
-|  7   | silent-green negative control (no-op run fires FAIL LOUD)  | `rung7-*-digest.json` (commit `2098859`)   |
+|  1   | pin the bug-present state (BASE, HEAD, diff_sha256)        | `rung1-grep-gate.py` (commit `5a50ab2`)    |
+|  2   | render the blind spec+diff prompt; canary transcript-leaks | `rung2-canary-check.py` (commit `15db031`) |
+|  3   | invoke the validator via `droid exec`; capture envelope    | `rung3-gate.py` + digest (commit `dfad091`)|
+|  4   | family-collide gate (validator≠executor family)            | `rung4-family-gate.py` (commit `6c72099`) |
+|  5   | tool-call event gate (paired tool_use ↔ tool_result, required-source coverage) | `rung5-gate.py` (commit `f893cc0`) |
+|  6   | decision invariant (decision ≠ ACCEPT + finding shape)     | `rung6-gate.py` (commit `4e0691c`)         |
+|  7   | silent-green negative control (no-op run fires FAIL LOUD)  | `rung7-*-digest.json` (commit `c0b25fd`)   |
 
 Each rung is its own commit. No PRs opened against `main`. The
 branch lives at `factory/build-gate-tools`.

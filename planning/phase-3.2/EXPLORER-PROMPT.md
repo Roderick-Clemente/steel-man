@@ -8,7 +8,7 @@ or pilot changes in this pass; produce specs.
 
 ## Where things stand
 
-Phase 3 is complete and merged to `main` (ade12c0): the full plan→execute→review
+Phase 3 is complete and merged to `main` (b1fa724): the full plan→execute→review
 loop proven on the pilot `GET /profile` slice, 3 chunks, 6/6 cross-family
 ACCEPT, pilot suite 99 passed. Baseline telemetry is in `telemetry/runs.jsonl`
 (**541k tokens total, validators ~84%, executor ~13%, test-designer ~3%**). The

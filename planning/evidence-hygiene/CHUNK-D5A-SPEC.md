@@ -1,7 +1,7 @@
 # CHUNK-D5A-SPEC — phase-4.5 evidence migration + 5-nit sweep
 
 **Parent dossier:** `planning/evidence-hygiene/`
-**Predecessor:** `chunk-D5-1b` (`331a7f8` on `main` via PR #8).
+**Predecessor:** `chunk-D5-1b` (`996819c` on `main` via PR #8).
 **Branch:** `factory/d5a-sweep-and-migrate`
 **Chunk ID:** `chunk-D5A`
 **Process:** audit-script-only per `planning/evidence-hygiene/PLAN.md §2` row 1

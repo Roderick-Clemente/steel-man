@@ -6,7 +6,7 @@ checks — headless real runs, blind cross-family verdicts,
 machine-verifiable gates, known-ground-truth reproduction, full
 cost/latency/intervention logging, and a regression-guarded
 fake-pass fixture (Units A–C of `factory/rung5.5-fakepass-close`,
-backstop-verified on a clean clone at tip `6bc03e7`).
+backstop-verified on a clean clone at tip `81fbe93`).
 
 ## Phase 0.5 exit criteria
 
@@ -25,7 +25,7 @@ backstop-verified on a clean clone at tip `6bc03e7`).
       with the ladder and refuses any of `BUILD-LOG.md`,
       `hook-attempts.jsonl`, `num_turns=`, `is_error=`,
       `factory_credits`, executor reasoning, etc. The
-      reproduction bundle commit (`74df967`) verifies the same on
+      reproduction bundle commit (`2094b48`) verifies the same on
       a fresh-clone review.
 
 - [x] **Gate asserts on reality + fails loud** — every gate
@@ -34,7 +34,7 @@ backstop-verified on a clean clone at tip `6bc03e7`).
       `factory/rung5.5-fakepass-close` close that hole:
       `rung5-gate.py` rejects `is_error is not False`; each gate
       threads `envelope.is_error`. Backstop verified on tip
-      `6bc03e7` from a clean laptop clone (exit codes checked
+      `81fbe93` from a clean laptop clone (exit codes checked
       with NO pipes). LIVE=`GGG`, Config A=`GGR`, Config B=`RRR`
       — clean run still passes; the forged fixture from Unit B is
       CAUGHT at rung 5 with the literal message
@@ -70,7 +70,7 @@ backstop-verified on a clean clone at tip `6bc03e7`).
       asserts the fixture MUST be REJECTED; pre-fix the contract
       gate REDs (exit 1, contract violated); post-fix the gate
       flips to GREEN (exit 0, contract satisfied). Backstop
-      verified the flip on a clean clone at tip `6bc03e7`. The
+      verified the flip on a clean clone at tip `81fbe93`. The
       `KNOWN-ISSUES.md` entry "Fake-pass via unmatched tool_use"
       (filed in Unit A of this branch) documents the closed hole.
 

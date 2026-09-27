@@ -1300,7 +1300,7 @@ them.
         four. §3.1 asserts on resolution, not counts, which is what caught it —
         any later chunk using a token grep as its exit check inherits the hole.
     F4  OPERATING-RULES:581-582 cited two prompt files that never existed
-        (6c315a2 added them as -spawn.md), so the citation was stale BEFORE the
+        (b5fbe1b added them as -spawn.md), so the citation was stale BEFORE the
         move. Re-rooting alone yields a correctly-rooted 404. Tails corrected;
         arguably outside a re-rooting chunk, flagged for a ruling.
     F6  gen-path-redirects.py refuses (rc=1, writes nothing) if a residual turns

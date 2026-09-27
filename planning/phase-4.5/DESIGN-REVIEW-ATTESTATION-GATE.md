@@ -4,7 +4,7 @@
   review before implementation. No `bin/`, workflow, hook, or schema file
   in this commit is real yet.
 - **Author:** factory (droid), on `factory/review-attestation-gate-spec`.
-- **Base:** `5449c06` (framework lineage; the files this doc references
+- **Base:** `c109bc6` (framework lineage; the files this doc references
   exist at that base).
 - **Scope decision (operator):** applies to **both** the framework repo
   (self-dogfood) and adopting pilot repos. Authenticity via **HMAC-SHA256

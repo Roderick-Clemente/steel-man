@@ -76,7 +76,7 @@ sur-facing a strictness divergence.
 
 ### The discrepancy
 
-`tools/fixtures/rung6-gate.py` (commit `5e927bc`) ran against the
+`tools/fixtures/rung6-gate.py` (commit `4e0691c`) ran against the
 LIVE rung-3 verifier envelope (`build-evidence/rung3-droid-exec-
 output.json`). Verifier verdict: `Verdict: REJECT`. Gate verdict:
 GREEN — REJECT satisfies `decision ≠ ACCEPT`, and the doubled-
@@ -167,7 +167,7 @@ validator (gpt-5.4-mini) is the stricter one.
 ## Reference
 
 - Pin: `tools/fixtures/doubled-charset-pin.json` (BASE `bfc8a3b6` → HEAD `2b70eae1`)
-- Rung 6 gate: `tools/fixtures/rung6-gate.py` (commit `5e927bc`)
+- Rung 6 gate: `tools/fixtures/rung6-gate.py` (commit `4e0691c`)
 - The original fix-commit (single line mimetype removal): `pilot/llms-txt 308aaa70`
 - Live rung-3 verifier envelope: `build-evidence/rung3-droid-exec-output.json`
 - Related cleanups in this revision: `tools/KNOWN-ISSUES.md`, `tools/README.md`, `tools/RUN-LEDGER.md`

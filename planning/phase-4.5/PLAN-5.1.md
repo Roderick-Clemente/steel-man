@@ -5,19 +5,19 @@ This plan is committed BEFORE the chunks fire (OPERATING-RULES §18.2).
 
 ## Revision history
 
-- **v1** (commit `1777a93`): original 7-item, 2-chunk plan. REJECT: item 7
+- **v1** (commit `4fa6185`): original 7-item, 2-chunk plan. REJECT: item 7
   violated §22/§24 by putting `sign_chunk_token.build_token()` inside the
   runner process.
-- **v2** (commit `8dfaf4f`): fixed signing violation (runner verify-only).
+- **v2** (commit `caa178c`): fixed signing violation (runner verify-only).
   REJECT: HMAC-SHA256 is symmetric — runner can't verify the referee's
   token without holding `EVIDENCE_SIGNING_KEY`, contradicting §22. Also
   missing: STEER.md init, nested-invocation fallback, hard §20 gate.
-- **v3** (commit `8bd3cf0`): resolves the crypto contradiction with option
+- **v3** (commit `5159e6a`): resolves the crypto contradiction with option
   (d) — structural verification only. Runner never touches any key. REJECT:
   items 10/12 referenced a top-level `verdict` field that the canonical
   token schema does not carry (verdicts are per-reviewer). Also missing:
   commit_sha expected-source, first-chunk bootstrap, subprocess style.
-- **v4** (commit `a885aad`): fixes the token schema contract. Structural
+- **v4** (commit `5ee7dc5`): fixes the token schema contract. Structural
   predicate operates on `reviewers[*].verdict`. Uses `_run_step` subprocess.
   Adds CLI→JSON mapping, deletes residual relative-path instructions.
   REJECT (grok v4 review): close-loop has hard gate and no await (BLOCKER A);
@@ -25,7 +25,7 @@ This plan is committed BEFORE the chunks fire (OPERATING-RULES §18.2).
   requires ≥2 (BLOCKER C); §20 rule text not updated for structural split.
   Genesis skip-with-banner rejected by operator prompt: "a skip path is a
   bypass path."
-- **v5** (commit `f80fc75`): addresses all v4 findings. Full close-loop
+- **v5** (commit `33888f5`): addresses all v4 findings. Full close-loop
   sequencing, stub upgraded to Tier-2 panel, referee-signed genesis token,
   §20 rule text amendment, cross-check note. REJECT (grok v5): token
   filename mismatch across artifacts (BLOCKER 1); genesis envelope-gated

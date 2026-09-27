@@ -2,7 +2,7 @@
 
 You are working in the framework repo:
   /Users/factory/work/adversarial-sprint-dev
-  branch: factory/phase-4.5-loop-runner  (HEAD 90f08dd, Phase 4.5 = PAUSED)
+  branch: factory/phase-4.5-loop-runner  (HEAD d5889cd, Phase 4.5 = PAUSED)
 
 Context: the framework was dogfooded end-to-end against a NEW, external
 PRD (an EOS/"Ninety-style" MVP) in a fresh pilot repo

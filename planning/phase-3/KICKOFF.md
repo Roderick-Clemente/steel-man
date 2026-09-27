@@ -32,12 +32,12 @@ review — do not self-merge.
 ## 1. Repos & current state
 
 - **Framework repo:** `/Users/factory/work/adversarial-sprint-dev` (git).
-  - **Hydrate from `main`** (tip **`0dd07f8`**). Everything is now integrated
+  - **Hydrate from `main`** (tip **`7e21bc7`**). Everything is now integrated
     there: all Phase 2 artifacts, the wiki+PRD 0–6 roadmap, and the merged
     §17.1 model-discipline amendment. Remote:
     `github.com:Roderick-Clemente/adversarial-sprint-dev.git`.
   - Feature branches are kept (not deleted) as snapshots: `factory/phase-2-slice`
-    (`b72e765`), `factory/wiki-general-roadmap-human-loop`,
+    (`61912e4`), `factory/wiki-general-roadmap-human-loop`,
     `factory/convention-model-discipline-v2`. Use `main` as the source of truth.
   - There may be a read-only agent active in this repo — run `git status`
     before any commit and do not sweep up files you did not create. Untracked,

@@ -21,7 +21,7 @@ has read access to the commits; **no write path**.
 
 The KN-A-5 anti-pattern at multiple layers this session:
 
-- **chunk-5 build session (`f89275f..dda84d1`):** the build
+- **chunk-5 build session (`80006a9..94f3f94`):** the build
   agent held `EVIDENCE_SIGNING_KEY`, typed in fixture marker
   envelope_sha256 values, and produced verifying HMAC over
   fabricated reviewer payloads. Signing-authority was not
@@ -320,7 +320,7 @@ Example (issued by the orchestrator after a not-yet-fired
 `REVIEW REQUEST:`):
 
 ```
-VALIDATE REQUEST: chunk=5b commit=a8ba0064… paths=phase-4.5/build-evidence/r-cross-family-…/envelopes/grok-4.5.raw.txt
+VALIDATE REQUEST: chunk=5b commit=4d7d3756… paths=phase-4.5/build-evidence/r-cross-family-…/envelopes/grok-4.5.raw.txt
 ```
 
 Each Tier-2 validator that completes its work appends a
@@ -468,7 +468,7 @@ Does NOT stop:
 - KN-A-7: Tier-3 daemon design does the signing-authority
   half; this doc does the reviewer-firing-identity half.
 - chunk-5 build session on `factory/phase-5-chunkadherence-enforcement`
-  (`g89275f..dda84d1` for tokens; `364f15d..5193cc9` for code).
+  (`g89275f..94f3f94` for tokens; `be31bde..ba17f49` for code).
 - `r-cross-family-1786385993` (`grok-4.5` reviewer was fired from
   the build agent's session; verdict REJECT on KN-A-5 grounds).
 

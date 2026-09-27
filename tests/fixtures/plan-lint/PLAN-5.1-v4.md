@@ -5,14 +5,14 @@ This plan is committed BEFORE the chunks fire (OPERATING-RULES §18.2).
 
 ## Revision history
 
-- **v1** (commit `1777a93`): original 7-item, 2-chunk plan. REJECT: item 7
+- **v1** (commit `4fa6185`): original 7-item, 2-chunk plan. REJECT: item 7
   violated §22/§24 by putting `sign_chunk_token.build_token()` inside the
   runner process.
-- **v2** (commit `8dfaf4f`): fixed signing violation (runner verify-only).
+- **v2** (commit `caa178c`): fixed signing violation (runner verify-only).
   REJECT: HMAC-SHA256 is symmetric — runner can't verify the referee's
   token without holding `EVIDENCE_SIGNING_KEY`, contradicting §22. Also
   missing: STEER.md init, nested-invocation fallback, hard §20 gate.
-- **v3** (commit `8bd3cf0`): resolves the crypto contradiction with option
+- **v3** (commit `5159e6a`): resolves the crypto contradiction with option
   (d) — structural verification only. Runner never touches any key. REJECT:
   items 10/12 referenced a top-level `verdict` field that the canonical
   token schema does not carry (verdicts are per-reviewer). Also missing:

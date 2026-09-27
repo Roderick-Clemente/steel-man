@@ -115,7 +115,7 @@ returned REJECT_IMPLEMENTATION with 20 J-findings; operator chose
 to ship chunk-13 as the pause-point and dogfood the new PRD on
 the framework-as-is rather than ship chunk-14 first.
 
-**Phase 4.5 = PAUSED at commit 47bdceb.** The structural-guarantees
+**Phase 4.5 = PAUSED at commit 487e7ad.** The structural-guarantees
 work (chunks 9 → 13) row is green; the §15 demo-delta + return-to-
 resume story has KN-J1..J-20 open. See `KNOWN-ISSUES.md KN-J*`
 for the chunk-14 follow-on list.

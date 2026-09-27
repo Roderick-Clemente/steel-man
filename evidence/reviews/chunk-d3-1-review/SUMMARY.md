@@ -37,7 +37,7 @@ paths and re-ran the exclusion scan checking all three reference forms
 `evidence/phase-4.5/build-evidence/<entry>`) against
 `evidence/LEDGER.md`, `tests/`, `tools/`. Final archive: 14 entries, 92
 files, 315,199 bytes. Both reviewers independently re-derived the
-exclusion set from parent commit `4965f1e` and confirmed: no referenced
+exclusion set from parent commit `ca95b72` and confirmed: no referenced
 entry remains archived, no zero-reference entry was over-restored, all
 moves remain pure `0 0` renames, `legacy-duplicates/`/`tokens/`/
 `default_evidence_dir`/`LEDGER.md` untouched, suite green (241 passed, 3

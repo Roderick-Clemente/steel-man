@@ -2,7 +2,7 @@
 
 **Parent dossier:** `planning/evidence-hygiene/`
 **Predecessors:** `chunk-D4-1` (squash-merged into `main` via PR #7,
-merge commit `fdfbbc2` on `origin/main`; the chunk's own commit is
+merge commit `4e7db56` on `origin/main`; the chunk's own commit is
 `0663444` on `origin/factory/d4-final-cleanup`, retrievable via
 `git show 0663444`). Chunk-D4-1 spec at
 `planning/evidence-hygiene/CHUNK-D4-SPEC.md`; review verdict at
@@ -24,8 +24,8 @@ three landed increments; this spec captures the **current** state at
 the chunk-D5-1b evolution. Earlier increments remain retrievable
 via their commits:
 
-- `chunk-D5-1` @ `5848a35` — initial 2-arg wrapper, cwd-output semantics.
-- `chunk-D5-1a` @ `77a316c` — self-anchored via `${BASH_SOURCE[0]}`.
+- `chunk-D5-1` @ `f5ce36b` — initial 2-arg wrapper, cwd-output semantics.
+- `chunk-D5-1a` @ `d070bd2` — self-anchored via `${BASH_SOURCE[0]}`.
 - `chunk-D5-1b` (this follow-on) — sprint-keyed, round-auto-derived,
   no cwd writes.
 

@@ -4,7 +4,7 @@
 pipeline code, no MCP wiring, no pilot edits are produced here. The output is a
 reviewable spec plus a recommendation; building waits on human approval.
 
-**Control arm:** Phase 3 (complete, merged to `main` @ `ade12c0`). Baseline in
+**Control arm:** Phase 3 (complete, merged to `main` @ `b1fa724`). Baseline in
 `telemetry/runs.jsonl`: **≈540.6k tokens** input+output over 12 successful role
 runs — **validators ~84% (453,918)**, executor ~13% (68,723), test-designer ~3%
 (17,945). Within the panel, `gemini-3.1-pro-preview` alone was ≈384k (96k–165k

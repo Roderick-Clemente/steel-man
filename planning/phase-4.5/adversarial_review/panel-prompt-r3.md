@@ -1,6 +1,6 @@
 # Phase 4.5 — adversarial panel input request (pass-r3)
 
-**Scope:** Review the build state at commit `0feaaa4` (chunk-12b
+**Scope:** Review the build state at commit `0b0c203` (chunk-12b
 close) on the §15 demo-delta claim. This is the third adversarial
 review pass. Pass-r1 fixed F-1…F-11; pass-r2 fixed G-1…G-13
 (blocker + lifecycle, and chunk-12b delivered the distribution
@@ -31,7 +31,7 @@ READ ONLY. `Read`, `Glob`, `Grep`, `LS`. No `Execute`, no `Edit`.
 
 ## Code + doc audit scope
 
-Changes since pass-r2 (commit `e820dd7 → 0feaaa4`):
+Changes since pass-r2 (commit `1a192c6 → 0b0c203`):
 
 - **`tools/sprint_loop/config.py`** — `evidence_output_dir` Config
   field + `--evidence-output-dir` CLI flag. Framework audit tree

@@ -3,7 +3,7 @@
 Reviewer: final holistic pass over the 7-PR stack (`factory/v3-telemetry-schema` →
 `factory/plan-defect-route`), per `PROMPT-FINAL-frontier-review.md`, **after**
 the punch list (`PROMPT-FINAL-punchlist.md`) was applied to the stack top.
-Date: 2026-09-13. Base: `main` @ `176a40f`. Stack top: `a5f0cfb`.
+Date: 2026-09-13. Base: `main` @ `7b6f82f`. Stack top: `a5f0cfb`.
 The prior review (findings N-1 through N-7) is preserved in history at commit
 `8fcb104`.
 
@@ -14,7 +14,7 @@ The prior review (findings N-1 through N-7) is preserved in history at commit
 **PASS.**
 
 - Topology re-verified: each branch is an ancestor of the next, all 7 based on
-  `main` HEAD (`176a40f`), every local branch in sync with `origin/`.
+  `main` HEAD (`7b6f82f`), every local branch in sync with `origin/`.
 - Branches 1–6 are **byte-identical to the previously reviewed SHAs**
   (`71ccc97`, `54b9979`, `b530f33`, `96d6f9e`, `1da4ed8`, `62f786a`); the punch
   list landed as 4 commits on branch 7 only (`77c6ae6`, `8fcb104`, `4a35da3`,

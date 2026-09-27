@@ -1,9 +1,9 @@
 # chunk-D5-1b review — audit-script-only (single reviewer)
 
 Commits under review: `4422ff0 chunk-D5-1b: spec/prompt/convention updates for sprint-keyed outputs` + `07a8c6c chunk-D5-1b: sprint-keyed wrapper + tightened convention`
-Branch: `factory/d5-tooling-docs-1b` (on top of `c8161bd`)
+Branch: `factory/d5-tooling-docs-1b` (on top of `150199d`)
 
-Predecessor: chunk-D5-1 squash-merged into origin/main via PR; chunk-D5-1a (self-anchor) at `77a316c`. chunk-D5-1b is a follow-on that introduces sprint-keyed output routing.
+Predecessor: chunk-D5-1 squash-merged into origin/main via PR; chunk-D5-1a (self-anchor) at `d070bd2`. chunk-D5-1b is a follow-on that introduces sprint-keyed output routing.
 
 Per `planning/evidence-hygiene/PLAN.md §2` row 1, audit-script-only tier, 1 reviewer.
 Default model `kimi-k3` (moonshot / kimi-family, per `tools/sprint_loop/config.py:59`).

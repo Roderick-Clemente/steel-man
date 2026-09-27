@@ -4,7 +4,7 @@
 **Predecessors:** `chunk-D3-1` (must have verified signed token at
 `evidence/phase-4.5/tokens/chunk-D3-1.token.json` if produced; chunk-D3-1 was lighter
 gating per its dossier §5 and did not produce one — fall back to verified commit
-`5bef37a` on `main`)
+`77da210` on `main`)
 
 **Branch:** `factory/d4-final-cleanup`
 **Chunk ID:** `chunk-D4-1`
@@ -181,7 +181,7 @@ disk and in git:
    `droid-wiki/findings/first-h1-evidence.md` citation updates.
    `git diff --numstat` shows **zero content additions/deletions** for
    any of the 24 relocated files (all are pure `0  0` renames).
-6. `git log --follow` reaches the immediate-post-D2 commit (`4965f1e`)
+6. `git log --follow` reaches the immediate-post-D2 commit (`ca95b72`)
    for one representative archive file from `r-drs-role-split-2/`,
    one from `review-convention-*`, and one from `rung3-extract-tool-calls.sh`.
 7. The D2 inventory's per-row SHA-256 at the new `archive/<entry>/<file>`

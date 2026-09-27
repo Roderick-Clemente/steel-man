@@ -316,7 +316,7 @@ Each entry: **what** (path / mechanism / invariant) + **why not**
 
 ---
 
-## KN-J* — pass-r4 panel findings at chew-13 close (47bdceb)
+## KN-J* — pass-r4 panel findings at chew-13 close (487e7ad)
 
 **Status:** Phase 4.5 = PAUSED (chunk 14 deferred until after the new-PRD
 dogfood). Pass-r4 returned REJECT_IMPLEMENTATION with 20 J-findings;
@@ -408,7 +408,7 @@ in priority order.
   - `test_help_surface_includes_no_dry_auto_decide_h13`
   - `test_skill_md_has_§15_truthtable_row_h11` (typo in name)
   - one more referenced in KN-H14. None exist in
-  tests/test_sprint_loop.py as of commit 47bdceb.
+  tests/test_sprint_loop.py as of commit 487e7ad.
 - **Fix recipe (chunk-14):** write the actual tests they should
   reference and lock them in the canonical test file. Pin the
   build record (BUILD-NOTES.md, KNOWN-ISSUES.md, panel-findings-
@@ -713,7 +713,7 @@ interactive` invocation against a new PRD.
   *including* the chunk-13 retro-application. The build agent
   (this session) emitted tokens for chunks **5a..5e** of this
   branch only. The historic chunks 1–12 (commits predating the
-  Phase-5 promotion) and chunk 13 (`f1bae98`) lack
+  Phase-5 promotion) and chunk 13 (`5396191`) lack
   chunk-completion tokens.
 - **Why not retro-tokenize them here:** every retro-token would
   suffer the same KN-A-5 issue — the build agent holding
@@ -734,7 +734,7 @@ interactive` invocation against a new PRD.
   1. Land Tier-3 signing daemon (KN-A-7 / `phase-4.5/DESIGN-DAEMON-SIGNER.md`).
   2. Land envelope-on-disk in `invoke_droid`.
   3. Re-fire cross-family panels against each historic chunk
-     (chunk-13 at `f1bae98` first; chunks 1–12 in cohort
+     (chunk-13 at `5396191` first; chunks 1–12 in cohort
      pass); the close agent computes real envelope SHAs.
   4. Re-emit `chunk-N.token.json` files for each historic
      chunk via the Tier-3 daemon. Commit each under
@@ -894,7 +894,7 @@ interactive` invocation against a new PRD.
   gate extension lands, the τ-Jaccard and sessionId checks are
   *manual* — operator-curated at the referee's signing step.
 - **Re-seqs:** This design wave lands in this session
-  (`fc40e9d` + `941c6f9` are the §-prerequisites; this KN-A-9
+  (`880abc0` + `dad9592` are the §-prerequisites; this KN-A-9
   commit is the third in the same wave). Gate-enforcement
   chunk is a chunk-15+ candidate.
 - **Defense-in-depth with KN-A-7 + KN-A-8:** KN-A-7 enforces
@@ -1004,7 +1004,7 @@ lines produced, 0 lines reviewed."
 ## Backlog E — non-Python pilot support (new, post-dogfood)
 
 **Status:** opened by external pilot dogfood (`Roderick-Clemente/evan-os`)
-at pause commit 90f08dd. **P1 in `phase-4.5/EXTERNAL-DOGFOOD-HANDOFF.md`.**
+at pause commit d5889cd. **P1 in `phase-4.5/EXTERNAL-DOGFOOD-HANDOFF.md`.**
 
 - **What:** the runner's RED→GREEN gate (`phase-1/scripts/{valid-red,verify-green}.py`)
   hard-codes `python -m pytest`. Any non-Python pilot (Next.js/TS, Go,

@@ -47,7 +47,7 @@ implemented, and has been since before this session:
 
 ```
 $ git worktree list
-/Users/factory/work/adversarial-sprint-dev       0ba28ab [factory/role-split-and-signals]
+/Users/factory/work/adversarial-sprint-dev       31bac1d [factory/role-split-and-signals]
 /Users/factory/work/adversarial-sprint-referee   e813e12 [agent/referee/phase-5-chunkadherence]
 
 $ git -C /Users/factory/work/adversarial-sprint-referee config user.name

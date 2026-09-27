@@ -29,7 +29,7 @@ shape.
 
 ### Chunks landed
 
-1. **State + Config + tests + §18 rule** (`8f5ecda`)
+1. **State + Config + tests + §18 rule** (`b1f8f53`)
    - `tools/sprint_loop/{__init__,state,config}.py`
    - `tests/test_sprint_loop.py` (29 tests)
    - `pytest.ini`
@@ -40,7 +40,7 @@ shape.
    - State: ✅ — `python3 -m py_compile tools/sprint_loop/*.py`
      → 0 exit; `pytest tests/` → 29 pass.
 
-2. **Droid wrapper + Track B backends** (`011362d`)
+2. **Droid wrapper + Track B backends** (`36282b0`)
    - `tools/sprint_loop/droid.py` — single source of `droid exec`
      invocation; uses `tools/run-with-model.sh` (OPERATING-RULES §14).
    - `tools/sprint_loop/backends.py` — `ValidationBackend` protocol;
@@ -50,7 +50,7 @@ shape.
      (dry-run path, missing-orchestrator, missing chunk keys, ci
      refusal, factory names).
 
-3. **Role prompts + renderer** (`caba6cd`)
+3. **Role prompts + renderer** (`52a8b4c`)
    - `tools/sprint_loop/prompts/{planner,plan-reviewer,test-designer,executor,validator}.md`
    - `tools/sprint_loop/prompts/render.py` — safe substitution;
      unknown `{{key}}` placeholders remain in the output (loud
@@ -58,7 +58,7 @@ shape.
    - Tests: ✅ — adds 6 tests covering template list, anti-implementation
      invariant (§13), substitution behavior, minimal-context coverage.
 
-4. **Per-chunk inner loop** (`969fcbd`)
+4. **Per-chunk inner loop** (`048bc62`)
    - `tools/sprint_loop/per_chunk.py` — composes the project's own
      scripts: `lock.py`, `valid-red.py`, `verify-green.py`,
      `local_backend.py`, `LocalBackend.validate`.
@@ -67,7 +67,7 @@ shape.
      the manifest.
    - Tests: ✅ — adds 7 tests for each step + render helpers.
 
-5. **Runner orchestrator + examples + integration tests** (`489b673`)
+5. **Runner orchestrator + examples + integration tests** (`b029858`)
    - `tools/sprint-loop.py` — top-level entry; planner → 2 plan
      reviewers → reconcile (stdin pause) → chunking →
      per-chunk inner loop → per-chunk commit on the sprint branch.
@@ -80,7 +80,7 @@ shape.
    - Tests: ✅ — adds 2 integration tests (dry-run end-to-end;
      family-guard refuse on unknown model).
 
-6. **Track C CI flavor (a)** (`825fa0c`)
+6. **Track C CI flavor (a)** (`1749db7`)
    - `.github/workflows/adversarial-sprint-ci.yml` — runs
      `local_backend.py` then `orchestrate-review.py` per PR;
      gate decision becomes a PR status check that blocks merge.
@@ -120,13 +120,13 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
   --chunks-file /path/to/your/chunks.json
 ```
 
-9. **Adversarial review pass + skill digest** (`0889296`)
+9. **Adversarial review pass + skill digest** (`2ae3be4`)
    - `phase-4.5/adversarial_review/{README,criteria-check,findings.jsonl.schema}.md`
    - `skills/adversarial-sprint/SKILL.md` (digest + index + rehydration)
    - Per §11 (exit criteria are checked): reviews every PRD §11 / OPERATING-RULES surface.
    - Tests: ✅ — adds 4 skill-shape tests.
 
-10. **Pass-r1 panel input + chunk-10 fix cluster** (`548a29a`)
+10. **Pass-r1 panel input + chunk-10 fix cluster** (`46d4d1b`)
     - `phase-4.5/adversarial_review/{panel-prompt,panel-findings-r1}.md`
     - 11 findings (F-1…F-11); 10 fixed in-pass, F-6 → KNR4.
     - High-impact bug fixes: F-1 (family-guard silent overwrite),
@@ -134,7 +134,7 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
       `accept`), F-8 (droid.py unbounded recursion → bounded loop).
     - Tests: ✅ — adds 7 regression tests; 63 passed.
 
-11. **Skill distribution shape + §19 OPERATING-RULES** (`f971887`)
+11. **Skill distribution shape + §19 OPERATING-RULES** (`4485874`)
     - `tools/conventions/skill-distribution.md` — four install paths,
       one canonical body, zero drift.
     - `skills/{adversarial-sprint,sprint-invocation}/SKILL.md` —
@@ -147,7 +147,7 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
 11+. **Pass-r2 panel calls pipeline** (consultation only; no code changes)
     - Pass-r2 surface: 13 findings (G-1…G-13), two blocker-class.
 
-12a. **Pass-r2 blockers + lifecycle (chunk-12a)** (`e820dd7`)
+12a. **Pass-r2 blockers + lifecycle (chunk-12a)** (`1a192c6`)
      - **G-10 (blocker):** `git add -f` pins the per-chunk evidence
        dir into git history so live chunk commits don't crash.
      - **G-7 (blocker):** `--unattended` flag + decoupled
@@ -176,7 +176,7 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
        emits `--evidence-output-dir` and `--unattended`.
      - Tests: ✅ — pending verification at chunk-12c.
 
-13. **Pass-r3 blockers + behavioural pins (chunk-13)** (`f1bae98`)
+13. **Pass-r3 blockers + behavioural pins (chunk-13)** (`5396191`)
     - The pass-r3 panel's 19 H-findings: 4 BLOCKERS (H-1..H-4) +
       6 HIGH (H-5..H-10) all fixed in-pass. 6 MED + 3 LOW tracked
       as KNI entries.
@@ -195,7 +195,7 @@ PYTHONPATH=tools /Users/factory/work/quantum-bank--llms-txt-pilot/.venv/bin/pyth
       coercion_h2_h14.
     - Tests: ✅ 80/80 at chunk-13 close.
 
-14. **Pass-r4 panel call (chunk-14 not shipped)** (`47bdceb`)
+14. **Pass-r4 panel call (chunk-14 not shipped)** (`487e7ad`)
     - Pass-r4 returned REJECT_IMPLEMENTATION with 20 J-findings
       at chunk-13 close.
     - 1 BLOCKER (J-7: §15 truth-table was *not* actually expanded

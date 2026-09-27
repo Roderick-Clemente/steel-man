@@ -53,8 +53,8 @@ Both reviewers independently reproduced the spec exit criteria:
     entry × 3 reference forms tested against `evidence/LEDGER.md`, `tests/`, `tools/` →
     39 combinations, 0 hits. Pre-D4-1 zero-reference claim holds post-move.
 12. `git log --follow` traces `…/archive/r-drs-role-split-2/grok-4.5.stream.json` through
-    `0663444` → `4965f1e` (D2 baseline) → `8f762df`; `planning/pilots/ai-discovery/README.md`
-    through `0663444` → `eccf4a7` (file's birthplace).
+    `0663444` → `ca95b72` (D2 baseline) → `5254f2c`; `planning/pilots/ai-discovery/README.md`
+    through `0663444` → `d45a4a6` (file's birthplace).
 13. Scope static: `git diff fee5b37..HEAD -- tokens/ evidence/LEDGER.md tests/ …` → empty;
     `git log fee5b37..HEAD --oneline | wc -l` → 1.
 
@@ -80,7 +80,7 @@ INCIDENTAL-DOC-FIDELITY, none gate action.
 
 - nit (kimi-k3): verifier prompt check 13 expected `pilots/ai-discovery/README.md` `--follow`
   to pass through `ee90061`; `ee90061` (D1 baseline) did not touch `pilots/`. The file's real
-  birthplace is `eccf4a7` and the trace correctly reaches it. **No gate action** — verifier
+  birthplace is `d45a4a6` and the trace correctly reaches it. **No gate action** — verifier
   prompt assumption slip, not chunk defect.
 
 - nit (minimax-m3): the `0663444` commit was amended `--no-edit` to fold in the captured

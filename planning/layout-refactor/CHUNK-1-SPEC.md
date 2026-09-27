@@ -528,7 +528,7 @@ The executor's worklist is that failure output.
 
 **Rootdir anchoring** is a property of the test file (paths derived from
 `__file__`, `cwd=REPO_ROOT` on subprocesses) preserving the
-CWD-independence established by commit `7179934`. Stated here because it
+CWD-independence established by commit `98016cc`. Stated here because it
 constrains how the executor may invoke the suite, not as a restatement
 of an assertion.
 

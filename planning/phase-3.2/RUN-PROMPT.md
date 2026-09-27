@@ -5,7 +5,7 @@ deterministic evidence tier so the model panel consumes a compact structured
 result instead of re-running pytest in-session. The design is in
 `phase-3.2/SPIKE.md` and the sequencing/first-lens call is in
 `phase-3.2/RECOMMENDATION.md` — **read both first.** This file is the execution
-recipe. The plan is human-approved (commit `5ea085a`); you may build now.
+recipe. The plan is human-approved (commit `a14bf49`); you may build now.
 
 Build **strictly from the committed spec.** Where the spec is silent, make the
 smallest reasonable choice, follow existing repo conventions, and **log the

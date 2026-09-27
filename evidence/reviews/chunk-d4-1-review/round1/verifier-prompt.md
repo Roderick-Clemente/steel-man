@@ -194,7 +194,7 @@ git log --follow --oneline -5 evidence/phase-4.5/build-evidence/archive/r-drs-ro
 git log --follow --oneline -5 planning/pilots/ai-discovery/README.md
 ```
 
-Expected: each path's --follow traces back to `4965f1e` (D2 baseline) at minimum; the README.md
+Expected: each path's --follow traces back to `ca95b72` (D2 baseline) at minimum; the README.md
 follows back through `ee90061` (D1 baseline).
 
 ### Check 14 — Scope escapes

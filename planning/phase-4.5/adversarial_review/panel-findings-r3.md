@@ -2,7 +2,7 @@ I have enough to answer all three decisions. Findings below.
 
 ---
 
-# Phase 4.5 — adversarial panel findings, pass-r3 (commit `0feaaa4`)
+# Phase 4.5 — adversarial panel findings, pass-r3 (commit `0b0c203`)
 
 **Scope reviewed:** §15 demo-delta claim, Act-1/Act-2 path collapse, truth-table honesty. Read-only audit.
 
@@ -254,6 +254,6 @@ Two gaps in the "close the laptop" story that `KNR2` does not cover:
 
 **Decision 3 — §19 is clean; the skill layer is not.** §19 is inert prose with no Act-2 behavior. But `sprint-invocation` collapses Act 1 into a simulated Act 2 and reports it as success, which is the demo-delta claim failing at exactly the seam §15 says is the deliverable.
 
-The §15 structural guarantee — "the runner can complete one real chunk end-to-end" — is not demonstrable at `0feaaa4` by any documented invocation. Minimum set to re-open: H-1, H-2, H-3, H-4 (blockers), then H-5..H-10, then re-pin H-6/H-14 with behavioral rather than source-string tests.
+The §15 structural guarantee — "the runner can complete one real chunk end-to-end" — is not demonstrable at `0b0c203` by any documented invocation. Minimum set to re-open: H-1, H-2, H-3, H-4 (blockers), then H-5..H-10, then re-pin H-6/H-14 with behavioral rather than source-string tests.
 
 REJECT_IMPLEMENTATION

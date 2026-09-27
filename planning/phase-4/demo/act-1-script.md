@@ -46,12 +46,12 @@ From `tools/PHASE-0.5-CLOSE.md`:
    (`tools/fixtures/rung2-canary-check.py`) refuses `BUILD-LOG.md`,
    `hook-attempts.jsonl`, `num_turns=`, `is_error=`, `factory_credits`,
    executor reasoning, etc. Verified on a fresh-clone review (commit
-   `74df967`).
+   `2094b48`).
 
 3. **Gate asserts on reality + fails loud** — every gate emits an exit code;
    pre-fix Code's rung-5 gate minted exit 0 on `is_error=None` (the fake-pass
    hole). Units A–C of `factory/rung5.5-fakepass-close` close that hole.
-   Backstop verified on a clean clone at tip `6bc03e7`: LIVE=`GGG`, Config
+   Backstop verified on a clean clone at tip `81fbe93`: LIVE=`GGG`, Config
    A=`GGR`, Config B=`RRR` — clean run still passes; the forged fixture is
    CAUGHT with the literal message `rung 5 RED — tool_call is_error must be
    False (got None)`.
@@ -72,7 +72,7 @@ From `tools/PHASE-0.5-CLOSE.md`:
    `fake-session.jsonl` plus a forged verdict. The contract gate
    `tools/fixtures/rung7b-fakepass-gate.py` asserts the fixture MUST be
    REJECTED. Pre-fix: gate REDs (exit 1). Post-fix: gate GREENs (exit 0).
-   Backstop verified on clean clone at tip `6bc03e7`.
+   Backstop verified on clean clone at tip `81fbe93`.
 
 ---
 

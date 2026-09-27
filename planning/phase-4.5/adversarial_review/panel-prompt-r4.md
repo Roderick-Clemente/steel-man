@@ -1,6 +1,6 @@
 # Phase 4.5 — adversarial panel input request (pass-r4)
 
-**Scope:** Review the build state at commit `f1bae98` (chunk-13
+**Scope:** Review the build state at commit `5396191` (chunk-13
 close) on whether the **§15 demo-delta claim now holds**. Pass-r3
 REJECT_IMPLEMENTATION with 19 findings (H-1..H-19). Chunk 13 fixed:
 
@@ -39,7 +39,7 @@ READ ONLY. `Read`, `Glob`, `Grep`, `LS`. No `Execute`, no `Edit`.
 
 ## Code + doc audit scope
 
-Changes since pass-r3 (commit `0feaaa4 → f1bae98`):
+Changes since pass-r3 (commit `0b0c203 → 5396191`):
 
 - `tools/sprint-loop.py`:
   - `cfg.dry_run` no longer coerced from `--non-interactive` (was

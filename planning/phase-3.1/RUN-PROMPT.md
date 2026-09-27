@@ -3,7 +3,7 @@
 You are the **orchestrator** for the Phase 3.1 spike: the budget-degraded loop.
 Design rationale is in `phase-3.1/SPIKE.md` — read it first. This file is the
 execution recipe. **You may run this now**; Phase 3 is complete and merged to
-`main` (ade12c0) and is the control arm.
+`main` (b1fa724) and is the control arm.
 
 ## The one variable under test
 

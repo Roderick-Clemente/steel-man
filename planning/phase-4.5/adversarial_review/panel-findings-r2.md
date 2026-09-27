@@ -1,6 +1,6 @@
 # Panel input — Phase 4.5 build review (pass-r2)
 
-**Target of review:** commit `f971887` (chunk 11 close) + the
+**Target of review:** commit `4485874` (chunk 11 close) + the
 chunk-12 architectural corrections proposed in conversation.
 
 **Panel seat:** Factory Droid (Anthropic / claude-family),

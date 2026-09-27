@@ -1,7 +1,7 @@
 # chunk-D5A review — audit-script-only (single reviewer)
 
 Commits under review (this branch's surface, on top of
-`331a7f8` chunk-D5-1b predecessor):
+`996819c` chunk-D5-1b predecessor):
 
 - `373e5af` planner — `CHUNK-D5A-SPEC.md` + `PROMPT-D5A-BUILDER.md`
 - `8f143ca` executor — migration: 304 `git mv` + 107 citation

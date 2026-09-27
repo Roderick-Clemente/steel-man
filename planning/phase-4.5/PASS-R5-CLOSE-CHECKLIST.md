@@ -189,7 +189,7 @@ When pass-r5 closes, the operator (you) records
   `gemini-family` per PRD §11 Phase 5 exit criteria).
 - Mutation test results: 6 tests, all pin pass.
 - File-level commit: chunk-{N} retrofit commits on top of
-  `f89b9c6` (or whichever commit is HEAD at session entry).
+  `c52a565` (or whichever commit is HEAD at session entry).
 - Final branch tip after retrofit commits.
 - Push (operator-side; agents don't push).
 

@@ -2,7 +2,7 @@ I have enough to answer all three decisions. Findings below.
 
 ---
 
-# Phase 4.5 — adversarial panel findings, pass-r4 (commit `f1bae98`)
+# Phase 4.5 — adversarial panel findings, pass-r4 (commit `5396191`)
 
 **Scope reviewed:** the §15 demo-delta claim after chunk-13. Read-only audit (`Read`/`Glob`/`Grep`/`LS`; no `Execute`, no `Edit`).
 

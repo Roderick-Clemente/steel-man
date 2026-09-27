@@ -73,7 +73,7 @@ check inherits this hole. The exit check must resolve links, not count tokens.
 ## F4 — `tools/OPERATING-RULES.md:581-582` cited two files that never existed
 
 The rule text cited `phase-4.5/prompts/phase-5-grok-validator.md` and
-`…-gemini-validator.md`. Neither has ever existed: `git log` shows `6c315a2`
+`…-gemini-validator.md`. Neither has ever existed: `git log` shows `b5fbe1b`
 added them as `phase-5-grok-validator-spawn.md` / `-gemini-validator-spawn.md`,
 so the citation was stale **before** the move.
 

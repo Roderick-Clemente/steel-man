@@ -1,6 +1,6 @@
 # Phase 4.5 — adversarial panel input request (pass-r2)
 
-**Scope:** Review the build state at commit `f971887` (chunk 11
+**Scope:** Review the build state at commit `4485874` (chunk 11
 close) and the proposed chunk-12 architectural corrections. This
 is the second adversarial review pass; the first (pass-r1,
 chunk 10) surfaced F-1 through F-11 and ten were fixed in-place.
@@ -21,7 +21,7 @@ READ ONLY. `Read`, `Glob`, `Grep`, `LS`. No `Execute`, no `Edit`.
 
 ## Code + doc audit scope
 
-Changes since pass-r1 (commit `548a29a → f971887`):
+Changes since pass-r1 (commit `46d4d1b → 4485874`):
 
 - `tools/OPERATING-RULES.md` §19 added: "Commit when the
   recommendation is clear; do not force the operator to choose."

@@ -2,7 +2,7 @@
 
 You are the builder. Seat: builder. Repo:
 `/Users/factory/work/adversarial-sprint-dev`. Branch from latest
-`main` (`331a7f8` is the predecessor commit landed via PR #8 for
+`main` (`996819c` is the predecessor commit landed via PR #8 for
 chunk-D5-1b). Read first: `planning/evidence-hygiene/CHUNK-D5A-SPEC.md`
 (this chunk's spec is your authority). Also read:
 

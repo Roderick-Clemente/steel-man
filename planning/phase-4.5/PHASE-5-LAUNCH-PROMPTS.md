@@ -7,16 +7,16 @@ fresh Factory Droid sessions in this order:
    canonical `skills/adversarial-sprint/SKILL.md` loads into a
    fresh agent's prompt context, including the new digest rule
    `#9` (chunk-close is gated, not declared) added in commits
-   `40f0fff` + `c6a1a7a`. Operator reads the reply's structure
+   `4c3b54b` + `f2169f7`. Operator reads the reply's structure
    to confirm.
 
 2. **Prompt 2 — Phase 5 build chunk.** Fires after Prompt 1's
    smoke test passes. The fresh agent builds the 5 Phase-5
    deliverables on a fresh worktree branched from `main` HEAD
-   `2918bd6` (post-cleanup; the Phase 5 PRD promotion
-   (`40f0fff`+`c6a1a7a`+`fa14360`) was FF-merged to `main`
-   before the origin-merge (`83b75cb`) and the chunk-14
-   executor's design-doc fold (`2918bd6`) both landed
+   `9fc727c` (post-cleanup; the Phase 5 PRD promotion
+   (`4c3b54b`+`f2169f7`+`d5d3e72`) was FF-merged to `main`
+   before the origin-merge (`fbfe0c0`) and the chunk-14
+   executor's design-doc fold (`9fc727c`) both landed
    no-ff-atop).
 
 Prompts inherit `AGENTS.md` rules: zero commit rights for the
@@ -34,19 +34,19 @@ enforcement at the operator-eye layer.
 
 The branch state at the time this file was last updated:
 
-- **`main`** = `2918bd6`. The Phase 5 PRD promotion triple
-  (`40f0fff` + `c6a1a7a` + `fa14360`) is followed by the
-  origin-merge commit `83b75cb` (wiki-phase-3.1 PR #1 + Phase
+- **`main`** = `9fc727c`. The Phase 5 PRD promotion triple
+  (`4c3b54b` + `f2169f7` + `d5d3e72`) is followed by the
+  origin-merge commit `fbfe0c0` (wiki-phase-3.1 PR #1 + Phase
   3.1 follow-up program), then the chunk-14 executor's
-  `DESIGN-REVIEW-ATTESTATION-GATE.md` fold as commit `2918bd6`.
+  `DESIGN-REVIEW-ATTESTATION-GATE.md` fold as commit `9fc727c`.
   This is the canonical Phase 5 base — the fresh agent branches
-  from `main` HEAD `2918bd6`.
+  from `main` HEAD `9fc727c`.
 - **`factory/phase-4.5-loop-runner`** — deleted. FF-merged into
-  `main` before `fa14360`; branch removed in the clean-up. No
+  `main` before `d5d3e72`; branch removed in the clean-up. No
   follow-up branch references it.
-- **`factory/review-attestation-gate-spec`** at `5e8774e` —
-  folded into `main` as commit `2918bd6` (no-ff; the spec-doc
-  was on a branch off `5449c06` and main now includes the
+- **`factory/review-attestation-gate-spec`** at `66a01a1` —
+  folded into `main` as commit `9fc727c` (no-ff; the spec-doc
+  was on a branch off `c109bc6` and main now includes the
   Phase 4.5/5 promotion triple + the origin merge, so no-ff
   was forced). The design-doc is on `main` and Phase 5's
   build-chunk reads it as the concrete layer-1/2/3 reference.
@@ -56,7 +56,7 @@ The branch state at the time this file was last updated:
   tool lands in Prompt 2's deliverables. Branch rebases onto
   `main` at that point.
 - **`factory/chunk-e-contract-reader`** at `9c069e0` — paused.
-  Rebased onto `main` `2918bd6` after operator resume; single
+  Rebased onto `main` `9fc727c` after operator resume; single
   commit (10 files, +826/-36), 14 new tests pass + 2 pre-existing
   failures confirmed on clean main. NOT routed through merge
   until `chunk_sequence_gate` exists. Same gate applies.
@@ -123,18 +123,18 @@ filesystem mutations.
 ## Prompt 2 — Phase 5 build chunk
 
 **Branch:** `factory/phase-5-chunkadherence-enforcement`,
-fresh worktree branched from `main` HEAD `2918bd6`
+fresh worktree branched from `main` HEAD `9fc727c`
 (post-cleanup; the Phase 5 PRD promotion triple landed FF on
 `main`, then the origin-merge and the chunk-14 executor's
 design-doc fold landed no-ff atop. So the fresh agent's base
-is `main` at `2918bd6`, *not* an intermediate branch).
+is `main` at `9fc727c`, *not* an intermediate branch).
 Operator picks the worktree path; the fresh agent runs
 `git worktree add -b factory/phase-5-chunkadherence-enforcement
 <path> main` first, then `cd` into it.
 
 **Clean WIP discipline.** `factory/chunk-e-contract-reader`
 is at `9c069e0` on its own worktree, rebased onto clean main
-`2918bd6`, working tree clean. The Phase-5 fresh-agent does NOT
+`9fc727c`, working tree clean. The Phase-5 fresh-agent does NOT
 inherit Backlog-E WIP. After operator resume of the chunk-e
 fresh-agent, the contract-reader files live on
 `factory/chunk-e-contract-reader`, not on `main` and not on
@@ -201,7 +201,7 @@ worktree; do not revert, do not cherry-pick.
    signature mismatched. Exit code 6 on refusal. Wire into the
    runner's chunk-close path so token emit precedes commit.
 4. **Skill + distribution update.** (rule #9 already in
-   SKILL.md from `40f0fff`; just verify.) `tools/install-skill.sh`
+   SKILL.md from `4c3b54b`; just verify.) `tools/install-skill.sh`
    re-emits `.factory/skills/`, `.claude/skills/`,
    `.cursor/rules/` against the new rule.
 5. **Operator-eye visual signal — runtime-bound, not decorative.**
@@ -304,17 +304,17 @@ amendment fails Layer 3 of the gate.
 The Phase-5 fresh-agent build closed on
 `factory/phase-5-chunkadherence-enforcement`. The branch was cut
 off `main` HEAD `f2f14085c9119fe638a146a8b43817404ddb9a49` (the
-`40f0fff`+`c6a1a7a`+`fa14360` promotion triple landed in `main`
+`4c3b54b`+`f2169f7`+`d5d3e72` promotion triple landed in `main`
 ahead of the chunk-14 design-doc fold and the origin-merge; the
-canonical Phase-5 base is therefore `main` HEAD `f2f1408`, *not*
-the `2918bd6` reference cited at the top of this file). Per-pilot
+canonical Phase-5 base is therefore `main` HEAD `37d129b`, *not*
+the `9fc727c` reference cited at the top of this file). Per-pilot
 operators who trigger a fresh Phase-5 build should branch from
 this updated `main` HEAD.
 
 **Build terminal points (audit trail):**
 
 `factory/phase-5-chunkadherence-enforcement` branch tip
-(`dda84d1` at the time this section was added). Cross-family
+(`94f3f94` at the time this section was added). Cross-family
 review at pass-r5 closes this branch; the next Agent's main
 absorb is the merge that follows.
 
@@ -326,11 +326,11 @@ re-verified at chunk close via
 
 | chunk | code-commit | token-commit |
 |-------|-------------|--------------|
-| 5a    | `364f15d`   | `f89275f`    |
-| 5b    | `a8ba006`   | `663ee4c`    |
-| 5c    | `e5178cc`   | `76eb3ab`    |
-| 5d    | `386f2ac`   | `59442ab`    |
-| 5e    | `5193cc9`   | `dda84d1`    |
+| 5a    | `be31bde`   | `80006a9`    |
+| 5b    | `4d7d375`   | `275fad6`    |
+| 5c    | `b980432`   | `8b02daf`    |
+| 5d    | `a7f4428`   | `ec41248`    |
+| 5e    | `ba17f49`   | `94f3f94`    |
 
 Each `chunk-N.token.json` lives at
 `phase-4.5/tokens/chunk-N.token.json`. The token binds to the

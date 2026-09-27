@@ -4,7 +4,7 @@ You are the builder. Seat: builder. Repo:
 `/Users/factory/work/adversarial-sprint-dev` (or your local clone of
 `git@github.com:Roderick-Clemente/adversarial-sprint-dev.git`).
 
-Branch from latest `main` (chunk-D3-1 is merged — merge commit `5bef37a`):
+Branch from latest `main` (chunk-D3-1 is merged — merge commit `77da210`):
 `factory/d4-final-cleanup`.
 
 Read first: `planning/evidence-hygiene/CHUNK-D4-SPEC.md`. That spec
@@ -277,9 +277,9 @@ EOF
 
 # Verify git log --follow reaches immediate-post-D2 commit for
 # representatives from each category
-git log --follow evidence/reviews/archive/drs-role-split-2/gemini-2.5-pro.stream.json | grep -q 4965f1e && echo OK-1
-git log --follow evidence/reviews/archive/review-convention-gemini.json | grep -q 4965f1e && echo OK-2
-git log --follow evidence/reviews/archive/rung3-extract-tool-calls.sh | grep -q 4965f1e && echo OK-3
+git log --follow evidence/reviews/archive/drs-role-split-2/gemini-2.5-pro.stream.json | grep -q ca95b72 && echo OK-1
+git log --follow evidence/reviews/archive/review-convention-gemini.json | grep -q ca95b72 && echo OK-2
+git log --follow evidence/reviews/archive/rung3-extract-tool-calls.sh | grep -q ca95b72 && echo OK-3
 # expected: OK-1 OK-2 OK-3 all print
 ```
 
@@ -356,7 +356,7 @@ Body:
   plan-lint.py on CHUNK-D4-SPEC: PASS. git diff --find-renames
   shows pure 0/0 renames for all 26 relocated files.
 
-* Predecessor: chunk-D3-1 @ main 5bef37a. One reviewer (dossier §5).
+* Predecessor: chunk-D3-1 @ main 77da210. One reviewer (dossier §5).
 ```
 
 Branch: `factory/d4-final-cleanup`. Push to `dev` remote ONLY.

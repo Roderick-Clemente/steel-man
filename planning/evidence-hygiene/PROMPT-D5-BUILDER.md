@@ -5,7 +5,7 @@ You are the builder. Seat: builder. Repo:
 `git@github.com:Roderick-Clemente/adversarial-sprint-dev.git`).
 
 Branch from latest `main` (chunk-D4-1 squash-merged into `main` via
-PR #7 — merge commit `fdfbbc2` on `origin/main`; the chunk's own
+PR #7 — merge commit `4e7db56` on `origin/main`; the chunk's own
 commit `0663444` is retrievable on `origin/factory/d4-final-cleanup`
 via `git show 0663444`):
 `factory/d5-tooling-docs`. Read first:

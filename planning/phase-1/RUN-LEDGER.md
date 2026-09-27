@@ -27,7 +27,7 @@ Notes:
 
 | test_file | valid | reason | verifier | source |
 |---|---|---|---|---|
-| `test/test_llms_txt_charset.py` | yes | intended assertion ran and failed for the doubled-charset case | captured from test-designer run | `phase-1/build-evidence/test-designer-envelope.json` (commit 7621e06, session d5a4e11d-edc3-4df6-b78f-151ff410355e) |
+| `test/test_llms_txt_charset.py` | yes | intended assertion ran and failed for the doubled-charset case | captured from test-designer run | `phase-1/build-evidence/test-designer-envelope.json` (commit 97b229e, session d5a4e11d-edc3-4df6-b78f-151ff410355e) |
 
 Notes:
 - The Phase 1 slice's RED step is currently observed inside the test-designer

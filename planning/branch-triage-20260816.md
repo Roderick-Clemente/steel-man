@@ -2,7 +2,7 @@
 
 One-line disposition per unmerged branch, recorded for Rod to confirm Monday.
 Nothing was merged or deleted on this pass. Method: `git cherry` patch-equivalence
-against `origin/main` (933f532), main-reflog merge records, and content presence
+against `origin/main` (ce9941e), main-reflog merge records, and content presence
 checks in main's tree. Dispositions verified by hand where the automated pass
 flagged uncertainty.
 

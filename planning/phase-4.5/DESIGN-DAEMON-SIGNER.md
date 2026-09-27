@@ -33,11 +33,11 @@ shapes:
   authored and orchestrated by the implementer. Reached
   ACCEPT-WITH-NITS but violated §17.2 family-distinctness.
 
-- **Phase 5 (this branch, commits `f89275f` / `663ee4c` / `76eb3ab` /
-  `59442ab` / `dda84d1`):** every chunk-N token was emitted with
+- **Phase 5 (this branch, commits `80006a9` / `275fad6` / `8b02daf` /
+  `ec41248` / `94f3f94`):** every chunk-N token was emitted with
   typed-in fixture `envelope_sha256` values of the form
   `"5555…55501"`. Per KN-A-5 this was caught at the gate (commit
-  `56ee55a` tightened `cross_family_review.py`), but the gate
+  `0f6a7e4` tightened `cross_family_review.py`), but the gate
   *catches future emissions* — the existing tokens on this branch
   remain fabricated until cross-family pass-r5 close re-fires real
   reviewers.
@@ -59,12 +59,12 @@ boundary, not inside it.
 
 | Piece | Exists | Gap for this design |
 |---|---|---|
-| `tools/sign_chunk_token.py` HMAC-SHA256 canonical-JSON signer | yes (commit `364f15d`) | signer reads `EVIDENCE_SIGNING_KEY` from the *caller's* env — caller is the build agent. |
-| `tools/chunk_sequence_gate.py` refuse-on-tampered-prior-token | yes (commit `e5178cc`) | refuses missing/invalid HMAC. Does not check envelope-on-disk. |
-| `tools/cross_family_review.py` refusal-at-parse | yes (commit `a8ba006`) + KN-A-5 tightening (commit `56ee55a`) | refuses family collisions + placeholder envelopes. Cannot tell a fixture marker from a real sha256 whose leading 50 chars happen to be uniform (probability ~2^-200, so effectively never). |
+| `tools/sign_chunk_token.py` HMAC-SHA256 canonical-JSON signer | yes (commit `be31bde`) | signer reads `EVIDENCE_SIGNING_KEY` from the *caller's* env — caller is the build agent. |
+| `tools/chunk_sequence_gate.py` refuse-on-tampered-prior-token | yes (commit `b980432`) | refuses missing/invalid HMAC. Does not check envelope-on-disk. |
+| `tools/cross_family_review.py` refusal-at-parse | yes (commit `4d7d375`) + KN-A-5 tightening (commit `0f6a7e4`) | refuses family collisions + placeholder envelopes. Cannot tell a fixture marker from a real sha256 whose leading 50 chars happen to be uniform (probability ~2^-200, so effectively never). |
 | `tools/orchestrate-review.py` cross-family panel machinery | yes | input is a *chunk* spec, not an envelope-on-disk-check. |
 | `tools/run-with-model.sh` droid exec wrapper | yes | the wrapper fires droid and emits raw output; does not currently write envelopes to canonical disk paths. |
-| `phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md` (the design-doc companion) | yes (commit `2918bd6`) | provides §10's "envelope_sha256 lets a skeptic re-hash raw model output" rule; provides Layers 1/2/3 enforcement design but assumes the agent holds the key. |
+| `phase-4.5/DESIGN-REVIEW-ATTESTATION-GATE.md` (the design-doc companion) | yes (commit `9fc727c`) | provides §10's "envelope_sha256 lets a skeptic re-hash raw model output" rule; provides Layers 1/2/3 enforcement design but assumes the agent holds the key. |
 
 So this is roughly 80% reuse (`sign_chunk_token.py`'s HMAC primitive
 + canonical-JSON scheme), 20% new piece (the daemon process and
@@ -414,11 +414,11 @@ only AFTER at least one clean Tier-3 daemon close lands.
   orchestrations; the gate would have refused on family but
   the gate did not exist yet.
 - **Phase-5 build** (`factory/phase-5-chunkadherence-enforcement`,
-  commits `f89275f` / `663ee4c` / `76eb3ab` / `59442ab` /
-  `dda84d1`): fixture-marker envelope_sha256 typed by the
+  commits `80006a9` / `275fad6` / `8b02daf` / `ec41248` /
+  `94f3f94`): fixture-marker envelope_sha256 typed by the
   implementer (KN-A-5); cross-family pass-r5 close is required
   to remediate.
-- **Phase-5 self-fix** (commit `56ee55a`): tightened
+- **Phase-5 self-fix** (commit `0f6a7e4`): tightened
   `cross_family_review.py` with placeholder-pattern refusal;
   does not retroactively invalidate the prior tokens but stops
   future builds.

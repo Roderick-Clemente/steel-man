@@ -22,7 +22,7 @@ validation. One real slice through the whole plan → execute → review cycle.
 ## Repos
 
 - **Framework:** `/Users/factory/work/adversarial-sprint-dev`, branch
-  `factory/phase-3-slice`, off `main @ cfb1a32`.
+  `factory/phase-3-slice`, off `main @ 73145ee`.
 - **Pilot:** `/Users/factory/work/quantum-bank--llms-txt-pilot`, branch
   `factory/phase-3-profile`, off `8a10711d` (Phase-1 charset fix committed,
   plan-v1 line anchors verified, 87 tests green, 26 routes).
