@@ -2,7 +2,7 @@
 
 *Multi-model adversarial planning, execution, and validation for agentic coding — built on Factory primitives.*
 
-**steel-man** is the project; the *adversarial sprint* is the method it runs.
+**Steel-man** — hardening AI-built code through adversarial sprints.
 
 For months I ran an adversarial coding process by hand. One model plans. A different family attacks the plan. Both audit the test strategy. A cheap agent implements small chunks, and an independent agent validates each one. The quality was real — and so was the contradiction: a *manual* agentic workflow. I was the middleware, copy-pasting between frontier models, and at some point you notice that the human is the bottleneck the whole setup was supposed to remove.
 
