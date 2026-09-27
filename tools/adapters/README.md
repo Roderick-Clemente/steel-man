@@ -8,13 +8,28 @@ Vendor modules under this directory (rung-7+) include:
 
 - `factory.py` (this commit) — adapter for Factory `droid exec
   --output-format json` runs.
+- `claude_code.py` — adapter for Claude Code `claude -p
+  --output-format json` runs. No settings.json sibling (unlike
+  Factory) — Claude Code resolves model_id directly from the
+  session jsonl's per-turn `message.model` field, and `family` is
+  hardcoded to `"anthropic"` (documented shortcoming: collapses
+  distinct Claude models the same way Factory's provider-lock
+  family key does — see "Family key" below). Verified against a
+  real captured run at `tools/fixtures/claude-code-probe/`, not a
+  synthesized fixture.
 
 Vendor modules NOT written here (out of scope, Phase 4):
 
 - `codex.py` (Codex CLI)
-- `claude_code.py` (Anthropic Claude Code)
 - `ollama.py` (local Ollama)
 - …and any future vendor.
+
+Note: a Claude Code adapter existing does not by itself mean a
+Claude Code seat can run in a sprint. There is still no scheduler
+that swaps `<vendor>` based on a configured seat (see "Out-of-scope
+work" below) — `tools/run-with-model.sh` and the orchestrator
+currently shell out to `droid exec` for every role regardless of
+which adapter would parse the result.
 
 Out-of-scope vendor modules are not stubbed; the seam is proven
 by hand on one vendor (Factory). Adding the next vendor requires
