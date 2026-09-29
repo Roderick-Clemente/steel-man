@@ -27,7 +27,7 @@ A planted test-independence defect went to a cross-family panel. `grok-4.5` reje
 → [`planning/phase-3.1/RESULTS.md`](./planning/phase-3.1/RESULTS.md)
 
 **2. A forged transcript passed every gate — with zero real validation.**
-Three aligned permissive defaults let a fake-pass envelope through: an unmatched `tool_use` yields `is_error=None`, which read as success. The fix is one line (`is True` → `is not False`). The forged input is committed as a fixture so the hole stays testable.
+Three aligned permissive defaults let a fake-pass envelope through: an unmatched `tool_use` yields `is_error=None`, which read as success. The fix is one line (`is True` → `is not False`). The forged input is committed as a regression fixture so this failure mode stays testable.
 → [`tools/KNOWN-ISSUES.md`](./tools/KNOWN-ISSUES.md) · [`tools/fixtures/rung7b-fakepass/`](./tools/fixtures/rung7b-fakepass/)
 
 **3. The wrong model ran a five-chunk refactor, and nothing surfaced it.**
