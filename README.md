@@ -79,7 +79,7 @@ version message.
 
 The runner is invoked through the per-pilot overlay (`.adversarial-sprint/bin/run-sprint` in a pilot repo), not the framework CLI. `tools/sprint-loop.py --help` is the debugging surface. See [`skills/adversarial-sprint/SKILL.md`](./skills/adversarial-sprint/SKILL.md) for the agent-facing rules digest.
 
-On a fresh clone the suite reports **504 passed, 6 skipped**. The skips are honest, not broken. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
+On a fresh clone the suite reports **504 passed, 6 skipped**. The skips are honest, not broken. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state. This count is checked against a live run in CI (`tools/check_doc_test_counts.py`) — the number that used to be here was stale for six weeks before anyone caught it.
 
 ## CI
 

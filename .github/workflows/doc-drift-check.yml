@@ -1,0 +1,42 @@
+name: Doc test-count drift check
+#
+# Runs tools/check_doc_test_counts.py, which asserts that README.md and
+# droid-wiki/how-to-contribute/testing.md's stated pass/skip counts match
+# a live pytest run.
+#
+# Deliberately triggers on every push to main, not just PRs that touch
+# the doc files. The defect this catches isn't "someone edited a doc" —
+# it's "the suite changed and no doc's claim about it was re-checked."
+# A trigger scoped to doc-touching PRs would miss exactly that case,
+# which is how the claim went stale for six weeks in the first place:
+# 263 tests were added elsewhere and nothing here noticed.
+#
+# Needs no secrets, no droid CLI, no model API keys — just Python and
+# the repo's own test suite.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  doc-drift-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check doc test-count claims against a live run
+        run: python3 tools/check_doc_test_counts.py

@@ -8,9 +8,9 @@ This is a multi-model adversarial coding framework. The interesting part is not 
 
 The framework lives at `~/work/adversarial-sprint-dev`. It is a normal Python repo with a test suite, a runner, and a set of gates. If you can write Python and read a spec, you can work here.
 
-Start with [getting started](../overview/getting-started.md) to clone and run the suite. Then read [development workflow](development-workflow.md) for the branch-by-author convention, the commit body recipe, and how the three agents hand work off to each other. The [testing](testing.md) page explains what the 233 tests actually cover and how to run them.
+Start with [getting started](../overview/getting-started.md) to clone and run the suite. Then read [development workflow](development-workflow.md) for the branch-by-author convention and how the three agents hand work off to each other. The [testing](testing.md) page explains what the suite actually covers and how to run it — the exact pass/skip count isn't repeated here on purpose; run the suite yourself, and CI keeps the testing page's own claim honest against a live run.
 
-The repo is organized by kind, not by phase. Code is in `tools/`, plans in `planning/`, evidence in `evidence/`. The [architecture](../overview/architecture.md) page has the full tree. Before you change a gate or a path constant, read [patterns and conventions](patterns-and-conventions.md), which summarizes the operating rules and the commit-body format every model-carrying commit needs.
+The repo is organized by kind, not by phase. Code is in `tools/`, plans in `planning/`, evidence in `evidence/`. The [architecture](../overview/architecture.md) page has the full tree. Before you change a gate or a path constant, read [patterns and conventions](patterns-and-conventions.md), which maps you to the operating rules, model-discipline policy, and commit-body format — each in its own canonical file, not restated there.
 
 Good first contributions: a new adapter in `tools/adapters/` for a CLI other than Factory, a plan-lint rule in `tools/plan-lint.py`, or a test that pins a behavior you found surprising. The [findings](../findings/index.md) pages are full of behaviors worth pinning.
 

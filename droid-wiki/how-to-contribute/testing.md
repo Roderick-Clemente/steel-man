@@ -1,6 +1,6 @@
 # Testing
 
-The test suite is the executable evidence layer. 233 tests cover the gates, the runner state machine, plan lint, and the repo layout. They are the first thing you run after a clone and the last thing you run before a push.
+The test suite is the executable evidence layer. It covers the gates, the runner state machine, plan lint, and the repo layout. It's the first thing you run after a clone and the last thing you run before a push.
 
 Run the whole suite from the repo root:
 
@@ -8,7 +8,9 @@ Run the whole suite from the repo root:
 python3 -m pytest -q
 ```
 
-Expected: **233 passed, 3 skipped**. The skips are honest. `telemetry/runs.jsonl` is the system-of-record and is gitignored, so tests that assert on its contents have nothing to assert against outside a real run. No skip is hiding a failure.
+Expected: **504 passed, 6 skipped**. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
+
+That count above is checked, not just written down once and left. `tools/check_doc_test_counts.py` runs the real suite and fails loud in CI if this page's claim stops matching reality — this exact page went six weeks and 263 tests stale before anyone noticed, so the number is no longer allowed to just sit here on faith.
 
 ## Markers
 

@@ -13,50 +13,13 @@ The overlay is the only operator-facing entrypoint. `tools/sprint-loop.py --help
 
 ## Install the overlay (one-time per pilot)
 
-From the framework repo at `~/work/adversarial-sprint-dev`:
+The exact commands, the resulting file layout, and the config placeholders to edit are in `templates/overlay/README.md` — that file is the install source, kept here would just be a second copy that can drift from the templates it's describing the moment either one changes.
 
-```bash
-mkdir -p <PILOT_REPO>/.adversarial-sprint/bin
-cp templates/overlay/sprint-loop-config.template.json \
-   <PILOT_REPO>/.adversarial-sprint/sprint-loop-config.json
-cp templates/overlay/sprint-loop-chunks-example.template.json \
-   <PILOT_REPO>/.adversarial-sprint/chunks.json
-cp templates/overlay/bin/run-sprint \
-   <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
-chmod +x <PILOT_REPO>/.adversarial-sprint/bin/run-sprint
-```
-
-The overlay layout, once installed:
-
-```
-<PILOT_REPO>/.adversarial-sprint/
-├── sprint-loop-config.json    # per-pilot config, edited from the template
-├── chunks.json                # your chunk spec, edited from the example
-└── bin/
-    └── run-sprint             # one-command runner entrypoint
-```
-
-## Edit the config
-
-Open `<PILOT_REPO>/.adversarial-sprint/sprint-loop-config.json` and replace the placeholders:
-
-- `framework_root` — the absolute path to your checkout of this repo.
-- `pilot_root` — the absolute path to your pilot repo.
-- `pilot_python` — the pilot's venv python, e.g. `.venv/bin/python`.
-- `validators` — the model roster for your panel, in `model:provider:family:model-id` form.
-- The per-role model fields (`planner_model`, `executor_model`, etc.) if your panel differs from the defaults.
-
-Set `EVIDENCE_SIGNING_KEY` in your shell before you launch. The config references it by env-var name (`signing_key_env`), not by value, so the key never lands in the repo.
+One thing worth calling out ahead of reading it: set `EVIDENCE_SIGNING_KEY` in your shell before you launch anything live. The config references it by env-var name, not by value, so the key never lands in the repo.
 
 ## Install the skills
 
-The agent-facing skill assets install in one command from the framework repo:
-
-```bash
-~/work/adversarial-sprint-dev/tools/install-skill.sh all
-```
-
-This drops the canonical adversarial-sprint skill into each agent's install path. No per-agent body copies are maintained. See `tools/conventions/skill-distribution.md` for the per-agent recipes.
+The agent-facing skill assets install in one command; see `tools/conventions/skill-distribution.md` for the exact command and the per-agent recipes. One canonical skill body, four install paths (Factory, Claude Code, Cursor, Codex) — no per-agent copies to keep in sync.
 
 ## Three run modes
 

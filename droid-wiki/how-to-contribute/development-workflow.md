@@ -18,15 +18,7 @@ Push branches to the remote as you go. The local machine is not a backup, and a 
 
 ## The commit body recipe
 
-Every commit that runs a model carries the model attribution in its body. This is not decoration — it is the evidence that a separation-bearing seat was held by the model it claims. The format:
-
-```
-Model: gpt-5.4-mini (providerLock: openai, apiProviderLock: openai)
-Role: executor
-Reviewer-panel: gemini-2.5-pro, grok-4.5 (Codex excluded — same family as author)
-```
-
-The resolved model ID and family go in the commit body and in telemetry. Separation-bearing seats (plan reviewer, test designer, validator) pin `--model` before running so the provider cannot swap. The planner and executor may use `--auto`, provided the resolved model is recorded. See `tools/conventions/commit-body-recipe.md` for the exact format and `tools/conventions/model-discipline.md` for the full policy.
+Every commit that runs a model carries the model attribution in its body — evidence that a separation-bearing seat was held by the model it claims, not decoration. The exact format lives in `tools/conventions/commit-body-recipe.md`; the model-pinning policy behind it (which seats must pin `--model`, which may use `--auto`) is in `tools/conventions/model-discipline.md`. Read those directly rather than a copy here — the format has changed before, and a second copy is a second place to forget to update it.
 
 ## The multi-agent handoff
 
@@ -37,7 +29,7 @@ The split should be deliberate, not whoever is open in a window. The agent that 
 ## What to read first
 
 - `AGENTS.md` for the conventions that apply to every agent
-- [patterns and conventions](patterns-and-conventions.md) for the operating rules and model discipline
+- [patterns and conventions](patterns-and-conventions.md) for where the operating rules and model discipline actually live
 - [testing](testing.md) for how to run the suite before you push
 - [getting started](../overview/getting-started.md) if you have not cloned yet
 
