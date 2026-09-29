@@ -8,13 +8,11 @@
 
 **Jump to:** [What the runs found](#what-the-runs-found) · [How it works](#how-it-works) · [What it isn't](#what-it-isnt) · [Layout](#layout) · [Running it](#running-it) · [CI](#ci)
 
-*Multi-model adversarial planning, execution, and validation for agentic coding — built on Factory primitives.*
+_Multi-model adversarial planning, execution, and validation for agentic coding._
 
 Steel-man coordinates multiple AI models around one coding task. One model plans, a different model family challenges the plan, the work is divided into small chunks, and an independent validator checks each result. Deterministic gates, not model confidence, decide whether it ships.
 
-> **TL;DR:** One model plans, a different model family attacks the plan, an independent validator checks the tests, and a deterministic gate — not a model's opinion — decides if a chunk ships. Four live-run findings below show why the deterministic gate exists.
-
-For months I ran an adversarial coding process by hand. One model plans. A different family attacks the plan. Both audit the test strategy. A cheap agent implements small chunks, and an independent agent validates each one. The quality was real — and so was the contradiction: a *manual* agentic workflow. I was the middleware, copy-pasting between frontier models, and at some point you notice that the human is the bottleneck the whole setup was supposed to remove.
+`PLAN → CHUNK → BUILD → VALIDATE → GATE`
 
 *Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.*
 
@@ -23,8 +21,6 @@ For months I ran this process by hand, acting as the middleware between models r
 I built it to test a practical question on my own codebase: if we invest more in planning and validation, can lower-cost models handle implementation without sacrificing quality?
 
 It runs on Factory primitives today, but vendors sit behind adapters. Swapping in another CLI or API means adding an adapter, not rewriting the framework.
-
-**Documentation:** [Explore the Steel-man wiki](./droid-wiki/overview/index.md)
 
 [![One agent's "perfect" plan runs the adversarial gauntlet](./.github/assets/adversarial-sprint-hero.png)](./.github/assets/adversarial-sprint-hero.png)
 
