@@ -30,7 +30,7 @@
 #     `--enabled-tools Execute`) requires that `orchestrate-review.py`
 #     is run with `--treatment`, set by the runner's call.
 
-name: adversarial-sprint-review
+name: Steel Man CI
 
 on:
   pull_request:

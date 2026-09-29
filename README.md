@@ -1,10 +1,20 @@
 # Steel-man
 
-_Multi-model adversarial planning, execution, and validation for agentic coding._
+[![CI](https://github.com/Roderick-Clemente/steel-man/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/Roderick-Clemente/steel-man/actions/workflows/gitleaks.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](./pyproject.toml)
+
+**Quick links:** [PRD](./PRD.md) · [Operating Rules](./tools/OPERATING-RULES.md) · [Skill digest](./skills/adversarial-sprint/SKILL.md) · [Wiki](./droid-wiki/overview/index.md)
+
+**Jump to:** [What the runs found](#what-the-runs-found) · [How it works](#how-it-works) · [What it isn't](#what-it-isnt) · [Layout](#layout) · [Running it](#running-it) · [CI](#ci)
+
+*Multi-model adversarial planning, execution, and validation for agentic coding — built on Factory primitives.*
 
 Steel-man coordinates multiple AI models around one coding task. One model plans, a different model family challenges the plan, the work is divided into small chunks, and an independent validator checks each result. Deterministic gates, not model confidence, decide whether it ships.
 
-`PLAN → CHUNK → BUILD → VALIDATE → GATE`
+> **TL;DR:** One model plans, a different model family attacks the plan, an independent validator checks the tests, and a deterministic gate — not a model's opinion — decides if a chunk ships. Four live-run findings below show why the deterministic gate exists.
+
+For months I ran an adversarial coding process by hand. One model plans. A different family attacks the plan. Both audit the test strategy. A cheap agent implements small chunks, and an independent agent validates each one. The quality was real — and so was the contradiction: a *manual* agentic workflow. I was the middleware, copy-pasting between frontier models, and at some point you notice that the human is the bottleneck the whole setup was supposed to remove.
 
 *Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.*
 
@@ -22,21 +32,37 @@ It runs on Factory primitives today, but vendors sit behind adapters. Swapping i
 
 Four findings from live runs. Each has a repro or a committed artifact behind it; none is a claim about what "should" happen.
 
-**1. Two frontier models, same failing test, opposite verdicts.**
+<details>
+<summary><strong>1. Two frontier models, same failing test, opposite verdicts.</strong></summary>
+
 A planted test-independence defect went to a cross-family panel. `grok-4.5` rejected it with correct attribution to the test. `gemini-3.1-pro-preview` looked at the identical failure and rationalized an ACCEPT. A single-validator configuration using gemini would have shipped it. The deterministic standalone gate caught it every time — not the hypothesis going in; the mechanical check outranked the model panel.
 → [`planning/phase-3.1/RESULTS.md`](./planning/phase-3.1/RESULTS.md)
 
-**2. A forged transcript passed every gate — with zero real validation.**
-Three aligned permissive defaults let a fake-pass envelope through: an unmatched `tool_use` yields `is_error=None`, which read as success. The fix is one line (`is True` → `is not False`). The forged input is committed as a regression fixture so this failure mode stays testable.
+</details>
+
+<details>
+<summary><strong>2. A forged transcript passed every gate — with zero real validation.</strong></summary>
+
+Three aligned permissive defaults let a fake-pass envelope through: an unmatched `tool_use` yields `is_error=None`, which read as success. The fix is one line (`is True` → `is not False`). The forged input is committed as a fixture so the hole stays testable.
 → [`tools/KNOWN-ISSUES.md`](./tools/KNOWN-ISSUES.md) · [`tools/fixtures/rung7b-fakepass/`](./tools/fixtures/rung7b-fakepass/)
 
-**3. The wrong model ran a five-chunk refactor, and nothing surfaced it.**
+</details>
+
+<details>
+<summary><strong>3. The wrong model ran a five-chunk refactor, and nothing surfaced it.</strong></summary>
+
 A live run filled the executor seat with `claude-haiku-4-5` — the cheapest model in the lineup — and the operator discovered it days later from the commit record. No log line made the seat assignment visible. The fix: the protocol banner now carries the model id, sourced from the invocation rather than self-reported.
 → [`planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §3
 
-**4. Five review rounds, and the panel never raised scope.**
+</details>
+
+<details>
+<summary><strong>4. Five review rounds, and the panel never raised scope.</strong></summary>
+
 The same live run went five rounds of review without any family flagging that the plan was mis-scoped; the operator caught it. Convergence is observable from *where* findings land across rounds, not from how many rounds have run. Breadth of defect is a scope signal.
 → [`planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md`](./planning/phase-5/DESIGN-ROLE-SPLIT-AND-SIGNALS.md) §1, §4
+
+</details>
 
 ## How it works
 
