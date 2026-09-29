@@ -6,7 +6,7 @@ Steel-man coordinates multiple AI models around one coding task. One model plans
 
 `PLAN → CHUNK → BUILD → VALIDATE → GATE`
 
-Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.
+*Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.*
 
 For months I ran this process by hand, acting as the middleware between models reviewing the code we built. Steel-man automates that process and makes it measurable.
 
