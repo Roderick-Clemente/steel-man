@@ -1,16 +1,22 @@
-# Steel Man: Better Code Through Adversarial Sprints
+# Steel-man
 
-*Multi-model adversarial planning, execution, and validation for agentic coding — built on Factory primitives.*
+_Multi-model adversarial planning, execution, and validation for agentic coding._
 
-**Steel-man** — hardening AI-built code through adversarial sprints.
+Steel-man coordinates multiple AI models around one coding task. One model plans, a different model family challenges the plan, the work is divided into small chunks, and an independent validator checks each result. Deterministic gates, not model confidence, decide whether it ships.
 
-For months I ran an adversarial coding process by hand. One model plans. A different family attacks the plan. Both audit the test strategy. A cheap agent implements small chunks, and an independent agent validates each one. The quality was real — and so was the contradiction: a *manual* agentic workflow. I was the middleware, copy-pasting between frontier models, and at some point you notice that the human is the bottleneck the whole setup was supposed to remove.
+`PLAN → CHUNK → BUILD → VALIDATE → GATE`
 
-This repo is that process, automated. It runs on Factory primitives today — `droid exec`, hooks, pinned model seats — but the platform sits behind a one-file vendor adapter ([`tools/adapters/`](./tools/adapters/)), so the gates assert on a vendor-neutral envelope shape and swapping in another CLI or API is a new adapter, not a rewrite.
+*Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.*
 
-Automating the process did something the manual practice never could: it made it **measurable**. And the first measurement cut against my own design — the deterministic gate outperformed the cross-family model panel I'd built the system around (finding 1 below).
+For months I ran this process by hand, acting as the middleware between models reviewing the code we built. Steel-man automates that process and makes it measurable.
 
-![One agent's "perfect" plan runs the adversarial gauntlet — iron sharpens iron](./.github/assets/adversarial-sprint-hero.png)
+I built it to test a practical question on my own codebase: if we invest more in planning and validation, can lower-cost models handle implementation without sacrificing quality?
+
+It runs on Factory primitives today, but vendors sit behind adapters. Swapping in another CLI or API means adding an adapter, not rewriting the framework.
+
+**Documentation:** [Explore the Steel-man wiki](./droid-wiki/overview/index.md)
+
+[![One agent's "perfect" plan runs the adversarial gauntlet](./.github/assets/adversarial-sprint-hero.png)](./.github/assets/adversarial-sprint-hero.png)
 
 ## What the runs found
 
