@@ -18,7 +18,7 @@ pip install -r requirements.txt
 python3 -m pytest -q
 ```
 
-Expected: **504 passed, 6 skipped**. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
+Expected: **512 passed, 6 skipped**. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
 
 ## Run a sprint (adopt the method on your own project)
 
