@@ -1,12 +1,19 @@
 # How to contribute
 
-There are two ways to engage with this repo, and they suit different people. You can help build the framework itself, or you can take the method home and run it against your own project. Both are welcome, and neither requires permission to start.
+There are two ways to engage, and they suit different people.
+
+**Pull requests are welcome.** Review is deliberate rather than fast, and anything touching code,
+tests or CI gets read closely before it goes anywhere — so expect questions and expect a slower
+reply than the merge button suggests. Docs, prose and assets move quicker.
+
+If you would rather not wait on a maintainer at all, **taking the method home works immediately** —
+clone this, take the overlay, run it on your own project. Nothing here needs to change for that.
 
 This is a multi-model adversarial coding framework. The interesting part is not the code, it is the discipline: independent model families review each other's work, every chunk close is gated by a signed token, and a clean run is treated as data rather than proof. If that sounds like something you want to poke at, read on.
 
 ## Contribute to the framework
 
-The framework lives at `~/work/adversarial-sprint-dev`. It is a normal Python repo with a test suite, a runner, and a set of gates. If you can write Python and read a spec, you can work here.
+The framework is a normal Python repo with a test suite, a runner, and a set of gates.
 
 Start with [getting started](../overview/getting-started.md) to clone and run the suite. Then read [development workflow](development-workflow.md) for the branch-by-author convention and how the three agents hand work off to each other. The [testing](testing.md) page explains what the suite actually covers and how to run it — the exact pass/skip count isn't repeated here on purpose; run the suite yourself, and CI keeps the testing page's own claim honest against a live run.
 
