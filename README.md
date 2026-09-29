@@ -4,7 +4,9 @@ _Multi-model adversarial planning, execution, and validation for agentic coding.
 
 Steel-man coordinates multiple AI models around one coding task. One model plans, a different model family challenges the plan, the work is divided into small chunks, and an independent validator checks each result. Deterministic gates, not model confidence, decide whether it ships.
 
-`PLAN → CHALLENGE → CHUNK → BUILD → VALIDATE → GATE`
+`PLAN → CHUNK → BUILD → VALIDATE → GATE`
+
+Each arrow represents one or more recursive challenge loops: review, revise, and retry before moving forward.
 
 For months I ran this process by hand, acting as the middleware between models reviewing the code we built. Steel-man automates that process and makes it measurable.
 
