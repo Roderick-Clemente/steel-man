@@ -14,6 +14,14 @@
 # Writes: ${REPO}/evidence/reviews/<sprint-name>/round{N}/\
 #         review-<modelId>-envelope.json + review-<modelId>-stderr.log
 # Exit:   0 on success; 2 on bad args; 3 on mkdir failure.
+#
+# Optional env (used by tools/quick-mode.py to fan seats out in parallel):
+#   REVIEW_OUT_ROOT  replaces ${REPO}/evidence/reviews, so reviews of private
+#                    work never land in this (public) repo
+#   REVIEW_ROUND     pin the round dir (e.g. round2) so parallel seats share one
+#                    round instead of racing for the next vacant slot
+#   REVIEW_AUTO      droid --auto level (default medium); "none" = read-only
+#   REVIEW_EFFORT    passed as --reasoning-effort when set
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_WITH_MODEL="${SCRIPT_DIR}/run-with-model.sh"
@@ -23,28 +31,36 @@ if [ "$#" -ne 3 ] || [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   exit 2
 fi
 MODEL="$1"; PROMPT="$2"; SPRINT="$3"
-SPRINT_DIR="${REPO_ROOT}/evidence/reviews/${SPRINT}"
+SPRINT_DIR="${REVIEW_OUT_ROOT:-${REPO_ROOT}/evidence/reviews}/${SPRINT}"
 # Round10-exhaustion guard (chunk-D5 kimi-k3 finding 3). When rounds
 # 1..10 ALL exist, the for-loop below cannot find a vacant slot and
 # silent-green writes to "${ROUND}"="round1", overwriting context. A
 # REJECT-rate above 10 means the spec is wrong, not the reviewer — STOP.
-all10exist=1
-for n in 1 2 3 4 5 6 7 8 9 10; do
-  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then all10exist=0; break; fi
-done
-if [ "$all10exist" -eq 1 ]; then
-  echo "run-review.sh: round-N exhaustion (round1..round10 all exist) — spec defect, not a retry shape" >&2
-  exit 3
+if [ -n "${REVIEW_ROUND:-}" ]; then
+  ROUND="$REVIEW_ROUND"
+else
+  all10exist=1
+  for n in 1 2 3 4 5 6 7 8 9 10; do
+    if [ ! -d "${SPRINT_DIR}/round${n}" ]; then all10exist=0; break; fi
+  done
+  if [ "$all10exist" -eq 1 ]; then
+    echo "run-review.sh: round-N exhaustion (round1..round10 all exist) — spec defect, not a retry shape" >&2
+    exit 3
+  fi
+  ROUND=1
+  for n in 1 2 3 4 5 6 7 8 9 10; do
+    if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi
+  done
 fi
-ROUND=1
-for n in 1 2 3 4 5 6 7 8 9 10; do
-  if [ ! -d "${SPRINT_DIR}/round${n}" ]; then ROUND="round${n}"; break; fi
-done
 mkdir -p "${SPRINT_DIR}/${ROUND}" || {
   echo "run-review.sh: could not mkdir '${SPRINT_DIR}/${ROUND}'" >&2
   exit 3
 }
+AUTO_ARGS=(--auto "${REVIEW_AUTO:-medium}")
+[ "${REVIEW_AUTO:-medium}" = none ] && AUTO_ARGS=()
+EFFORT_ARGS=()
+[ -n "${REVIEW_EFFORT:-}" ] && EFFORT_ARGS=(--reasoning-effort "$REVIEW_EFFORT")
 DROID_MODEL_ID="$MODEL" bash "$RUN_WITH_MODEL" \
-  droid exec --model "$MODEL" -f "$PROMPT" --auto medium --cwd "$PWD" --output-format json \
+  droid exec --model "$MODEL" -f "$PROMPT" "${AUTO_ARGS[@]}" "${EFFORT_ARGS[@]}" --cwd "$PWD" --output-format json \
     > "${SPRINT_DIR}/${ROUND}/review-${MODEL}-envelope.json" \
     2> "${SPRINT_DIR}/${ROUND}/review-${MODEL}-stderr.log"

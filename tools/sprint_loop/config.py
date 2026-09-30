@@ -58,6 +58,16 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
     # openai-family or claude-family.
     "kimi-k3": ("moonshot", "kimi-family"),
     "minimax-m3": ("minimax", "minimax-family"),
+    # Current frontier ids from `droid exec --model` (CLI 0.229.0), used by
+    # tools/quick-mode.py panels.
+    "claude-opus-5-5": ("anthropic", "claude-family"),
+    "claude-sonnet-5-5": ("anthropic", "claude-family"),
+    "gpt-6-sol": ("openai", "openai-family"),
+    "gpt-5.5-pro": ("openai", "openai-family"),
+    "grok-4.7": ("xai", "grok-family"),
+    "deepseek-v4-pro": ("deepseek", "deepseek-family"),
+    "glm-5.3": ("zhipu", "glm-family"),
+    "qwen3.8-max": ("alibaba", "qwen-family"),
 }
 
 
