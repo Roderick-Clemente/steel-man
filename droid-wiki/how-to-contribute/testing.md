@@ -8,7 +8,7 @@ Run the whole suite from the repo root:
 python3 -m pytest -q
 ```
 
-Expected: **512 passed, 6 skipped**. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
+Expected: everything passes, with a handful of skips. The skips are honest. Three need `telemetry/runs.jsonl`, the system-of-record, which is gitignored and absent outside a real run. The other three are in `tests/test_layout_paths.py`: the constants were flipped by chunk-D1-2, and `tests/test_layout_paths_chunk2.py` covers the new state.
 
 That count above is checked, not just written down once and left. `tools/check_doc_test_counts.py` runs the real suite and fails loud in CI if this page's claim stops matching reality — this exact page went six weeks and 263 tests stale before anyone noticed, so the number is no longer allowed to just sit here on faith.
 
