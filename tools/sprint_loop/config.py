@@ -64,6 +64,7 @@ MODEL_FAMILY_MAP: dict[str, tuple[str, str]] = {
     "claude-sonnet-5-5": ("anthropic", "claude-family"),
     "gpt-6-sol": ("openai", "openai-family"),
     "gpt-5.5-pro": ("openai", "openai-family"),
+    "gpt-5.3-codex": ("openai", "openai-family"),
     "grok-4.7": ("xai", "grok-family"),
     "deepseek-v4-pro": ("deepseek", "deepseek-family"),
     "glm-5.3": ("zhipu", "glm-family"),
